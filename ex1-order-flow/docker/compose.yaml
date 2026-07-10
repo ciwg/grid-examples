@@ -1,0 +1,106 @@
+services:
+  collector:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-collector"]
+    environment:
+      PG_COLLECTOR_LISTEN_ADDR: ":9200"
+      PG_DATA_DIR: "/data/collector"
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  kernel:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-kernel"]
+    environment:
+      PG_KERNEL_LISTEN_ADDR: ":7000"
+    depends_on: [collector]
+
+  seller:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-seller"]
+    environment:
+      PG_DATA_DIR: "/data/seller"
+      PG_KERNEL_ADDR: "kernel:7000"
+      PG_COLLECTOR_ADDR: "collector:9200"
+      PG_TIMEOUT_SECONDS: "3"
+    depends_on: [collector, kernel]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  warehouse:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-warehouse"]
+    environment:
+      PG_DATA_DIR: "/data/warehouse"
+      PG_KERNEL_ADDR: "kernel:7000"
+      PG_COLLECTOR_ADDR: "collector:9200"
+      PG_TIMEOUT_SECONDS: "3"
+    depends_on: [collector, kernel]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  accounting:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-accounting"]
+    environment:
+      PG_DATA_DIR: "/data/accounting"
+      PG_KERNEL_ADDR: "kernel:7000"
+      PG_COLLECTOR_ADDR: "collector:9200"
+      PG_TIMEOUT_SECONDS: "3"
+    depends_on: [collector, kernel]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  carrier:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-carrier"]
+    environment:
+      PG_DATA_DIR: "/data/carrier"
+      PG_KERNEL_ADDR: "kernel:7000"
+      PG_COLLECTOR_ADDR: "collector:9200"
+      PG_TIMEOUT_SECONDS: "3"
+    depends_on: [collector, kernel]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  intake:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-intake"]
+    environment:
+      PG_DATA_DIR: "/data/intake"
+      PG_KERNEL_ADDR: "kernel:7000"
+      PG_COLLECTOR_ADDR: "collector:9200"
+      PG_TIMEOUT_SECONDS: "3"
+    depends_on: [collector, kernel]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
+
+  analyze:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    entrypoint: ["/usr/local/bin/pg-order-analyze"]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data

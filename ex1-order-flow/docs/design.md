@@ -39,7 +39,7 @@ artifacts without turning the kernel into the business workflow owner.
 The next implementation session should treat these as hard constraints:
 
 - All inter-agent communication must be real grid traffic:
-  `grid([42(pCID), payload, capability_token, signature_bundle, ...protocol-owned-slots])`.
+  `grid([42(pCID), payload, proof])`.
 - The kernel parses slot `0` only, routes by pCID only, and forwards exact
   bytes only.
 - The kernel is not a router-with-business-logic, service registry, or RPC
@@ -55,8 +55,8 @@ The next implementation session should treat these as hard constraints:
   final API.
 - No hidden direct calls between business agents. If one agent needs another,
   it sends a message through the kernel boundary.
-- MVP must use actual signatures and cryptographic capability tokens on every
-  message path.
+- MVP must use actual signatures on every message path, and capability tokens
+  wherever the selected protocol profile requires them.
 - The MVP should be deterministic. Do not require an LLM for the first working
   slice.
 
@@ -321,28 +321,26 @@ Shared envelope shape:
 grid([
   42(pCID),
   payload,
-  capability_token,
-  signature_bundle,
-  ...protocol-owned-slots
+  proof
 ])
 ```
 
 Rules:
 
 - slot `0` is the routing pCID
-- slot `1` is the protocol payload
-- slot `2` carries a cryptographic capability token required by the receiving
-  agent for that action
-- slot `3` carries a signature bundle that signs the canonical bytes of slots
-  `0` through `2`
+- slot `1` is the protocol payload as a CBOR item directly, not a `bstr`
+  wrapper around encoded payload bytes
+- slot `2` carries the proof bytes for the pCID-defined signable view
 - the kernel still parses slot `0` only
-- each receiving app validates signature, capability token, payload shape, and
-  local policy before acting
+- each receiving app validates proof, payload shape, any required capability
+  token fields, and local policy before acting
 
 Capability-token requirements:
 
 - a capability token is a signed promise artifact granting bounded authority to
   request a specific action
+- capability tokens belong in pCID-owned payload fields rather than a universal
+  envelope slot
 - capability tokens must be cryptographically verifiable, not placeholder
   strings
 - capability tokens may scope authority by sender, receiver, protocol family,
@@ -356,7 +354,8 @@ Signature requirements:
   marker fields
 - signature verification failure is a local protocol failure, not a business
   refusal
-- registration traffic is signed and capability-token protected too
+- registration traffic is signed too, and any required capability tokens are
+  defined by the registration profile
 
 ## Draft Protocol Set
 
@@ -378,6 +377,7 @@ Payload:
   "kind": "submit" / "final",
   "customer_order_ref": tstr,
   ? "requested_by": tstr,
+  ? "capability_token": bstr,
   ? "ship_to": {
     "name": tstr,
     "address1": tstr,
@@ -431,6 +431,7 @@ Payload:
     "sku": tstr,
     "quantity": uint
   }],
+  ? "capability_token": bstr,
   ? "service_level": "ground" / "priority",
   ? "status": "packed" / "refused",
   ? "package_id": tstr,
@@ -455,6 +456,7 @@ Payload:
   "customer_order_ref": tstr,
   "parent_order_cid": 42(bstr),
   ? "payment_ref": tstr,
+  ? "capability_token": bstr,
   ? "currency": "USD",
   ? "amount_cents": uint,
   ? "status": "recorded" / "refused",
@@ -480,6 +482,7 @@ Payload:
   "parent_order_cid": 42(bstr),
   ? "parent_pick_pack_cid": 42(bstr),
   ? "parent_accounting_cid": 42(bstr),
+  ? "capability_token": bstr,
   ? "package_id": tstr,
   ? "weight_grams": uint,
   ? "ship_to": {
@@ -653,7 +656,7 @@ all of the following:
 - no payload field that repeats the protocol name
 - actual signature creation and verification on every message path
 - actual cryptographic capability-token issuance, presentation, and verification
-  on every message path
+  wherever the selected protocol profile requires a token
 - explicit refusal handling for missing, malformed, expired, or unauthorized
   capability tokens
 - explicit refusal handling for signature verification failure
