@@ -168,6 +168,8 @@ function peerSnapshot() {
       anchor: value.selection?.anchor || 0,
       head: value.selection?.head || 0,
       typing: Boolean(value.typing),
+      last_seen_at: value.lastSeenAt || null,
+      embodiment: value.embodiment || "",
     });
   });
   peers.sort((left, right) => left.participant_id.localeCompare(right.participant_id));

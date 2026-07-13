@@ -99,6 +99,12 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	if !hasPeer(sidecarAwareness, "browser-a", 3) {
 		t.Fatalf("browser peer did not appear in sidecar awareness: %#v", sidecarAwareness)
 	}
+	if !peerFieldEquals(sidecarAwareness, "browser-a", "typing", true) {
+		t.Fatalf("browser peer typing flag did not reach sidecar awareness: %#v", sidecarAwareness)
+	}
+	if !peerHasLastSeen(sidecarAwareness, "browser-a") {
+		t.Fatalf("browser peer last_seen_at missing in sidecar awareness: %#v", sidecarAwareness)
+	}
 
 	sidecar.Send(t, map[string]any{
 		"type":   "set_cursor",
@@ -111,6 +117,44 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	})
 	if !hasPeer(browserAwareness, "nvim-a", 7) {
 		t.Fatalf("nvim peer did not appear in browser awareness: %#v", browserAwareness)
+	}
+	if !peerHasLastSeen(browserAwareness, "nvim-a") {
+		t.Fatalf("nvim peer last_seen_at missing in browser awareness: %#v", browserAwareness)
+	}
+}
+
+func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
+	t.Parallel()
+
+	if _, err := exec.LookPath("nvim"); err != nil {
+		t.Skip("nvim not installed")
+	}
+
+	repoRoot := repoRoot(t)
+	output, err := exec.Command(
+		"nvim",
+		"--headless",
+		"-i", "NONE",
+		"--cmd", fmt.Sprintf("set runtimepath+=%s/nvim", repoRoot),
+		"--cmd", "lua require('grid_editor').setup({})",
+		"+lua print(vim.fn.exists(':GridEditorOpen'))",
+		"+lua print(vim.fn.exists(':GridEditorInfo'))",
+		"+lua print(vim.fn.exists(':GridEditorPeers'))",
+		"+lua print(vim.fn.exists(':GridEditorHelp'))",
+		"+qall",
+	).CombinedOutput()
+	if err != nil {
+		t.Fatalf("headless nvim setup failed: %v\n%s", err, string(output))
+	}
+
+	lines := strings.Fields(string(output))
+	if len(lines) < 4 {
+		t.Fatalf("unexpected nvim output: %q", string(output))
+	}
+	for _, line := range lines[len(lines)-4:] {
+		if line != "2" {
+			t.Fatalf("expected all phase 1 commands to exist, got output %q", string(output))
+		}
 	}
 }
 
@@ -276,6 +320,49 @@ func hasPeer(message map[string]any, participantID string, anchor float64) bool 
 		}
 		if peer["participant_id"] == participantID && peer["anchor"] == anchor {
 			return true
+		}
+	}
+	return false
+}
+
+func peerFieldEquals(message map[string]any, participantID string, field string, want any) bool {
+	peersValue, ok := message["peers"]
+	if !ok {
+		return false
+	}
+	peers, ok := peersValue.([]any)
+	if !ok {
+		return false
+	}
+	for _, rawPeer := range peers {
+		peer, ok := rawPeer.(map[string]any)
+		if !ok {
+			continue
+		}
+		if peer["participant_id"] == participantID {
+			return peer[field] == want
+		}
+	}
+	return false
+}
+
+func peerHasLastSeen(message map[string]any, participantID string) bool {
+	peersValue, ok := message["peers"]
+	if !ok {
+		return false
+	}
+	peers, ok := peersValue.([]any)
+	if !ok {
+		return false
+	}
+	for _, rawPeer := range peers {
+		peer, ok := rawPeer.(map[string]any)
+		if !ok {
+			continue
+		}
+		if peer["participant_id"] == participantID {
+			value, ok := peer["last_seen_at"].(string)
+			return ok && value != ""
 		}
 	}
 	return false
