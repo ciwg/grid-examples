@@ -1,5 +1,6 @@
 # TODO
 
+- [x] 008 - grid-editor phase 3 review, comments, and history surfaces - `TODO/TODO-mudak-grid-editor-phase-3.md`
 - [ ] 007 - grid-editor phase 2 document workflow, preview, and export surfaces - `TODO/TODO-lusab-grid-editor-phase-2.md`
 - [ ] 006 - grid-editor phase 1 collaborative-editor UX, status, and preferences - `TODO/TODO-tizaf-grid-editor-phase-1.md`
 - [ ] 005 - grid-editor presence aging and historical activity split - `TODO/TODO-mivor-grid-editor-presence-lifecycle.md`

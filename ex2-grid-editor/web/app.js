@@ -26787,6 +26787,7 @@ function wrapSelectedText(text, from3, to, prefix, suffix) {
   const insert2 = `${prefix}${selected || fallback}${suffix}`;
   const nextText = `${text.slice(0, from3)}${insert2}${text.slice(to)}`;
   return {
+    insert: insert2,
     text: nextText,
     selectionFrom: from3 + prefix.length,
     selectionTo: from3 + prefix.length + fallback.length
@@ -26850,6 +26851,14 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
     getCursorLine() {
       return view2.state.doc.lineAt(view2.state.selection.main.head).number;
     },
+    getSelection() {
+      const selection = view2.state.selection.main;
+      return {
+        from: selection.from,
+        to: selection.to,
+        text: view2.state.sliceDoc(selection.from, selection.to)
+      };
+    },
     setLineNumbers(enabled) {
       view2.dispatch({
         effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : [])
@@ -26896,6 +26905,17 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       });
       view2.focus();
     },
+    selectRange(from3, to) {
+      const docLength = view2.state.doc.length;
+      view2.dispatch({
+        selection: EditorSelection.range(
+          Math.max(0, Math.min(from3, docLength)),
+          Math.max(0, Math.min(to, docLength))
+        ),
+        scrollIntoView: true
+      });
+      view2.focus();
+    },
     insertAtCursor(text) {
       const selection = view2.state.selection.main;
       view2.dispatch({
@@ -26909,7 +26929,7 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       const selection = view2.state.selection.main;
       const next = wrapSelectedText(view2.state.doc.toString(), selection.from, selection.to, prefix, suffix);
       view2.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: next.text.slice(selection.from, next.text.length - (view2.state.doc.length - selection.to)) },
+        changes: { from: selection.from, to: selection.to, insert: next.insert },
         selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
         scrollIntoView: true
       });
@@ -31716,10 +31736,11 @@ var DocumentRegistry = class {
   snapshot() {
     return structuredClone(this.state);
   }
-  // Intent: Keep Phase 2 workflow metadata local to the browser while giving
-  // the app one coherent registry for recent docs, timestamps, bookmarks, and
-  // snapshots instead of scattering those values across ad hoc storage keys.
-  // Source: DI-dovoz; DI-nuvif
+  // Intent: Keep workflow and review metadata local to the browser while
+  // giving the app one coherent registry for recent docs, timestamps,
+  // bookmarks, snapshots, comments, and review history instead of scattering
+  // those values across ad hoc storage keys. Source: DI-dovoz; DI-nuvif;
+  // DI-safor; DI-lapek
   ensureDocument(documentID) {
     if (!this.state.documents[documentID]) {
       this.state.documents[documentID] = {
@@ -31730,7 +31751,11 @@ var DocumentRegistry = class {
         lastEditedAt: "",
         lastExportedAt: "",
         bookmarks: [],
-        snapshots: []
+        snapshots: [],
+        comments: [],
+        activity: [],
+        recentParticipants: [],
+        savedVersions: []
       };
     }
     return this.state.documents[documentID];
@@ -31738,6 +31763,11 @@ var DocumentRegistry = class {
   touchViewed(documentID) {
     const document2 = this.ensureDocument(documentID);
     document2.lastViewedAt = nowISO();
+    this.pushActivity(document2, {
+      type: "viewed",
+      label: "Viewed document",
+      at: document2.lastViewedAt
+    });
     this.bumpRecent(documentID);
     this.save();
     return structuredClone(document2);
@@ -31745,6 +31775,11 @@ var DocumentRegistry = class {
   touchEdited(documentID) {
     const document2 = this.ensureDocument(documentID);
     document2.lastEditedAt = nowISO();
+    this.pushActivity(document2, {
+      type: "edited",
+      label: "Edited document",
+      at: document2.lastEditedAt
+    });
     this.bumpRecent(documentID);
     this.save();
     return structuredClone(document2);
@@ -31752,12 +31787,22 @@ var DocumentRegistry = class {
   touchExported(documentID) {
     const document2 = this.ensureDocument(documentID);
     document2.lastExportedAt = nowISO();
+    this.pushActivity(document2, {
+      type: "exported",
+      label: "Exported document",
+      at: document2.lastExportedAt
+    });
     this.save();
     return structuredClone(document2);
   }
   updateTitle(documentID, title) {
     const document2 = this.ensureDocument(documentID);
     document2.title = title?.trim() || defaultTitle(documentID);
+    this.pushActivity(document2, {
+      type: "retitled",
+      label: `Updated title to ${document2.title}`,
+      at: nowISO()
+    });
     this.save();
     return structuredClone(document2);
   }
@@ -31774,12 +31819,109 @@ var DocumentRegistry = class {
   addBookmark(documentID, bookmark) {
     const document2 = this.ensureDocument(documentID);
     document2.bookmarks = [bookmark, ...document2.bookmarks.filter((value) => value.id !== bookmark.id)].slice(0, 24);
+    this.pushActivity(document2, {
+      type: "bookmark",
+      label: `Added bookmark ${bookmark.label}`,
+      at: bookmark.createdAt || nowISO()
+    });
     this.save();
     return structuredClone(document2);
   }
   addSnapshot(documentID, snapshot) {
     const document2 = this.ensureDocument(documentID);
     document2.snapshots = [snapshot, ...document2.snapshots].slice(0, 24);
+    this.pushActivity(document2, {
+      type: "snapshot",
+      label: `Published snapshot ${snapshot.title || "snapshot"}`,
+      at: snapshot.createdAt || nowISO()
+    });
+    this.save();
+    return structuredClone(document2);
+  }
+  addComment(documentID, comment2) {
+    const document2 = this.ensureDocument(documentID);
+    document2.comments = [comment2, ...document2.comments.filter((value) => value.id !== comment2.id)].slice(0, 64);
+    this.pushActivity(document2, {
+      type: "comment",
+      label: `Added comment by ${comment2.authorName}`,
+      at: comment2.createdAt || nowISO()
+    });
+    this.save();
+    return structuredClone(document2);
+  }
+  updateComment(documentID, commentID, updater) {
+    const document2 = this.ensureDocument(documentID);
+    document2.comments = document2.comments.map((comment2) => comment2.id === commentID ? updater(structuredClone(comment2)) : comment2);
+    this.save();
+    return structuredClone(document2);
+  }
+  addReaction(documentID, commentID, reaction) {
+    const document2 = this.ensureDocument(documentID);
+    document2.comments = document2.comments.map((comment2) => {
+      if (comment2.id !== commentID) {
+        return comment2;
+      }
+      return {
+        ...comment2,
+        reactions: [reaction, ...comment2.reactions || []].slice(0, 16)
+      };
+    });
+    this.pushActivity(document2, {
+      type: "reaction",
+      label: `Reacted ${reaction.emoji} to a comment`,
+      at: reaction.createdAt || nowISO()
+    });
+    this.save();
+    return structuredClone(document2);
+  }
+  toggleCommentResolved(documentID, commentID, resolvedBy) {
+    const document2 = this.ensureDocument(documentID);
+    let resolved = false;
+    document2.comments = document2.comments.map((comment2) => {
+      if (comment2.id !== commentID) {
+        return comment2;
+      }
+      resolved = !comment2.resolved;
+      return {
+        ...comment2,
+        resolved,
+        resolvedAt: resolved ? nowISO() : "",
+        resolvedBy: resolved ? resolvedBy : ""
+      };
+    });
+    this.pushActivity(document2, {
+      type: resolved ? "resolved" : "reopened",
+      label: resolved ? "Resolved comment" : "Reopened comment",
+      at: nowISO()
+    });
+    this.save();
+    return structuredClone(document2);
+  }
+  noteParticipant(documentID, participant) {
+    const document2 = this.ensureDocument(documentID);
+    const next = {
+      participantID: participant.participantID,
+      name: participant.name || participant.participantID,
+      color: participant.color || "#999999",
+      lastSeenAt: participant.lastSeenAt || nowISO(),
+      lastEditedAt: participant.lastEditedAt || "",
+      lastViewedAt: participant.lastViewedAt || ""
+    };
+    document2.recentParticipants = [
+      next,
+      ...document2.recentParticipants.filter((value) => value.participantID !== next.participantID)
+    ].slice(0, 24);
+    this.save();
+    return structuredClone(document2);
+  }
+  addSavedVersion(documentID, version) {
+    const document2 = this.ensureDocument(documentID);
+    document2.savedVersions = [version, ...document2.savedVersions.filter((value) => value.id !== version.id)].slice(0, 24);
+    this.pushActivity(document2, {
+      type: "version",
+      label: `Saved version ${version.name}`,
+      at: version.createdAt || nowISO()
+    });
     this.save();
     return structuredClone(document2);
   }
@@ -31795,6 +31937,10 @@ var DocumentRegistry = class {
       lastExportedAt: "",
       snapshots: [],
       bookmarks: [],
+      comments: [],
+      activity: [],
+      recentParticipants: [],
+      savedVersions: [],
       seedContent: content2
     };
     this.openTab(nextDocumentID);
@@ -31818,8 +31964,23 @@ var DocumentRegistry = class {
   get(documentID) {
     return structuredClone(this.ensureDocument(documentID));
   }
+  listComments(documentID) {
+    return structuredClone(this.ensureDocument(documentID).comments || []);
+  }
+  listActivity(documentID) {
+    return structuredClone(this.ensureDocument(documentID).activity || []);
+  }
+  listRecentParticipants(documentID) {
+    return structuredClone(this.ensureDocument(documentID).recentParticipants || []);
+  }
+  listSavedVersions(documentID) {
+    return structuredClone(this.ensureDocument(documentID).savedVersions || []);
+  }
   bumpRecent(documentID) {
     this.state.recent = [documentID, ...this.state.recent.filter((value) => value !== documentID)].slice(0, 12);
+  }
+  pushActivity(document2, event) {
+    document2.activity = [event, ...document2.activity || []].slice(0, 80);
   }
 };
 function templateCatalog() {
@@ -31875,6 +32036,10 @@ function normalizeState(raw) {
       lastExportedAt: value.lastExportedAt || "",
       bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
       snapshots: Array.isArray(value.snapshots) ? value.snapshots : [],
+      comments: Array.isArray(value.comments) ? value.comments : [],
+      activity: Array.isArray(value.activity) ? value.activity : [],
+      recentParticipants: Array.isArray(value.recentParticipants) ? value.recentParticipants : [],
+      savedVersions: Array.isArray(value.savedVersions) ? value.savedVersions : [],
       seedContent: value.seedContent || ""
     };
   }
@@ -31900,6 +32065,7 @@ function renderMarkdown(source) {
   let inCode = false;
   let codeLines = [];
   let inList2 = false;
+  let tableLines = [];
   const flushParagraph = () => {
     if (paragraph.length === 0) {
       return;
@@ -31913,10 +32079,18 @@ function renderMarkdown(source) {
       inList2 = false;
     }
   };
+  const flushTable = () => {
+    if (tableLines.length === 0) {
+      return;
+    }
+    blocks.push(renderTable(tableLines));
+    tableLines = [];
+  };
   for (const line of lines) {
     if (line.startsWith("```")) {
       flushParagraph();
       flushList();
+      flushTable();
       if (inCode) {
         blocks.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
         codeLines = [];
@@ -31933,8 +32107,27 @@ function renderMarkdown(source) {
     if (/^#{1,6}\s/.test(line)) {
       flushParagraph();
       flushList();
+      flushTable();
       const level = line.match(/^#+/)[0].length;
       blocks.push(`<h${level}>${inlineFormat(line.slice(level + 1))}</h${level}>`);
+      continue;
+    }
+    if (/^\|.+\|$/.test(line.trim())) {
+      flushParagraph();
+      flushList();
+      tableLines.push(line.trim());
+      continue;
+    }
+    flushTable();
+    const checklistMatch = line.match(/^[-*]\s+\[([ xX])\]\s+(.*)$/);
+    if (checklistMatch) {
+      flushParagraph();
+      if (!inList2) {
+        blocks.push("<ul>");
+        inList2 = true;
+      }
+      const checked = checklistMatch[1].toLowerCase() === "x" ? " checked" : "";
+      blocks.push(`<li><label><input type="checkbox" disabled${checked}> ${inlineFormat(checklistMatch[2])}</label></li>`);
       continue;
     }
     if (/^[-*]\s/.test(line)) {
@@ -31949,12 +32142,14 @@ function renderMarkdown(source) {
     if (line.trim() === "") {
       flushParagraph();
       flushList();
+      flushTable();
       continue;
     }
     paragraph.push(line.trim());
   }
   flushParagraph();
   flushList();
+  flushTable();
   if (inCode) {
     blocks.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
   }
@@ -31978,10 +32173,67 @@ function extractHeadings(source) {
   return headings;
 }
 function inlineFormat(text) {
-  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<span class="md-image">\u{1F5BC} $1</span>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>').replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => renderMedia(alt, url)).replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) => renderLink(label, url)).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+}
+function renderLink(label, url) {
+  const safeURL = sanitizeURL(url);
+  return `<a href="${safeURL}" target="_blank" rel="noreferrer">${label}</a>`;
+}
+function renderMedia(alt, url) {
+  const safeURL = sanitizeURL(url);
+  if (/\.(png|jpe?g|gif|webp|svg)$/i.test(safeURL) || safeURL.startsWith("data:image/")) {
+    return `<figure><img src="${safeURL}" alt="${alt}"><figcaption>${alt}</figcaption></figure>`;
+  }
+  if (/\.(mp4|webm|ogg)$/i.test(safeURL)) {
+    return `<figure><video controls src="${safeURL}"></video><figcaption>${alt}</figcaption></figure>`;
+  }
+  return `<span class="md-image">\u{1F5BC} ${alt}</span>`;
+}
+function renderTable(lines) {
+  const rows = lines.map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
+  const [header, ...body] = rows;
+  const headHTML = `<tr>${header.map((cell) => `<th>${inlineFormat(cell)}</th>`).join("")}</tr>`;
+  const bodyHTML = body.filter((row) => !row.every((cell) => /^:?-{3,}:?$/.test(cell))).map((row) => `<tr>${row.map((cell) => `<td>${inlineFormat(cell)}</td>`).join("")}</tr>`).join("");
+  return `<table><thead>${headHTML}</thead><tbody>${bodyHTML}</tbody></table>`;
+}
+function sanitizeURL(url) {
+  const value = String(url || "");
+  if (value.startsWith("javascript:")) {
+    return "#";
+  }
+  return value;
 }
 function escapeHTML(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+// src/review.js
+function summarizeDocument(text) {
+  const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) {
+    return "No summary yet.";
+  }
+  const headings = lines.filter((line) => line.startsWith("#")).slice(0, 2).map((line) => line.replace(/^#+\s*/, ""));
+  const prose = lines.filter((line) => !line.startsWith("#")).slice(0, 3);
+  return [...headings, ...prose].join(" ").slice(0, 240) || "No summary yet.";
+}
+function extractMentions(text, participantIndex = /* @__PURE__ */ new Map()) {
+  const matches = [...String(text || "").matchAll(/(^|\s)@([a-zA-Z0-9._-]+)/g)];
+  return matches.map((match) => {
+    const label = match[2];
+    const participantID = participantIndex.get(label.toLowerCase()) || "";
+    return {
+      label,
+      participantID
+    };
+  });
+}
+function inferVersionName(title, text) {
+  const heading2 = String(text || "").match(/^#\s+(.+)$/m)?.[1]?.trim();
+  if (heading2) {
+    return heading2.slice(0, 60);
+  }
+  return `${title || "Document"} version`;
 }
 
 // src/main.js
@@ -32018,6 +32270,11 @@ var openTabsEl = document.getElementById("open-tabs");
 var templateGalleryEl = document.getElementById("template-gallery");
 var editorStageEl = document.getElementById("editor-stage");
 var fileImportEl = document.getElementById("file-import");
+var focusButtonEl = document.getElementById("focus-button");
+var outlineListEl = document.getElementById("outline-list");
+var savedVersionsEl = document.getElementById("saved-versions");
+var recentParticipantsEl = document.getElementById("recent-participants");
+var activityFeedEl = document.getElementById("activity-feed");
 var timestampEls = {
   created: document.getElementById("doc-created"),
   viewed: document.getElementById("doc-viewed"),
@@ -32028,6 +32285,14 @@ var settingsPanel = document.getElementById("settings-panel");
 var helpPanel = document.getElementById("help-panel");
 var searchPanel = document.getElementById("search-panel");
 var exportPanel = document.getElementById("export-panel");
+var commentPanel = document.getElementById("comment-panel");
+var summaryPanel = document.getElementById("summary-panel");
+var debugPanel = document.getElementById("debug-panel");
+var commentSelectionEl = document.getElementById("comment-selection");
+var commentBodyEl = document.getElementById("comment-body");
+var commentListEl = document.getElementById("comment-list");
+var summaryTextEl = document.getElementById("summary-text");
+var debugOutputEl = document.getElementById("debug-output");
 var searchFields = {
   query: document.getElementById("search-query"),
   replace: document.getElementById("replace-query"),
@@ -32060,7 +32325,9 @@ var state = {
   prefs: preferences.get(),
   visiblePeers: /* @__PURE__ */ new Map(),
   previewEnabled: false,
-  splitEnabled: false
+  splitEnabled: false,
+  focusMode: false,
+  pendingCommentSelection: null
 };
 participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
@@ -32115,6 +32382,7 @@ async function bootDocument(documentID) {
   docTitleInput.value = documentMeta.title;
   renderRegistry();
   renderDocumentMeta(documentMeta);
+  renderReview();
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
@@ -32146,6 +32414,7 @@ async function bootDocument(documentID) {
       registry.touchEdited(documentID);
       renderDocumentMeta(registry.get(documentID));
       renderPreview();
+      renderReview();
     },
     (anchor, head) => {
       awareness.updateSelection(anchor, head);
@@ -32177,15 +32446,18 @@ async function bootDocument(documentID) {
   awareness.on("change", () => {
     const states = awareness.getStates();
     renderPeers(states);
+    noteRecentParticipants(states);
     const peers = Array.from(states.keys()).filter((id2) => id2 !== state.participantID);
     relay.observePeers(peers.map((participantID) => ({ participant_id: participantID })));
   });
   await awareness.connect();
   await relay.connect();
   renderPeers(awareness.getStates());
+  noteRecentParticipants(awareness.getStates());
   await refreshState(basePath);
   await applySeedIfNeeded(documentID);
   renderPreview();
+  renderReview();
 }
 async function applySeedIfNeeded(documentID) {
   const seed = registry.seedContent(documentID);
@@ -32321,6 +32593,13 @@ function renderRegistry() {
   renderDocTabs();
   renderTemplateGallery();
 }
+function renderReview() {
+  renderOutline();
+  renderSavedVersions();
+  renderRecentParticipants();
+  renderActivity();
+  renderComments();
+}
 function renderDocumentList(target, documents, extraClass, onClick) {
   target.innerHTML = "";
   for (const documentMeta of documents) {
@@ -32367,6 +32646,235 @@ function renderDocumentMeta(documentMeta) {
   timestampEls.viewed.textContent = formatTime(documentMeta.lastViewedAt);
   timestampEls.edited.textContent = formatTime(documentMeta.lastEditedAt);
   timestampEls.exported.textContent = formatTime(documentMeta.lastExportedAt);
+}
+function renderOutline() {
+  const headings = state.editor ? extractHeadings(state.editor.getText()) : [];
+  outlineListEl.innerHTML = "";
+  for (const heading2 of headings) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${"".padStart((heading2.level - 1) * 2, " ")}${heading2.text}`;
+    button.addEventListener("click", () => state.editor?.goToLine(heading2.line));
+    li.appendChild(button);
+    outlineListEl.appendChild(li);
+  }
+  if (headings.length === 0) {
+    appendEmptyState(outlineListEl, "No headings yet");
+  }
+}
+function renderSavedVersions() {
+  const versions = registry.listSavedVersions(state.documentID);
+  savedVersionsEl.innerHTML = "";
+  for (const version of versions) {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${escapeHTML2(version.name)}</strong><span class="tiny muted">${formatTime(version.createdAt)}</span>`;
+    savedVersionsEl.appendChild(li);
+  }
+  if (versions.length === 0) {
+    appendEmptyState(savedVersionsEl, "No saved versions yet");
+  }
+}
+function renderRecentParticipants() {
+  const participants = registry.listRecentParticipants(state.documentID);
+  recentParticipantsEl.innerHTML = "";
+  for (const participant of participants) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="swatch" style="background:${participant.color || "#999999"}"></span><span><strong>${escapeHTML2(participant.name || participant.participantID)}</strong><span class="tiny muted"> ${formatTime(participant.lastSeenAt)}</span></span>`;
+    recentParticipantsEl.appendChild(li);
+  }
+  if (participants.length === 0) {
+    appendEmptyState(recentParticipantsEl, "No participant history yet");
+  }
+}
+function renderActivity() {
+  const events = registry.listActivity(state.documentID);
+  activityFeedEl.innerHTML = "";
+  for (const event of events.slice(0, 12)) {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${escapeHTML2(event.label)}</strong><span class="tiny muted">${formatTime(event.at)}</span>`;
+    activityFeedEl.appendChild(li);
+  }
+  if (events.length === 0) {
+    appendEmptyState(activityFeedEl, "No activity yet");
+  }
+}
+function renderComments() {
+  const comments = registry.listComments(state.documentID);
+  commentListEl.innerHTML = "";
+  for (const comment2 of comments) {
+    const li = document.createElement("li");
+    li.className = "card";
+    const reactions = (comment2.reactions || []).map((reaction) => reaction.emoji).join(" ");
+    li.innerHTML = `
+      <strong>${escapeHTML2(comment2.authorName)}</strong>
+      <div class="tiny muted">${formatTime(comment2.createdAt)}${comment2.resolved ? " \xB7 resolved" : ""}</div>
+      <div>${escapeHTML2(comment2.selectionText || "")}</div>
+      <div>${escapeHTML2(comment2.body)}</div>
+      <div class="tiny muted">${reactions || "no reactions"}</div>
+    `;
+    li.addEventListener("click", () => {
+      if (comment2.selectionFrom != null && comment2.selectionTo != null) {
+        state.editor?.selectRange(comment2.selectionFrom, comment2.selectionTo);
+      }
+    });
+    commentListEl.appendChild(li);
+  }
+  if (comments.length === 0) {
+    appendEmptyState(commentListEl, "No comments yet");
+  }
+}
+function noteRecentParticipants(states) {
+  states.forEach((peer, participantID) => {
+    if (participantID === state.participantID) {
+      return;
+    }
+    registry.noteParticipant(state.documentID, {
+      participantID,
+      name: peer.user?.name || participantID,
+      color: peer.user?.color || "#999999",
+      lastSeenAt: peer.lastSeenAt || (/* @__PURE__ */ new Date()).toISOString()
+    });
+  });
+  renderRecentParticipants();
+}
+function appendEmptyState(target, label) {
+  const li = document.createElement("li");
+  li.className = "tiny muted";
+  li.textContent = label;
+  target.appendChild(li);
+}
+function openCommentPanel() {
+  const selection = state.editor?.getSelection();
+  if (!selection) {
+    return;
+  }
+  state.pendingCommentSelection = selection;
+  commentSelectionEl.value = selection.text || "(no text selected)";
+  commentBodyEl.value = "";
+  renderComments();
+  openOverlay(commentPanel);
+  commentBodyEl.focus();
+}
+function saveComment() {
+  const selection = state.pendingCommentSelection || state.editor?.getSelection();
+  const body = commentBodyEl.value.trim();
+  if (!selection || !body) {
+    showToast("Select text and enter a comment");
+    return;
+  }
+  const comment2 = {
+    id: crypto.randomUUID(),
+    authorName: state.prefs.displayName,
+    authorID: state.participantID,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    selectionFrom: selection.from,
+    selectionTo: selection.to,
+    selectionText: selection.text,
+    body,
+    resolved: false,
+    reactions: [],
+    mentions: extractMentions(body, buildParticipantIndex())
+  };
+  registry.addComment(state.documentID, comment2);
+  for (const mention of comment2.mentions) {
+    showToast(`Mentioned @${mention.label}`);
+  }
+  renderReview();
+  closeOverlay(commentPanel);
+}
+function resolveSelectedComments() {
+  const selection = state.pendingCommentSelection || state.editor?.getSelection();
+  if (!selection) {
+    return;
+  }
+  for (const comment2 of registry.listComments(state.documentID)) {
+    if (comment2.selectionFrom === selection.from && comment2.selectionTo === selection.to && !comment2.resolved) {
+      registry.toggleCommentResolved(state.documentID, comment2.id, state.prefs.displayName);
+      registry.addReaction(state.documentID, comment2.id, {
+        emoji: "\u2705",
+        authorName: state.prefs.displayName,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+  }
+  renderReview();
+}
+function saveNamedVersion() {
+  if (!state.editor) {
+    return;
+  }
+  const suggested = inferVersionName(docTitleInput.value || state.documentID, state.editor.getText());
+  const name2 = window.prompt("Version name", suggested);
+  if (!name2) {
+    return;
+  }
+  registry.addSavedVersion(state.documentID, {
+    id: crypto.randomUUID(),
+    name: name2,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    summary: summarizeDocument(state.editor.getText())
+  });
+  renderSavedVersions();
+  renderActivity();
+}
+function openSummary() {
+  if (!state.editor) {
+    return;
+  }
+  summaryTextEl.textContent = summarizeDocument(state.editor.getText());
+  openOverlay(summaryPanel);
+}
+function readSummary() {
+  const text = summaryTextEl.textContent || "";
+  if (!text) {
+    return;
+  }
+  if (!("speechSynthesis" in window)) {
+    showToast("Text-to-speech is not available here");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+function dictateComment() {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    showToast("Voice dictation is not available here");
+    return;
+  }
+  const recognition = new Recognition();
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results).map((result) => result[0].transcript).join(" ");
+    commentBodyEl.value = commentBodyEl.value ? `${commentBodyEl.value} ${transcript}` : transcript;
+  };
+  recognition.start();
+}
+function toggleFocusMode() {
+  state.focusMode = !state.focusMode;
+  document.body.classList.toggle("focus-mode", state.focusMode);
+  focusButtonEl.textContent = state.focusMode ? "Exit Focus" : "Focus";
+}
+function openDebugPanel() {
+  debugOutputEl.textContent = JSON.stringify({
+    documentID: state.documentID,
+    profile: state.prefs.profile,
+    participantID: state.participantID,
+    revision: revisionEl.textContent,
+    localReplica: contentCIDEl.textContent,
+    comments: registry.listComments(state.documentID),
+    activity: registry.listActivity(state.documentID).slice(0, 12),
+    participants: registry.listRecentParticipants(state.documentID),
+    versions: registry.listSavedVersions(state.documentID)
+  }, null, 2);
+  openOverlay(debugPanel);
+}
+function buildParticipantIndex() {
+  const index = /* @__PURE__ */ new Map();
+  for (const participant of registry.listRecentParticipants(state.documentID)) {
+    index.set(String(participant.name || "").toLowerCase(), participant.participantID);
+  }
+  return index;
 }
 function renderPreview() {
   if (!state.editor) {
@@ -32657,6 +33165,11 @@ function registerEvents() {
   document.getElementById("export-button").addEventListener("click", openExport);
   document.getElementById("snapshot-button").addEventListener("click", publishSnapshot);
   document.getElementById("bookmark-button").addEventListener("click", addBookmark);
+  document.getElementById("comment-button").addEventListener("click", openCommentPanel);
+  document.getElementById("save-version-button").addEventListener("click", saveNamedVersion);
+  document.getElementById("summary-button").addEventListener("click", openSummary);
+  document.getElementById("focus-button").addEventListener("click", toggleFocusMode);
+  document.getElementById("debug-button").addEventListener("click", openDebugPanel);
   document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
   document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
   document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
@@ -32666,6 +33179,9 @@ function registerEvents() {
   document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
   document.getElementById("search-close").addEventListener("click", () => closeOverlay(searchPanel));
   document.getElementById("export-close").addEventListener("click", () => closeOverlay(exportPanel));
+  document.getElementById("comment-close").addEventListener("click", () => closeOverlay(commentPanel));
+  document.getElementById("summary-close").addEventListener("click", () => closeOverlay(summaryPanel));
+  document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
     window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
@@ -32684,6 +33200,10 @@ function registerEvents() {
   document.getElementById("export-audit").addEventListener("click", exportAuditReport);
   document.getElementById("generate-demo-doc").addEventListener("click", generateDoc);
   document.getElementById("sample-doc").addEventListener("click", sampleDoc);
+  document.getElementById("comment-save").addEventListener("click", saveComment);
+  document.getElementById("comment-resolve-all").addEventListener("click", resolveSelectedComments);
+  document.getElementById("speak-summary").addEventListener("click", readSummary);
+  document.getElementById("dictate-summary").addEventListener("click", dictateComment);
   fileImportEl.addEventListener("change", handleImportedFile);
   displayNameInput.addEventListener("change", () => {
     updatePreferences({ displayName: displayNameInput.value || "Browser User" }, { skipFormSync: true });
@@ -32694,6 +33214,7 @@ function registerEvents() {
   docTitleInput.addEventListener("change", () => {
     renderDocumentMeta(registry.updateTitle(state.documentID, docTitleInput.value));
     renderRegistry();
+    renderActivity();
   });
   settingsFields.theme.addEventListener("change", () => updatePreferences({ theme: settingsFields.theme.value }, { skipFormSync: true }));
   settingsFields.lineNumbers.addEventListener("change", () => updatePreferences({ lineNumbers: settingsFields.lineNumbers.checked }, { skipFormSync: true }));
@@ -32727,10 +33248,18 @@ function registerEvents() {
       event.preventDefault();
       openHelp();
     } else if (event.key === "Escape") {
+      if (state.focusMode) {
+        state.focusMode = false;
+        document.body.classList.remove("focus-mode");
+        focusButtonEl.textContent = "Focus";
+      }
       closeOverlay(settingsPanel);
       closeOverlay(helpPanel);
       closeOverlay(searchPanel);
       closeOverlay(exportPanel);
+      closeOverlay(commentPanel);
+      closeOverlay(summaryPanel);
+      closeOverlay(debugPanel);
     }
   });
 }

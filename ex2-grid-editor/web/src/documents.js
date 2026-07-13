@@ -26,10 +26,11 @@ export class DocumentRegistry {
     return structuredClone(this.state);
   }
 
-  // Intent: Keep Phase 2 workflow metadata local to the browser while giving
-  // the app one coherent registry for recent docs, timestamps, bookmarks, and
-  // snapshots instead of scattering those values across ad hoc storage keys.
-  // Source: DI-dovoz; DI-nuvif
+  // Intent: Keep workflow and review metadata local to the browser while
+  // giving the app one coherent registry for recent docs, timestamps,
+  // bookmarks, snapshots, comments, and review history instead of scattering
+  // those values across ad hoc storage keys. Source: DI-dovoz; DI-nuvif;
+  // DI-safor; DI-lapek
   ensureDocument(documentID) {
     if (!this.state.documents[documentID]) {
       this.state.documents[documentID] = {
@@ -41,6 +42,10 @@ export class DocumentRegistry {
         lastExportedAt: "",
         bookmarks: [],
         snapshots: [],
+        comments: [],
+        activity: [],
+        recentParticipants: [],
+        savedVersions: [],
       };
     }
     return this.state.documents[documentID];
@@ -49,6 +54,11 @@ export class DocumentRegistry {
   touchViewed(documentID) {
     const document = this.ensureDocument(documentID);
     document.lastViewedAt = nowISO();
+    this.pushActivity(document, {
+      type: "viewed",
+      label: "Viewed document",
+      at: document.lastViewedAt,
+    });
     this.bumpRecent(documentID);
     this.save();
     return structuredClone(document);
@@ -57,6 +67,11 @@ export class DocumentRegistry {
   touchEdited(documentID) {
     const document = this.ensureDocument(documentID);
     document.lastEditedAt = nowISO();
+    this.pushActivity(document, {
+      type: "edited",
+      label: "Edited document",
+      at: document.lastEditedAt,
+    });
     this.bumpRecent(documentID);
     this.save();
     return structuredClone(document);
@@ -65,6 +80,11 @@ export class DocumentRegistry {
   touchExported(documentID) {
     const document = this.ensureDocument(documentID);
     document.lastExportedAt = nowISO();
+    this.pushActivity(document, {
+      type: "exported",
+      label: "Exported document",
+      at: document.lastExportedAt,
+    });
     this.save();
     return structuredClone(document);
   }
@@ -72,6 +92,11 @@ export class DocumentRegistry {
   updateTitle(documentID, title) {
     const document = this.ensureDocument(documentID);
     document.title = title?.trim() || defaultTitle(documentID);
+    this.pushActivity(document, {
+      type: "retitled",
+      label: `Updated title to ${document.title}`,
+      at: nowISO(),
+    });
     this.save();
     return structuredClone(document);
   }
@@ -91,6 +116,11 @@ export class DocumentRegistry {
   addBookmark(documentID, bookmark) {
     const document = this.ensureDocument(documentID);
     document.bookmarks = [bookmark, ...document.bookmarks.filter((value) => value.id !== bookmark.id)].slice(0, 24);
+    this.pushActivity(document, {
+      type: "bookmark",
+      label: `Added bookmark ${bookmark.label}`,
+      at: bookmark.createdAt || nowISO(),
+    });
     this.save();
     return structuredClone(document);
   }
@@ -98,6 +128,104 @@ export class DocumentRegistry {
   addSnapshot(documentID, snapshot) {
     const document = this.ensureDocument(documentID);
     document.snapshots = [snapshot, ...document.snapshots].slice(0, 24);
+    this.pushActivity(document, {
+      type: "snapshot",
+      label: `Published snapshot ${snapshot.title || "snapshot"}`,
+      at: snapshot.createdAt || nowISO(),
+    });
+    this.save();
+    return structuredClone(document);
+  }
+
+  addComment(documentID, comment) {
+    const document = this.ensureDocument(documentID);
+    document.comments = [comment, ...document.comments.filter((value) => value.id !== comment.id)].slice(0, 64);
+    this.pushActivity(document, {
+      type: "comment",
+      label: `Added comment by ${comment.authorName}`,
+      at: comment.createdAt || nowISO(),
+    });
+    this.save();
+    return structuredClone(document);
+  }
+
+  updateComment(documentID, commentID, updater) {
+    const document = this.ensureDocument(documentID);
+    document.comments = document.comments.map((comment) => comment.id === commentID ? updater(structuredClone(comment)) : comment);
+    this.save();
+    return structuredClone(document);
+  }
+
+  addReaction(documentID, commentID, reaction) {
+    const document = this.ensureDocument(documentID);
+    document.comments = document.comments.map((comment) => {
+      if (comment.id !== commentID) {
+        return comment;
+      }
+      return {
+        ...comment,
+        reactions: [reaction, ...(comment.reactions || [])].slice(0, 16),
+      };
+    });
+    this.pushActivity(document, {
+      type: "reaction",
+      label: `Reacted ${reaction.emoji} to a comment`,
+      at: reaction.createdAt || nowISO(),
+    });
+    this.save();
+    return structuredClone(document);
+  }
+
+  toggleCommentResolved(documentID, commentID, resolvedBy) {
+    const document = this.ensureDocument(documentID);
+    let resolved = false;
+    document.comments = document.comments.map((comment) => {
+      if (comment.id !== commentID) {
+        return comment;
+      }
+      resolved = !comment.resolved;
+      return {
+        ...comment,
+        resolved,
+        resolvedAt: resolved ? nowISO() : "",
+        resolvedBy: resolved ? resolvedBy : "",
+      };
+    });
+    this.pushActivity(document, {
+      type: resolved ? "resolved" : "reopened",
+      label: resolved ? "Resolved comment" : "Reopened comment",
+      at: nowISO(),
+    });
+    this.save();
+    return structuredClone(document);
+  }
+
+  noteParticipant(documentID, participant) {
+    const document = this.ensureDocument(documentID);
+    const next = {
+      participantID: participant.participantID,
+      name: participant.name || participant.participantID,
+      color: participant.color || "#999999",
+      lastSeenAt: participant.lastSeenAt || nowISO(),
+      lastEditedAt: participant.lastEditedAt || "",
+      lastViewedAt: participant.lastViewedAt || "",
+    };
+    document.recentParticipants = [
+      next,
+      ...document.recentParticipants.filter((value) => value.participantID !== next.participantID),
+    ].slice(0, 24);
+    this.save();
+    return structuredClone(document);
+  }
+
+  addSavedVersion(documentID, version) {
+    const document = this.ensureDocument(documentID);
+    document.savedVersions = [version, ...document.savedVersions.filter((value) => value.id !== version.id)].slice(0, 24);
+    this.pushActivity(document, {
+      type: "version",
+      label: `Saved version ${version.name}`,
+      at: version.createdAt || nowISO(),
+    });
     this.save();
     return structuredClone(document);
   }
@@ -114,6 +242,10 @@ export class DocumentRegistry {
       lastExportedAt: "",
       snapshots: [],
       bookmarks: [],
+      comments: [],
+      activity: [],
+      recentParticipants: [],
+      savedVersions: [],
       seedContent: content,
     };
     this.openTab(nextDocumentID);
@@ -143,8 +275,28 @@ export class DocumentRegistry {
     return structuredClone(this.ensureDocument(documentID));
   }
 
+  listComments(documentID) {
+    return structuredClone(this.ensureDocument(documentID).comments || []);
+  }
+
+  listActivity(documentID) {
+    return structuredClone(this.ensureDocument(documentID).activity || []);
+  }
+
+  listRecentParticipants(documentID) {
+    return structuredClone(this.ensureDocument(documentID).recentParticipants || []);
+  }
+
+  listSavedVersions(documentID) {
+    return structuredClone(this.ensureDocument(documentID).savedVersions || []);
+  }
+
   bumpRecent(documentID) {
     this.state.recent = [documentID, ...this.state.recent.filter((value) => value !== documentID)].slice(0, 12);
+  }
+
+  pushActivity(document, event) {
+    document.activity = [event, ...(document.activity || [])].slice(0, 80);
   }
 }
 
@@ -203,6 +355,10 @@ export function normalizeState(raw) {
       lastExportedAt: value.lastExportedAt || "",
       bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
       snapshots: Array.isArray(value.snapshots) ? value.snapshots : [],
+      comments: Array.isArray(value.comments) ? value.comments : [],
+      activity: Array.isArray(value.activity) ? value.activity : [],
+      recentParticipants: Array.isArray(value.recentParticipants) ? value.recentParticipants : [],
+      savedVersions: Array.isArray(value.savedVersions) ? value.savedVersions : [],
       seedContent: value.seedContent || "",
     };
   }

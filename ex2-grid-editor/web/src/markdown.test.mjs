@@ -18,3 +18,11 @@ test("extractHeadings returns line-aware heading metadata", () => {
     { level: 2, text: "Deep", line: 3 },
   ]);
 });
+
+test("renderMarkdown supports checklists and tables", () => {
+  const html = renderMarkdown("- [x] Done\n- [ ] Todo\n\n| Name | Value |\n| --- | --- |\n| A | B |");
+  assert.match(html, /type="checkbox" disabled checked/);
+  assert.match(html, /<table>/);
+  assert.match(html, /<th>Name<\/th>/);
+  assert.match(html, /<td>B<\/td>/);
+});

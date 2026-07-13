@@ -88,6 +88,28 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 - `Copy Link` and `Email Link` are Phase 2 sharing helpers layered on top of
   the existing document ID and browser URL flow.
 
+## Phase 3 review shell
+
+### Comments and history
+
+- `Comment` opens an inline-review panel for the current selection.
+- Comments, reactions, activity, recent participants, and saved versions are
+  local review metadata in this phase, not new relay semantics. Source:
+  `DI-safor`; `DI-lapek`.
+- `Save Version` captures a named local review marker without restoring or
+  rewriting history.
+
+### Review navigation
+
+- The sidebar `Review` card shows:
+  - outline headings
+  - saved versions
+  - recent participants
+  - recent activity
+- `Focus` hides supporting chrome so the editor can take over the screen.
+- `Summary` and `Inspect` open lightweight overlays for quick review and
+  diagnostics.
+
 ## Document controls
 
 ### `Document ID`

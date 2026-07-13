@@ -146,6 +146,14 @@ Phase 2 browser workflow surfaces now include:
 - import, export, snapshot, and audit-report actions
 - copy/share link flows and bookmark support
 
+Phase 3 browser review surfaces now include:
+
+- inline comments and annotation ranges
+- saved versions and local review history
+- activity feed and recent participant history
+- outline navigation and focus mode
+- summary and diagnostics overlays
+
 ## Neovim Version
 
 The easiest Neovim path is the launcher script:

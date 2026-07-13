@@ -5,6 +5,7 @@ import { wrapSelectedText } from "./formatting.js";
 
 test("wrapSelectedText wraps selected text with markdown markers", () => {
   const next = wrapSelectedText("hello world", 6, 11, "**", "**");
+  assert.equal(next.insert, "**world**");
   assert.equal(next.text, "hello **world**");
   assert.equal(next.selectionFrom, 8);
   assert.equal(next.selectionTo, 13);

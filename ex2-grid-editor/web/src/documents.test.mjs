@@ -44,12 +44,47 @@ test("template catalog exposes phase 2 starter docs", () => {
   assert.ok(labels.includes("Demo Sample"));
 });
 
+test("review metadata tracks comments, versions, and participants", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.addComment("demo", {
+    id: "comment-1",
+    authorName: "Mallory",
+    createdAt: "2026-07-13T10:00:00Z",
+    body: "Looks good",
+    reactions: [],
+  });
+  registry.addReaction("demo", "comment-1", {
+    emoji: "👍",
+    createdAt: "2026-07-13T10:01:00Z",
+  });
+  registry.toggleCommentResolved("demo", "comment-1", "Mallory");
+  registry.addSavedVersion("demo", {
+    id: "version-1",
+    name: "Draft 1",
+    createdAt: "2026-07-13T10:02:00Z",
+  });
+  registry.noteParticipant("demo", {
+    participantID: "browser-1",
+    name: "Mallory",
+    color: "#123456",
+  });
+
+  assert.equal(registry.listComments("demo").length, 1);
+  assert.equal(registry.listComments("demo")[0].reactions[0].emoji, "👍");
+  assert.equal(registry.listComments("demo")[0].resolved, true);
+  assert.equal(registry.listSavedVersions("demo")[0].name, "Draft 1");
+  assert.equal(registry.listRecentParticipants("demo")[0].name, "Mallory");
+  assert.ok(registry.listActivity("demo").length >= 4);
+});
+
 test("normalizeState filters dangling recent and tab references", () => {
   const state = normalizeState({
-    documents: { demo: { title: "Demo" } },
+    documents: { demo: { title: "Demo", comments: [{}], activity: [{}], recentParticipants: [{}], savedVersions: [{}] } },
     recent: ["demo", "missing"],
     openTabs: ["demo", "missing"],
   });
   assert.deepEqual(state.recent, ["demo"]);
   assert.deepEqual(state.openTabs, ["demo"]);
+  assert.equal(state.documents.demo.comments.length, 1);
+  assert.equal(state.documents.demo.savedVersions.length, 1);
 });

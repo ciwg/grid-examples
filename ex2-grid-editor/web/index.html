@@ -117,6 +117,31 @@
           </div>
           <ul id="peer-list"></ul>
         </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Review</h2>
+            <span class="tiny muted">Outline and history</span>
+          </div>
+          <div class="workspace-lists">
+            <div>
+              <h3>Outline</h3>
+              <ul id="outline-list" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Saved versions</h3>
+              <ul id="saved-versions" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Recent participants</h3>
+              <ul id="recent-participants" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Activity</h3>
+              <ul id="activity-feed" class="doc-list"></ul>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="editor-shell">
@@ -132,6 +157,11 @@
             <button id="export-button" class="toolbar-button" type="button">Export</button>
             <button id="snapshot-button" class="toolbar-button" type="button">Snapshot</button>
             <button id="bookmark-button" class="toolbar-button" type="button">Bookmark</button>
+            <button id="comment-button" class="toolbar-button" type="button">Comment</button>
+            <button id="save-version-button" class="toolbar-button" type="button">Save Version</button>
+            <button id="summary-button" class="toolbar-button" type="button">Summary</button>
+            <button id="focus-button" class="toolbar-button" type="button">Focus</button>
+            <button id="debug-button" class="toolbar-button" type="button">Inspect</button>
           </div>
           <div class="toolbar-group toolbar-status">
             <span id="status" class="status-pill status-connecting">connecting…</span>
@@ -257,6 +287,50 @@
           <button id="publish-snapshot" class="ghost-button" type="button">Publish Snapshot</button>
           <button id="export-audit" class="ghost-button" type="button">Audit Report</button>
         </div>
+      </div>
+    </div>
+
+    <div id="comment-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Comments</h2>
+          <button id="comment-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Selected text
+          <textarea id="comment-selection" rows="3" readonly></textarea>
+        </label>
+        <label>Comment
+          <textarea id="comment-body" rows="4" placeholder="Add an inline comment or note"></textarea>
+        </label>
+        <div class="button-row">
+          <button id="comment-save" type="button">Save Comment</button>
+          <button id="comment-resolve-all" class="ghost-button" type="button">Resolve Selected</button>
+        </div>
+        <ul id="comment-list" class="doc-list"></ul>
+      </div>
+    </div>
+
+    <div id="summary-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Document Summary</h2>
+          <button id="summary-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <p id="summary-text" class="muted"></p>
+        <div class="button-row">
+          <button id="speak-summary" type="button">Read Aloud</button>
+          <button id="dictate-summary" class="ghost-button" type="button">Voice Input</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="debug-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Diagnostics</h2>
+          <button id="debug-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <pre id="debug-output" class="debug-output"></pre>
       </div>
     </div>
 

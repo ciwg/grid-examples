@@ -6,6 +6,7 @@ export function wrapSelectedText(text, from, to, prefix, suffix) {
   const insert = `${prefix}${selected || fallback}${suffix}`;
   const nextText = `${text.slice(0, from)}${insert}${text.slice(to)}`;
   return {
+    insert,
     text: nextText,
     selectionFrom: from + prefix.length,
     selectionTo: from + prefix.length + fallback.length,

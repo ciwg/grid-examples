@@ -69,6 +69,14 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
     getCursorLine() {
       return view.state.doc.lineAt(view.state.selection.main.head).number;
     },
+    getSelection() {
+      const selection = view.state.selection.main;
+      return {
+        from: selection.from,
+        to: selection.to,
+        text: view.state.sliceDoc(selection.from, selection.to),
+      };
+    },
     setLineNumbers(enabled) {
       view.dispatch({
         effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : []),
@@ -115,6 +123,17 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       });
       view.focus();
     },
+    selectRange(from, to) {
+      const docLength = view.state.doc.length;
+      view.dispatch({
+        selection: EditorSelection.range(
+          Math.max(0, Math.min(from, docLength)),
+          Math.max(0, Math.min(to, docLength)),
+        ),
+        scrollIntoView: true,
+      });
+      view.focus();
+    },
     insertAtCursor(text) {
       const selection = view.state.selection.main;
       view.dispatch({
@@ -128,7 +147,7 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       const selection = view.state.selection.main;
       const next = wrapSelectedText(view.state.doc.toString(), selection.from, selection.to, prefix, suffix);
       view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: next.text.slice(selection.from, next.text.length - (view.state.doc.length - selection.to)) },
+        changes: { from: selection.from, to: selection.to, insert: next.insert },
         selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
         scrollIntoView: true,
       });

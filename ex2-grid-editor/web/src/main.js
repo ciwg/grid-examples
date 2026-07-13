@@ -4,6 +4,7 @@ import { AutomergeRelayClient } from "./automerge-relay.js";
 import { PreferencesStore, defaultShortcuts, formatShortcut } from "./preferences.js";
 import { DocumentRegistry, generateDemoText, templateCatalog } from "./documents.js";
 import { extractHeadings, renderMarkdown } from "./markdown.js";
+import { extractMentions, inferVersionName, summarizeDocument } from "./review.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -39,6 +40,11 @@ const openTabsEl = document.getElementById("open-tabs");
 const templateGalleryEl = document.getElementById("template-gallery");
 const editorStageEl = document.getElementById("editor-stage");
 const fileImportEl = document.getElementById("file-import");
+const focusButtonEl = document.getElementById("focus-button");
+const outlineListEl = document.getElementById("outline-list");
+const savedVersionsEl = document.getElementById("saved-versions");
+const recentParticipantsEl = document.getElementById("recent-participants");
+const activityFeedEl = document.getElementById("activity-feed");
 
 const timestampEls = {
   created: document.getElementById("doc-created"),
@@ -51,6 +57,14 @@ const settingsPanel = document.getElementById("settings-panel");
 const helpPanel = document.getElementById("help-panel");
 const searchPanel = document.getElementById("search-panel");
 const exportPanel = document.getElementById("export-panel");
+const commentPanel = document.getElementById("comment-panel");
+const summaryPanel = document.getElementById("summary-panel");
+const debugPanel = document.getElementById("debug-panel");
+const commentSelectionEl = document.getElementById("comment-selection");
+const commentBodyEl = document.getElementById("comment-body");
+const commentListEl = document.getElementById("comment-list");
+const summaryTextEl = document.getElementById("summary-text");
+const debugOutputEl = document.getElementById("debug-output");
 const searchFields = {
   query: document.getElementById("search-query"),
   replace: document.getElementById("replace-query"),
@@ -86,6 +100,8 @@ const state = {
   visiblePeers: new Map(),
   previewEnabled: false,
   splitEnabled: false,
+  focusMode: false,
+  pendingCommentSelection: null,
 };
 
 participantEl.textContent = state.participantID;
@@ -150,6 +166,7 @@ async function bootDocument(documentID) {
   docTitleInput.value = documentMeta.title;
   renderRegistry();
   renderDocumentMeta(documentMeta);
+  renderReview();
 
   state.relay?.disconnect();
   state.awareness?.disconnect();
@@ -183,6 +200,7 @@ async function bootDocument(documentID) {
       registry.touchEdited(documentID);
       renderDocumentMeta(registry.get(documentID));
       renderPreview();
+      renderReview();
     },
     (anchor, head) => {
       awareness.updateSelection(anchor, head);
@@ -216,6 +234,7 @@ async function bootDocument(documentID) {
   awareness.on("change", () => {
     const states = awareness.getStates();
     renderPeers(states);
+    noteRecentParticipants(states);
     const peers = Array.from(states.keys()).filter((id) => id !== state.participantID);
     relay.observePeers(peers.map((participantID) => ({ participant_id: participantID })));
   });
@@ -223,9 +242,11 @@ async function bootDocument(documentID) {
   await awareness.connect();
   await relay.connect();
   renderPeers(awareness.getStates());
+  noteRecentParticipants(awareness.getStates());
   await refreshState(basePath);
   await applySeedIfNeeded(documentID);
   renderPreview();
+  renderReview();
 }
 
 async function applySeedIfNeeded(documentID) {
@@ -381,6 +402,17 @@ function renderRegistry() {
   renderTemplateGallery();
 }
 
+// Intent: Keep the first Phase 3 review/history surfaces browser-local and
+// optional so comments, outline, saved versions, and diagnostics can mature
+// without changing the relay contract. Source: DI-safor; DI-lapek
+function renderReview() {
+  renderOutline();
+  renderSavedVersions();
+  renderRecentParticipants();
+  renderActivity();
+  renderComments();
+}
+
 function renderDocumentList(target, documents, extraClass, onClick) {
   target.innerHTML = "";
   for (const documentMeta of documents) {
@@ -430,6 +462,252 @@ function renderDocumentMeta(documentMeta) {
   timestampEls.viewed.textContent = formatTime(documentMeta.lastViewedAt);
   timestampEls.edited.textContent = formatTime(documentMeta.lastEditedAt);
   timestampEls.exported.textContent = formatTime(documentMeta.lastExportedAt);
+}
+
+function renderOutline() {
+  const headings = state.editor ? extractHeadings(state.editor.getText()) : [];
+  outlineListEl.innerHTML = "";
+  for (const heading of headings) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${"".padStart((heading.level - 1) * 2, " ")}${heading.text}`;
+    button.addEventListener("click", () => state.editor?.goToLine(heading.line));
+    li.appendChild(button);
+    outlineListEl.appendChild(li);
+  }
+  if (headings.length === 0) {
+    appendEmptyState(outlineListEl, "No headings yet");
+  }
+}
+
+function renderSavedVersions() {
+  const versions = registry.listSavedVersions(state.documentID);
+  savedVersionsEl.innerHTML = "";
+  for (const version of versions) {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${escapeHTML(version.name)}</strong><span class="tiny muted">${formatTime(version.createdAt)}</span>`;
+    savedVersionsEl.appendChild(li);
+  }
+  if (versions.length === 0) {
+    appendEmptyState(savedVersionsEl, "No saved versions yet");
+  }
+}
+
+function renderRecentParticipants() {
+  const participants = registry.listRecentParticipants(state.documentID);
+  recentParticipantsEl.innerHTML = "";
+  for (const participant of participants) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="swatch" style="background:${participant.color || "#999999"}"></span><span><strong>${escapeHTML(participant.name || participant.participantID)}</strong><span class="tiny muted"> ${formatTime(participant.lastSeenAt)}</span></span>`;
+    recentParticipantsEl.appendChild(li);
+  }
+  if (participants.length === 0) {
+    appendEmptyState(recentParticipantsEl, "No participant history yet");
+  }
+}
+
+function renderActivity() {
+  const events = registry.listActivity(state.documentID);
+  activityFeedEl.innerHTML = "";
+  for (const event of events.slice(0, 12)) {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${escapeHTML(event.label)}</strong><span class="tiny muted">${formatTime(event.at)}</span>`;
+    activityFeedEl.appendChild(li);
+  }
+  if (events.length === 0) {
+    appendEmptyState(activityFeedEl, "No activity yet");
+  }
+}
+
+function renderComments() {
+  const comments = registry.listComments(state.documentID);
+  commentListEl.innerHTML = "";
+  for (const comment of comments) {
+    const li = document.createElement("li");
+    li.className = "card";
+    const reactions = (comment.reactions || []).map((reaction) => reaction.emoji).join(" ");
+    li.innerHTML = `
+      <strong>${escapeHTML(comment.authorName)}</strong>
+      <div class="tiny muted">${formatTime(comment.createdAt)}${comment.resolved ? " · resolved" : ""}</div>
+      <div>${escapeHTML(comment.selectionText || "")}</div>
+      <div>${escapeHTML(comment.body)}</div>
+      <div class="tiny muted">${reactions || "no reactions"}</div>
+    `;
+    li.addEventListener("click", () => {
+      if (comment.selectionFrom != null && comment.selectionTo != null) {
+        state.editor?.selectRange(comment.selectionFrom, comment.selectionTo);
+      }
+    });
+    commentListEl.appendChild(li);
+  }
+  if (comments.length === 0) {
+    appendEmptyState(commentListEl, "No comments yet");
+  }
+}
+
+function noteRecentParticipants(states) {
+  states.forEach((peer, participantID) => {
+    if (participantID === state.participantID) {
+      return;
+    }
+    registry.noteParticipant(state.documentID, {
+      participantID,
+      name: peer.user?.name || participantID,
+      color: peer.user?.color || "#999999",
+      lastSeenAt: peer.lastSeenAt || new Date().toISOString(),
+    });
+  });
+  renderRecentParticipants();
+}
+
+function appendEmptyState(target, label) {
+  const li = document.createElement("li");
+  li.className = "tiny muted";
+  li.textContent = label;
+  target.appendChild(li);
+}
+
+function openCommentPanel() {
+  const selection = state.editor?.getSelection();
+  if (!selection) {
+    return;
+  }
+  state.pendingCommentSelection = selection;
+  commentSelectionEl.value = selection.text || "(no text selected)";
+  commentBodyEl.value = "";
+  renderComments();
+  openOverlay(commentPanel);
+  commentBodyEl.focus();
+}
+
+function saveComment() {
+  const selection = state.pendingCommentSelection || state.editor?.getSelection();
+  const body = commentBodyEl.value.trim();
+  if (!selection || !body) {
+    showToast("Select text and enter a comment");
+    return;
+  }
+  const comment = {
+    id: crypto.randomUUID(),
+    authorName: state.prefs.displayName,
+    authorID: state.participantID,
+    createdAt: new Date().toISOString(),
+    selectionFrom: selection.from,
+    selectionTo: selection.to,
+    selectionText: selection.text,
+    body,
+    resolved: false,
+    reactions: [],
+    mentions: extractMentions(body, buildParticipantIndex()),
+  };
+  registry.addComment(state.documentID, comment);
+  for (const mention of comment.mentions) {
+    showToast(`Mentioned @${mention.label}`);
+  }
+  renderReview();
+  closeOverlay(commentPanel);
+}
+
+function resolveSelectedComments() {
+  const selection = state.pendingCommentSelection || state.editor?.getSelection();
+  if (!selection) {
+    return;
+  }
+  for (const comment of registry.listComments(state.documentID)) {
+    if (comment.selectionFrom === selection.from && comment.selectionTo === selection.to && !comment.resolved) {
+      registry.toggleCommentResolved(state.documentID, comment.id, state.prefs.displayName);
+      registry.addReaction(state.documentID, comment.id, {
+        emoji: "✅",
+        authorName: state.prefs.displayName,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  renderReview();
+}
+
+function saveNamedVersion() {
+  if (!state.editor) {
+    return;
+  }
+  const suggested = inferVersionName(docTitleInput.value || state.documentID, state.editor.getText());
+  const name = window.prompt("Version name", suggested);
+  if (!name) {
+    return;
+  }
+  registry.addSavedVersion(state.documentID, {
+    id: crypto.randomUUID(),
+    name,
+    createdAt: new Date().toISOString(),
+    summary: summarizeDocument(state.editor.getText()),
+  });
+  renderSavedVersions();
+  renderActivity();
+}
+
+function openSummary() {
+  if (!state.editor) {
+    return;
+  }
+  summaryTextEl.textContent = summarizeDocument(state.editor.getText());
+  openOverlay(summaryPanel);
+}
+
+function readSummary() {
+  const text = summaryTextEl.textContent || "";
+  if (!text) {
+    return;
+  }
+  if (!("speechSynthesis" in window)) {
+    showToast("Text-to-speech is not available here");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+
+function dictateComment() {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    showToast("Voice dictation is not available here");
+    return;
+  }
+  const recognition = new Recognition();
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results).map((result) => result[0].transcript).join(" ");
+    commentBodyEl.value = commentBodyEl.value ? `${commentBodyEl.value} ${transcript}` : transcript;
+  };
+  recognition.start();
+}
+
+function toggleFocusMode() {
+  state.focusMode = !state.focusMode;
+  document.body.classList.toggle("focus-mode", state.focusMode);
+  focusButtonEl.textContent = state.focusMode ? "Exit Focus" : "Focus";
+}
+
+function openDebugPanel() {
+  debugOutputEl.textContent = JSON.stringify({
+    documentID: state.documentID,
+    profile: state.prefs.profile,
+    participantID: state.participantID,
+    revision: revisionEl.textContent,
+    localReplica: contentCIDEl.textContent,
+    comments: registry.listComments(state.documentID),
+    activity: registry.listActivity(state.documentID).slice(0, 12),
+    participants: registry.listRecentParticipants(state.documentID),
+    versions: registry.listSavedVersions(state.documentID),
+  }, null, 2);
+  openOverlay(debugPanel);
+}
+
+function buildParticipantIndex() {
+  const index = new Map();
+  for (const participant of registry.listRecentParticipants(state.documentID)) {
+    index.set(String(participant.name || "").toLowerCase(), participant.participantID);
+  }
+  return index;
 }
 
 function renderPreview() {
@@ -760,6 +1038,11 @@ function registerEvents() {
   document.getElementById("export-button").addEventListener("click", openExport);
   document.getElementById("snapshot-button").addEventListener("click", publishSnapshot);
   document.getElementById("bookmark-button").addEventListener("click", addBookmark);
+  document.getElementById("comment-button").addEventListener("click", openCommentPanel);
+  document.getElementById("save-version-button").addEventListener("click", saveNamedVersion);
+  document.getElementById("summary-button").addEventListener("click", openSummary);
+  document.getElementById("focus-button").addEventListener("click", toggleFocusMode);
+  document.getElementById("debug-button").addEventListener("click", openDebugPanel);
   document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
   document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
   document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
@@ -769,6 +1052,9 @@ function registerEvents() {
   document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
   document.getElementById("search-close").addEventListener("click", () => closeOverlay(searchPanel));
   document.getElementById("export-close").addEventListener("click", () => closeOverlay(exportPanel));
+  document.getElementById("comment-close").addEventListener("click", () => closeOverlay(commentPanel));
+  document.getElementById("summary-close").addEventListener("click", () => closeOverlay(summaryPanel));
+  document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
     window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
@@ -787,6 +1073,10 @@ function registerEvents() {
   document.getElementById("export-audit").addEventListener("click", exportAuditReport);
   document.getElementById("generate-demo-doc").addEventListener("click", generateDoc);
   document.getElementById("sample-doc").addEventListener("click", sampleDoc);
+  document.getElementById("comment-save").addEventListener("click", saveComment);
+  document.getElementById("comment-resolve-all").addEventListener("click", resolveSelectedComments);
+  document.getElementById("speak-summary").addEventListener("click", readSummary);
+  document.getElementById("dictate-summary").addEventListener("click", dictateComment);
   fileImportEl.addEventListener("change", handleImportedFile);
 
   displayNameInput.addEventListener("change", () => {
@@ -798,6 +1088,7 @@ function registerEvents() {
   docTitleInput.addEventListener("change", () => {
     renderDocumentMeta(registry.updateTitle(state.documentID, docTitleInput.value));
     renderRegistry();
+    renderActivity();
   });
 
   settingsFields.theme.addEventListener("change", () => updatePreferences({ theme: settingsFields.theme.value }, { skipFormSync: true }));
@@ -833,10 +1124,18 @@ function registerEvents() {
       event.preventDefault();
       openHelp();
     } else if (event.key === "Escape") {
+      if (state.focusMode) {
+        state.focusMode = false;
+        document.body.classList.remove("focus-mode");
+        focusButtonEl.textContent = "Focus";
+      }
       closeOverlay(settingsPanel);
       closeOverlay(helpPanel);
       closeOverlay(searchPanel);
       closeOverlay(exportPanel);
+      closeOverlay(commentPanel);
+      closeOverlay(summaryPanel);
+      closeOverlay(debugPanel);
     }
   });
 }
