@@ -5,7 +5,7 @@ import "testing"
 func TestApplyPrefersHigherLamport(t *testing.T) {
 	t.Parallel()
 	current := State{Lamport: 1, Author: "a", MessageCID: "cid-1"}
-	message, err := NewMessage("demo", "hello", 2, "b", "test", "")
+	message, err := NewMessage("demo", "hello", 2, "b", "browser-b", "test", "")
 	if err != nil {
 		t.Fatalf("new message: %v", err)
 	}

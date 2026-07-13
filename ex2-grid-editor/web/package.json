@@ -1,0 +1,18 @@
+{
+  "name": "grid-editor-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=esm --platform=neutral --target=es2022 --outfile=app.js"
+  },
+  "dependencies": {
+    "@automerge/automerge": "^2.2.8",
+    "@codemirror/commands": "^6.9.1",
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
+    "@collab-editor/awareness": "file:../../../../collab-awareness",
+    "codemirror": "^6.0.2",
+    "esbuild": "^0.25.9"
+  }
+}

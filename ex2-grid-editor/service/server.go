@@ -34,17 +34,23 @@ func (server *Server) handleIndex(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = writer.Write(web.MustRead("index.html"))
+	if _, err := writer.Write(web.MustRead("index.html")); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (server *Server) handleAppJS(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	_, _ = writer.Write(web.MustRead("app.js"))
+	if _, err := writer.Write(web.MustRead("app.js")); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (server *Server) handleStyleCSS(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/css; charset=utf-8")
-	_, _ = writer.Write(web.MustRead("style.css"))
+	if _, err := writer.Write(web.MustRead("style.css")); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (server *Server) handleMeta(writer http.ResponseWriter, request *http.Request) {
@@ -98,54 +104,88 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		writeJSON(writer, http.StatusOK, server.app.DocumentState(documentID))
-	case "replace":
-		if request.Method != http.MethodPost {
-			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var payload struct {
-			Content    string `json:"content"`
-			Embodiment string `json:"embodiment"`
-		}
-		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := server.app.ReplaceDocument(documentID, payload.Content, payload.Embodiment); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
+		writeJSON(writer, http.StatusOK, server.app.State(documentID))
+	case "sync":
+		server.handleSync(writer, request, documentID)
 	case "awareness":
-		if request.Method != http.MethodPost {
-			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
-			return
+		server.handleAwareness(writer, request, documentID)
+	default:
+		http.NotFound(writer, request)
+	}
+}
+
+func (server *Server) handleSync(writer http.ResponseWriter, request *http.Request, documentID string) {
+	switch request.Method {
+	case http.MethodGet:
+		since := uint64(0)
+		if raw := request.URL.Query().Get("since"); raw != "" {
+			if _, err := fmt.Sscanf(raw, "%d", &since); err != nil {
+				http.Error(writer, "invalid since", http.StatusBadRequest)
+				return
+			}
 		}
+		writeJSON(writer, http.StatusOK, server.app.SyncFeed(documentID, since))
+	case http.MethodPost:
 		var payload struct {
-			Cursor      int    `json:"cursor"`
-			Head        int    `json:"head"`
-			Typing      bool   `json:"typing"`
-			DisplayName string `json:"display_name"`
-			Color       string `json:"color"`
-			Embodiment  string `json:"embodiment"`
+			ParticipantID string `json:"participant_id"`
+			RecipientID   string `json:"recipient_id"`
+			MessageBase64 string `json:"message_base64"`
+			Embodiment    string `json:"embodiment"`
 		}
 		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := server.app.UpdateAwareness(documentID, payload.Cursor, payload.Head, payload.Typing, payload.DisplayName, payload.Color, payload.Embodiment); err != nil {
+		// Intent: Keep the relay HTTP surface explicit about CRDT sync so browser
+		// and sidecar clients exchange signed Automerge messages through a stable
+		// endpoint instead of overloading snapshot-oriented routes. Source:
+		// DI-ramuv; DI-lumek
+		record, err := server.app.PostSync(documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, http.StatusOK, record)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.Request, documentID string) {
+	switch request.Method {
+	case http.MethodGet:
+		writeJSON(writer, http.StatusOK, map[string]any{
+			"document_id": documentID,
+			"awareness":   server.app.AwarenessState(documentID),
+		})
+	case http.MethodPost:
+		var payload struct {
+			ParticipantID string `json:"participant_id"`
+			Cursor        int    `json:"cursor"`
+			Head          int    `json:"head"`
+			Typing        bool   `json:"typing"`
+			DisplayName   string `json:"display_name"`
+			Color         string `json:"color"`
+			Embodiment    string `json:"embodiment"`
+		}
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := server.app.UpdateAwareness(documentID, payload.ParticipantID, payload.Cursor, payload.Head, payload.Typing, payload.DisplayName, payload.Color, payload.Embodiment); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
 		writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 	default:
-		http.NotFound(writer, request)
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func writeJSON(writer http.ResponseWriter, status int, value any) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	_ = json.NewEncoder(writer).Encode(value)
+	if err := json.NewEncoder(writer).Encode(value); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
 }

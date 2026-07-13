@@ -15,6 +15,7 @@ M.state = {
   last_message_cid = nil,
   cursor_ns = nil,
   augroup = nil,
+  participant_id = 'nvim-' .. tostring(vim.fn.getpid()),
 }
 
 local function join_lines()
@@ -110,6 +111,7 @@ local function send_awareness(typing)
   request({
     M.config.base_url .. '/api/local/documents/' .. M.state.doc_id .. '/awareness',
   }, {
+    participant_id = M.state.participant_id,
     cursor = offset,
     head = offset,
     typing = typing or false,
@@ -222,4 +224,3 @@ function M.setup(opts)
 end
 
 return M
-

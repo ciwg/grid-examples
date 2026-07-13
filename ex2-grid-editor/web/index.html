@@ -10,7 +10,7 @@
     <main class="layout">
       <section class="sidebar">
         <h1>grid-editor</h1>
-        <p class="muted">PromiseGrid example app</p>
+        <p class="muted">PromiseGrid CRDT relay example</p>
 
         <label>Document ID
           <div class="row">
@@ -28,7 +28,7 @@
         </label>
 
         <div class="card">
-          <h2>Local service</h2>
+          <h2>Relay</h2>
           <dl>
             <dt>Author</dt>
             <dd id="local-id">loading…</dd>
@@ -48,13 +48,17 @@
       <section class="editor-shell">
         <div class="toolbar">
           <span id="status">connecting…</span>
-          <span id="revision">revision: -</span>
-          <span id="content-cid">content: -</span>
+          <span id="revision">messages: -</span>
+          <span id="content-cid">local replica: -</span>
         </div>
-        <textarea id="editor" spellcheck="false"></textarea>
+        <div class="editor-presence">
+          <div class="peer-badges" id="peer-badges"></div>
+        </div>
+        <div class="editor-stage">
+          <div id="editor" class="editor-root"></div>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
-

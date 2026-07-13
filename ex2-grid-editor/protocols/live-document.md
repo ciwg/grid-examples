@@ -4,8 +4,8 @@ Status: repo-local draft for `grid-editor`
 
 ## Purpose
 
-`live-document` carries signed document-state updates between `grid-editor`
-services.
+`live-document` carries signed Automerge sync messages between `grid-editor`
+relays and embodiments.
 
 ## Envelope
 
@@ -20,31 +20,28 @@ item. Slot `2` carries the signing proof item.
 
 The current payload is a CBOR map with these fields:
 
-- `kind`: currently `replace`
+- `kind`: currently `sync`
 - `document_id`: shared logical document ID
-- `content`: full current document text
-- `content_cid`: CID over the exact UTF-8 content bytes
-- `lamport`: per-author logical clock used for deterministic convergence
-- `author`: stable author key ID derived from the Ed25519 public key
+- `author`: stable relay key ID derived from the Ed25519 public key
+- `participant_id`: local replica participant sending the message
+- `recipient_id`: optional target participant for directed sync replies
+- `sync_message`: raw Automerge sync-protocol bytes
+- `lamport`: relay-local logical clock used for stable append ordering
 - `embodiment`: optional local embodiment hint such as `browser` or `nvim`
-- `previous_cid`: optional previous accepted message CID known to the sender
 
 ## Convergence
 
-Receivers treat the payload as a full-document replacement and project the
-current document using deterministic last-writer-wins ordering:
+The relay does not project canonical document text. It verifies and persists
+signed sync envelopes, then forwards them to embodiment-local Automerge
+replicas. Convergence happens in the CRDT replicas, not in the relay.
 
-1. larger `lamport`
-2. lexical `author`
-3. lexical accepted `message_cid`
-
-This is a draft example-app rule, not a claim that upstream PromiseGrid has
-frozen the same document model.
+This is a repo-local example-app rule, not a claim that upstream PromiseGrid
+has frozen the same live-CRDT model. Source: `DI-ramuv`; `DI-lumek`.
 
 ## Verification
 
 - reject malformed CBOR
-- reject invalid `content_cid`
 - reject invalid signature proof
 - reject payloads whose slot `0` pCID does not match this spec
-
+- persist the signed canonical envelope bytes to CAS addressed by the signed
+  object hash
