@@ -51,6 +51,43 @@ service and the CRDT state around it, not just browser-only UI values. Source:
   are treated as app-level preferences rather than scattered one-off browser
   toggles. Source: `DI-vasul`.
 
+## Phase 2 workflow shell
+
+### Document workflow
+
+- The browser now keeps a local document registry for:
+  - title
+  - created / viewed / edited / exported timestamps
+  - recent docs
+  - open tabs
+  - bookmarks
+  - local snapshots
+- These workflow values are local browser metadata in this phase, not new
+  PromiseGrid wire semantics. Source: `DI-nuvif`; `DI-dovoz`.
+
+### Preview and navigation
+
+- `Preview` opens a markdown preview pane for the current document.
+- `Split View` keeps the editor and preview visible side-by-side.
+- `Find / Replace` provides search, replace-all, case-sensitive search, regex
+  mode, and go-to-line.
+- `Templates`, `Generate Demo Doc`, and `Sample Doc` are Phase 2 shortcuts for
+  creating workflow-ready content without typing from scratch.
+
+### Export and sharing
+
+- The export surface now supports:
+  - markdown
+  - HTML
+  - plain text
+  - Automerge bytes
+  - copy-as-markdown
+  - copy-as-HTML
+  - publish snapshot
+  - export audit report
+- `Copy Link` and `Email Link` are Phase 2 sharing helpers layered on top of
+  the existing document ID and browser URL flow.
+
 ## Document controls
 
 ### `Document ID`

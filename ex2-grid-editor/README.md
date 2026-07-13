@@ -137,6 +137,15 @@ npm run build
 The browser source lives under `web/src/` and is bundled into `web/app.js`
 with `esbuild`. Source: `DI-zegov`.
 
+Phase 2 browser workflow surfaces now include:
+
+- local document title/metadata and recent-doc tracking
+- template and sample-doc creation
+- markdown preview and split view
+- find/replace and go-to-line tools
+- import, export, snapshot, and audit-report actions
+- copy/share link flows and bookmark support
+
 ## Neovim Version
 
 The easiest Neovim path is the launcher script:

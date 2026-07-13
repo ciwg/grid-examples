@@ -4,6 +4,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import * as cmView from "@codemirror/view";
 import * as cmState from "@codemirror/state";
+import { wrapSelectedText } from "./formatting.js";
 
 export function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
@@ -62,41 +63,73 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
     focus() {
       view.focus();
     },
+    getText() {
+      return view.state.doc.toString();
+    },
+    getCursorLine() {
+      return view.state.doc.lineAt(view.state.selection.main.head).number;
+    },
     setLineNumbers(enabled) {
       view.dispatch({
         effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : []),
       });
     },
-    findNext(query) {
+    findNext(query, options = {}) {
       if (!query) {
         return false;
       }
       const doc = view.state.doc.toString();
       const current = view.state.selection.main;
-      let index = doc.indexOf(query, current.to);
-      if (index === -1) {
-        index = doc.indexOf(query, 0);
-      }
-      if (index === -1) {
+      const match = findMatch(doc, query, current.to, options) || findMatch(doc, query, 0, options);
+      if (!match) {
         return false;
       }
       view.dispatch({
-        selection: EditorSelection.range(index, index + query.length),
+        selection: EditorSelection.range(match.from, match.to),
         scrollIntoView: true,
       });
       view.focus();
       return true;
     },
+    replaceAll(query, replacement, options = {}) {
+      if (!query) {
+        return 0;
+      }
+      const source = view.state.doc.toString();
+      const next = replaceMatches(source, query, replacement, options);
+      if (next.count === 0) {
+        return 0;
+      }
+      view.dispatch({
+        changes: { from: 0, to: source.length, insert: next.text },
+      });
+      view.focus();
+      return next.count;
+    },
+    goToLine(lineNumber) {
+      const total = view.state.doc.lines;
+      const line = view.state.doc.line(Math.max(1, Math.min(total, lineNumber)));
+      view.dispatch({
+        selection: EditorSelection.cursor(line.from),
+        scrollIntoView: true,
+      });
+      view.focus();
+    },
+    insertAtCursor(text) {
+      const selection = view.state.selection.main;
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: text },
+        selection: EditorSelection.cursor(selection.from + text.length),
+        scrollIntoView: true,
+      });
+      view.focus();
+    },
     wrapSelection(prefix, suffix) {
       const selection = view.state.selection.main;
-      const selected = view.state.sliceDoc(selection.from, selection.to);
-      const fallback = selected || "text";
-      const insert = `${prefix}${selected || fallback}${suffix}`;
-      const anchor = selection.from + prefix.length;
-      const head = anchor + fallback.length;
+      const next = wrapSelectedText(view.state.doc.toString(), selection.from, selection.to, prefix, suffix);
       view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert },
-        selection: EditorSelection.range(anchor, head),
+        changes: { from: selection.from, to: selection.to, insert: next.text.slice(selection.from, next.text.length - (view.state.doc.length - selection.to)) },
+        selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
         scrollIntoView: true,
       });
       view.focus();
@@ -267,4 +300,56 @@ function injectCursorStyles() {
 
 function normalizeColor(value) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#999999";
+}
+
+function replaceMatches(source, query, replacement, options) {
+  if (options.regex) {
+    const flags = options.caseSensitive ? "g" : "gi";
+    const expression = new RegExp(query, flags);
+    let count = 0;
+    return {
+      text: source.replace(expression, (...args) => {
+        count += 1;
+        return typeof replacement === "function" ? replacement(...args) : replacement;
+      }),
+      count,
+    };
+  }
+  const haystack = options.caseSensitive ? source : source.toLowerCase();
+  const needle = options.caseSensitive ? query : query.toLowerCase();
+  let count = 0;
+  let cursor = 0;
+  let output = "";
+  while (cursor < source.length) {
+    const index = haystack.indexOf(needle, cursor);
+    if (index === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    output += source.slice(cursor, index);
+    output += replacement;
+    cursor = index + query.length;
+    count += 1;
+  }
+  return { text: output, count };
+}
+
+function findMatch(source, query, start, options) {
+  if (options.regex) {
+    const flags = options.caseSensitive ? "g" : "gi";
+    const expression = new RegExp(query, flags);
+    expression.lastIndex = start;
+    const match = expression.exec(source);
+    if (!match) {
+      return null;
+    }
+    return { from: match.index, to: match.index + match[0].length };
+  }
+  const haystack = options.caseSensitive ? source : source.toLowerCase();
+  const needle = options.caseSensitive ? query : query.toLowerCase();
+  const index = haystack.indexOf(needle, start);
+  if (index === -1) {
+    return null;
+  }
+  return { from: index, to: index + query.length };
 }

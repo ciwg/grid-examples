@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --format=esm --platform=neutral --target=es2022 --outfile=app.js"
+    "build": "esbuild src/main.js --bundle --format=esm --platform=neutral --target=es2022 --outfile=app.js",
+    "test": "node --test src/*.test.mjs"
   },
   "dependencies": {
     "@automerge/automerge": "^2.2.8",

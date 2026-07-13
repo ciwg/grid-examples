@@ -28,11 +28,29 @@
               <button id="open-doc" type="button">Open</button>
             </div>
           </label>
+          <label>Title
+            <input id="doc-title" type="text" value="">
+          </label>
           <div class="button-row">
             <button id="new-doc" type="button">New Shared Doc</button>
+            <button id="duplicate-doc" class="ghost-button" type="button">Duplicate</button>
+          </div>
+          <div class="button-row">
             <button id="paste-link" class="ghost-button" type="button">Paste Link</button>
+            <button id="copy-link" class="ghost-button" type="button">Copy Link</button>
+            <button id="email-link" class="ghost-button" type="button">Email Link</button>
           </div>
           <p class="tiny muted" id="share-link">Current link: loading…</p>
+          <dl class="meta-grid">
+            <dt>Created</dt>
+            <dd id="doc-created">-</dd>
+            <dt>Last viewed</dt>
+            <dd id="doc-viewed">-</dd>
+            <dt>Last edited</dt>
+            <dd id="doc-edited">-</dd>
+            <dt>Last exported</dt>
+            <dd id="doc-exported">-</dd>
+          </dl>
         </div>
 
         <div class="card">
@@ -50,6 +68,31 @@
             <dt>Participant</dt>
             <dd id="participant-id">loading…</dd>
           </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Workspace</h2>
+            <span class="tiny muted">Recent docs and templates</span>
+          </div>
+          <div class="workspace-lists">
+            <div>
+              <h3>Open tabs</h3>
+              <ul id="open-tabs" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Recent docs</h3>
+              <ul id="recent-docs" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Templates</h3>
+              <div id="template-gallery" class="template-grid"></div>
+              <div class="button-row">
+                <button id="generate-demo-doc" class="ghost-button" type="button">Generate Demo Doc</button>
+                <button id="sample-doc" class="ghost-button" type="button">Sample Doc</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -83,9 +126,16 @@
             <button id="bold-button" class="toolbar-button" type="button">Bold</button>
             <button id="italic-button" class="toolbar-button" type="button">Italic</button>
             <button id="underline-button" class="toolbar-button" type="button">Underline</button>
+            <button id="preview-button" class="toolbar-button" type="button">Preview</button>
+            <button id="split-button" class="toolbar-button" type="button">Split View</button>
+            <button id="import-button" class="toolbar-button" type="button">Import</button>
+            <button id="export-button" class="toolbar-button" type="button">Export</button>
+            <button id="snapshot-button" class="toolbar-button" type="button">Snapshot</button>
+            <button id="bookmark-button" class="toolbar-button" type="button">Bookmark</button>
           </div>
           <div class="toolbar-group toolbar-status">
             <span id="status" class="status-pill status-connecting">connecting…</span>
+            <span id="autosave-indicator" class="pill pill-muted">auto-save idle</span>
             <span id="revision">messages: -</span>
             <span id="content-cid">local replica: -</span>
           </div>
@@ -94,7 +144,7 @@
         <div id="welcome-banner" class="welcome-banner">
           <div>
             <strong>Quick start</strong>
-            <p class="muted">Open a shared doc, set your name and color, then use Help for shortcuts and search/formatting commands.</p>
+            <p class="muted">Open a shared doc, try Preview, then use Export or Snapshot when you want a stable handoff or demo artifact.</p>
           </div>
           <div class="button-row compact">
             <button id="welcome-open-settings" class="ghost-button" type="button">Settings</button>
@@ -102,12 +152,23 @@
           </div>
         </div>
 
+        <div class="doc-tab-bar" id="doc-tab-bar"></div>
+
         <div class="editor-presence">
           <div class="peer-badges" id="peer-badges"></div>
         </div>
 
-        <div class="editor-stage">
-          <div id="editor" class="editor-root"></div>
+        <div class="editor-stage" id="editor-stage">
+          <div class="editor-pane">
+            <div id="editor" class="editor-root"></div>
+          </div>
+          <div class="preview-pane hidden" id="preview-pane">
+            <div class="preview-head">
+              <strong id="preview-title">Markdown Preview</strong>
+              <span class="tiny muted" id="preview-meta">same document</span>
+            </div>
+            <div class="preview-body" id="preview-body"></div>
+          </div>
         </div>
       </section>
     </main>
@@ -156,6 +217,50 @@
       </div>
     </div>
 
+    <div id="search-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Find / Replace</h2>
+          <button id="search-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Find
+          <input id="search-query" type="text">
+        </label>
+        <label>Replace with
+          <input id="replace-query" type="text">
+        </label>
+        <div class="checkbox-row">
+          <label class="checkbox-row"><input id="search-case" type="checkbox"> Case sensitive</label>
+          <label class="checkbox-row"><input id="search-regex" type="checkbox"> Regex</label>
+        </div>
+        <div class="button-row">
+          <button id="find-next" type="button">Find Next</button>
+          <button id="replace-all" class="ghost-button" type="button">Replace All</button>
+          <button id="goto-line" class="ghost-button" type="button">Go To Line</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="export-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Export</h2>
+          <button id="export-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <div class="template-grid">
+          <button id="export-markdown" type="button">Markdown</button>
+          <button id="export-html" type="button">HTML</button>
+          <button id="export-text" type="button">Plain Text</button>
+          <button id="export-automerge" type="button">Automerge</button>
+          <button id="copy-markdown" class="ghost-button" type="button">Copy Markdown</button>
+          <button id="copy-html" class="ghost-button" type="button">Copy HTML</button>
+          <button id="publish-snapshot" class="ghost-button" type="button">Publish Snapshot</button>
+          <button id="export-audit" class="ghost-button" type="button">Audit Report</button>
+        </div>
+      </div>
+    </div>
+
+    <input id="file-import" type="file" class="hidden" accept=".md,.txt,.html,.json,image/*">
     <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
     <script type="module" src="/app.js"></script>
   </body>

@@ -26780,6 +26780,19 @@ var pasteURLAsLink = /* @__PURE__ */ EditorView.domEventHandlers({
   }
 });
 
+// src/formatting.js
+function wrapSelectedText(text, from3, to, prefix, suffix) {
+  const selected = text.slice(from3, to);
+  const fallback = selected || "text";
+  const insert2 = `${prefix}${selected || fallback}${suffix}`;
+  const nextText = `${text.slice(0, from3)}${insert2}${text.slice(to)}`;
+  return {
+    text: nextText,
+    selectionFrom: from3 + prefix.length,
+    selectionTo: from3 + prefix.length + fallback.length
+  };
+}
+
 // src/editor.js
 function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
@@ -26831,41 +26844,73 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
     focus() {
       view2.focus();
     },
+    getText() {
+      return view2.state.doc.toString();
+    },
+    getCursorLine() {
+      return view2.state.doc.lineAt(view2.state.selection.main.head).number;
+    },
     setLineNumbers(enabled) {
       view2.dispatch({
         effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : [])
       });
     },
-    findNext(query) {
+    findNext(query, options = {}) {
       if (!query) {
         return false;
       }
       const doc2 = view2.state.doc.toString();
       const current = view2.state.selection.main;
-      let index = doc2.indexOf(query, current.to);
-      if (index === -1) {
-        index = doc2.indexOf(query, 0);
-      }
-      if (index === -1) {
+      const match = findMatch(doc2, query, current.to, options) || findMatch(doc2, query, 0, options);
+      if (!match) {
         return false;
       }
       view2.dispatch({
-        selection: EditorSelection.range(index, index + query.length),
+        selection: EditorSelection.range(match.from, match.to),
         scrollIntoView: true
       });
       view2.focus();
       return true;
     },
+    replaceAll(query, replacement, options = {}) {
+      if (!query) {
+        return 0;
+      }
+      const source = view2.state.doc.toString();
+      const next = replaceMatches(source, query, replacement, options);
+      if (next.count === 0) {
+        return 0;
+      }
+      view2.dispatch({
+        changes: { from: 0, to: source.length, insert: next.text }
+      });
+      view2.focus();
+      return next.count;
+    },
+    goToLine(lineNumber) {
+      const total = view2.state.doc.lines;
+      const line = view2.state.doc.line(Math.max(1, Math.min(total, lineNumber)));
+      view2.dispatch({
+        selection: EditorSelection.cursor(line.from),
+        scrollIntoView: true
+      });
+      view2.focus();
+    },
+    insertAtCursor(text) {
+      const selection = view2.state.selection.main;
+      view2.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: text },
+        selection: EditorSelection.cursor(selection.from + text.length),
+        scrollIntoView: true
+      });
+      view2.focus();
+    },
     wrapSelection(prefix, suffix) {
       const selection = view2.state.selection.main;
-      const selected = view2.state.sliceDoc(selection.from, selection.to);
-      const fallback = selected || "text";
-      const insert2 = `${prefix}${selected || fallback}${suffix}`;
-      const anchor = selection.from + prefix.length;
-      const head = anchor + fallback.length;
+      const next = wrapSelectedText(view2.state.doc.toString(), selection.from, selection.to, prefix, suffix);
       view2.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: insert2 },
-        selection: EditorSelection.range(anchor, head),
+        changes: { from: selection.from, to: selection.to, insert: next.text.slice(selection.from, next.text.length - (view2.state.doc.length - selection.to)) },
+        selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
         scrollIntoView: true
       });
       view2.focus();
@@ -27022,6 +27067,56 @@ function injectCursorStyles() {
 }
 function normalizeColor(value) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#999999";
+}
+function replaceMatches(source, query, replacement, options) {
+  if (options.regex) {
+    const flags = options.caseSensitive ? "g" : "gi";
+    const expression = new RegExp(query, flags);
+    let count3 = 0;
+    return {
+      text: source.replace(expression, (...args) => {
+        count3 += 1;
+        return typeof replacement === "function" ? replacement(...args) : replacement;
+      }),
+      count: count3
+    };
+  }
+  const haystack = options.caseSensitive ? source : source.toLowerCase();
+  const needle = options.caseSensitive ? query : query.toLowerCase();
+  let count2 = 0;
+  let cursor = 0;
+  let output = "";
+  while (cursor < source.length) {
+    const index = haystack.indexOf(needle, cursor);
+    if (index === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    output += source.slice(cursor, index);
+    output += replacement;
+    cursor = index + query.length;
+    count2 += 1;
+  }
+  return { text: output, count: count2 };
+}
+function findMatch(source, query, start, options) {
+  if (options.regex) {
+    const flags = options.caseSensitive ? "g" : "gi";
+    const expression = new RegExp(query, flags);
+    expression.lastIndex = start;
+    const match = expression.exec(source);
+    if (!match) {
+      return null;
+    }
+    return { from: match.index, to: match.index + match[0].length };
+  }
+  const haystack = options.caseSensitive ? source : source.toLowerCase();
+  const needle = options.caseSensitive ? query : query.toLowerCase();
+  const index = haystack.indexOf(needle, start);
+  if (index === -1) {
+    return null;
+  }
+  return { from: index, to: index + query.length };
 }
 
 // src/relay-awareness.js
@@ -31353,6 +31448,9 @@ var AutomergeRelayClient = class {
   getReplicaCID() {
     return bytesToBase64(save(this.doc)).slice(0, 16);
   }
+  getReplicaBytes() {
+    return save(this.doc);
+  }
   async connect() {
     this.emitStatus("connecting");
     await this.poll();
@@ -31424,6 +31522,27 @@ var AutomergeRelayClient = class {
       });
     }
   }
+  replaceText(text) {
+    const previous = this.getText();
+    if (text === previous) {
+      return;
+    }
+    const prefix = commonPrefix(previous, text);
+    const suffix = commonSuffix(previous, text, prefix);
+    const deleteCount = previous.length - prefix - suffix;
+    const insertText = text.slice(prefix, text.length - suffix);
+    this.applyLocalUpdate({
+      changes: {
+        iterChanges(callback) {
+          callback(prefix, prefix + deleteCount, 0, 0, {
+            toString() {
+              return insertText;
+            }
+          });
+        }
+      }
+    });
+  }
   async receive(record) {
     const previous = clone(this.doc);
     const [nextDoc] = applyChanges(previous, [base64ToBytes(record.message_base64)]);
@@ -31476,6 +31595,24 @@ function bytesToBase64(bytes) {
 }
 function base64ToBytes(value) {
   return Uint8Array.from(window.atob(value), (char) => char.charCodeAt(0));
+}
+function commonPrefix(left, right) {
+  const size = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < size && left[index] === right[index]) {
+    index += 1;
+  }
+  return index;
+}
+function commonSuffix(left, right, prefix) {
+  const leftRemain = left.length - prefix;
+  const rightRemain = right.length - prefix;
+  const size = Math.min(leftRemain, rightRemain);
+  let index = 0;
+  while (index < size && left[left.length - 1 - index] === right[right.length - 1 - index]) {
+    index += 1;
+  }
+  return index;
 }
 
 // src/preferences.js
@@ -31555,6 +31692,298 @@ function normalizePreferences(value) {
   return next;
 }
 
+// src/documents.js
+var STORAGE_KEY2 = "grid-editor-phase2-documents";
+var DocumentRegistry = class {
+  constructor(storage = window.localStorage) {
+    this.storage = storage;
+    this.state = this.load();
+  }
+  load() {
+    try {
+      const raw = this.storage.getItem(STORAGE_KEY2);
+      if (!raw) {
+        return { documents: {}, recent: [], openTabs: [] };
+      }
+      return normalizeState(JSON.parse(raw));
+    } catch {
+      return { documents: {}, recent: [], openTabs: [] };
+    }
+  }
+  save() {
+    this.storage.setItem(STORAGE_KEY2, JSON.stringify(this.state));
+  }
+  snapshot() {
+    return structuredClone(this.state);
+  }
+  // Intent: Keep Phase 2 workflow metadata local to the browser while giving
+  // the app one coherent registry for recent docs, timestamps, bookmarks, and
+  // snapshots instead of scattering those values across ad hoc storage keys.
+  // Source: DI-dovoz; DI-nuvif
+  ensureDocument(documentID) {
+    if (!this.state.documents[documentID]) {
+      this.state.documents[documentID] = {
+        documentID,
+        title: defaultTitle(documentID),
+        createdAt: nowISO(),
+        lastViewedAt: nowISO(),
+        lastEditedAt: "",
+        lastExportedAt: "",
+        bookmarks: [],
+        snapshots: []
+      };
+    }
+    return this.state.documents[documentID];
+  }
+  touchViewed(documentID) {
+    const document2 = this.ensureDocument(documentID);
+    document2.lastViewedAt = nowISO();
+    this.bumpRecent(documentID);
+    this.save();
+    return structuredClone(document2);
+  }
+  touchEdited(documentID) {
+    const document2 = this.ensureDocument(documentID);
+    document2.lastEditedAt = nowISO();
+    this.bumpRecent(documentID);
+    this.save();
+    return structuredClone(document2);
+  }
+  touchExported(documentID) {
+    const document2 = this.ensureDocument(documentID);
+    document2.lastExportedAt = nowISO();
+    this.save();
+    return structuredClone(document2);
+  }
+  updateTitle(documentID, title) {
+    const document2 = this.ensureDocument(documentID);
+    document2.title = title?.trim() || defaultTitle(documentID);
+    this.save();
+    return structuredClone(document2);
+  }
+  openTab(documentID) {
+    this.ensureDocument(documentID);
+    this.state.openTabs = [documentID, ...this.state.openTabs.filter((value) => value !== documentID)].slice(0, 8);
+    this.bumpRecent(documentID);
+    this.save();
+  }
+  closeTab(documentID) {
+    this.state.openTabs = this.state.openTabs.filter((value) => value !== documentID);
+    this.save();
+  }
+  addBookmark(documentID, bookmark) {
+    const document2 = this.ensureDocument(documentID);
+    document2.bookmarks = [bookmark, ...document2.bookmarks.filter((value) => value.id !== bookmark.id)].slice(0, 24);
+    this.save();
+    return structuredClone(document2);
+  }
+  addSnapshot(documentID, snapshot) {
+    const document2 = this.ensureDocument(documentID);
+    document2.snapshots = [snapshot, ...document2.snapshots].slice(0, 24);
+    this.save();
+    return structuredClone(document2);
+  }
+  duplicateDocument(documentID, nextDocumentID, content2) {
+    const source = this.ensureDocument(documentID);
+    this.state.documents[nextDocumentID] = {
+      ...structuredClone(source),
+      documentID: nextDocumentID,
+      title: `${source.title} copy`,
+      createdAt: nowISO(),
+      lastViewedAt: nowISO(),
+      lastEditedAt: nowISO(),
+      lastExportedAt: "",
+      snapshots: [],
+      bookmarks: [],
+      seedContent: content2
+    };
+    this.openTab(nextDocumentID);
+    this.save();
+    return structuredClone(this.state.documents[nextDocumentID]);
+  }
+  registerSeedContent(documentID, content2) {
+    const document2 = this.ensureDocument(documentID);
+    document2.seedContent = content2;
+    this.save();
+  }
+  seedContent(documentID) {
+    return this.ensureDocument(documentID).seedContent || "";
+  }
+  listRecent() {
+    return this.state.recent.map((documentID) => structuredClone(this.ensureDocument(documentID)));
+  }
+  listOpenTabs() {
+    return this.state.openTabs.map((documentID) => structuredClone(this.ensureDocument(documentID)));
+  }
+  get(documentID) {
+    return structuredClone(this.ensureDocument(documentID));
+  }
+  bumpRecent(documentID) {
+    this.state.recent = [documentID, ...this.state.recent.filter((value) => value !== documentID)].slice(0, 12);
+  }
+};
+function templateCatalog() {
+  return [
+    {
+      id: "blank",
+      label: "Blank Doc",
+      content: ""
+    },
+    {
+      id: "notes",
+      label: "Meeting Notes",
+      content: "# Meeting notes\n\n## Agenda\n\n- \n\n## Notes\n\n- \n\n## Follow-up\n\n- "
+    },
+    {
+      id: "checklist",
+      label: "Checklist",
+      content: "# Checklist\n\n- [ ] Item one\n- [ ] Item two\n- [ ] Item three"
+    },
+    {
+      id: "demo",
+      label: "Demo Sample",
+      content: "# grid-editor demo\n\nThis is a shared sample document.\n\n## Try this\n\n- type from another browser\n- move your cursor\n- toggle preview\n- export a snapshot"
+    }
+  ];
+}
+function generateDemoText() {
+  return [
+    "# Generated demo document",
+    "",
+    "## Summary",
+    "",
+    "This is a generated test document for Phase 2 workflow surfaces.",
+    "",
+    "## Checklist",
+    "",
+    "- [ ] review layout",
+    "- [ ] open preview",
+    "- [ ] export markdown",
+    "- [ ] add bookmark"
+  ].join("\n");
+}
+function normalizeState(raw) {
+  const state2 = raw && typeof raw === "object" ? raw : {};
+  const documents = {};
+  for (const [documentID, value] of Object.entries(state2.documents || {})) {
+    documents[documentID] = {
+      documentID,
+      title: value.title || defaultTitle(documentID),
+      createdAt: value.createdAt || nowISO(),
+      lastViewedAt: value.lastViewedAt || "",
+      lastEditedAt: value.lastEditedAt || "",
+      lastExportedAt: value.lastExportedAt || "",
+      bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
+      snapshots: Array.isArray(value.snapshots) ? value.snapshots : [],
+      seedContent: value.seedContent || ""
+    };
+  }
+  return {
+    documents,
+    recent: Array.isArray(state2.recent) ? state2.recent.filter((value) => documents[value]) : [],
+    openTabs: Array.isArray(state2.openTabs) ? state2.openTabs.filter((value) => documents[value]) : []
+  };
+}
+function defaultTitle(documentID) {
+  return `Document ${documentID}`;
+}
+function nowISO() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+
+// src/markdown.js
+function renderMarkdown(source) {
+  const escaped = escapeHTML(source || "");
+  const lines = escaped.split("\n");
+  const blocks = [];
+  let paragraph = [];
+  let inCode = false;
+  let codeLines = [];
+  let inList2 = false;
+  const flushParagraph = () => {
+    if (paragraph.length === 0) {
+      return;
+    }
+    blocks.push(`<p>${inlineFormat(paragraph.join(" "))}</p>`);
+    paragraph = [];
+  };
+  const flushList = () => {
+    if (inList2) {
+      blocks.push("</ul>");
+      inList2 = false;
+    }
+  };
+  for (const line of lines) {
+    if (line.startsWith("```")) {
+      flushParagraph();
+      flushList();
+      if (inCode) {
+        blocks.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
+        codeLines = [];
+        inCode = false;
+      } else {
+        inCode = true;
+      }
+      continue;
+    }
+    if (inCode) {
+      codeLines.push(line);
+      continue;
+    }
+    if (/^#{1,6}\s/.test(line)) {
+      flushParagraph();
+      flushList();
+      const level = line.match(/^#+/)[0].length;
+      blocks.push(`<h${level}>${inlineFormat(line.slice(level + 1))}</h${level}>`);
+      continue;
+    }
+    if (/^[-*]\s/.test(line)) {
+      flushParagraph();
+      if (!inList2) {
+        blocks.push("<ul>");
+        inList2 = true;
+      }
+      blocks.push(`<li>${inlineFormat(line.slice(2))}</li>`);
+      continue;
+    }
+    if (line.trim() === "") {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    paragraph.push(line.trim());
+  }
+  flushParagraph();
+  flushList();
+  if (inCode) {
+    blocks.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
+  }
+  return blocks.join("\n");
+}
+function extractHeadings(source) {
+  const headings = [];
+  const lines = (source || "").split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const match = line.match(/^(#{1,6})\s+(.*)$/);
+    if (!match) {
+      continue;
+    }
+    headings.push({
+      level: match[1].length,
+      text: match[2].trim(),
+      line: index + 1
+    });
+  }
+  return headings;
+}
+function inlineFormat(text) {
+  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<span class="md-image">\u{1F5BC} $1</span>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>').replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+}
+function escapeHTML(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -31562,6 +31991,7 @@ var metaEls = {
   awarenessPCID: document.getElementById("awareness-pcid")
 };
 var statusEl = document.getElementById("status");
+var autosaveEl = document.getElementById("autosave-indicator");
 var revisionEl = document.getElementById("revision");
 var contentCIDEl = document.getElementById("content-cid");
 var peerListEl = document.getElementById("peer-list");
@@ -31575,11 +32005,35 @@ var toastStackEl = document.getElementById("toast-stack");
 var helpShortcutsEl = document.getElementById("help-shortcuts");
 var welcomeBannerEl = document.getElementById("welcome-banner");
 var docIDInput = document.getElementById("doc-id");
+var docTitleInput = document.getElementById("doc-title");
 var displayNameInput = document.getElementById("display-name");
 var colorInput = document.getElementById("color");
 var editorRoot = document.getElementById("editor");
+var previewPaneEl = document.getElementById("preview-pane");
+var previewBodyEl = document.getElementById("preview-body");
+var previewMetaEl = document.getElementById("preview-meta");
+var docTabBarEl = document.getElementById("doc-tab-bar");
+var recentDocsEl = document.getElementById("recent-docs");
+var openTabsEl = document.getElementById("open-tabs");
+var templateGalleryEl = document.getElementById("template-gallery");
+var editorStageEl = document.getElementById("editor-stage");
+var fileImportEl = document.getElementById("file-import");
+var timestampEls = {
+  created: document.getElementById("doc-created"),
+  viewed: document.getElementById("doc-viewed"),
+  edited: document.getElementById("doc-edited"),
+  exported: document.getElementById("doc-exported")
+};
 var settingsPanel = document.getElementById("settings-panel");
 var helpPanel = document.getElementById("help-panel");
+var searchPanel = document.getElementById("search-panel");
+var exportPanel = document.getElementById("export-panel");
+var searchFields = {
+  query: document.getElementById("search-query"),
+  replace: document.getElementById("replace-query"),
+  caseSensitive: document.getElementById("search-case"),
+  regex: document.getElementById("search-regex")
+};
 var settingsFields = {
   theme: document.getElementById("theme-select"),
   lineNumbers: document.getElementById("line-numbers-toggle"),
@@ -31596,6 +32050,7 @@ var settingsFields = {
   }
 };
 var preferences = new PreferencesStore();
+var registry = new DocumentRegistry();
 var state = {
   documentID: new URLSearchParams(window.location.search).get("doc") || "demo",
   participantID: getOrCreateParticipantID(),
@@ -31603,7 +32058,9 @@ var state = {
   awareness: null,
   relay: null,
   prefs: preferences.get(),
-  visiblePeers: /* @__PURE__ */ new Map()
+  visiblePeers: /* @__PURE__ */ new Map(),
+  previewEnabled: false,
+  splitEnabled: false
 };
 participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
@@ -31653,6 +32110,11 @@ async function bootDocument(documentID) {
   docIDInput.value = documentID;
   updateDocumentURL(documentID);
   updateShareLink(documentID);
+  registry.openTab(documentID);
+  const documentMeta = registry.touchViewed(documentID);
+  docTitleInput.value = documentMeta.title;
+  renderRegistry();
+  renderDocumentMeta(documentMeta);
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
@@ -31681,6 +32143,9 @@ async function bootDocument(documentID) {
       awareness.setTyping(true);
       scheduleTypingStop(awareness);
       contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
+      registry.touchEdited(documentID);
+      renderDocumentMeta(registry.get(documentID));
+      renderPreview();
     },
     (anchor, head) => {
       awareness.updateSelection(anchor, head);
@@ -31695,6 +32160,8 @@ async function bootDocument(documentID) {
   relay.on("document", (text) => {
     editor.setText(text);
     contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
+    updateDerivedTitle(text);
+    renderPreview();
   });
   relay.on("status", (status) => {
     renderStatus(status);
@@ -31717,6 +32184,22 @@ async function bootDocument(documentID) {
   await relay.connect();
   renderPeers(awareness.getStates());
   await refreshState(basePath);
+  await applySeedIfNeeded(documentID);
+  renderPreview();
+}
+async function applySeedIfNeeded(documentID) {
+  const seed = registry.seedContent(documentID);
+  if (!seed) {
+    return;
+  }
+  if (state.relay.getText() !== "") {
+    registry.registerSeedContent(documentID, "");
+    return;
+  }
+  state.relay.replaceText(seed);
+  state.editor.setText(seed);
+  registry.registerSeedContent(documentID, "");
+  registry.touchEdited(documentID);
 }
 async function refreshState(basePath) {
   const response = await fetch(`${basePath}/state`);
@@ -31743,7 +32226,7 @@ function renderPeers(states) {
     li.innerHTML = `
       <span class="swatch" style="background:${color}"></span>
       <span class="peer-meta">
-        <strong>${escapeHTML(name2)}</strong>
+        <strong>${escapeHTML2(name2)}</strong>
         <span class="peer-state ${peer.presenceState}">${peer.presenceState}</span>
       </span>
       <span class="tiny muted">@ ${cursor}</span>
@@ -31752,7 +32235,7 @@ function renderPeers(states) {
     const badge = document.createElement("div");
     badge.className = "peer-badge";
     badge.dataset.presenceState = peer.presenceState;
-    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${escapeHTML(name2)}</strong><span>${peer.presenceState}</span>`;
+    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${escapeHTML2(name2)}</strong><span>${peer.presenceState}</span>`;
     peerBadgesEl.appendChild(badge);
   }
   if (remotePeers.length === 0) {
@@ -31783,22 +32266,27 @@ function renderStatus(status) {
   }
   if (status.phase === "ready" && status.connected) {
     setStatus("ready", "ready");
+    autosaveEl.textContent = "auto-save synced";
     return;
   }
   if (status.phase === "syncing" || status.phase === "unsynced") {
     setStatus(status.phase, status.phase === "unsynced" ? "unsynced local changes" : "syncing\u2026");
+    autosaveEl.textContent = status.phase === "unsynced" ? "auto-save pending" : "auto-save syncing";
     return;
   }
   if (status.phase === "connecting") {
     setStatus("connecting", "connecting\u2026");
+    autosaveEl.textContent = "auto-save connecting";
     return;
   }
   if (status.phase === "disconnected") {
     setStatus("disconnected", status.message || "relay disconnected");
+    autosaveEl.textContent = "auto-save paused";
     return;
   }
   if (status.phase === "error") {
     setStatus("error", status.message || "sync error");
+    autosaveEl.textContent = "auto-save error";
   }
 }
 function setStatus(phase, text) {
@@ -31812,23 +32300,93 @@ function openSettings() {
 function renderHelp() {
   helpShortcutsEl.innerHTML = "";
   const shortcuts = state.prefs.shortcuts;
-  for (const [action, label] of Object.entries({
-    search: "Search",
+  const items = {
+    search: "Find / Replace",
     bold: "Bold",
     italic: "Italic",
     underline: "Underline",
     settings: "Settings",
     help: "Help"
-  })) {
+  };
+  for (const [action, label] of Object.entries(items)) {
     const row = document.createElement("div");
     row.className = "card";
-    row.innerHTML = `<strong>${label}</strong><div class="tiny muted">${escapeHTML(formatShortcut(shortcuts[action]))}</div>`;
+    row.innerHTML = `<strong>${label}</strong><div class="tiny muted">${escapeHTML2(formatShortcut(shortcuts[action]))}</div>`;
     helpShortcutsEl.appendChild(row);
   }
+}
+function renderRegistry() {
+  renderDocumentList(openTabsEl, registry.listOpenTabs(), (documentMeta) => documentMeta.documentID === state.documentID ? "active" : "", (documentMeta) => bootDocument(documentMeta.documentID));
+  renderDocumentList(recentDocsEl, registry.listRecent(), "", (documentMeta) => bootDocument(documentMeta.documentID));
+  renderDocTabs();
+  renderTemplateGallery();
+}
+function renderDocumentList(target, documents, extraClass, onClick) {
+  target.innerHTML = "";
+  for (const documentMeta of documents) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.className = extraClass;
+    button.type = "button";
+    button.textContent = `${documentMeta.title} (${documentMeta.documentID})`;
+    button.addEventListener("click", () => onClick(documentMeta));
+    li.appendChild(button);
+    target.appendChild(li);
+  }
+  if (documents.length === 0) {
+    const li = document.createElement("li");
+    li.className = "tiny muted";
+    li.textContent = "None yet";
+    target.appendChild(li);
+  }
+}
+function renderDocTabs() {
+  docTabBarEl.innerHTML = "";
+  for (const documentMeta of registry.listOpenTabs()) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = `doc-tab ${documentMeta.documentID === state.documentID ? "active" : ""}`;
+    tab.innerHTML = `<strong>${escapeHTML2(documentMeta.title)}</strong><span class="tiny muted">${escapeHTML2(documentMeta.documentID)}</span>`;
+    tab.addEventListener("click", () => bootDocument(documentMeta.documentID));
+    docTabBarEl.appendChild(tab);
+  }
+}
+function renderTemplateGallery() {
+  templateGalleryEl.innerHTML = "";
+  for (const template of templateCatalog()) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = template.label;
+    button.addEventListener("click", () => createFromTemplate(template));
+    templateGalleryEl.appendChild(button);
+  }
+}
+function renderDocumentMeta(documentMeta) {
+  docTitleInput.value = documentMeta.title;
+  timestampEls.created.textContent = formatTime(documentMeta.createdAt);
+  timestampEls.viewed.textContent = formatTime(documentMeta.lastViewedAt);
+  timestampEls.edited.textContent = formatTime(documentMeta.lastEditedAt);
+  timestampEls.exported.textContent = formatTime(documentMeta.lastExportedAt);
+}
+function renderPreview() {
+  if (!state.editor) {
+    previewBodyEl.innerHTML = "";
+    return;
+  }
+  previewBodyEl.innerHTML = renderMarkdown(state.editor.getText());
+  const headings = extractHeadings(state.editor.getText());
+  previewMetaEl.textContent = headings.length > 0 ? `${headings.length} headings` : "same document";
 }
 function openHelp() {
   renderHelp();
   openOverlay(helpPanel);
+}
+function openSearch() {
+  openOverlay(searchPanel);
+  searchFields.query.focus();
+}
+function openExport() {
+  openOverlay(exportPanel);
 }
 function openOverlay(element) {
   element.classList.remove("hidden");
@@ -31840,6 +32398,13 @@ function closeOverlay(element) {
 }
 function createNewDocument() {
   const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  registry.openTab(nextDoc);
+  bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
+}
+function createFromTemplate(template) {
+  const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  registry.registerSeedContent(nextDoc, template.content);
+  registry.updateTitle(nextDoc, `${template.label}`);
   bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
 }
 function openFromPromptedLink() {
@@ -31854,23 +32419,197 @@ function openFromPromptedLink() {
   }
   bootDocument(docID).catch((error) => setStatus("error", error.message));
 }
-function parseDocumentReference(raw) {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return "";
+function duplicateCurrentDocument() {
+  if (!state.editor) {
+    return;
   }
-  try {
-    const url = new URL(trimmed, window.location.origin);
-    return url.searchParams.get("doc") || url.pathname.replaceAll("/", "");
-  } catch {
-    return trimmed;
-  }
+  const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  const duplicate = registry.duplicateDocument(state.documentID, nextDoc, state.editor.getText());
+  bootDocument(duplicate.documentID).catch((error) => setStatus("error", error.message));
 }
 function updateDocumentURL(documentID) {
-  window.history.replaceState(null, "", `/?doc=${encodeURIComponent(documentID)}`);
+  window.history.replaceState(null, "", `/?doc=${encodeURIComponent(documentID)}${window.location.hash}`);
 }
 function updateShareLink(documentID) {
   shareLinkEl.textContent = `Current link: ${window.location.origin}/?doc=${encodeURIComponent(documentID)}`;
+}
+function copyShareLink() {
+  copyText(`${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`, "Link copied");
+}
+function emailShareLink() {
+  window.location.href = `mailto:?subject=${encodeURIComponent(`grid-editor document ${state.documentID}`)}&body=${encodeURIComponent(`${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`)}`;
+}
+function togglePreview() {
+  state.previewEnabled = !state.previewEnabled;
+  applyPaneMode();
+}
+function toggleSplit() {
+  state.splitEnabled = !state.splitEnabled;
+  state.previewEnabled = true;
+  applyPaneMode();
+}
+function applyPaneMode() {
+  previewPaneEl.classList.toggle("hidden", !state.previewEnabled);
+  editorStageEl.classList.toggle("split", state.previewEnabled && state.splitEnabled);
+  renderPreview();
+}
+function applyFormat(action) {
+  const wrappers = {
+    bold: ["**", "**"],
+    italic: ["*", "*"],
+    underline: ["<u>", "</u>"]
+  };
+  const [prefix, suffix] = wrappers[action];
+  state.editor?.wrapSelection(prefix, suffix);
+}
+function runSearchReplace(replaceMode = false) {
+  const query = searchFields.query.value;
+  if (!query) {
+    showToast("Enter text to search for");
+    return;
+  }
+  const options = {
+    caseSensitive: searchFields.caseSensitive.checked,
+    regex: searchFields.regex.checked
+  };
+  if (replaceMode) {
+    const count2 = state.editor?.replaceAll(query, searchFields.replace.value, options) || 0;
+    showToast(count2 > 0 ? `Replaced ${count2} matches` : "No matches to replace");
+    return;
+  }
+  const found = state.editor?.findNext(query, options);
+  if (!found) {
+    showToast(`No match for \u201C${query}\u201D`);
+  }
+}
+function gotoLine() {
+  const raw = window.prompt("Go to line");
+  const line = Number(raw);
+  if (!Number.isFinite(line) || line <= 0) {
+    return;
+  }
+  state.editor?.goToLine(line);
+  closeOverlay(searchPanel);
+}
+function importFile() {
+  fileImportEl.click();
+}
+async function handleImportedFile(event) {
+  const file = event.target.files?.[0];
+  if (!file || !state.editor) {
+    return;
+  }
+  if (file.type.startsWith("image/")) {
+    const dataURL = await readFileAsDataURL(file);
+    state.editor.insertAtCursor(`![${file.name}](${dataURL})`);
+    showToast(`Inserted image attachment ${file.name}`);
+  } else {
+    const text = await file.text();
+    state.relay.replaceText(text);
+    state.editor.setText(text);
+    renderPreview();
+    showToast(`Imported ${file.name}`);
+  }
+  fileImportEl.value = "";
+}
+function exportDocument(format) {
+  if (!state.editor || !state.relay) {
+    return;
+  }
+  const title = safeFilename(docTitleInput.value || state.documentID);
+  const text = state.editor.getText();
+  const html2 = wrapHTML(docTitleInput.value || state.documentID, renderMarkdown(text));
+  let blob;
+  let extension;
+  if (format === "html") {
+    blob = new Blob([html2], { type: "text/html;charset=utf-8" });
+    extension = "html";
+  } else if (format === "text") {
+    blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    extension = "txt";
+  } else if (format === "automerge") {
+    blob = new Blob([state.relay.getReplicaBytes()], { type: "application/octet-stream" });
+    extension = "automerge";
+  } else {
+    blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    extension = "md";
+  }
+  triggerDownload(blob, `${title}.${extension}`);
+  registry.touchExported(state.documentID);
+  renderDocumentMeta(registry.get(state.documentID));
+  showToast(`Exported ${extension.toUpperCase()}`);
+}
+function publishSnapshot() {
+  if (!state.editor) {
+    return;
+  }
+  const snapshot = {
+    id: crypto.randomUUID(),
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    title: docTitleInput.value || state.documentID,
+    content: state.editor.getText()
+  };
+  registry.addSnapshot(state.documentID, snapshot);
+  showToast("Snapshot saved locally");
+}
+function exportAuditReport() {
+  const documentMeta = registry.get(state.documentID);
+  const report = {
+    document: documentMeta,
+    shareLink: `${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`,
+    localID: metaEls.localID.textContent,
+    protocol: {
+      documentPCID: metaEls.docPCID.textContent,
+      awarenessPCID: metaEls.awarenessPCID.textContent
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  triggerDownload(new Blob([JSON.stringify(report, null, 2)], { type: "application/json;charset=utf-8" }), `${safeFilename(documentMeta.title)}-audit.json`);
+  registry.touchExported(state.documentID);
+  renderDocumentMeta(registry.get(state.documentID));
+}
+function copyFormatted(format) {
+  if (!state.editor) {
+    return;
+  }
+  const text = state.editor.getText();
+  const value = format === "html" ? wrapHTML(docTitleInput.value || state.documentID, renderMarkdown(text)) : text;
+  copyText(value, `Copied ${format}`);
+}
+function addBookmark() {
+  if (!state.editor) {
+    return;
+  }
+  const line = state.editor.getCursorLine();
+  registry.addBookmark(state.documentID, {
+    id: crypto.randomUUID(),
+    line,
+    label: `${docTitleInput.value || state.documentID} line ${line}`,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  renderRegistry();
+  showToast(`Bookmarked line ${line}`);
+}
+function generateDoc() {
+  const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  registry.registerSeedContent(nextDoc, generateDemoText());
+  registry.updateTitle(nextDoc, "Generated demo document");
+  bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
+}
+function sampleDoc() {
+  const template = templateCatalog().find((value) => value.id === "demo");
+  createFromTemplate(template);
+}
+function updateDerivedTitle(text) {
+  const match = (text || "").match(/^#\s+(.+)$/m);
+  if (!match) {
+    return;
+  }
+  const current = registry.get(state.documentID);
+  if (!current.title || current.title === `Document ${state.documentID}` || current.title === state.documentID) {
+    const next = registry.updateTitle(state.documentID, match[1].trim());
+    renderDocumentMeta(next);
+  }
 }
 function scheduleTypingStop(awareness) {
   window.clearTimeout(scheduleTypingStop.timer);
@@ -31902,32 +32641,22 @@ function showToast(message) {
   toastStackEl.appendChild(toast);
   window.setTimeout(() => toast.remove(), 3200);
 }
-function applyFormat(action) {
-  const wrappers = {
-    bold: ["**", "**"],
-    italic: ["*", "*"],
-    underline: ["<u>", "</u>"]
-  };
-  const [prefix, suffix] = wrappers[action];
-  state.editor?.wrapSelection(prefix, suffix);
-}
-function searchDocument() {
-  const query = window.prompt("Find text");
-  if (!query) {
-    return;
-  }
-  const found = state.editor?.findNext(query);
-  if (!found) {
-    showToast(`No match for \u201C${query}\u201D`);
-  }
-}
 function registerEvents() {
   document.getElementById("open-doc").addEventListener("click", () => {
     bootDocument(docIDInput.value.trim() || "demo").catch((error) => setStatus("error", error.message));
   });
   document.getElementById("new-doc").addEventListener("click", createNewDocument);
+  document.getElementById("duplicate-doc").addEventListener("click", duplicateCurrentDocument);
   document.getElementById("paste-link").addEventListener("click", openFromPromptedLink);
-  document.getElementById("search-button").addEventListener("click", searchDocument);
+  document.getElementById("copy-link").addEventListener("click", copyShareLink);
+  document.getElementById("email-link").addEventListener("click", emailShareLink);
+  document.getElementById("search-button").addEventListener("click", openSearch);
+  document.getElementById("preview-button").addEventListener("click", togglePreview);
+  document.getElementById("split-button").addEventListener("click", toggleSplit);
+  document.getElementById("import-button").addEventListener("click", importFile);
+  document.getElementById("export-button").addEventListener("click", openExport);
+  document.getElementById("snapshot-button").addEventListener("click", publishSnapshot);
+  document.getElementById("bookmark-button").addEventListener("click", addBookmark);
   document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
   document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
   document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
@@ -31935,16 +32664,36 @@ function registerEvents() {
   document.getElementById("help-button").addEventListener("click", openHelp);
   document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
   document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
+  document.getElementById("search-close").addEventListener("click", () => closeOverlay(searchPanel));
+  document.getElementById("export-close").addEventListener("click", () => closeOverlay(exportPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
     window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
     welcomeBannerEl.classList.add("hidden");
   });
+  document.getElementById("find-next").addEventListener("click", () => runSearchReplace(false));
+  document.getElementById("replace-all").addEventListener("click", () => runSearchReplace(true));
+  document.getElementById("goto-line").addEventListener("click", gotoLine);
+  document.getElementById("export-markdown").addEventListener("click", () => exportDocument("markdown"));
+  document.getElementById("export-html").addEventListener("click", () => exportDocument("html"));
+  document.getElementById("export-text").addEventListener("click", () => exportDocument("text"));
+  document.getElementById("export-automerge").addEventListener("click", () => exportDocument("automerge"));
+  document.getElementById("copy-markdown").addEventListener("click", () => copyFormatted("markdown"));
+  document.getElementById("copy-html").addEventListener("click", () => copyFormatted("html"));
+  document.getElementById("publish-snapshot").addEventListener("click", publishSnapshot);
+  document.getElementById("export-audit").addEventListener("click", exportAuditReport);
+  document.getElementById("generate-demo-doc").addEventListener("click", generateDoc);
+  document.getElementById("sample-doc").addEventListener("click", sampleDoc);
+  fileImportEl.addEventListener("change", handleImportedFile);
   displayNameInput.addEventListener("change", () => {
     updatePreferences({ displayName: displayNameInput.value || "Browser User" }, { skipFormSync: true });
   });
   colorInput.addEventListener("change", () => {
     updatePreferences({ color: colorInput.value || "#1d6fd6" }, { skipFormSync: true });
+  });
+  docTitleInput.addEventListener("change", () => {
+    renderDocumentMeta(registry.updateTitle(state.documentID, docTitleInput.value));
+    renderRegistry();
   });
   settingsFields.theme.addEventListener("change", () => updatePreferences({ theme: settingsFields.theme.value }, { skipFormSync: true }));
   settingsFields.lineNumbers.addEventListener("change", () => updatePreferences({ lineNumbers: settingsFields.lineNumbers.checked }, { skipFormSync: true }));
@@ -31961,7 +32710,7 @@ function registerEvents() {
     const shortcuts = state.prefs.shortcuts;
     if (matchesShortcut(event, shortcuts.search)) {
       event.preventDefault();
-      searchDocument();
+      openSearch();
     } else if (matchesShortcut(event, shortcuts.bold)) {
       event.preventDefault();
       applyFormat("bold");
@@ -31980,6 +32729,8 @@ function registerEvents() {
     } else if (event.key === "Escape") {
       closeOverlay(settingsPanel);
       closeOverlay(helpPanel);
+      closeOverlay(searchPanel);
+      closeOverlay(exportPanel);
     }
   });
 }
@@ -32021,11 +32772,64 @@ function getOrCreateParticipantID() {
   window.sessionStorage.setItem(key, created);
   return created;
 }
-function escapeHTML(value) {
+function parseDocumentReference(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    return url.searchParams.get("doc") || url.pathname.replaceAll("/", "");
+  } catch {
+    return trimmed;
+  }
+}
+function formatTime(value) {
+  if (!value) {
+    return "-";
+  }
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+function triggerDownload(blob, name2) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name2;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+function safeFilename(value) {
+  return String(value || "document").toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+}
+function wrapHTML(title, body) {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML2(title)}</title></head><body>${body}</body></html>`;
+}
+async function copyText(value, successLabel) {
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast(successLabel);
+  } catch {
+    showToast("Clipboard write failed");
+  }
+}
+function escapeHTML2(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+async function readFileAsDataURL(file) {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 registerEvents();
 applyPreferences(state.prefs);
+renderRegistry();
 if (window.localStorage.getItem("grid-editor-dismissed-welcome") === "true") {
   welcomeBannerEl.classList.add("hidden");
 }

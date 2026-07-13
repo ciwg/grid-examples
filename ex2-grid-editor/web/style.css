@@ -191,6 +191,44 @@ button {
   justify-content: flex-end;
 }
 
+.workspace-lists,
+.meta-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.workspace-lists {
+  margin-top: 12px;
+}
+
+.workspace-lists h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--muted);
+}
+
+.doc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doc-list button {
+  width: 100%;
+  margin-top: 0;
+  text-align: left;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .card {
   margin-top: 18px;
   padding: 16px;
@@ -340,6 +378,28 @@ dd {
   gap: 18px;
 }
 
+.doc-tab-bar {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 0;
+  overflow-x: auto;
+}
+
+.doc-tab {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(214, 200, 180, 0.82);
+}
+
+.doc-tab.active {
+  background: var(--accent-soft);
+}
+
 .editor-presence {
   padding: 14px 18px 0;
 }
@@ -372,6 +432,18 @@ dd {
   flex: 1;
   min-height: 0;
   padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.editor-stage.split {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+}
+
+.editor-pane,
+.preview-pane {
+  min-height: 0;
 }
 
 .editor-root {
@@ -381,6 +453,62 @@ dd {
   background: #fffdfa;
   border: 1px solid rgba(214, 200, 180, 0.85);
   overflow: hidden;
+}
+
+.preview-pane {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(214, 200, 180, 0.85);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body[data-theme="night"] .preview-pane {
+  background: rgba(16, 24, 31, 0.86);
+}
+
+.preview-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(214, 200, 180, 0.75);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preview-body {
+  padding: 18px;
+  overflow: auto;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  line-height: 1.7;
+}
+
+.preview-body pre {
+  padding: 12px;
+  border-radius: 12px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.preview-body code {
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.preview-body h1,
+.preview-body h2,
+.preview-body h3,
+.preview-body h4,
+.preview-body h5,
+.preview-body h6 {
+  margin-top: 1.2em;
+}
+
+.preview-body p:first-child,
+.preview-body h1:first-child,
+.preview-body h2:first-child {
+  margin-top: 0;
 }
 
 .cm-editor {
@@ -493,11 +621,16 @@ body[data-theme="night"] .cm-gutters {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .editor-stage.split {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
   .shortcut-grid,
-  .help-grid {
+  .help-grid,
+  .template-grid {
     grid-template-columns: 1fr;
   }
 

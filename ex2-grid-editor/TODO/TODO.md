@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] 007 - grid-editor phase 2 document workflow, preview, and export surfaces - `TODO/TODO-lusab-grid-editor-phase-2.md`
 - [ ] 006 - grid-editor phase 1 collaborative-editor UX, status, and preferences - `TODO/TODO-tizaf-grid-editor-phase-1.md`
 - [ ] 005 - grid-editor presence aging and historical activity split - `TODO/TODO-mivor-grid-editor-presence-lifecycle.md`
 - [x] 004 - grid-editor relay security, sync robustness, and connection-flow hardening - `TODO/TODO-dafek-grid-editor-hardening-review.md`

@@ -37,6 +37,10 @@ export class AutomergeRelayClient {
     return bytesToBase64(Automerge.save(this.doc)).slice(0, 16);
   }
 
+  getReplicaBytes() {
+    return Automerge.save(this.doc);
+  }
+
   async connect() {
     this.emitStatus("connecting");
     await this.poll();
@@ -121,6 +125,28 @@ export class AutomergeRelayClient {
     }
   }
 
+  replaceText(text) {
+    const previous = this.getText();
+    if (text === previous) {
+      return;
+    }
+    const prefix = commonPrefix(previous, text);
+    const suffix = commonSuffix(previous, text, prefix);
+    const deleteCount = previous.length - prefix - suffix;
+    const insertText = text.slice(prefix, text.length - suffix);
+    this.applyLocalUpdate({
+      changes: {
+        iterChanges(callback) {
+          callback(prefix, prefix + deleteCount, 0, 0, {
+            toString() {
+              return insertText;
+            },
+          });
+        },
+      },
+    });
+  }
+
   async receive(record) {
     const previous = Automerge.clone(this.doc);
     const [nextDoc] = Automerge.applyChanges(previous, [base64ToBytes(record.message_base64)]);
@@ -185,4 +211,24 @@ function bytesToBase64(bytes) {
 
 function base64ToBytes(value) {
   return Uint8Array.from(window.atob(value), (char) => char.charCodeAt(0));
+}
+
+function commonPrefix(left, right) {
+  const size = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < size && left[index] === right[index]) {
+    index += 1;
+  }
+  return index;
+}
+
+function commonSuffix(left, right, prefix) {
+  const leftRemain = left.length - prefix;
+  const rightRemain = right.length - prefix;
+  const size = Math.min(leftRemain, rightRemain);
+  let index = 0;
+  while (index < size && left[left.length - 1 - index] === right[right.length - 1 - index]) {
+    index += 1;
+  }
+  return index;
 }
