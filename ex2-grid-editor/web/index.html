@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>grid-editor</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="layout">
+      <section class="sidebar">
+        <h1>grid-editor</h1>
+        <p class="muted">PromiseGrid example app</p>
+
+        <label>Document ID
+          <div class="row">
+            <input id="doc-id" type="text" value="demo">
+            <button id="open-doc">Open</button>
+          </div>
+        </label>
+
+        <label>Display name
+          <input id="display-name" type="text" value="Browser User">
+        </label>
+
+        <label>Color
+          <input id="color" type="color" value="#1d6fd6">
+        </label>
+
+        <div class="card">
+          <h2>Local service</h2>
+          <dl>
+            <dt>Author</dt>
+            <dd id="local-id">loading…</dd>
+            <dt>live-document pCID</dt>
+            <dd id="doc-pcid">loading…</dd>
+            <dt>live-awareness pCID</dt>
+            <dd id="awareness-pcid">loading…</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <h2>Peers</h2>
+          <ul id="peer-list"></ul>
+        </div>
+      </section>
+
+      <section class="editor-shell">
+        <div class="toolbar">
+          <span id="status">connecting…</span>
+          <span id="revision">revision: -</span>
+          <span id="content-cid">content: -</span>
+        </div>
+        <textarea id="editor" spellcheck="false"></textarea>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+
