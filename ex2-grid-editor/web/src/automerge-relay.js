@@ -50,25 +50,37 @@ export class AutomergeRelayClient {
   }
 
   async poll() {
-    const response = await fetch(`${this.basePath}/sync?since=${this.offset}`);
-    if (!response.ok) {
-      throw new Error(`sync GET failed: ${response.status}`);
-    }
-    const payload = await response.json();
-    for (const record of payload.messages || []) {
-      this.seenEnvelopes.add(record.envelope_cid);
-      // Intent: Keep the relay feed peer-oriented so the browser replica does
-      // not re-apply its own signed sync messages after they round-trip through
-      // the relay. Source: DI-ramuv; DI-zegov
-      if (record.participant_id === this.participantID) {
-        continue;
+    // Intent: Drain bounded relay pages until caught up so late joiners do not
+    // silently skip older changes when the server applies feed-size limits.
+    // Source: DI-rabod
+    while (true) {
+      const response = await fetch(`${this.basePath}/sync?since=${this.offset}&limit=256`);
+      if (!response.ok) {
+        throw new Error(`sync GET failed: ${response.status}`);
       }
-      if (record.recipient_id && record.recipient_id !== this.participantID) {
-        continue;
+      const payload = await response.json();
+      for (const record of payload.messages || []) {
+        this.seenEnvelopes.add(record.envelope_cid);
+        // Intent: Keep the relay feed peer-oriented so the browser replica does
+        // not re-apply its own signed sync messages after they round-trip through
+        // the relay. Source: DI-ramuv; DI-zegov
+        if (record.participant_id === this.participantID) {
+          continue;
+        }
+        if (record.recipient_id && record.recipient_id !== this.participantID) {
+          continue;
+        }
+        await this.receive(record);
       }
-      await this.receive(record);
+      const nextOffset = payload.next_offset || this.offset;
+      if (nextOffset <= this.offset) {
+        break;
+      }
+      this.offset = nextOffset;
+      if ((payload.messages || []).length < 256) {
+        break;
+      }
     }
-    this.offset = payload.next_offset || this.offset;
   }
 
   observePeers(_peers) {}
@@ -101,7 +113,7 @@ export class AutomergeRelayClient {
   }
 
   async postChange(change) {
-    await fetch(`${this.basePath}/sync`, {
+    const response = await fetch(`${this.basePath}/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -111,6 +123,11 @@ export class AutomergeRelayClient {
         embodiment: "browser",
       }),
     });
+    if (!response.ok) {
+      // Intent: Surface rejected relay writes to the browser UI instead of
+      // failing silently after a local editor update. Source: DI-rabod
+      throw new Error(`sync POST failed: ${response.status}`);
+    }
   }
 
   setDoc(nextDoc) {

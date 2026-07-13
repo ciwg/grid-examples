@@ -23,7 +23,7 @@ func (flags *peerFlags) Set(value string) error {
 
 func main() {
 	var (
-		listen   = flag.String("listen", "127.0.0.1:7001", "listen address")
+		listen   = flag.String("listen", "127.0.0.1:7015", "listen address")
 		dataRoot = flag.String("data-root", ".grid-editor", "local runtime data root")
 		peers    peerFlags
 	)

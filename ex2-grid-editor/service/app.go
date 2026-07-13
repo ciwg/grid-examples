@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -116,9 +117,24 @@ func (app *App) Meta() Meta {
 // change bytes while leaving replica ownership in the browser or sidecar.
 // Source: DI-ramuv; DI-lumek; DI-larok
 func (app *App) PostSync(documentID string, participantID string, recipientID string, messageBase64 string, embodiment string) (crdt.SyncRecord, error) {
+	if err := validateDocumentID(documentID); err != nil {
+		return crdt.SyncRecord{}, err
+	}
+	if err := validateParticipantID(participantID); err != nil {
+		return crdt.SyncRecord{}, err
+	}
+	if err := validateRecipientID(recipientID); err != nil {
+		return crdt.SyncRecord{}, err
+	}
+	if err := validateEmbodiment(embodiment); err != nil {
+		return crdt.SyncRecord{}, err
+	}
 	messageBytes, err := base64.StdEncoding.DecodeString(messageBase64)
 	if err != nil {
 		return crdt.SyncRecord{}, fmt.Errorf("decode change bytes: %w", err)
+	}
+	if err := validateChangeBytes(messageBytes); err != nil {
+		return crdt.SyncRecord{}, err
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -145,6 +161,27 @@ func (app *App) PostSync(documentID string, participantID string, recipientID st
 }
 
 func (app *App) UpdateAwareness(documentID string, participantID string, cursor int, head int, typing bool, displayName string, color string, embodiment string) error {
+	if err := validateDocumentID(documentID); err != nil {
+		return err
+	}
+	if err := validateParticipantID(participantID); err != nil {
+		return err
+	}
+	if err := validateCursorValue("cursor", cursor); err != nil {
+		return err
+	}
+	if err := validateCursorValue("head", head); err != nil {
+		return err
+	}
+	if err := validateDisplayName(displayName); err != nil {
+		return err
+	}
+	if err := validateColor(color); err != nil {
+		return err
+	}
+	if err := validateEmbodiment(embodiment); err != nil {
+		return err
+	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	app.maxLamport++
@@ -169,20 +206,31 @@ func (app *App) UpdateAwareness(documentID string, participantID string, cursor 
 	return err
 }
 
-func (app *App) SyncFeed(documentID string, since uint64) SyncFeed {
+func (app *App) SyncFeed(documentID string, since uint64, limit int) SyncFeed {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	records := app.syncFeeds[documentID]
-	filtered := make([]crdt.SyncRecord, 0, len(records))
+	filtered := make([]crdt.SyncRecord, 0, clampFeedLimit(limit))
+	nextOffset := app.log.NextOffset()
 	for _, record := range records {
 		if record.Offset >= since {
+			if len(filtered) >= clampFeedLimit(limit) {
+				nextOffset = record.Offset
+				break
+			}
 			filtered = append(filtered, record)
 		}
+	}
+	if len(filtered) > 0 && nextOffset == app.log.NextOffset() {
+		nextOffset = filtered[len(filtered)-1].Offset + 1
+	}
+	if len(filtered) == 0 {
+		nextOffset = app.log.NextOffset()
 	}
 	return SyncFeed{
 		DocumentID: documentID,
 		Messages:   filtered,
-		NextOffset: app.log.NextOffset(),
+		NextOffset: nextOffset,
 	}
 }
 
@@ -221,19 +269,29 @@ func (app *App) awarenessLocked(documentID string) []awareness.PeerState {
 	return peers
 }
 
-func (app *App) PeerMessagesSince(offset uint64) ([]string, uint64) {
+func (app *App) PeerMessagesSince(offset uint64, limit int) ([]string, uint64) {
 	entries := app.log.EntriesSince(offset)
+	maxEntries := clampFeedLimit(limit)
+	if len(entries) > maxEntries {
+		entries = entries[:maxEntries]
+	}
 	messages := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		messages = append(messages, entry.RawBase64)
 	}
-	return messages, app.log.NextOffset()
+	if len(entries) == 0 {
+		return messages, app.log.NextOffset()
+	}
+	return messages, entries[len(entries)-1].Offset + 1
 }
 
 func (app *App) IngestRawBase64(raw string) error {
 	envelopeBytes, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {
 		return fmt.Errorf("decode base64 envelope: %w", err)
+	}
+	if len(envelopeBytes) > maxChangeBytesLen*4 {
+		return fmt.Errorf("envelope bytes too large")
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -261,10 +319,13 @@ func (app *App) pollPeer(ctx context.Context, peerURL string, interval time.Dura
 		if err == nil {
 			for _, raw := range messages {
 				if err := app.IngestRawBase64(raw); err != nil {
+					log.Printf("grid-relay peer ingest error from %s: %v", peerURL, err)
 					continue
 				}
 			}
 			offset = next
+		} else {
+			log.Printf("grid-relay peer poll error from %s: %v", peerURL, err)
 		}
 		select {
 		case <-ctx.Done():
@@ -362,6 +423,12 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
 			return crdt.SyncRecord{}, fmt.Errorf("decode document payload: %w", err)
 		}
+		// Intent: Bind relay attribution to the actual signing key so peers cannot
+		// sign with one key while claiming another payload author identity.
+		// Source: DI-rabod
+		if message.Author != envelope.Proof.KeyID {
+			return crdt.SyncRecord{}, fmt.Errorf("document author %q does not match proof key", message.Author)
+		}
 		record = crdt.SyncRecord{
 			Offset:        entry.Offset,
 			EnvelopeCID:   envelopeCIDString,
@@ -380,6 +447,12 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		var message awareness.Message
 		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
 			return crdt.SyncRecord{}, fmt.Errorf("decode awareness payload: %w", err)
+		}
+		// Intent: Apply the same signer-to-author binding to awareness as document
+		// messages so cursor/presence attribution cannot drift from the proof key.
+		// Source: DI-rabod
+		if message.Author != envelope.Proof.KeyID {
+			return crdt.SyncRecord{}, fmt.Errorf("awareness author %q does not match proof key", message.Author)
 		}
 		index, _ := awareness.Apply(app.presence[message.DocumentID], message, envelopeCIDString)
 		app.presence[message.DocumentID] = index

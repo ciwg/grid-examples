@@ -17,7 +17,7 @@ var helperBundle []byte
 var helperWASM []byte
 
 func main() {
-	var relayURL = flag.String("relay", "http://127.0.0.1:7001", "grid relay base URL")
+	var relayURL = flag.String("relay", "http://127.0.0.1:7015", "grid relay base URL")
 	flag.Parse()
 
 	nodePath, err := exec.LookPath("node")

@@ -18,7 +18,7 @@ end
 
 M.config = {
   repo_root = default_repo_root(),
-  relay_url = vim.env.GRID_EDITOR_RELAY_URL or 'http://127.0.0.1:7001',
+  relay_url = vim.env.GRID_EDITOR_RELAY_URL or 'http://127.0.0.1:7015',
   sidecar_cmd = nil,
   display_name = vim.env.GRID_EDITOR_DISPLAY_NAME or 'Neovim User',
   color = vim.env.GRID_EDITOR_COLOR or '#d66f1d',

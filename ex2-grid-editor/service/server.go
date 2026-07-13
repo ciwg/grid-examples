@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -61,19 +62,27 @@ func (server *Server) handlePeerMessages(writer http.ResponseWriter, request *ht
 	switch request.Method {
 	case http.MethodGet:
 		since := uint64(0)
+		limit := defaultFeedLimit
 		if raw := request.URL.Query().Get("since"); raw != "" {
 			if _, err := fmt.Sscanf(raw, "%d", &since); err != nil {
 				http.Error(writer, "invalid since", http.StatusBadRequest)
 				return
 			}
 		}
-		messages, nextOffset := server.app.PeerMessagesSince(since)
+		if raw := request.URL.Query().Get("limit"); raw != "" {
+			if _, err := fmt.Sscanf(raw, "%d", &limit); err != nil {
+				http.Error(writer, "invalid limit", http.StatusBadRequest)
+				return
+			}
+		}
+		messages, nextOffset := server.app.PeerMessagesSince(since, limit)
 		writeJSON(writer, http.StatusOK, peerResponse{Messages: messages, NextOffset: nextOffset})
 	case http.MethodPost:
+		request.Body = http.MaxBytesReader(writer, request.Body, maxChangeBytesLen*8)
 		var payload struct {
 			Messages []string `json:"messages"`
 		}
-		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -97,6 +106,10 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		return
 	}
 	documentID := parts[0]
+	if err := validateDocumentID(documentID); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
 	action := parts[1]
 	switch action {
 	case "state":
@@ -118,21 +131,33 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 	switch request.Method {
 	case http.MethodGet:
 		since := uint64(0)
+		limit := defaultFeedLimit
 		if raw := request.URL.Query().Get("since"); raw != "" {
 			if _, err := fmt.Sscanf(raw, "%d", &since); err != nil {
 				http.Error(writer, "invalid since", http.StatusBadRequest)
 				return
 			}
 		}
-		writeJSON(writer, http.StatusOK, server.app.SyncFeed(documentID, since))
+		if raw := request.URL.Query().Get("limit"); raw != "" {
+			if _, err := fmt.Sscanf(raw, "%d", &limit); err != nil {
+				http.Error(writer, "invalid limit", http.StatusBadRequest)
+				return
+			}
+		}
+		writeJSON(writer, http.StatusOK, server.app.SyncFeed(documentID, since, limit))
 	case http.MethodPost:
+		if err := requireLoopbackMutation(request); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		request.Body = http.MaxBytesReader(writer, request.Body, maxChangeBytesLen*4)
 		var payload struct {
 			ParticipantID string `json:"participant_id"`
 			RecipientID   string `json:"recipient_id"`
 			MessageBase64 string `json:"message_base64"`
 			Embodiment    string `json:"embodiment"`
 		}
-		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -159,6 +184,11 @@ func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.
 			"awareness":   server.app.AwarenessState(documentID),
 		})
 	case http.MethodPost:
+		if err := requireLoopbackMutation(request); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		request.Body = http.MaxBytesReader(writer, request.Body, 16*1024)
 		var payload struct {
 			ParticipantID string `json:"participant_id"`
 			Cursor        int    `json:"cursor"`
@@ -168,7 +198,7 @@ func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.
 			Color         string `json:"color"`
 			Embodiment    string `json:"embodiment"`
 		}
-		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -188,4 +218,26 @@ func writeJSON(writer http.ResponseWriter, status int, value any) {
 	if err := json.NewEncoder(writer).Encode(value); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func requireLoopbackMutation(request *http.Request) error {
+	// Intent: Keep the relay from acting as an open network signer by allowing
+	// local mutation requests only from loopback clients unless a later
+	// authenticated remote-client mode is explicitly designed. Source: DI-rabod
+	if requestIsLoopback(request) {
+		return nil
+	}
+	return fmt.Errorf("local mutation endpoints require a loopback client")
+}
+
+func decodeJSONBody(writer http.ResponseWriter, request *http.Request, value any) error {
+	decoder := json.NewDecoder(request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return fmt.Errorf("unexpected trailing JSON")
+	}
+	return nil
 }

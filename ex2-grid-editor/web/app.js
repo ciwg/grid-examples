@@ -26992,8 +26992,8 @@ var RelayAwarenessClient = class {
   off(event, callback) {
     this.listeners.get(event)?.delete(callback);
   }
-  emit(event) {
-    this.listeners.get(event)?.forEach((callback) => callback());
+  emit(event, value) {
+    this.listeners.get(event)?.forEach((callback) => callback(value));
   }
   getStates() {
     const states = new Map(this.remoteStates);
@@ -27008,8 +27008,7 @@ var RelayAwarenessClient = class {
     await this.broadcast();
     await this.poll();
     this.pollTimer = window.setInterval(() => {
-      this.poll().catch(() => {
-      });
+      this.poll().catch((error) => this.emit("error", error));
     }, 350);
   }
   disconnect() {
@@ -27041,7 +27040,7 @@ var RelayAwarenessClient = class {
     this.emit("change");
   }
   async broadcast() {
-    await fetch(`${this.basePath}/awareness`, {
+    const response = await fetch(`${this.basePath}/awareness`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -27054,11 +27053,13 @@ var RelayAwarenessClient = class {
         embodiment: "browser"
       })
     });
+    if (!response.ok) {
+      throw new Error(`awareness POST failed: ${response.status}`);
+    }
   }
   updateSelection(anchor, head) {
     this.selection = { anchor, head };
-    this.broadcast().catch(() => {
-    });
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
   updateCursor(anchor) {
@@ -27066,20 +27067,17 @@ var RelayAwarenessClient = class {
   }
   setTyping(typing) {
     this.typing = typing;
-    this.broadcast().catch(() => {
-    });
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
   setName(name2) {
     this.user.name = name2;
-    this.broadcast().catch(() => {
-    });
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
   setColor(color) {
     this.user.color = color;
-    this.broadcast().catch(() => {
-    });
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
 };
@@ -31306,22 +31304,31 @@ var AutomergeRelayClient = class {
     }
   }
   async poll() {
-    const response = await fetch(`${this.basePath}/sync?since=${this.offset}`);
-    if (!response.ok) {
-      throw new Error(`sync GET failed: ${response.status}`);
-    }
-    const payload = await response.json();
-    for (const record of payload.messages || []) {
-      this.seenEnvelopes.add(record.envelope_cid);
-      if (record.participant_id === this.participantID) {
-        continue;
+    while (true) {
+      const response = await fetch(`${this.basePath}/sync?since=${this.offset}&limit=256`);
+      if (!response.ok) {
+        throw new Error(`sync GET failed: ${response.status}`);
       }
-      if (record.recipient_id && record.recipient_id !== this.participantID) {
-        continue;
+      const payload = await response.json();
+      for (const record of payload.messages || []) {
+        this.seenEnvelopes.add(record.envelope_cid);
+        if (record.participant_id === this.participantID) {
+          continue;
+        }
+        if (record.recipient_id && record.recipient_id !== this.participantID) {
+          continue;
+        }
+        await this.receive(record);
       }
-      await this.receive(record);
+      const nextOffset = payload.next_offset || this.offset;
+      if (nextOffset <= this.offset) {
+        break;
+      }
+      this.offset = nextOffset;
+      if ((payload.messages || []).length < 256) {
+        break;
+      }
     }
-    this.offset = payload.next_offset || this.offset;
   }
   observePeers(_peers) {
   }
@@ -31348,7 +31355,7 @@ var AutomergeRelayClient = class {
     }
   }
   async postChange(change2) {
-    await fetch(`${this.basePath}/sync`, {
+    const response = await fetch(`${this.basePath}/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -31358,6 +31365,9 @@ var AutomergeRelayClient = class {
         embodiment: "browser"
       })
     });
+    if (!response.ok) {
+      throw new Error(`sync POST failed: ${response.status}`);
+    }
   }
   setDoc(nextDoc) {
     this.doc = ensureDocument(nextDoc);
@@ -31458,6 +31468,9 @@ async function bootDocument(documentID) {
     contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
   });
   relay.on("error", (error) => {
+    statusEl.textContent = error.message;
+  });
+  awareness.on("error", (error) => {
     statusEl.textContent = error.message;
   });
   awareness.on("change", () => {

@@ -31,10 +31,9 @@ Affects: `ex2-grid-editor/identity`, `ex2-grid-editor/store`, `ex2-grid-editor/s
 
 Goal: Build the first runnable `grid-editor` slice with repo-local live protocol drafts, a signed Go runtime, a browser client, and a Neovim client.
 
-- [ ] kubiv.1 Write the local TODO, TE, and architecture docs that lock the first slice.
-- [ ] kubiv.2 Create the nested Go module and shared protocol/core packages.
-- [ ] kubiv.3 Implement the local Go service with signed document and awareness message ingestion.
-- [ ] kubiv.4 Implement the browser embodiment with internal local-service adapters.
-- [ ] kubiv.5 Implement the Neovim embodiment with internal local-service adapters.
-- [ ] kubiv.6 Add tests for envelope parsing, document convergence ordering, and awareness ordering.
-
+- [x] kubiv.1 Write the local TODO, TE, and architecture docs that lock the first slice.
+- [x] kubiv.2 Create the nested Go module and shared protocol/core packages.
+- [x] kubiv.3 Implement the local Go service with signed document and awareness message ingestion.
+- [x] kubiv.4 Implement the browser embodiment with internal local-service adapters.
+- [x] kubiv.5 Implement the Neovim embodiment with internal local-service adapters.
+- [x] kubiv.6 Add tests for envelope parsing, document convergence ordering, and awareness ordering.

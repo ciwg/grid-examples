@@ -25,8 +25,8 @@ export class RelayAwarenessClient {
     this.listeners.get(event)?.delete(callback);
   }
 
-  emit(event) {
-    this.listeners.get(event)?.forEach((callback) => callback());
+  emit(event, value) {
+    this.listeners.get(event)?.forEach((callback) => callback(value));
   }
 
   getStates() {
@@ -43,7 +43,7 @@ export class RelayAwarenessClient {
     await this.broadcast();
     await this.poll();
     this.pollTimer = window.setInterval(() => {
-      this.poll().catch(() => {});
+      this.poll().catch((error) => this.emit("error", error));
     }, 350);
   }
 
@@ -81,7 +81,7 @@ export class RelayAwarenessClient {
     // Intent: Keep awareness rooted in the old collab-awareness state shape
     // while swapping the transport to the new relay HTTP surface. Source:
     // DI-zegov
-    await fetch(`${this.basePath}/awareness`, {
+    const response = await fetch(`${this.basePath}/awareness`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -94,11 +94,17 @@ export class RelayAwarenessClient {
         embodiment: "browser",
       }),
     });
+    if (!response.ok) {
+      // Intent: Make rejected awareness writes visible to the browser instead
+      // of leaving users with stale peer labels or cursor state. Source:
+      // DI-rabod
+      throw new Error(`awareness POST failed: ${response.status}`);
+    }
   }
 
   updateSelection(anchor, head) {
     this.selection = { anchor, head };
-    this.broadcast().catch(() => {});
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
 
@@ -108,19 +114,19 @@ export class RelayAwarenessClient {
 
   setTyping(typing) {
     this.typing = typing;
-    this.broadcast().catch(() => {});
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
 
   setName(name) {
     this.user.name = name;
-    this.broadcast().catch(() => {});
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
 
   setColor(color) {
     this.user.color = color;
-    this.broadcast().catch(() => {});
+    this.broadcast().catch((error) => this.emit("error", error));
     this.emit("change");
   }
 }

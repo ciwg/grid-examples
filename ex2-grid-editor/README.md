@@ -100,6 +100,10 @@ Then pick an embodiment:
 - browser: open `http://127.0.0.1:7015/?doc=demo`
 - Neovim: run `./scripts/grid-editor-nvim demo`
 
+Local browser and Neovim mutation endpoints are loopback-only in this slice.
+For multi-machine collaboration, run one relay per machine and connect the
+relays with `--peer` instead of pointing remote editors at one shared relay.
+
 If you want a second relay to poll the first one for peer exchange:
 
 ```bash

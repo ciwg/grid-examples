@@ -161,25 +161,34 @@ async function pollSync() {
   if (!state.documentId) {
     return;
   }
-  const payload = await getJSON(`${basePath()}/sync?since=${state.offset}`);
-  if (!state.relayConnected) {
-    state.relayConnected = true;
-    send({ type: "relay_status", connected: true });
-  }
-  for (const record of payload.messages || []) {
-    // Intent: Treat the relay as an exchange surface for peer sync, not as a
-    // loopback transport for this participant's own signed messages. Replaying
-    // self-authored sync records can perturb local replica state without adding
-    // new information. Source: DI-sulod; DI-gafit
-    if (record.participant_id === state.participantId) {
-      continue;
+  while (true) {
+    const payload = await getJSON(`${basePath()}/sync?since=${state.offset}&limit=256`);
+    if (!state.relayConnected) {
+      state.relayConnected = true;
+      send({ type: "relay_status", connected: true });
     }
-    if (record.recipient_id && record.recipient_id !== state.participantId) {
-      continue;
+    for (const record of payload.messages || []) {
+      // Intent: Treat the relay as an exchange surface for peer sync, not as a
+      // loopback transport for this participant's own signed messages. Replaying
+      // self-authored sync records can perturb local replica state without adding
+      // new information. Source: DI-sulod; DI-gafit
+      if (record.participant_id === state.participantId) {
+        continue;
+      }
+      if (record.recipient_id && record.recipient_id !== state.participantId) {
+        continue;
+      }
+      await receive(record);
     }
-    await receive(record);
+    const nextOffset = payload.next_offset || state.offset;
+    if (nextOffset <= state.offset) {
+      break;
+    }
+    state.offset = nextOffset;
+    if ((payload.messages || []).length < 256) {
+      break;
+    }
   }
-  state.offset = payload.next_offset || state.offset;
 }
 
 async function pollAwareness() {

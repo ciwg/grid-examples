@@ -90,6 +90,9 @@ async function bootDocument(documentID) {
   relay.on("error", (error) => {
     statusEl.textContent = error.message;
   });
+  awareness.on("error", (error) => {
+    statusEl.textContent = error.message;
+  });
   awareness.on("change", () => {
     renderPeers(awareness.getStates());
     const peers = Array.from(awareness.getStates().keys()).filter((id) => id !== state.participantID);
