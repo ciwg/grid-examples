@@ -224,6 +224,10 @@ dd {
   padding: 18px 0;
 }
 
+.cm-line {
+  position: relative;
+}
+
 .cm-gutters {
   background: rgba(248, 243, 234, 0.96);
   border-right: 1px solid rgba(214, 200, 180, 0.85);

@@ -66,3 +66,27 @@ func TestAwarenessTracksParticipantsSeparately(t *testing.T) {
 		t.Fatalf("participant ids collapsed: %q", peers[0].ParticipantID)
 	}
 }
+
+func TestAwarenessUsesAuthorFallbackAndLatestRelayState(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if err := app.UpdateAwareness("demo", "", 12, 14, true, "Alice", "#123456", "nvim"); err != nil {
+		t.Fatalf("update awareness initial: %v", err)
+	}
+	if err := app.UpdateAwareness("demo", "", 1, 1, false, "Alice stale", "#654321", "nvim"); err != nil {
+		t.Fatalf("update awareness stale: %v", err)
+	}
+	peers := app.AwarenessState("demo")
+	if len(peers) != 1 {
+		t.Fatalf("peer count mismatch: got %d", len(peers))
+	}
+	if peers[0].ParticipantID == "" {
+		t.Fatalf("expected author fallback participant id")
+	}
+	if peers[0].Cursor != 1 {
+		t.Fatalf("expected latest relay update to win, got cursor %d", peers[0].Cursor)
+	}
+}

@@ -1,6 +1,7 @@
 import * as Automerge from "@automerge/automerge";
 
 const AutomergeNext = Automerge.next;
+const EMPTY_DOCUMENT_BYTES = base64ToBytes("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==");
 
 export class AutomergeRelayClient {
   constructor(options) {
@@ -8,12 +9,10 @@ export class AutomergeRelayClient {
     this.participantID = options.participantID;
     this.documentID = options.documentID;
     this.awareness = options.awareness;
-    this.doc = loadDocument(documentKey(this.documentID));
-    this.syncStates = new Map();
+    this.doc = ensureDocument(null);
     this.listeners = new Map();
     this.offset = 0;
     this.pollTimer = null;
-    this.knownPeers = new Set();
     this.seenEnvelopes = new Set();
   }
 
@@ -38,7 +37,6 @@ export class AutomergeRelayClient {
 
   async connect() {
     await this.poll();
-    await this.flushKnownPeers();
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => this.emit("error", error));
     }, 250);
@@ -59,6 +57,9 @@ export class AutomergeRelayClient {
     const payload = await response.json();
     for (const record of payload.messages || []) {
       this.seenEnvelopes.add(record.envelope_cid);
+      // Intent: Keep the relay feed peer-oriented so the browser replica does
+      // not re-apply its own signed sync messages after they round-trip through
+      // the relay. Source: DI-ramuv; DI-zegov
       if (record.participant_id === this.participantID) {
         continue;
       }
@@ -70,85 +71,50 @@ export class AutomergeRelayClient {
     this.offset = payload.next_offset || this.offset;
   }
 
-  observePeers(peers) {
-    let changed = false;
-    for (const peer of peers) {
-      if (!peer.participant_id || peer.participant_id === this.participantID) {
-        continue;
-      }
-      if (!this.knownPeers.has(peer.participant_id)) {
-        this.knownPeers.add(peer.participant_id);
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.flushKnownPeers().catch((error) => this.emit("error", error));
-    }
-  }
+  observePeers(_peers) {}
 
   applyLocalUpdate(update) {
-    let nextDoc = this.doc;
-    update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-      const deleteCount = toA - fromA;
-      const insertText = inserted.toString();
-      // Intent: Preserve the old working Automerge splice semantics so local
-      // edits stay character-precise and concurrent merges happen in the CRDT,
-      // not in ad hoc browser snapshot code. Source: DI-ramuv; DI-zegov
-      nextDoc = Automerge.change(nextDoc, (draft) => {
+    const nextDoc = Automerge.change(Automerge.clone(this.doc), (draft) => {
+      update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        const deleteCount = toA - fromA;
+        const insertText = inserted.toString();
         AutomergeNext.splice(draft, ["content"], fromA, deleteCount, insertText);
       });
     });
+    // Intent: Publish durable Automerge change packets so relay history is
+    // replayable for late joiners instead of depending on per-peer sync
+    // sessions. Source: DI-zegov; DI-larok
     this.setDoc(nextDoc);
-    this.flushKnownPeers().catch((error) => this.emit("error", error));
+    const change = Automerge.getLastLocalChange(nextDoc);
+    if (change) {
+      this.postChange(change).catch((error) => this.emit("error", error));
+    }
   }
 
   async receive(record) {
-    const syncState = this.syncStates.get(record.participant_id) || Automerge.initSyncState();
-    const message = base64ToBytes(record.message_base64);
-    const previous = this.doc;
-    const [nextDoc, nextState] = Automerge.receiveSyncMessage(previous, syncState, message);
-    this.syncStates.set(record.participant_id, nextState);
+    const previous = Automerge.clone(this.doc);
+    const [nextDoc] = Automerge.applyChanges(previous, [base64ToBytes(record.message_base64)]);
     if (!Automerge.equals(previous, nextDoc)) {
       this.setDoc(nextDoc);
       this.emit("document", this.getText());
     }
-    await this.flushPeer(record.participant_id);
   }
 
-  async flushKnownPeers() {
-    for (const peerID of this.knownPeers) {
-      await this.flushPeer(peerID);
-    }
-  }
-
-  async flushPeer(peerID) {
-    if (!peerID || peerID === this.participantID) {
-      return;
-    }
-    let state = this.syncStates.get(peerID) || Automerge.initSyncState();
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      let message;
-      [state, message] = Automerge.generateSyncMessage(this.doc, state);
-      this.syncStates.set(peerID, state);
-      if (!message) {
-        break;
-      }
-      await fetch(`${this.basePath}/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          participant_id: this.participantID,
-          recipient_id: peerID,
-          message_base64: bytesToBase64(message),
-          embodiment: "browser",
-        }),
-      });
-    }
+  async postChange(change) {
+    await fetch(`${this.basePath}/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: this.participantID,
+        recipient_id: "",
+        message_base64: bytesToBase64(change),
+        embodiment: "browser",
+      }),
+    });
   }
 
   setDoc(nextDoc) {
     this.doc = ensureDocument(nextDoc);
-    localStorage.setItem(documentKey(this.documentID), bytesToBase64(Automerge.save(this.doc)));
   }
 }
 
@@ -156,23 +122,11 @@ function ensureDocument(doc) {
   if (doc?.content !== undefined) {
     return doc;
   }
-  return Automerge.from({ content: new Automerge.Text() });
-}
-
-function loadDocument(key) {
-  const encoded = localStorage.getItem(key);
-  if (!encoded) {
-    return ensureDocument(null);
-  }
-  try {
-    return ensureDocument(Automerge.load(base64ToBytes(encoded)));
-  } catch (_error) {
-    return ensureDocument(null);
-  }
-}
-
-function documentKey(documentID) {
-  return `grid-editor-automerge-${documentID}`;
+  // Intent: Give every replica the same canonical serialized Automerge base,
+  // including the same initial actor/object identities, so relayed change
+  // packets replay identically across browser and Neovim embodiments.
+  // Source: DI-zegov; DI-larok
+  return Automerge.load(EMPTY_DOCUMENT_BYTES);
 }
 
 function bytesToBase64(bytes) {

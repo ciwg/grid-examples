@@ -6,7 +6,7 @@ type Message struct {
 	Author        string `cbor:"author"`
 	ParticipantID string `cbor:"participant_id"`
 	RecipientID   string `cbor:"recipient_id,omitempty"`
-	SyncMessage   []byte `cbor:"sync_message"`
+	ChangeBytes   []byte `cbor:"change_bytes"`
 	Lamport       uint64 `cbor:"lamport"`
 	Embodiment    string `cbor:"embodiment,omitempty"`
 }

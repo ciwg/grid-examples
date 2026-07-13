@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -eu
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+doc_id="${1:-${GRID_EDITOR_DOC_ID:-demo}}"
+
+export GRID_EDITOR_RELAY_URL="${GRID_EDITOR_RELAY_URL:-http://127.0.0.1:7015}"
+export GRID_EDITOR_DISPLAY_NAME="${GRID_EDITOR_DISPLAY_NAME:-Neovim User}"
+export GRID_EDITOR_COLOR="${GRID_EDITOR_COLOR:-#d66f1d}"
+
+# Intent: Provide a one-command Neovim entry path that loads the local plugin
+# and opens a document without requiring manual `setup()` calls. Source:
+# DI-samuv
+exec nvim \
+  --cmd "set runtimepath+=${repo_root}/nvim" \
+  "+GridEditorOpen ${doc_id}"

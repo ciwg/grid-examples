@@ -113,29 +113,29 @@ func (app *App) Meta() Meta {
 }
 
 // Intent: Keep the relay non-canonical by signing and relaying exact Automerge
-// sync-message bytes while leaving replica ownership in the browser or sidecar.
-// Source: DI-ramuv; DI-lumek
+// change bytes while leaving replica ownership in the browser or sidecar.
+// Source: DI-ramuv; DI-lumek; DI-larok
 func (app *App) PostSync(documentID string, participantID string, recipientID string, messageBase64 string, embodiment string) (crdt.SyncRecord, error) {
 	messageBytes, err := base64.StdEncoding.DecodeString(messageBase64)
 	if err != nil {
-		return crdt.SyncRecord{}, fmt.Errorf("decode sync message: %w", err)
+		return crdt.SyncRecord{}, fmt.Errorf("decode change bytes: %w", err)
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	app.maxLamport++
 	message := crdt.Message{
-		Kind:          "sync",
+		Kind:          "change",
 		DocumentID:    documentID,
 		Author:        app.identity.KeyID(),
 		ParticipantID: participantID,
 		RecipientID:   recipientID,
-		SyncMessage:   messageBytes,
+		ChangeBytes:   messageBytes,
 		Lamport:       app.maxLamport,
 		Embodiment:    embodiment,
 	}
 	envelopeBytes, err := app.makeSignedEnvelope(app.documentPCID, message)
 	if err != nil {
-		return crdt.SyncRecord{}, fmt.Errorf("sign sync message: %w", err)
+		return crdt.SyncRecord{}, fmt.Errorf("sign document change: %w", err)
 	}
 	record, err := app.ingestEnvelopeLocked(envelopeBytes, nil)
 	if err != nil {
@@ -318,7 +318,7 @@ func (app *App) makeSignedEnvelope(pcid cid.Cid, payload any) ([]byte, error) {
 
 // Intent: Rebuild relay awareness and CRDT feed indices only from exact signed
 // envelope bytes so CAS, verification, replay, and peer polling all share the
-// same object identity path. Source: DI-ramuv; DI-zegov
+// same object identity path. Source: DI-ramuv; DI-zegov; DI-larok
 func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry) (crdt.SyncRecord, error) {
 	envelopeCID, err := protocol.CIDForBytes(envelopeBytes)
 	if err != nil {
@@ -368,7 +368,7 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 			ParticipantID: message.ParticipantID,
 			RecipientID:   message.RecipientID,
 			Author:        message.Author,
-			MessageBase64: base64.StdEncoding.EncodeToString(message.SyncMessage),
+			MessageBase64: base64.StdEncoding.EncodeToString(message.ChangeBytes),
 			Embodiment:    message.Embodiment,
 			ReceivedAt:    entry.ReceivedAt,
 		}

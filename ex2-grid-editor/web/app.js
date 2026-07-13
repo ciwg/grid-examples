@@ -26780,196 +26780,9 @@ var pasteURLAsLink = /* @__PURE__ */ EditorView.domEventHandlers({
   }
 });
 
-// ../../../../collab-awareness/client/browser.js
-var CursorWidget = class {
-  /**
-   * @param {string} name - User's display name
-   * @param {string} color - Cursor color (hex)
-   * @param {string} clientID - Unique client identifier
-   */
-  constructor(name2, color, clientID) {
-    this.name = name2 || "User";
-    this.color = color || "#000";
-    this.clientID = clientID || "";
-  }
-  toDOM() {
-    const wrapper = document.createElement("span");
-    wrapper.className = "remote-cursor";
-    wrapper.style.borderLeft = "2px solid " + this.color;
-    const label = document.createElement("span");
-    label.className = "remote-cursor-label";
-    label.textContent = this.name;
-    label.style.background = this.color;
-    wrapper.appendChild(label);
-    return wrapper;
-  }
-  updateDOM(dom) {
-    dom.style.borderLeft = "2px solid " + this.color;
-    const label = dom.querySelector(".remote-cursor-label");
-    if (label) {
-      label.textContent = this.name;
-      label.style.background = this.color;
-    }
-    return true;
-  }
-  ignoreEvent() {
-    return true;
-  }
-  eq(other) {
-    return this.clientID === other.clientID;
-  }
-  compare(other) {
-    return this.clientID === other.clientID;
-  }
-  destroy() {
-  }
-  coordsAt() {
-    return null;
-  }
-};
-function remoteCursorPlugin(cmView, cmState, awareness, clientID) {
-  const { Decoration: Decoration2, ViewPlugin: ViewPlugin2, EditorView: EditorView2 } = cmView;
-  const { StateField: StateField2, StateEffect: StateEffect2 } = cmState;
-  const setRemoteCursors = StateEffect2.define();
-  const remoteCursorField = StateField2.define({
-    create() {
-      return Decoration2.none;
-    },
-    update(deco, tr) {
-      for (let e of tr.effects) {
-        if (e.is(setRemoteCursors)) {
-          return e.value;
-        }
-      }
-      try {
-        return deco.map(tr.changes);
-      } catch (e) {
-        console.warn("[RemoteCursor] Decoration mapping failed, clearing:", e.message);
-        return Decoration2.none;
-      }
-    },
-    provide: (f) => EditorView2.decorations.from(f)
-  });
-  const plugin2 = ViewPlugin2.fromClass(
-    class {
-      constructor(view2) {
-        this.view = view2;
-        this.updateDecorations = this.updateDecorations.bind(this);
-        this.updateDecorations();
-        awareness.on("change", this.updateDecorations);
-      }
-      update(update) {
-        if (update.docChanged || update.selectionSet) {
-          this.updateDecorations();
-        }
-      }
-      updateDecorations() {
-        const buildDecorations = (currentDocLength) => {
-          const decorations2 = [];
-          const states = awareness.getStates();
-          states.forEach((state2, id2) => {
-            if (id2 === clientID) return;
-            const user = state2.user;
-            const selection = state2.selection;
-            if (user && selection && typeof selection.anchor === "number") {
-              const anchor = Math.max(0, Math.min(selection.anchor, currentDocLength));
-              decorations2.push(
-                Decoration2.widget({
-                  widget: new CursorWidget(user.name, user.color, id2),
-                  side: -1
-                }).range(anchor)
-              );
-              if (typeof selection.head === "number" && selection.head !== selection.anchor) {
-                const head = Math.max(0, Math.min(selection.head, currentDocLength));
-                const from3 = Math.min(anchor, head);
-                const to = Math.max(anchor, head);
-                if (from3 < to) {
-                  const color = user.color || "#000";
-                  decorations2.push(
-                    Decoration2.mark({
-                      class: "remote-selection",
-                      attributes: { style: `background: ${color}33` }
-                    }).range(from3, to)
-                  );
-                }
-              }
-            }
-          });
-          return Decoration2.set(decorations2, true);
-        };
-        setTimeout(() => {
-          try {
-            const currentDocLength = this.view.state.doc.length;
-            const freshDecorations = buildDecorations(currentDocLength);
-            this.view.dispatch({
-              effects: setRemoteCursors.of(freshDecorations)
-            });
-          } catch (e) {
-            console.warn("[RemoteCursor] Dispatch failed:", e.message);
-          }
-        }, 0);
-      }
-      destroy() {
-        awareness.off("change", this.updateDecorations);
-      }
-    }
-  );
-  return [remoteCursorField, plugin2];
-}
-function injectStyles() {
-  if (document.getElementById("collab-awareness-styles")) {
-    return;
-  }
-  const style = document.createElement("style");
-  style.id = "collab-awareness-styles";
-  style.textContent = `
-    .remote-cursor {
-      position: relative;
-      border-left: 2px solid;
-      margin-left: -1px;
-      margin-right: -1px;
-      pointer-events: none;
-    }
-
-    .remote-cursor-label {
-      position: absolute;
-      top: -1.4em;
-      left: -1px;
-      font-size: 10px;
-      font-family: sans-serif;
-      font-weight: 500;
-      line-height: 1.2;
-      white-space: nowrap;
-      color: white;
-      padding: 1px 4px;
-      border-radius: 3px 3px 3px 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    .user {
-      display: inline-block;
-      padding: 2px 8px;
-      margin: 2px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-family: sans-serif;
-      color: white;
-    }
-
-    #typing-indicator {
-      font-style: italic;
-      color: #666;
-      font-size: 12px;
-      min-height: 1.2em;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
 // src/editor.js
 function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
-  injectStyles();
+  injectCursorStyles();
   let applyingRemote = false;
   const extensions = [
     lineNumbers(),
@@ -26986,7 +26799,7 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
         onSelectionChange(selection.anchor, selection.head);
       }
     }),
-    ...remoteCursorPlugin(dist_exports2, dist_exports, awareness, participantID)
+    ...createRemoteCursorExtensions(dist_exports2, dist_exports, awareness, participantID)
   ];
   const state2 = EditorState.create({
     doc: "",
@@ -27018,6 +26831,140 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       view2.destroy();
     }
   };
+}
+function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
+  const { Decoration: Decoration2, ViewPlugin: ViewPlugin2, EditorView: EditorView2, WidgetType: WidgetType2 } = cmView;
+  const { StateEffect: StateEffect2, StateField: StateField2 } = cmState;
+  const setRemoteCursors = StateEffect2.define();
+  class CursorWidget extends WidgetType2 {
+    constructor(name2, color, clientID2) {
+      super();
+      this.name = name2 || "User";
+      this.color = normalizeColor(color);
+      this.clientID = clientID2 || "";
+    }
+    toDOM() {
+      const wrapper = document.createElement("span");
+      wrapper.className = "grid-remote-cursor";
+      wrapper.style.setProperty("--grid-peer-color", this.color);
+      const label = document.createElement("span");
+      label.className = "grid-remote-cursor-label";
+      label.textContent = this.name;
+      label.style.backgroundColor = this.color;
+      wrapper.appendChild(label);
+      return wrapper;
+    }
+    eq(other) {
+      return this.clientID === other.clientID && this.name === other.name && this.color === other.color;
+    }
+  }
+  const remoteCursorField = StateField2.define({
+    create() {
+      return Decoration2.none;
+    },
+    update(decorations2, transaction) {
+      for (const effect of transaction.effects) {
+        if (effect.is(setRemoteCursors)) {
+          return effect.value;
+        }
+      }
+      return decorations2.map(transaction.changes);
+    },
+    provide: (field) => EditorView2.decorations.from(field)
+  });
+  const plugin2 = ViewPlugin2.fromClass(class {
+    constructor(view2) {
+      this.view = view2;
+      this.updateDecorations = this.updateDecorations.bind(this);
+      awareness.on("change", this.updateDecorations);
+      this.updateDecorations();
+    }
+    update(update) {
+      if (update.docChanged || update.selectionSet) {
+        this.updateDecorations();
+      }
+    }
+    updateDecorations() {
+      const docLength = this.view.state.doc.length;
+      const decorations2 = [];
+      const states = awareness.getStates();
+      states.forEach((state2, id2) => {
+        if (id2 === clientID) {
+          return;
+        }
+        const user = state2.user;
+        const selection = state2.selection;
+        if (!user || !selection || typeof selection.anchor !== "number") {
+          return;
+        }
+        const color = normalizeColor(user.color);
+        const anchor = Math.max(0, Math.min(selection.anchor, docLength));
+        decorations2.push(Decoration2.widget({
+          widget: new CursorWidget(user.name, color, id2),
+          side: -1
+        }).range(anchor));
+        if (typeof selection.head === "number" && selection.head !== selection.anchor) {
+          const head = Math.max(0, Math.min(selection.head, docLength));
+          const from3 = Math.min(anchor, head);
+          const to = Math.max(anchor, head);
+          if (from3 < to) {
+            decorations2.push(Decoration2.mark({
+              class: "grid-remote-selection",
+              attributes: { style: `background: ${color}33` }
+            }).range(from3, to));
+          }
+        }
+      });
+      this.view.dispatch({ effects: setRemoteCursors.of(Decoration2.set(decorations2, true)) });
+    }
+    destroy() {
+      awareness.off("change", this.updateDecorations);
+    }
+  });
+  return [remoteCursorField, plugin2];
+}
+function injectCursorStyles() {
+  if (document.getElementById("grid-editor-remote-cursor-styles")) {
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = "grid-editor-remote-cursor-styles";
+  style.textContent = `
+    .grid-remote-cursor {
+      position: relative;
+      display: inline-block;
+      width: 0;
+      height: 1.25em;
+      margin-left: -1px;
+      margin-right: -1px;
+      border-left: 2px solid var(--grid-peer-color, #999999);
+      pointer-events: none;
+      vertical-align: text-bottom;
+    }
+
+    .grid-remote-cursor-label {
+      position: absolute;
+      top: -1.5em;
+      left: -1px;
+      font-size: 10px;
+      font-family: sans-serif;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+      color: white;
+      padding: 1px 4px;
+      border-radius: 3px 3px 3px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .grid-remote-selection {
+      border-radius: 2px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+function normalizeColor(value) {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#999999";
 }
 
 // src/relay-awareness.js
@@ -31318,18 +31265,17 @@ UseApi(web_exports);
 
 // src/automerge-relay.js
 var AutomergeNext = next_slim_exports;
+var EMPTY_DOCUMENT_BYTES = base64ToBytes("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==");
 var AutomergeRelayClient = class {
   constructor(options) {
     this.basePath = options.basePath;
     this.participantID = options.participantID;
     this.documentID = options.documentID;
     this.awareness = options.awareness;
-    this.doc = loadDocument(documentKey(this.documentID));
-    this.syncStates = /* @__PURE__ */ new Map();
+    this.doc = ensureDocument(null);
     this.listeners = /* @__PURE__ */ new Map();
     this.offset = 0;
     this.pollTimer = null;
-    this.knownPeers = /* @__PURE__ */ new Set();
     this.seenEnvelopes = /* @__PURE__ */ new Set();
   }
   on(event, callback) {
@@ -31349,7 +31295,6 @@ var AutomergeRelayClient = class {
   }
   async connect() {
     await this.poll();
-    await this.flushKnownPeers();
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => this.emit("error", error));
     }, 250);
@@ -31378,98 +31323,51 @@ var AutomergeRelayClient = class {
     }
     this.offset = payload.next_offset || this.offset;
   }
-  observePeers(peers) {
-    let changed = false;
-    for (const peer of peers) {
-      if (!peer.participant_id || peer.participant_id === this.participantID) {
-        continue;
-      }
-      if (!this.knownPeers.has(peer.participant_id)) {
-        this.knownPeers.add(peer.participant_id);
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.flushKnownPeers().catch((error) => this.emit("error", error));
-    }
+  observePeers(_peers) {
   }
   applyLocalUpdate(update) {
-    let nextDoc = this.doc;
-    update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-      const deleteCount = toA - fromA;
-      const insertText = inserted.toString();
-      nextDoc = change(nextDoc, (draft) => {
+    const nextDoc = change(clone(this.doc), (draft) => {
+      update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        const deleteCount = toA - fromA;
+        const insertText = inserted.toString();
         AutomergeNext.splice(draft, ["content"], fromA, deleteCount, insertText);
       });
     });
     this.setDoc(nextDoc);
-    this.flushKnownPeers().catch((error) => this.emit("error", error));
+    const change2 = getLastLocalChange(nextDoc);
+    if (change2) {
+      this.postChange(change2).catch((error) => this.emit("error", error));
+    }
   }
   async receive(record) {
-    const syncState = this.syncStates.get(record.participant_id) || initSyncState2();
-    const message = base64ToBytes(record.message_base64);
-    const previous = this.doc;
-    const [nextDoc, nextState] = receiveSyncMessage(previous, syncState, message);
-    this.syncStates.set(record.participant_id, nextState);
+    const previous = clone(this.doc);
+    const [nextDoc] = applyChanges(previous, [base64ToBytes(record.message_base64)]);
     if (!equals(previous, nextDoc)) {
       this.setDoc(nextDoc);
       this.emit("document", this.getText());
     }
-    await this.flushPeer(record.participant_id);
   }
-  async flushKnownPeers() {
-    for (const peerID of this.knownPeers) {
-      await this.flushPeer(peerID);
-    }
-  }
-  async flushPeer(peerID) {
-    if (!peerID || peerID === this.participantID) {
-      return;
-    }
-    let state2 = this.syncStates.get(peerID) || initSyncState2();
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      let message;
-      [state2, message] = generateSyncMessage(this.doc, state2);
-      this.syncStates.set(peerID, state2);
-      if (!message) {
-        break;
-      }
-      await fetch(`${this.basePath}/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          participant_id: this.participantID,
-          recipient_id: peerID,
-          message_base64: bytesToBase64(message),
-          embodiment: "browser"
-        })
-      });
-    }
+  async postChange(change2) {
+    await fetch(`${this.basePath}/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: this.participantID,
+        recipient_id: "",
+        message_base64: bytesToBase64(change2),
+        embodiment: "browser"
+      })
+    });
   }
   setDoc(nextDoc) {
     this.doc = ensureDocument(nextDoc);
-    localStorage.setItem(documentKey(this.documentID), bytesToBase64(save(this.doc)));
   }
 };
 function ensureDocument(doc2) {
   if (doc2?.content !== void 0) {
     return doc2;
   }
-  return from({ content: new Text2() });
-}
-function loadDocument(key) {
-  const encoded = localStorage.getItem(key);
-  if (!encoded) {
-    return ensureDocument(null);
-  }
-  try {
-    return ensureDocument(load2(base64ToBytes(encoded)));
-  } catch (_error) {
-    return ensureDocument(null);
-  }
-}
-function documentKey(documentID) {
-  return `grid-editor-automerge-${documentID}`;
+  return load2(EMPTY_DOCUMENT_BYTES);
 }
 function bytesToBase64(bytes) {
   let text = "";
