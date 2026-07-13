@@ -43,9 +43,42 @@ rule as `live-document`:
 Awareness is a latest-state projection rather than a durable shared document
 truth.
 
+## Presence lifecycle
+
+`live-awareness` is for live presence, not historical membership. The current
+repo policy is to support two presence profiles:
+
+- `demo`:
+  - `0-5 minutes`: treat a peer as live
+  - `5-15 minutes`: treat a peer as stale or dimmed
+  - `15-30 minutes`: treat a peer as offline
+  - `30+ minutes`: remove the peer from the main live `Peers` list
+- `normal`:
+  - `0-1 minute`: treat a peer as live
+  - `1-5 minutes`: treat a peer as stale or dimmed
+  - `5-15 minutes`: treat a peer as offline
+  - `15+ minutes`: remove the peer from the main live `Peers` list
+
+The demo profile exists because multi-machine demos, restarts, and walking
+between embodiments take much longer than strict real-time collaboration
+timeouts. The normal profile remains the tighter everyday collaboration model.
+Source: `DI-mivor`.
+
+## Live presence versus historical activity
+
+Historical collaboration signals should not be overloaded into the main
+`Peers` list.
+
+- document activity belongs in a durable activity stream or change history
+- comments belong in a comment or annotation surface
+- version history belongs in document/history tooling
+- `last viewed` and `last edited` belong in separate historical or audit views
+
+The main live `Peers` list should answer "who is here now?" rather than "who
+has ever been here?" Source: `DI-mivor`.
+
 ## Verification
 
 - reject malformed CBOR
 - reject invalid signature proof
 - reject payloads whose slot `0` pCID does not match this spec
-

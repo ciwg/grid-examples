@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] 005 - grid-editor presence aging and historical activity split - `TODO/TODO-mivor-grid-editor-presence-lifecycle.md`
 - [x] 004 - grid-editor relay security, sync robustness, and connection-flow hardening - `TODO/TODO-dafek-grid-editor-hardening-review.md`
 - [x] 002 - grid-editor real CRDT relay, CAS persistence, and CodeMirror browser migration - `TODO/TODO-sanup-grid-editor-crdt-relay.md`
 - [x] 003 - grid-editor Neovim CRDT sidecar and plugin migration - `TODO/TODO-vorud-grid-editor-nvim-sidecar.md`

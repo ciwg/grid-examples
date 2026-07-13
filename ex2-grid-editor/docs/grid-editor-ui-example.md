@@ -12,9 +12,9 @@ type text, and send cursor/presence updates, but it is not the source of truth
 for the protocol or the shared state.
 
 So when this page shows values like an `Author`, a `live-document pCID`, or a
-`content` CID, it is really showing you facts about the local Go service and
-the signed state it is managing, not just browser-only UI values. Source:
-`DI-lodug`; `DI-tofug`; `DI-jilin`.
+`local replica` fingerprint, it is really showing you facts about the local Go
+service and the CRDT state around it, not just browser-only UI values. Source:
+`DI-lodug`; `DI-tofug`; `DI-jilin`; `DI-zegov`; `DI-larok`.
 
 ![grid-editor demo](./demo.png)
 
@@ -81,6 +81,13 @@ the signed state it is managing, not just browser-only UI values. Source:
   document.
 - `No remote peers yet` means no other authors are currently visible for that
   document, or only the local author has written awareness state so far.
+- This list is meant to show live presence, not historical participation.
+- The current intended policy is `0-1 minute` live, `1-5 minutes` stale or
+  dimmed, `5-15 minutes` offline, and `15+ minutes` removed from the main
+  `Peers` list.
+- Historical information such as comments, version history, `last viewed`, or
+  `last edited` should live in separate surfaces instead of staying in the
+  live peer roster. Source: `DI-mivor`.
 
 ## Status bar
 
@@ -89,20 +96,22 @@ the signed state it is managing, not just browser-only UI values. Source:
 - The browser page can currently reach the local Go service over the internal
   HTTP adapter.
 
-### `revision: 4`
+### `messages: 4`
 
-- This is the current projected document Lamport clock value.
-- It shows the order position of the accepted document state rather than a Git
-  revision or file save count. Source: `DI-jilin`.
-- A value greater than `1` usually means the service has already accepted prior
-  document or awareness messages in its append-only local history.
+- This is the current relay-visible message count for the active document.
+- It is a quick status value showing how many signed document-change records
+  the local relay currently has for that document.
+- It is not a Git revision, file save count, or direct CRDT version number.
 
-### `content: bafk...`
+### `local replica: hW9K...`
 
-- This is the CID of the exact current document text bytes.
-- If the text changes, this CID changes too.
-- It is the content-addressed identity of the current projected document
-  content.
+- This is a short debug fingerprint of the browser's current local Automerge
+  replica state.
+- It is derived from the serialized local CRDT document bytes and then trimmed
+  for display.
+- It helps you tell whether the browser replica has moved to a new local CRDT
+  state, even when the visible text is similar.
+- It is not currently shown as a formal CID in the UI.
 
 ## Quick distinction
 
@@ -111,10 +120,21 @@ the signed state it is managing, not just browser-only UI values. Source:
 - `Author` is the durable signing identity.
 - `Display name` is just a presentation label shown to people.
 
-### `pCID` vs `content CID`
+### `pCID` vs `local replica`
 
 - A `pCID` identifies the protocol spec being spoken.
-- The `content` CID identifies the current document text bytes.
+- The `local replica` value is a browser-local fingerprint of the current CRDT
+  state snapshot.
+
+### `local replica` vs document text identity
+
+- The `local replica` value describes the whole local CRDT state, not just the
+  plain text you can read on screen.
+- Two replicas can temporarily show the same text while still having different
+  internal CRDT histories or state bytes.
+- A plain-text content CID, if shown in some future debugging view, would mean
+  "what exact text bytes do I have?", while `local replica` means "what exact
+  local CRDT snapshot do I have?"
 
 ### Why there are two pCIDs
 
