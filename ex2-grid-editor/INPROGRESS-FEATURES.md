@@ -2,6 +2,76 @@
 
 Current review status for features from the older collaborative editor.
 
+## Suggested phases
+
+### Phase 1 - Core collaborative editor
+
+Status: approved
+
+- 1, 2, 3, 4
+- 6, 7, 8
+- 17, 18, 19, 20, 22, 24
+- 33, 35, 36, 37, 38, 39, 40
+- 41, 42
+- 54, 55, 60, 61, 62, 63, 64, 65, 67, 68
+- 73, 74, 76, 78
+
+Goal:
+- make the shared editor feel strong, usable, and demo-ready
+- finish, fix, and polish features that are already partially implemented
+
+### Phase 2 - Document workflow and export
+
+Status: approved
+
+- 9, 10, 11, 12, 13, 15, 16
+- 34, 43, 44
+- 45, 46, 47, 48
+- 51, 52, 53
+- 79, 80
+- 111, 112, 113, 114, 115
+- 131, 132, 133, 134, 135, 136, 137, 138
+- 154, 155, 156, 157, 158, 159, 160
+- 162, 163, 164, 168
+
+Goal:
+- make documents easier to create, navigate, share, export, and demo
+
+### Phase 3 - Review, comments, and history
+
+Status: approved
+
+- 81, 82, 83, 84, 85, 86, 87, 88, 90
+- 102, 103, 104, 105, 106, 107, 108, 109, 110
+- 116, 117, 118, 119, 120
+- 121, 122, 123, 124, 125, 126, 127, 128, 129, 130
+- 171, 176, 177, 180
+
+Goal:
+- add richer collaboration, review flow, visibility, and content tools
+
+### Phase 4 - PromiseGrid-native backend features
+
+Status: approved
+
+- 89
+- 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
+- 28, 29, 30
+
+Goal:
+- handle version restore, permissions, ownership, publishing, and document exchange in PromiseGrid-native ways
+
+### Phase 5 - Later / optional / boss review
+
+Status: approved
+
+- everything in `Maybe`
+- especially 58, 59, 69, 71, 72
+- and 191-200
+
+Goal:
+- reserve these for later product decisions, demo refinements, or boss review
+
 ## Confirmed
 
 1. Remote cursors
@@ -23,7 +93,7 @@ Current review status for features from the older collaborative editor.
 19. Line numbers toggle
 20. Dark / light mode
 22. Find / search
-24. Bold / italic / markdown formatting actions
+24. Bold / italic / underline / markdown formatting actions
 25. Print
 26. Version history
 27. Compare versions / diff view
