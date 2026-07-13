@@ -94,6 +94,9 @@ func TestAwarenessTracksParticipantsSeparately(t *testing.T) {
 	if peers[0].ParticipantID == peers[1].ParticipantID {
 		t.Fatalf("participant ids collapsed: %q", peers[0].ParticipantID)
 	}
+	if peers[0].LastSeenAt == "" || peers[1].LastSeenAt == "" {
+		t.Fatalf("expected last seen timestamps for awareness peers")
+	}
 }
 
 func TestAwarenessUsesAuthorFallbackAndLatestRelayState(t *testing.T) {
@@ -140,6 +143,9 @@ func TestAwarenessUsesAuthorFallbackAndLatestRelayState(t *testing.T) {
 	}
 	if peers[0].Cursor != 1 {
 		t.Fatalf("expected latest relay update to win, got cursor %d", peers[0].Cursor)
+	}
+	if peers[0].LastSeenAt == "" {
+		t.Fatalf("expected awareness replay to keep last seen timestamp")
 	}
 }
 

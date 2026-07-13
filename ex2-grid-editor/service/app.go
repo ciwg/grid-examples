@@ -454,7 +454,11 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		if message.Author != envelope.Proof.KeyID {
 			return crdt.SyncRecord{}, fmt.Errorf("awareness author %q does not match proof key", message.Author)
 		}
-		index, _ := awareness.Apply(app.presence[message.DocumentID], message, envelopeCIDString)
+		observedAt, err := time.Parse(time.RFC3339Nano, entry.ReceivedAt)
+		if err != nil {
+			return crdt.SyncRecord{}, fmt.Errorf("parse awareness received_at: %w", err)
+		}
+		index, _ := awareness.Apply(app.presence[message.DocumentID], message, envelopeCIDString, observedAt)
 		app.presence[message.DocumentID] = index
 		if message.Lamport > app.maxLamport {
 			app.maxLamport = message.Lamport

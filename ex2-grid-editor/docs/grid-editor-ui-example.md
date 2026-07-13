@@ -26,6 +26,31 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 - It talks to the local Go service, which owns the actual document and
   awareness state.
 
+## Phase 1 browser shell
+
+### Toolbar and quick actions
+
+- The browser UI now has a small Phase 1 action bar for `Search`, `Bold`,
+  `Italic`, and `Underline`.
+- There is also a lightweight welcome banner and a `Help` surface so a demo
+  user does not need to read the README first.
+- `New Shared Doc` creates a fresh logical document ID and updates the share
+  link in the sidebar.
+- `Paste Link` accepts either a full grid-editor URL or a raw document ID.
+
+### Settings
+
+- The browser UI now has a local settings surface for:
+  - theme
+  - line numbers
+  - font size
+  - dyslexia-friendly spacing
+  - presence profile
+  - shortcut overrides
+- In this Phase 1 slice those preferences stay local to the browser, but they
+  are treated as app-level preferences rather than scattered one-off browser
+  toggles. Source: `DI-vasul`.
+
 ## Document controls
 
 ### `Document ID`
@@ -82,9 +107,11 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 - `No remote peers yet` means no other authors are currently visible for that
   document, or only the local author has written awareness state so far.
 - This list is meant to show live presence, not historical participation.
-- The current intended policy is `0-1 minute` live, `1-5 minutes` stale or
-  dimmed, `5-15 minutes` offline, and `15+ minutes` removed from the main
-  `Peers` list.
+- The browser now renders peer presence using the selected profile:
+  - `demo`: `0-5 minutes` live, `5-15 minutes` stale, `15-30 minutes`
+    offline, `30+ minutes` removed
+  - `normal`: `0-1 minute` live, `1-5 minutes` stale, `5-15 minutes`
+    offline, `15+ minutes` removed
 - Historical information such as comments, version history, `last viewed`, or
   `last edited` should live in separate surfaces instead of staying in the
   live peer roster. Source: `DI-mivor`.
@@ -95,6 +122,9 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 
 - The browser page can currently reach the local Go service over the internal
   HTTP adapter.
+- In the current Phase 1 slice, this can also show more explicit states such
+  as `connecting`, `syncing`, `unsynced local changes`, `disconnected`, or an
+  error message when sync fails.
 
 ### `messages: 4`
 

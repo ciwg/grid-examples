@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
@@ -8,12 +8,13 @@ import * as cmState from "@codemirror/state";
 export function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
   let applyingRemote = false;
+  const lineNumbersCompartment = new Compartment();
 
   // Intent: Move the browser embodiment to a real CodeMirror surface so CRDT
   // text convergence and remote cursor rendering share the same editor model.
-  // Source: DI-zegov
+  // Source: DI-zegov; DI-favok; DI-vasul
   const extensions = [
-    lineNumbers(),
+    lineNumbersCompartment.of(lineNumbers()),
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     markdown(),
@@ -58,6 +59,48 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       });
       applyingRemote = false;
     },
+    focus() {
+      view.focus();
+    },
+    setLineNumbers(enabled) {
+      view.dispatch({
+        effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : []),
+      });
+    },
+    findNext(query) {
+      if (!query) {
+        return false;
+      }
+      const doc = view.state.doc.toString();
+      const current = view.state.selection.main;
+      let index = doc.indexOf(query, current.to);
+      if (index === -1) {
+        index = doc.indexOf(query, 0);
+      }
+      if (index === -1) {
+        return false;
+      }
+      view.dispatch({
+        selection: EditorSelection.range(index, index + query.length),
+        scrollIntoView: true,
+      });
+      view.focus();
+      return true;
+    },
+    wrapSelection(prefix, suffix) {
+      const selection = view.state.selection.main;
+      const selected = view.state.sliceDoc(selection.from, selection.to);
+      const fallback = selected || "text";
+      const insert = `${prefix}${selected || fallback}${suffix}`;
+      const anchor = selection.from + prefix.length;
+      const head = anchor + fallback.length;
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert },
+        selection: EditorSelection.range(anchor, head),
+        scrollIntoView: true,
+      });
+      view.focus();
+    },
     destroy() {
       view.destroy();
     },
@@ -70,16 +113,20 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
   const setRemoteCursors = StateEffect.define();
 
   class CursorWidget extends WidgetType {
-    constructor(name, color, clientID) {
+    constructor(name, color, clientID, typing) {
       super();
       this.name = name || "User";
       this.color = normalizeColor(color);
       this.clientID = clientID || "";
+      this.typing = Boolean(typing);
     }
 
     toDOM() {
       const wrapper = document.createElement("span");
       wrapper.className = "grid-remote-cursor";
+      if (this.typing) {
+        wrapper.classList.add("typing");
+      }
       wrapper.style.setProperty("--grid-peer-color", this.color);
 
       const label = document.createElement("span");
@@ -91,7 +138,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
     }
 
     eq(other) {
-      return this.clientID === other.clientID && this.name === other.name && this.color === other.color;
+      return this.clientID === other.clientID && this.name === other.name && this.color === other.color && this.typing === other.typing;
     }
   }
 
@@ -140,7 +187,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
         const color = normalizeColor(user.color);
         const anchor = Math.max(0, Math.min(selection.anchor, docLength));
         decorations.push(Decoration.widget({
-          widget: new CursorWidget(user.name, color, id),
+          widget: new CursorWidget(user.name, color, id, state.typing),
           side: -1,
         }).range(anchor));
 
@@ -186,6 +233,10 @@ function injectCursorStyles() {
       vertical-align: text-bottom;
     }
 
+    .grid-remote-cursor.typing {
+      animation: grid-editor-typing-caret 0.8s steps(1) infinite;
+    }
+
     .grid-remote-cursor-label {
       position: absolute;
       top: -1.5em;
@@ -203,6 +254,12 @@ function injectCursorStyles() {
 
     .grid-remote-selection {
       border-radius: 2px;
+    }
+
+    @keyframes grid-editor-typing-caret {
+      0% { opacity: 1; }
+      50% { opacity: 0.2; }
+      100% { opacity: 1; }
     }
   `;
   document.head.appendChild(style);

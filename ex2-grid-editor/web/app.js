@@ -26784,8 +26784,9 @@ var pasteURLAsLink = /* @__PURE__ */ EditorView.domEventHandlers({
 function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
   let applyingRemote = false;
+  const lineNumbersCompartment = new Compartment();
   const extensions = [
-    lineNumbers(),
+    lineNumbersCompartment.of(lineNumbers()),
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     markdown(),
@@ -26827,6 +26828,48 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       });
       applyingRemote = false;
     },
+    focus() {
+      view2.focus();
+    },
+    setLineNumbers(enabled) {
+      view2.dispatch({
+        effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : [])
+      });
+    },
+    findNext(query) {
+      if (!query) {
+        return false;
+      }
+      const doc2 = view2.state.doc.toString();
+      const current = view2.state.selection.main;
+      let index = doc2.indexOf(query, current.to);
+      if (index === -1) {
+        index = doc2.indexOf(query, 0);
+      }
+      if (index === -1) {
+        return false;
+      }
+      view2.dispatch({
+        selection: EditorSelection.range(index, index + query.length),
+        scrollIntoView: true
+      });
+      view2.focus();
+      return true;
+    },
+    wrapSelection(prefix, suffix) {
+      const selection = view2.state.selection.main;
+      const selected = view2.state.sliceDoc(selection.from, selection.to);
+      const fallback = selected || "text";
+      const insert2 = `${prefix}${selected || fallback}${suffix}`;
+      const anchor = selection.from + prefix.length;
+      const head = anchor + fallback.length;
+      view2.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: insert2 },
+        selection: EditorSelection.range(anchor, head),
+        scrollIntoView: true
+      });
+      view2.focus();
+    },
     destroy() {
       view2.destroy();
     }
@@ -26837,15 +26880,19 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
   const { StateEffect: StateEffect2, StateField: StateField2 } = cmState;
   const setRemoteCursors = StateEffect2.define();
   class CursorWidget extends WidgetType2 {
-    constructor(name2, color, clientID2) {
+    constructor(name2, color, clientID2, typing) {
       super();
       this.name = name2 || "User";
       this.color = normalizeColor(color);
       this.clientID = clientID2 || "";
+      this.typing = Boolean(typing);
     }
     toDOM() {
       const wrapper = document.createElement("span");
       wrapper.className = "grid-remote-cursor";
+      if (this.typing) {
+        wrapper.classList.add("typing");
+      }
       wrapper.style.setProperty("--grid-peer-color", this.color);
       const label = document.createElement("span");
       label.className = "grid-remote-cursor-label";
@@ -26855,7 +26902,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
       return wrapper;
     }
     eq(other) {
-      return this.clientID === other.clientID && this.name === other.name && this.color === other.color;
+      return this.clientID === other.clientID && this.name === other.name && this.color === other.color && this.typing === other.typing;
     }
   }
   const remoteCursorField = StateField2.define({
@@ -26900,7 +26947,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
         const color = normalizeColor(user.color);
         const anchor = Math.max(0, Math.min(selection.anchor, docLength));
         decorations2.push(Decoration2.widget({
-          widget: new CursorWidget(user.name, color, id2),
+          widget: new CursorWidget(user.name, color, id2, state2.typing),
           side: -1
         }).range(anchor));
         if (typeof selection.head === "number" && selection.head !== selection.anchor) {
@@ -26942,6 +26989,10 @@ function injectCursorStyles() {
       vertical-align: text-bottom;
     }
 
+    .grid-remote-cursor.typing {
+      animation: grid-editor-typing-caret 0.8s steps(1) infinite;
+    }
+
     .grid-remote-cursor-label {
       position: absolute;
       top: -1.5em;
@@ -26959,6 +27010,12 @@ function injectCursorStyles() {
 
     .grid-remote-selection {
       border-radius: 2px;
+    }
+
+    @keyframes grid-editor-typing-caret {
+      0% { opacity: 1; }
+      50% { opacity: 0.2; }
+      100% { opacity: 1; }
     }
   `;
   document.head.appendChild(style);
@@ -27000,7 +27057,8 @@ var RelayAwarenessClient = class {
     states.set(this.participantID, {
       user: { ...this.user },
       selection: { ...this.selection },
-      typing: this.typing
+      typing: this.typing,
+      lastSeenAt: (/* @__PURE__ */ new Date()).toISOString()
     });
     return states;
   }
@@ -27034,7 +27092,9 @@ var RelayAwarenessClient = class {
           anchor: peer.cursor || 0,
           head: peer.head || peer.cursor || 0
         },
-        typing: Boolean(peer.typing)
+        typing: Boolean(peer.typing),
+        lastSeenAt: peer.last_seen_at || null,
+        embodiment: peer.embodiment || ""
       });
     }
     this.emit("change");
@@ -31275,6 +31335,8 @@ var AutomergeRelayClient = class {
     this.offset = 0;
     this.pollTimer = null;
     this.seenEnvelopes = /* @__PURE__ */ new Set();
+    this.connected = false;
+    this.pendingChanges = 0;
   }
   on(event, callback) {
     if (!this.listeners.has(event)) {
@@ -31292,9 +31354,15 @@ var AutomergeRelayClient = class {
     return bytesToBase64(save(this.doc)).slice(0, 16);
   }
   async connect() {
+    this.emitStatus("connecting");
     await this.poll();
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
     this.pollTimer = window.setInterval(() => {
-      this.poll().catch((error) => this.emit("error", error));
+      this.poll().catch((error) => {
+        this.connected = false;
+        this.emitStatus("disconnected", error.message);
+        this.emit("error", error);
+      });
     }, 250);
   }
   disconnect() {
@@ -31302,6 +31370,8 @@ var AutomergeRelayClient = class {
       window.clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    this.connected = false;
+    this.emitStatus("disconnected");
   }
   async poll() {
     while (true) {
@@ -31309,6 +31379,7 @@ var AutomergeRelayClient = class {
       if (!response.ok) {
         throw new Error(`sync GET failed: ${response.status}`);
       }
+      this.connected = true;
       const payload = await response.json();
       for (const record of payload.messages || []) {
         this.seenEnvelopes.add(record.envelope_cid);
@@ -31329,6 +31400,7 @@ var AutomergeRelayClient = class {
         break;
       }
     }
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
   }
   observePeers(_peers) {
   }
@@ -31343,7 +31415,13 @@ var AutomergeRelayClient = class {
     this.setDoc(nextDoc);
     const change2 = getLastLocalChange(nextDoc);
     if (change2) {
-      this.postChange(change2).catch((error) => this.emit("error", error));
+      this.pendingChanges += 1;
+      this.emitStatus("unsynced");
+      this.postChange(change2).catch((error) => {
+        this.pendingChanges = Math.max(0, this.pendingChanges - 1);
+        this.emitStatus("error", error.message);
+        this.emit("error", error);
+      });
     }
   }
   async receive(record) {
@@ -31368,9 +31446,19 @@ var AutomergeRelayClient = class {
     if (!response.ok) {
       throw new Error(`sync POST failed: ${response.status}`);
     }
+    this.pendingChanges = Math.max(0, this.pendingChanges - 1);
+    this.emitStatus("ready");
   }
   setDoc(nextDoc) {
     this.doc = ensureDocument(nextDoc);
+  }
+  emitStatus(phase, message = "") {
+    this.emit("status", {
+      connected: this.connected,
+      pendingChanges: this.pendingChanges,
+      phase,
+      message
+    });
   }
 };
 function ensureDocument(doc2) {
@@ -31390,6 +31478,83 @@ function base64ToBytes(value) {
   return Uint8Array.from(window.atob(value), (char) => char.charCodeAt(0));
 }
 
+// src/preferences.js
+var STORAGE_KEY = "grid-editor-phase1-preferences";
+var DEFAULT_SHORTCUTS = {
+  search: "Mod-F",
+  bold: "Mod-B",
+  italic: "Mod-I",
+  underline: "Mod-Shift-U",
+  settings: "Mod-,",
+  help: "F1"
+};
+var DEFAULTS = {
+  displayName: "Browser User",
+  color: "#1d6fd6",
+  theme: "paper",
+  lineNumbers: true,
+  fontSize: 16,
+  dyslexiaMode: false,
+  profile: "demo",
+  shortcuts: DEFAULT_SHORTCUTS
+};
+var PreferencesStore = class {
+  constructor(storage = window.localStorage) {
+    this.storage = storage;
+    this.value = this.load();
+  }
+  load() {
+    try {
+      const raw = this.storage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return structuredClone(DEFAULTS);
+      }
+      return normalizePreferences(JSON.parse(raw));
+    } catch {
+      return structuredClone(DEFAULTS);
+    }
+  }
+  get() {
+    return structuredClone(this.value);
+  }
+  update(patch) {
+    this.value = normalizePreferences({
+      ...this.value,
+      ...patch,
+      shortcuts: {
+        ...this.value.shortcuts,
+        ...patch.shortcuts || {}
+      }
+    });
+    this.storage.setItem(STORAGE_KEY, JSON.stringify(this.value));
+    return this.get();
+  }
+};
+function defaultShortcuts() {
+  return { ...DEFAULT_SHORTCUTS };
+}
+function formatShortcut(shortcut) {
+  return (shortcut || "").replaceAll("Mod", navigator.platform.includes("Mac") ? "Cmd" : "Ctrl").replaceAll("-", "+");
+}
+function normalizePreferences(value) {
+  const next = {
+    ...DEFAULTS,
+    ...value || {},
+    shortcuts: {
+      ...DEFAULT_SHORTCUTS,
+      ...value && value.shortcuts || {}
+    }
+  };
+  next.displayName = String(next.displayName || DEFAULTS.displayName).slice(0, 80);
+  next.color = /^#[0-9a-fA-F]{6}$/.test(next.color) ? next.color : DEFAULTS.color;
+  next.theme = ["paper", "night"].includes(next.theme) ? next.theme : DEFAULTS.theme;
+  next.lineNumbers = Boolean(next.lineNumbers);
+  next.dyslexiaMode = Boolean(next.dyslexiaMode);
+  next.profile = ["demo", "normal"].includes(next.profile) ? next.profile : DEFAULTS.profile;
+  next.fontSize = Math.max(14, Math.min(24, Number(next.fontSize) || DEFAULTS.fontSize));
+  return next;
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -31401,20 +31566,80 @@ var revisionEl = document.getElementById("revision");
 var contentCIDEl = document.getElementById("content-cid");
 var peerListEl = document.getElementById("peer-list");
 var peerBadgesEl = document.getElementById("peer-badges");
+var peerCountEl = document.getElementById("peer-count");
+var presenceLegendEl = document.getElementById("presence-legend");
+var profilePillEl = document.getElementById("profile-pill");
+var shareLinkEl = document.getElementById("share-link");
+var participantEl = document.getElementById("participant-id");
+var toastStackEl = document.getElementById("toast-stack");
+var helpShortcutsEl = document.getElementById("help-shortcuts");
+var welcomeBannerEl = document.getElementById("welcome-banner");
 var docIDInput = document.getElementById("doc-id");
 var displayNameInput = document.getElementById("display-name");
 var colorInput = document.getElementById("color");
 var editorRoot = document.getElementById("editor");
+var settingsPanel = document.getElementById("settings-panel");
+var helpPanel = document.getElementById("help-panel");
+var settingsFields = {
+  theme: document.getElementById("theme-select"),
+  lineNumbers: document.getElementById("line-numbers-toggle"),
+  fontSize: document.getElementById("font-size-range"),
+  dyslexiaMode: document.getElementById("dyslexia-toggle"),
+  profile: document.getElementById("profile-select"),
+  shortcuts: {
+    search: document.getElementById("shortcut-search"),
+    bold: document.getElementById("shortcut-bold"),
+    italic: document.getElementById("shortcut-italic"),
+    underline: document.getElementById("shortcut-underline"),
+    settings: document.getElementById("shortcut-settings"),
+    help: document.getElementById("shortcut-help")
+  }
+};
+var preferences = new PreferencesStore();
 var state = {
   documentID: new URLSearchParams(window.location.search).get("doc") || "demo",
   participantID: getOrCreateParticipantID(),
   editor: null,
   awareness: null,
-  relay: null
+  relay: null,
+  prefs: preferences.get(),
+  visiblePeers: /* @__PURE__ */ new Map()
 };
+participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
-displayNameInput.value = getStoredPreference("display-name", "Browser User");
-colorInput.value = getStoredPreference("color", "#1d6fd6");
+function applyPreferences(nextPrefs, options = {}) {
+  state.prefs = nextPrefs;
+  document.body.dataset.theme = nextPrefs.theme;
+  document.body.dataset.dyslexia = String(nextPrefs.dyslexiaMode);
+  document.documentElement.style.setProperty("--editor-size", `${nextPrefs.fontSize}px`);
+  displayNameInput.value = nextPrefs.displayName;
+  colorInput.value = nextPrefs.color;
+  profilePillEl.textContent = `${nextPrefs.profile} profile`;
+  if (!options.skipFormSync) {
+    syncSettingsForm();
+  }
+  state.editor?.setLineNumbers(nextPrefs.lineNumbers);
+  if (state.awareness) {
+    state.awareness.setName(nextPrefs.displayName);
+    state.awareness.setColor(nextPrefs.color);
+  }
+  renderHelp();
+  renderPeers(state.awareness?.getStates() || /* @__PURE__ */ new Map());
+}
+function syncSettingsForm() {
+  settingsFields.theme.value = state.prefs.theme;
+  settingsFields.lineNumbers.checked = state.prefs.lineNumbers;
+  settingsFields.fontSize.value = String(state.prefs.fontSize);
+  settingsFields.dyslexiaMode.checked = state.prefs.dyslexiaMode;
+  settingsFields.profile.value = state.prefs.profile;
+  for (const [action, field] of Object.entries(settingsFields.shortcuts)) {
+    field.value = state.prefs.shortcuts[action] || defaultShortcuts()[action] || "";
+  }
+}
+function updatePreferences(patch, options = {}) {
+  const nextPrefs = preferences.update(patch);
+  applyPreferences(nextPrefs, options);
+}
 async function loadMeta() {
   const response = await fetch("/api/meta");
   const meta2 = await response.json();
@@ -31423,20 +31648,23 @@ async function loadMeta() {
   metaEls.awarenessPCID.textContent = meta2.awareness_pcid;
 }
 async function bootDocument(documentID) {
-  statusEl.textContent = "connecting\u2026";
+  setStatus("connecting", "connecting\u2026");
   state.documentID = documentID;
-  window.history.replaceState(null, "", `/?doc=${encodeURIComponent(documentID)}`);
+  docIDInput.value = documentID;
+  updateDocumentURL(documentID);
+  updateShareLink(documentID);
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
+  state.visiblePeers = /* @__PURE__ */ new Map();
   editorRoot.innerHTML = "";
   const basePath = `/api/local/documents/${encodeURIComponent(documentID)}`;
   const awareness = new RelayAwarenessClient({
     basePath,
     participantID: state.participantID,
     documentID,
-    displayName: displayNameInput.value || "Browser User",
-    color: colorInput.value || "#1d6fd6"
+    displayName: state.prefs.displayName,
+    color: state.prefs.color
   });
   const relay = new AutomergeRelayClient({
     basePath,
@@ -31461,67 +31689,327 @@ async function bootDocument(documentID) {
   state.awareness = awareness;
   state.relay = relay;
   state.editor = editor;
+  applyPreferences(state.prefs);
   editor.setText(relay.getText());
   contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
   relay.on("document", (text) => {
     editor.setText(text);
     contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
   });
+  relay.on("status", (status) => {
+    renderStatus(status);
+  });
   relay.on("error", (error) => {
-    statusEl.textContent = error.message;
+    setStatus("error", error.message);
+    showToast(error.message);
   });
   awareness.on("error", (error) => {
-    statusEl.textContent = error.message;
+    setStatus("error", error.message);
+    showToast(error.message);
   });
   awareness.on("change", () => {
-    renderPeers(awareness.getStates());
-    const peers = Array.from(awareness.getStates().keys()).filter((id2) => id2 !== state.participantID);
+    const states = awareness.getStates();
+    renderPeers(states);
+    const peers = Array.from(states.keys()).filter((id2) => id2 !== state.participantID);
     relay.observePeers(peers.map((participantID) => ({ participant_id: participantID })));
   });
   await awareness.connect();
   await relay.connect();
   renderPeers(awareness.getStates());
-  statusEl.textContent = "connected";
   await refreshState(basePath);
 }
 async function refreshState(basePath) {
   const response = await fetch(`${basePath}/state`);
   if (!response.ok) {
-    statusEl.textContent = `state GET failed: ${response.status}`;
+    setStatus("error", `state GET failed: ${response.status}`);
     return;
   }
   const payload = await response.json();
   revisionEl.textContent = `messages: ${payload.message_count || 0}`;
 }
 function renderPeers(states) {
+  const remotePeers = Array.from(states.entries()).filter(([participantID]) => participantID !== state.participantID).map(([participantID, peer]) => ({ participantID, ...peer })).map((peer) => ({ ...peer, presenceState: presenceState(peer.lastSeenAt, state.prefs.profile) })).filter((peer) => peer.presenceState !== "gone");
+  emitPeerNotifications(remotePeers);
   peerListEl.innerHTML = "";
   peerBadgesEl.innerHTML = "";
-  const remotePeers = Array.from(states.entries()).filter(([participantID]) => participantID !== state.participantID);
+  peerCountEl.textContent = `${remotePeers.length} peer${remotePeers.length === 1 ? "" : "s"}`;
+  const counts = { live: 0, stale: 0, offline: 0 };
+  for (const peer of remotePeers) {
+    counts[peer.presenceState] += 1;
+    const name2 = peer.user?.name || peer.participantID;
+    const color = peer.user?.color || "#999999";
+    const cursor = peer.selection?.anchor ?? 0;
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span class="swatch" style="background:${color}"></span>
+      <span class="peer-meta">
+        <strong>${escapeHTML(name2)}</strong>
+        <span class="peer-state ${peer.presenceState}">${peer.presenceState}</span>
+      </span>
+      <span class="tiny muted">@ ${cursor}</span>
+    `;
+    peerListEl.appendChild(li);
+    const badge = document.createElement("div");
+    badge.className = "peer-badge";
+    badge.dataset.presenceState = peer.presenceState;
+    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${escapeHTML(name2)}</strong><span>${peer.presenceState}</span>`;
+    peerBadgesEl.appendChild(badge);
+  }
   if (remotePeers.length === 0) {
     const li = document.createElement("li");
     li.className = "muted";
     li.textContent = "No remote peers yet";
     peerListEl.appendChild(li);
+  }
+  presenceLegendEl.textContent = `Live ${counts.live} \xB7 Stale ${counts.stale} \xB7 Offline ${counts.offline}`;
+}
+function emitPeerNotifications(peers) {
+  const next = new Map(peers.map((peer) => [peer.participantID, peer]));
+  for (const [participantID, peer] of next.entries()) {
+    if (!state.visiblePeers.has(participantID)) {
+      showToast(`${peer.user?.name || participantID} joined ${state.documentID}`);
+    }
+  }
+  for (const [participantID, peer] of state.visiblePeers.entries()) {
+    if (!next.has(participantID)) {
+      showToast(`${peer.user?.name || participantID} left ${state.documentID}`);
+    }
+  }
+  state.visiblePeers = next;
+}
+function renderStatus(status) {
+  if (status.phase === "disconnected") {
+    showToast("relay disconnected; retrying");
+  }
+  if (status.phase === "ready" && status.connected) {
+    setStatus("ready", "ready");
     return;
   }
-  for (const [participantID, peer] of remotePeers) {
-    const name2 = peer.user?.name || participantID;
-    const color = peer.user?.color || "#999999";
-    const cursor = peer.selection?.anchor ?? 0;
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="swatch" style="background:${color}"></span><span>${name2} @ ${cursor}</span>`;
-    peerListEl.appendChild(li);
-    const badge = document.createElement("div");
-    badge.className = "peer-badge";
-    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${name2}</strong><span>cursor ${cursor}</span>`;
-    peerBadgesEl.appendChild(badge);
+  if (status.phase === "syncing" || status.phase === "unsynced") {
+    setStatus(status.phase, status.phase === "unsynced" ? "unsynced local changes" : "syncing\u2026");
+    return;
   }
+  if (status.phase === "connecting") {
+    setStatus("connecting", "connecting\u2026");
+    return;
+  }
+  if (status.phase === "disconnected") {
+    setStatus("disconnected", status.message || "relay disconnected");
+    return;
+  }
+  if (status.phase === "error") {
+    setStatus("error", status.message || "sync error");
+  }
+}
+function setStatus(phase, text) {
+  statusEl.textContent = text;
+  statusEl.className = `status-pill status-${phase}`;
+}
+function openSettings() {
+  syncSettingsForm();
+  openOverlay(settingsPanel);
+}
+function renderHelp() {
+  helpShortcutsEl.innerHTML = "";
+  const shortcuts = state.prefs.shortcuts;
+  for (const [action, label] of Object.entries({
+    search: "Search",
+    bold: "Bold",
+    italic: "Italic",
+    underline: "Underline",
+    settings: "Settings",
+    help: "Help"
+  })) {
+    const row = document.createElement("div");
+    row.className = "card";
+    row.innerHTML = `<strong>${label}</strong><div class="tiny muted">${escapeHTML(formatShortcut(shortcuts[action]))}</div>`;
+    helpShortcutsEl.appendChild(row);
+  }
+}
+function openHelp() {
+  renderHelp();
+  openOverlay(helpPanel);
+}
+function openOverlay(element) {
+  element.classList.remove("hidden");
+  element.setAttribute("aria-hidden", "false");
+}
+function closeOverlay(element) {
+  element.classList.add("hidden");
+  element.setAttribute("aria-hidden", "true");
+}
+function createNewDocument() {
+  const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
+}
+function openFromPromptedLink() {
+  const raw = window.prompt("Paste a grid-editor doc link or document ID");
+  if (!raw) {
+    return;
+  }
+  const docID = parseDocumentReference(raw);
+  if (!docID) {
+    showToast("Could not parse a document from that input");
+    return;
+  }
+  bootDocument(docID).catch((error) => setStatus("error", error.message));
+}
+function parseDocumentReference(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    return url.searchParams.get("doc") || url.pathname.replaceAll("/", "");
+  } catch {
+    return trimmed;
+  }
+}
+function updateDocumentURL(documentID) {
+  window.history.replaceState(null, "", `/?doc=${encodeURIComponent(documentID)}`);
+}
+function updateShareLink(documentID) {
+  shareLinkEl.textContent = `Current link: ${window.location.origin}/?doc=${encodeURIComponent(documentID)}`;
 }
 function scheduleTypingStop(awareness) {
   window.clearTimeout(scheduleTypingStop.timer);
   scheduleTypingStop.timer = window.setTimeout(() => {
     awareness.setTyping(false);
-  }, 800);
+  }, 900);
+}
+function presenceState(lastSeenAt, profile) {
+  if (!lastSeenAt) {
+    return "live";
+  }
+  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
+  const thresholds = profile === "normal" ? { live: 6e4, stale: 5 * 6e4, offline: 15 * 6e4 } : { live: 5 * 6e4, stale: 15 * 6e4, offline: 30 * 6e4 };
+  if (ageMs <= thresholds.live) {
+    return "live";
+  }
+  if (ageMs <= thresholds.stale) {
+    return "stale";
+  }
+  if (ageMs <= thresholds.offline) {
+    return "offline";
+  }
+  return "gone";
+}
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  toastStackEl.appendChild(toast);
+  window.setTimeout(() => toast.remove(), 3200);
+}
+function applyFormat(action) {
+  const wrappers = {
+    bold: ["**", "**"],
+    italic: ["*", "*"],
+    underline: ["<u>", "</u>"]
+  };
+  const [prefix, suffix] = wrappers[action];
+  state.editor?.wrapSelection(prefix, suffix);
+}
+function searchDocument() {
+  const query = window.prompt("Find text");
+  if (!query) {
+    return;
+  }
+  const found = state.editor?.findNext(query);
+  if (!found) {
+    showToast(`No match for \u201C${query}\u201D`);
+  }
+}
+function registerEvents() {
+  document.getElementById("open-doc").addEventListener("click", () => {
+    bootDocument(docIDInput.value.trim() || "demo").catch((error) => setStatus("error", error.message));
+  });
+  document.getElementById("new-doc").addEventListener("click", createNewDocument);
+  document.getElementById("paste-link").addEventListener("click", openFromPromptedLink);
+  document.getElementById("search-button").addEventListener("click", searchDocument);
+  document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
+  document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
+  document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
+  document.getElementById("settings-button").addEventListener("click", openSettings);
+  document.getElementById("help-button").addEventListener("click", openHelp);
+  document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
+  document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
+  document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
+  document.getElementById("welcome-dismiss").addEventListener("click", () => {
+    window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
+    welcomeBannerEl.classList.add("hidden");
+  });
+  displayNameInput.addEventListener("change", () => {
+    updatePreferences({ displayName: displayNameInput.value || "Browser User" }, { skipFormSync: true });
+  });
+  colorInput.addEventListener("change", () => {
+    updatePreferences({ color: colorInput.value || "#1d6fd6" }, { skipFormSync: true });
+  });
+  settingsFields.theme.addEventListener("change", () => updatePreferences({ theme: settingsFields.theme.value }, { skipFormSync: true }));
+  settingsFields.lineNumbers.addEventListener("change", () => updatePreferences({ lineNumbers: settingsFields.lineNumbers.checked }, { skipFormSync: true }));
+  settingsFields.fontSize.addEventListener("input", () => updatePreferences({ fontSize: Number(settingsFields.fontSize.value) }, { skipFormSync: true }));
+  settingsFields.dyslexiaMode.addEventListener("change", () => updatePreferences({ dyslexiaMode: settingsFields.dyslexiaMode.checked }, { skipFormSync: true }));
+  settingsFields.profile.addEventListener("change", () => updatePreferences({ profile: settingsFields.profile.value }, { skipFormSync: true }));
+  for (const [action, field] of Object.entries(settingsFields.shortcuts)) {
+    field.addEventListener("change", () => updatePreferences({ shortcuts: { [action]: field.value.trim() } }, { skipFormSync: true }));
+  }
+  document.addEventListener("keydown", (event) => {
+    if (isTypingTarget(event.target) && event.key !== "Escape") {
+      return;
+    }
+    const shortcuts = state.prefs.shortcuts;
+    if (matchesShortcut(event, shortcuts.search)) {
+      event.preventDefault();
+      searchDocument();
+    } else if (matchesShortcut(event, shortcuts.bold)) {
+      event.preventDefault();
+      applyFormat("bold");
+    } else if (matchesShortcut(event, shortcuts.italic)) {
+      event.preventDefault();
+      applyFormat("italic");
+    } else if (matchesShortcut(event, shortcuts.underline)) {
+      event.preventDefault();
+      applyFormat("underline");
+    } else if (matchesShortcut(event, shortcuts.settings)) {
+      event.preventDefault();
+      openSettings();
+    } else if (matchesShortcut(event, shortcuts.help)) {
+      event.preventDefault();
+      openHelp();
+    } else if (event.key === "Escape") {
+      closeOverlay(settingsPanel);
+      closeOverlay(helpPanel);
+    }
+  });
+}
+function matchesShortcut(event, shortcut) {
+  if (!shortcut) {
+    return false;
+  }
+  const parts = shortcut.toLowerCase().split("-").filter(Boolean);
+  const key = parts.pop();
+  const wantsMod = parts.includes("mod");
+  const wantsShift = parts.includes("shift");
+  const wantsAlt = parts.includes("alt");
+  const wantsCtrl = parts.includes("ctrl");
+  const modActive = navigator.platform.includes("Mac") ? event.metaKey : event.ctrlKey;
+  if (wantsMod !== modActive) {
+    return false;
+  }
+  if (wantsShift !== event.shiftKey) {
+    return false;
+  }
+  if (wantsAlt !== event.altKey) {
+    return false;
+  }
+  if (wantsCtrl && !event.ctrlKey) {
+    return false;
+  }
+  return event.key.toLowerCase() === key;
+}
+function isTypingTarget(target) {
+  return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 function getOrCreateParticipantID() {
   const key = "grid-editor-participant-id";
@@ -31533,25 +32021,14 @@ function getOrCreateParticipantID() {
   window.sessionStorage.setItem(key, created);
   return created;
 }
-function getStoredPreference(key, fallback) {
-  return window.localStorage.getItem(`grid-editor-${key}`) || fallback;
+function escapeHTML(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
-function setStoredPreference(key, value) {
-  window.localStorage.setItem(`grid-editor-${key}`, value);
+registerEvents();
+applyPreferences(state.prefs);
+if (window.localStorage.getItem("grid-editor-dismissed-welcome") === "true") {
+  welcomeBannerEl.classList.add("hidden");
 }
-document.getElementById("open-doc").addEventListener("click", () => {
-  bootDocument(docIDInput.value.trim() || "demo").catch((error) => {
-    statusEl.textContent = error.message;
-  });
-});
-displayNameInput.addEventListener("change", () => {
-  setStoredPreference("display-name", displayNameInput.value || "Browser User");
-  state.awareness?.setName(displayNameInput.value || "Browser User");
-});
-colorInput.addEventListener("change", () => {
-  setStoredPreference("color", colorInput.value || "#1d6fd6");
-  state.awareness?.setColor(colorInput.value || "#1d6fd6");
-});
 loadMeta().then(() => bootDocument(state.documentID)).catch((error) => {
-  statusEl.textContent = error.message;
+  setStatus("error", error.message);
 });

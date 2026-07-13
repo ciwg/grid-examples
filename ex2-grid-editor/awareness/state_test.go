@@ -1,6 +1,9 @@
 package awareness
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestApplyPrefersNewerState(t *testing.T) {
 	t.Parallel()
@@ -18,7 +21,7 @@ func TestApplyPrefersNewerState(t *testing.T) {
 		Head:          9,
 		Typing:        true,
 		Lamport:       2,
-	}, "cid-2")
+	}, "cid-2", time.Unix(10, 0))
 	if !applied {
 		t.Fatalf("expected awareness update to apply")
 	}
@@ -53,7 +56,7 @@ func TestApplyRejectsStaleState(t *testing.T) {
 		Head:          2,
 		Typing:        false,
 		Lamport:       3,
-	}, "cid-3")
+	}, "cid-3", time.Unix(11, 0))
 	if applied {
 		t.Fatalf("expected stale awareness update to be rejected")
 	}
@@ -74,7 +77,7 @@ func TestApplyFallsBackToAuthorWhenParticipantMissing(t *testing.T) {
 		Head:        7,
 		Typing:      true,
 		Lamport:     1,
-	}, "cid-1")
+	}, "cid-1", time.Unix(12, 0))
 	if !applied {
 		t.Fatalf("expected awareness update to apply")
 	}
@@ -113,7 +116,7 @@ func TestApplyBreaksLamportTiesDeterministically(t *testing.T) {
 		Head:          8,
 		Typing:        true,
 		Lamport:       2,
-	}, "cid-b")
+	}, "cid-b", time.Unix(13, 0))
 	if !applied {
 		t.Fatalf("expected equal-lamport update with higher author tie-break to apply")
 	}

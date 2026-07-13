@@ -6310,7 +6310,8 @@ async function pollAwareness() {
       color: peer.color || "#999999",
       anchor: peer.cursor || 0,
       head: peer.head || peer.cursor || 0,
-      typing: Boolean(peer.typing)
+      typing: Boolean(peer.typing),
+      last_seen_at: peer.last_seen_at || null
     });
   }
   send({ type: "awareness", peers });

@@ -22,6 +22,8 @@ M.config = {
   sidecar_cmd = nil,
   display_name = vim.env.GRID_EDITOR_DISPLAY_NAME or 'Neovim User',
   color = vim.env.GRID_EDITOR_COLOR or '#d66f1d',
+  show_line_numbers = true,
+  presence_profile = 'demo',
 }
 
 M.state = {
@@ -29,13 +31,17 @@ M.state = {
   doc_id = nil,
   suppress = false,
   cursor_ns = nil,
+  selection_ns = nil,
   augroup = nil,
   job_id = nil,
   participant_id = 'nvim-' .. tostring(vim.fn.getpid()),
   peers = {},
+  peer_index = {},
   relay_connected = false,
   info_bufnr = nil,
   info_winid = nil,
+  help_bufnr = nil,
+  help_winid = nil,
 }
 
 local function join_lines()
@@ -86,6 +92,21 @@ local function peer_highlight(color)
   return group
 end
 
+local function peer_selection_highlight(color)
+  local normalized = normalize_color(color)
+  local group = 'GridEditorPeerSelection' .. normalized:gsub('#', '')
+  if vim.fn.hlexists(group) == 0 then
+    vim.api.nvim_set_hl(0, group, {
+      bg = normalized,
+      fg = '#ffffff',
+      blend = 75,
+    })
+  end
+  return group
+end
+
+local peer_presence_state
+
 local function draw_peers(peers)
   if not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
     return
@@ -93,23 +114,70 @@ local function draw_peers(peers)
   if not M.state.cursor_ns then
     M.state.cursor_ns = vim.api.nvim_create_namespace('grid_editor_peers')
   end
+  if not M.state.selection_ns then
+    M.state.selection_ns = vim.api.nvim_create_namespace('grid_editor_peer_selections')
+  end
   vim.api.nvim_buf_clear_namespace(M.state.bufnr, M.state.cursor_ns, 0, -1)
+  vim.api.nvim_buf_clear_namespace(M.state.bufnr, M.state.selection_ns, 0, -1)
   local lines = vim.api.nvim_buf_get_lines(M.state.bufnr, 0, -1, false)
   for _, peer in ipairs(peers or {}) do
+    if peer_presence_state(peer) == 'gone' then
+      goto continue
+    end
     local row, col = offset_to_pos(lines, peer.anchor or 0)
     local group = peer_highlight(peer.color)
+    local selection_group = peer_selection_highlight(peer.color)
+    local head_row, head_col = offset_to_pos(lines, peer.head or peer.anchor or 0)
+    local from_row = math.min(row, head_row)
+    local to_row = math.max(row, head_row)
+    local from_col = row <= head_row and col or head_col
+    local to_col = row <= head_row and head_col or col
+    if from_row ~= to_row or from_col ~= to_col then
+      vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.selection_ns, from_row, from_col, {
+        end_row = to_row,
+        end_col = to_col,
+        hl_group = selection_group,
+        hl_mode = 'combine',
+      })
+    end
     -- Intent: Make remote awareness visible in-buffer with per-peer colors so
-    -- Neovim users can tell who else is present without opening extra UI.
-    -- Source: DI-gafit; DI-samuv
+    -- Neovim users can tell who else is present without opening extra UI, and
+    -- render remote selections as real highlighted ranges rather than only as
+    -- cursor labels. Source: DI-gafit; DI-samuv; DI-favok
     vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.cursor_ns, row, col, {
       virt_text = {
         { '▏', group },
-        { ' ' .. (peer.name or peer.participant_id or 'peer') .. ' ', group },
+        { ' ' .. (peer.name or peer.participant_id or 'peer') .. (peer.typing and ' typing' or '') .. ' ', group },
       },
       virt_text_pos = 'overlay',
       end_col = math.min(col + 1, #(lines[row + 1] or '')),
     })
+    ::continue::
   end
+end
+
+peer_presence_state = function(peer)
+  if type(peer.last_seen_at) ~= 'string' or peer.last_seen_at == '' then
+    return 'live'
+  end
+  local observed = vim.fn.strptime('%Y-%m-%dT%H:%M:%SZ', peer.last_seen_at)
+  if observed <= 0 then
+    return 'live'
+  end
+  local age = os.time(os.date('!*t')) - observed
+  local profile = M.config.presence_profile == 'normal'
+    and { live = 60, stale = 5 * 60, offline = 15 * 60 }
+    or { live = 5 * 60, stale = 15 * 60, offline = 30 * 60 }
+  if age <= profile.live then
+    return 'live'
+  end
+  if age <= profile.stale then
+    return 'stale'
+  end
+  if age <= profile.offline then
+    return 'offline'
+  end
+  return 'gone'
 end
 
 local function sidecar_argv()
@@ -147,10 +215,27 @@ local function session_lines()
     table.insert(lines, '  (none)')
   else
     for _, peer in ipairs(M.state.peers) do
-      table.insert(lines, string.format('  - %s  cursor=%d color=%s typing=%s', peer.name or peer.participant_id or 'peer', peer.anchor or 0, peer.color or '#999999', tostring(peer.typing or false)))
+      table.insert(lines, string.format('  - %s  cursor=%d color=%s typing=%s state=%s', peer.name or peer.participant_id or 'peer', peer.anchor or 0, peer.color or '#999999', tostring(peer.typing or false), peer_presence_state(peer)))
     end
   end
   return lines
+end
+
+local function help_lines()
+  return {
+    'grid-editor help',
+    '',
+    ':GridEditorOpen <doc>',
+    ':GridEditorClose',
+    ':GridEditorInfo',
+    ':GridEditorPeers',
+    ':GridEditorHelp',
+    '',
+    'Phase 1 notes:',
+    '- peer markers and selections are rendered in-buffer',
+    '- relay status changes are notified as they happen',
+    '- name/color/relay defaults come from setup() or env vars',
+  }
 end
 
 local function refresh_info_window()
@@ -191,6 +276,36 @@ local function open_info_window()
   refresh_info_window()
 end
 
+local function open_help_window()
+  if M.state.help_winid and vim.api.nvim_win_is_valid(M.state.help_winid) then
+    vim.api.nvim_set_current_win(M.state.help_winid)
+    return
+  end
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  M.state.help_bufnr = bufnr
+  vim.bo[bufnr].bufhidden = 'wipe'
+  vim.bo[bufnr].filetype = 'grid-editor'
+  vim.bo[bufnr].modifiable = false
+  local width = math.max(56, math.floor(vim.o.columns * 0.44))
+  local height = #help_lines() + 2
+  local row = math.max(1, math.floor((vim.o.lines - height) / 2) - 1)
+  local col = math.max(1, math.floor((vim.o.columns - width) / 2))
+  M.state.help_winid = vim.api.nvim_open_win(bufnr, true, {
+    relative = 'editor',
+    row = row,
+    col = col,
+    width = math.min(width, vim.o.columns - 4),
+    height = math.min(height, vim.o.lines - 4),
+    style = 'minimal',
+    border = 'rounded',
+    title = ' grid-editor help ',
+    title_pos = 'center',
+  })
+  vim.bo[bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, help_lines())
+  vim.bo[bufnr].modifiable = false
+end
+
 local function send_sidecar(message)
   if not M.state.job_id or M.state.job_id <= 0 then
     return
@@ -227,7 +342,26 @@ local function handle_sidecar_message(message)
   if message.type == 'opened' or message.type == 'changed' then
     set_buffer_content(message.content or '')
   elseif message.type == 'awareness' then
+    local next_index = {}
+    for _, peer in ipairs(message.peers or {}) do
+      next_index[peer.participant_id] = peer
+    end
+    for participant_id, peer in pairs(next_index) do
+      if not M.state.peer_index[participant_id] then
+        vim.schedule(function()
+          vim.notify('grid-editor peer joined: ' .. (peer.name or participant_id))
+        end)
+      end
+    end
+    for participant_id, peer in pairs(M.state.peer_index or {}) do
+      if not next_index[participant_id] then
+        vim.schedule(function()
+          vim.notify('grid-editor peer left: ' .. (peer.name or participant_id))
+        end)
+      end
+    end
     M.state.peers = message.peers or {}
+    M.state.peer_index = next_index
     draw_peers(M.state.peers)
     refresh_info_window()
   elseif message.type == 'relay_status' then
@@ -315,6 +449,8 @@ function M.open(doc_id)
   M.state.bufnr = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(M.state.bufnr, 'grid-editor://' .. doc_id)
   vim.api.nvim_set_current_buf(M.state.bufnr)
+  vim.wo.number = M.config.show_line_numbers
+  vim.wo.relativenumber = false
 
   if M.state.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M.state.augroup)
@@ -372,12 +508,18 @@ function M.close()
   M.state.doc_id = nil
   M.state.bufnr = nil
   M.state.peers = {}
+  M.state.peer_index = {}
   M.state.relay_connected = false
   if M.state.info_winid and vim.api.nvim_win_is_valid(M.state.info_winid) then
     vim.api.nvim_win_close(M.state.info_winid, true)
   end
   M.state.info_winid = nil
   M.state.info_bufnr = nil
+  if M.state.help_winid and vim.api.nvim_win_is_valid(M.state.help_winid) then
+    vim.api.nvim_win_close(M.state.help_winid, true)
+  end
+  M.state.help_winid = nil
+  M.state.help_bufnr = nil
 end
 
 function M.info()
@@ -386,6 +528,10 @@ end
 
 function M.peers()
   open_info_window()
+end
+
+function M.help()
+  open_help_window()
 end
 
 function M.setup(opts)
@@ -406,6 +552,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('GridEditorPeers', function()
     M.peers()
   end, { nargs = 0, desc = 'Show grid-editor peer roster' })
+  vim.api.nvim_create_user_command('GridEditorHelp', function()
+    M.help()
+  end, { nargs = 0, desc = 'Show grid-editor help' })
 end
 
 return M

@@ -6,29 +6,57 @@
     <title>grid-editor</title>
     <link rel="stylesheet" href="/style.css">
   </head>
-  <body>
+  <body data-theme="paper">
     <main class="layout">
       <section class="sidebar">
-        <h1>grid-editor</h1>
-        <p class="muted">PromiseGrid CRDT relay example</p>
-
-        <label>Document ID
-          <div class="row">
-            <input id="doc-id" type="text" value="demo">
-            <button id="open-doc">Open</button>
+        <div class="sidebar-head">
+          <div>
+            <h1>grid-editor</h1>
+            <p class="muted">PromiseGrid collaborative editor example</p>
           </div>
-        </label>
-
-        <label>Display name
-          <input id="display-name" type="text" value="Browser User">
-        </label>
-
-        <label>Color
-          <input id="color" type="color" value="#1d6fd6">
-        </label>
+          <button id="help-button" class="ghost-button" type="button">Help</button>
+        </div>
 
         <div class="card">
-          <h2>Relay</h2>
+          <div class="card-head">
+            <h2>Document</h2>
+            <span class="pill" id="peer-count">0 peers</span>
+          </div>
+          <label>Document ID
+            <div class="row">
+              <input id="doc-id" type="text" value="demo">
+              <button id="open-doc" type="button">Open</button>
+            </div>
+          </label>
+          <div class="button-row">
+            <button id="new-doc" type="button">New Shared Doc</button>
+            <button id="paste-link" class="ghost-button" type="button">Paste Link</button>
+          </div>
+          <p class="tiny muted" id="share-link">Current link: loading…</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>You</h2>
+            <button id="settings-button" class="ghost-button" type="button">Settings</button>
+          </div>
+          <label>Display name
+            <input id="display-name" type="text" value="Browser User">
+          </label>
+          <label>Color
+            <input id="color" type="color" value="#1d6fd6">
+          </label>
+          <dl>
+            <dt>Participant</dt>
+            <dd id="participant-id">loading…</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Relay</h2>
+            <span class="pill pill-muted" id="profile-pill">demo profile</span>
+          </div>
           <dl>
             <dt>Author</dt>
             <dd id="local-id">loading…</dd>
@@ -40,25 +68,95 @@
         </div>
 
         <div class="card">
-          <h2>Peers</h2>
+          <div class="card-head">
+            <h2>Peers</h2>
+            <span class="tiny muted" id="presence-legend">Live presence</span>
+          </div>
           <ul id="peer-list"></ul>
         </div>
       </section>
 
       <section class="editor-shell">
         <div class="toolbar">
-          <span id="status">connecting…</span>
-          <span id="revision">messages: -</span>
-          <span id="content-cid">local replica: -</span>
+          <div class="toolbar-group">
+            <button id="search-button" class="toolbar-button" type="button">Search</button>
+            <button id="bold-button" class="toolbar-button" type="button">Bold</button>
+            <button id="italic-button" class="toolbar-button" type="button">Italic</button>
+            <button id="underline-button" class="toolbar-button" type="button">Underline</button>
+          </div>
+          <div class="toolbar-group toolbar-status">
+            <span id="status" class="status-pill status-connecting">connecting…</span>
+            <span id="revision">messages: -</span>
+            <span id="content-cid">local replica: -</span>
+          </div>
         </div>
+
+        <div id="welcome-banner" class="welcome-banner">
+          <div>
+            <strong>Quick start</strong>
+            <p class="muted">Open a shared doc, set your name and color, then use Help for shortcuts and search/formatting commands.</p>
+          </div>
+          <div class="button-row compact">
+            <button id="welcome-open-settings" class="ghost-button" type="button">Settings</button>
+            <button id="welcome-dismiss" class="ghost-button" type="button">Dismiss</button>
+          </div>
+        </div>
+
         <div class="editor-presence">
           <div class="peer-badges" id="peer-badges"></div>
         </div>
+
         <div class="editor-stage">
           <div id="editor" class="editor-root"></div>
         </div>
       </section>
     </main>
+
+    <div id="settings-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Settings</h2>
+          <button id="settings-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Theme
+          <select id="theme-select">
+            <option value="paper">Paper</option>
+            <option value="night">Night</option>
+          </select>
+        </label>
+        <label class="checkbox-row"><input id="line-numbers-toggle" type="checkbox"> Show line numbers</label>
+        <label>Font size
+          <input id="font-size-range" type="range" min="14" max="24" step="1">
+        </label>
+        <label class="checkbox-row"><input id="dyslexia-toggle" type="checkbox"> Dyslexia-friendly spacing</label>
+        <label>Presence profile
+          <select id="profile-select">
+            <option value="demo">Demo-friendly</option>
+            <option value="normal">Normal</option>
+          </select>
+        </label>
+        <div class="shortcut-grid">
+          <label>Search<input id="shortcut-search" type="text"></label>
+          <label>Bold<input id="shortcut-bold" type="text"></label>
+          <label>Italic<input id="shortcut-italic" type="text"></label>
+          <label>Underline<input id="shortcut-underline" type="text"></label>
+          <label>Settings<input id="shortcut-settings" type="text"></label>
+          <label>Help<input id="shortcut-help" type="text"></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="help-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Help</h2>
+          <button id="help-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <div id="help-shortcuts" class="help-grid"></div>
+      </div>
+    </div>
+
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

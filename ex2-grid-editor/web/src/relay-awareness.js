@@ -35,6 +35,7 @@ export class RelayAwarenessClient {
       user: { ...this.user },
       selection: { ...this.selection },
       typing: this.typing,
+      lastSeenAt: new Date().toISOString(),
     });
     return states;
   }
@@ -72,6 +73,8 @@ export class RelayAwarenessClient {
           head: peer.head || peer.cursor || 0,
         },
         typing: Boolean(peer.typing),
+        lastSeenAt: peer.last_seen_at || null,
+        embodiment: peer.embodiment || "",
       });
     }
     this.emit("change");

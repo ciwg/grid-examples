@@ -14,6 +14,8 @@ export class AutomergeRelayClient {
     this.offset = 0;
     this.pollTimer = null;
     this.seenEnvelopes = new Set();
+    this.connected = false;
+    this.pendingChanges = 0;
   }
 
   on(event, callback) {
@@ -36,9 +38,15 @@ export class AutomergeRelayClient {
   }
 
   async connect() {
+    this.emitStatus("connecting");
     await this.poll();
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
     this.pollTimer = window.setInterval(() => {
-      this.poll().catch((error) => this.emit("error", error));
+      this.poll().catch((error) => {
+        this.connected = false;
+        this.emitStatus("disconnected", error.message);
+        this.emit("error", error);
+      });
     }, 250);
   }
 
@@ -47,6 +55,8 @@ export class AutomergeRelayClient {
       window.clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    this.connected = false;
+    this.emitStatus("disconnected");
   }
 
   async poll() {
@@ -58,6 +68,7 @@ export class AutomergeRelayClient {
       if (!response.ok) {
         throw new Error(`sync GET failed: ${response.status}`);
       }
+      this.connected = true;
       const payload = await response.json();
       for (const record of payload.messages || []) {
         this.seenEnvelopes.add(record.envelope_cid);
@@ -81,6 +92,7 @@ export class AutomergeRelayClient {
         break;
       }
     }
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
   }
 
   observePeers(_peers) {}
@@ -99,7 +111,13 @@ export class AutomergeRelayClient {
     this.setDoc(nextDoc);
     const change = Automerge.getLastLocalChange(nextDoc);
     if (change) {
-      this.postChange(change).catch((error) => this.emit("error", error));
+      this.pendingChanges += 1;
+      this.emitStatus("unsynced");
+      this.postChange(change).catch((error) => {
+        this.pendingChanges = Math.max(0, this.pendingChanges - 1);
+        this.emitStatus("error", error.message);
+        this.emit("error", error);
+      });
     }
   }
 
@@ -128,10 +146,21 @@ export class AutomergeRelayClient {
       // failing silently after a local editor update. Source: DI-rabod
       throw new Error(`sync POST failed: ${response.status}`);
     }
+    this.pendingChanges = Math.max(0, this.pendingChanges - 1);
+    this.emitStatus("ready");
   }
 
   setDoc(nextDoc) {
     this.doc = ensureDocument(nextDoc);
+  }
+
+  emitStatus(phase, message = "") {
+    this.emit("status", {
+      connected: this.connected,
+      pendingChanges: this.pendingChanges,
+      phase,
+      message,
+    });
   }
 }
 
