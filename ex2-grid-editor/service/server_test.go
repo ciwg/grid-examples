@@ -193,6 +193,124 @@ func TestServerPublishesAndResolvesExchangeManifest(t *testing.T) {
 	}
 }
 
+func TestServerRejectsRemoteMetadataMutation(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/metadata", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"title":"Demo title",
+		"description":"Description",
+		"summary":"Summary",
+		"tags":["grid"],
+		"collections":["team"],
+		"favorite":true,
+		"archived":false,
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	}
+}
+
+func TestServerStoresAndReadsMetadata(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/metadata", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"title":"Demo title",
+		"description":"Description",
+		"summary":"Summary",
+		"tags":["grid","docs"],
+		"collections":["team"],
+		"favorite":true,
+		"archived":false,
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "127.0.0.1:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected metadata post status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+
+	getRequest := httptest.NewRequest(http.MethodGet, "/api/local/documents/demo/metadata", nil)
+	getResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(getResponse, getRequest)
+
+	if getResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected metadata get status: got %d want %d body=%s", getResponse.Code, http.StatusOK, getResponse.Body.String())
+	}
+	assertBodyContains(t, getResponse.Body.String(), `"title":"Demo title"`)
+	assertBodyContains(t, getResponse.Body.String(), `"favorite":true`)
+}
+
+func TestServerSearchesMetadata(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	post := func(documentID string, body string) {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/api/local/documents/"+documentID+"/metadata", bytes.NewBufferString(body))
+		request.RemoteAddr = "127.0.0.1:4123"
+		response := httptest.NewRecorder()
+		server.Handler().ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("unexpected metadata post status for %s: got %d want %d body=%s", documentID, response.Code, http.StatusOK, response.Body.String())
+		}
+	}
+
+	post("demo", `{
+		"participant_id":"browser-a",
+		"title":"Demo title",
+		"description":"Description",
+		"summary":"Summary",
+		"tags":["grid"],
+		"collections":["team"],
+		"favorite":true,
+		"archived":false,
+		"embodiment":"browser"
+	}`)
+	post("archive", `{
+		"participant_id":"browser-b",
+		"title":"Archive title",
+		"description":"Description",
+		"summary":"Summary",
+		"tags":["grid"],
+		"collections":["team"],
+		"favorite":false,
+		"archived":true,
+		"embodiment":"browser"
+	}`)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/local/metadata/search?q=grid", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected metadata search status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+	assertBodyContains(t, response.Body.String(), `"document_id":"demo"`)
+	if strings.Contains(response.Body.String(), `"document_id":"archive"`) {
+		t.Fatalf("archived metadata unexpectedly returned without include_archived=true: %s", response.Body.String())
+	}
+
+	withArchived := httptest.NewRequest(http.MethodGet, "/api/local/metadata/search?q=grid&include_archived=true", nil)
+	withArchivedResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(withArchivedResponse, withArchived)
+	if withArchivedResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected metadata search include_archived status: got %d want %d body=%s", withArchivedResponse.Code, http.StatusOK, withArchivedResponse.Body.String())
+	}
+	assertBodyContains(t, withArchivedResponse.Body.String(), `"document_id":"archive"`)
+}
+
 func newTestServer(t *testing.T) *service.Server {
 	t.Helper()
 	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))

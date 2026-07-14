@@ -60,13 +60,17 @@ Grid Editor currently demonstrates four feature slices:
 - activity feed
 - outline navigation, focus mode, summary, and diagnostics
 
-### Phase 4: publish and import exchange
+### Phase 4: publish, import, and document metadata
 
 - publish the current state or a named saved version
 - relay-signed publish manifests
 - CAS-backed text and replica objects
 - published exchange URL resolution
 - import a published exchange as a new local document
+- relay-signed document metadata
+- document description, summary, tags, collections, favorites, and archive
+  state
+- relay-backed catalog search over known document metadata
 
 ## How It Uses Grid Technology
 
@@ -78,6 +82,7 @@ This repo carries two draft, repo-local protocol specs:
 
 - [live-document](protocols/live-document.md)
 - [live-awareness](protocols/live-awareness.md)
+- [document-metadata](protocols/document-metadata.md)
 - [publish-document](protocols/publish-document.md)
 
 Each protocol is identified by the content hash of its own spec document. That
@@ -115,7 +120,14 @@ happens in embodiment-local CRDT replicas. That is important for this example:
 the shared contract lives at the grid/protocol boundary, not inside one
 authoritative app server. Source: `DI-ramuv`; `DI-lumek`; `DI-larok`.
 
-### 5. Publish/import is separate from live editing
+### 5. Metadata is separate from live editing
+
+`document-metadata` carries relay-signed latest-state document labels and
+descriptions. That keeps document-management features such as favorites,
+archive state, and catalog search durable and shareable without pretending
+they are part of the live CRDT text stream. Source: `DI-loruk`; `DI-sukip`.
+
+### 6. Publish/import is separate from live editing
 
 `publish-document` is used for durable handoff artifacts, not for typing.
 That means a publish manifest can point at a chosen current state or saved
@@ -133,27 +145,38 @@ The Go relay persists durable signed objects under its data root:
 - relay identity seed
 - append-only relay log
 - CAS-backed signed envelopes
+- CAS-backed signed metadata envelopes
 - CAS-backed published text bytes
 - CAS-backed published Automerge replica bytes
 
 These are relay-owned and are the durable PromiseGrid-facing artifacts in the
 current slices.
 
-### Browser-local metadata
+### Browser-local workflow and review state
 
 Some workflow and review features are still local browser state in this repo:
 
 - recent docs and tabs
-- titles and local timestamps
+- local timestamps
 - bookmarks and local snapshots
 - comments and reactions
 - saved versions used by the current publish flow
 - recent participant history and activity feed
 - local preferences
 
-Those values are useful product features, but in the current implementation
-they are not yet new PromiseGrid wire semantics. Source: `DI-dovoz`;
-`DI-safor`; `DI-gosaf`.
+Relay-backed document metadata now covers:
+
+- title
+- description
+- summary
+- tags
+- collections
+- favorite
+- archived
+
+Those values are relay-owned and search-visible in Phase 4, while the
+remaining workflow/review items above are still local browser state. Source:
+`DI-dovoz`; `DI-safor`; `DI-gosaf`; `DI-loruk`; `DI-sukip`.
 
 ## PromiseGrid Setup References
 
@@ -244,6 +267,18 @@ In this slice, the publish manifest plus its referenced text and replica bytes
 are durable CAS-backed relay objects, while the browser still chooses named
 saved versions from its local review metadata. Source: `DI-tavul`; `DI-gosaf`.
 
+Phase 4 browser metadata surfaces now include:
+
+- relay-backed document description and summary
+- tags and collections
+- favorite and archived flags
+- catalog search across relay-known document metadata
+- a separate `document-metadata` protocol instead of folding document
+  management into `live-document`
+
+This slice keeps document management durable and shareable without treating it
+as live typing traffic. Source: `DI-loruk`; `DI-sukip`.
+
 ## Neovim Version
 
 The easiest Neovim path is the launcher script:
@@ -292,10 +327,13 @@ Use these as the main reading path after this README:
 - [Browser UI example](docs/grid-editor-ui-example.md)
 - [live-document protocol](protocols/live-document.md)
 - [live-awareness protocol](protocols/live-awareness.md)
+- [document-metadata protocol](protocols/document-metadata.md)
 - [publish-document protocol](protocols/publish-document.md)
 - [CRDT relay thought experiment](docs/thought-experiments/TE-satuf-grid-editor-crdt-relay-slice.md)
 - [Neovim sidecar thought experiment](docs/thought-experiments/TE-zorud-grid-editor-nvim-sidecar-hybrid-helper.md)
 - [Publish/import thought experiment](docs/thought-experiments/TE-vafor-grid-editor-publish-exchange-slice.md)
+- [Document metadata thought experiment](docs/thought-experiments/TE-mifud-grid-editor-document-metadata-slice.md)
+- [Practical implementation notes](docs/practical-implementation.md)
 
 ## Tests
 

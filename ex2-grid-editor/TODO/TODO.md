@@ -1,5 +1,6 @@
 # TODO
 
+- [x] 010 - grid-editor phase 4 document metadata slice - `TODO/TODO-pamov-grid-editor-phase-4-metadata.md`
 - [x] 009 - grid-editor phase 4 publish and import exchange slice - `TODO/TODO-ravup-grid-editor-phase-4-publish.md`
 - [x] 008 - grid-editor phase 3 review, comments, and history surfaces - `TODO/TODO-mudak-grid-editor-phase-3.md`
 - [ ] 007 - grid-editor phase 2 document workflow, preview, and export surfaces - `TODO/TODO-lusab-grid-editor-phase-2.md`

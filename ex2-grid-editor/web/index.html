@@ -97,6 +97,32 @@
 
         <div class="card">
           <div class="card-head">
+            <h2>Metadata</h2>
+            <span class="tiny muted">Relay-backed document labels</span>
+          </div>
+          <label>Description
+            <textarea id="metadata-description" rows="3" placeholder="Short description for this document"></textarea>
+          </label>
+          <label>Summary
+            <input id="metadata-summary" type="text" placeholder="One-line summary">
+          </label>
+          <label>Tags
+            <input id="metadata-tags" type="text" placeholder="grid, demo, docs">
+          </label>
+          <label>Collections
+            <input id="metadata-collections" type="text" placeholder="team, review">
+          </label>
+          <div class="checkbox-row metadata-flags">
+            <label class="checkbox-row"><input id="metadata-favorite" type="checkbox"> Favorite</label>
+            <label class="checkbox-row"><input id="metadata-archived" type="checkbox"> Archived</label>
+          </div>
+          <div class="button-row">
+            <button id="save-metadata" type="button">Save Metadata</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
             <h2>Relay</h2>
             <span class="pill pill-muted" id="profile-pill">demo profile</span>
           </div>
@@ -107,6 +133,8 @@
             <dd id="doc-pcid">loading…</dd>
             <dt>live-awareness pCID</dt>
             <dd id="awareness-pcid">loading…</dd>
+            <dt>document-metadata pCID</dt>
+            <dd id="metadata-pcid">loading…</dd>
             <dt>publish-document pCID</dt>
             <dd id="publish-pcid">loading…</dd>
           </dl>
@@ -146,6 +174,17 @@
               <h3>Published exchanges</h3>
               <ul id="published-list" class="doc-list"></ul>
             </div>
+            <div>
+              <h3>Catalog search</h3>
+              <label>Search relay metadata
+                <input id="metadata-search-query" type="text" placeholder="title, tag, collection">
+              </label>
+              <label class="checkbox-row"><input id="metadata-search-include-archived" type="checkbox"> Include archived</label>
+              <div class="button-row">
+                <button id="metadata-search-button" class="ghost-button" type="button">Search Catalog</button>
+              </div>
+              <ul id="metadata-results" class="doc-list compact"></ul>
+            </div>
           </div>
         </div>
       </section>
@@ -160,7 +199,7 @@
             <button id="preview-button" class="toolbar-button" type="button">Preview</button>
             <button id="split-button" class="toolbar-button" type="button">Split View</button>
             <button id="import-button" class="toolbar-button" type="button">Import</button>
-            <button id="export-button" class="toolbar-button" type="button">Export</button>
+            <button id="export-button" class="toolbar-button" type="button">Export / Exchange</button>
             <button id="snapshot-button" class="toolbar-button" type="button">Snapshot</button>
             <button id="bookmark-button" class="toolbar-button" type="button">Bookmark</button>
             <button id="comment-button" class="toolbar-button" type="button">Comment</button>
@@ -180,7 +219,7 @@
         <div id="welcome-banner" class="welcome-banner">
           <div>
             <strong>Quick start</strong>
-            <p class="muted">Open a shared doc, try Preview, then use Export or Snapshot when you want a stable handoff or demo artifact.</p>
+            <p class="muted">Open a shared doc, try Preview, then use Export / Exchange or Snapshot when you want a stable handoff or demo artifact.</p>
           </div>
           <div class="button-row compact">
             <button id="welcome-open-settings" class="ghost-button" type="button">Settings</button>
@@ -280,7 +319,7 @@
     <div id="export-panel" class="overlay hidden" aria-hidden="true">
       <div class="panel">
         <div class="card-head">
-          <h2>Export</h2>
+          <h2>Export / Exchange</h2>
           <button id="export-close" class="ghost-button" type="button">Close</button>
         </div>
         <div class="template-grid">

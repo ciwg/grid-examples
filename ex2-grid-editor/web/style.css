@@ -194,6 +194,12 @@ button {
   gap: 10px;
 }
 
+.metadata-flags {
+  margin-top: 14px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .button-row.compact {
   justify-content: flex-end;
 }
@@ -232,6 +238,11 @@ button {
 
 .doc-list.compact {
   gap: 6px;
+}
+
+.doc-list .meta-line {
+  margin-top: 4px;
+  display: block;
 }
 
 .template-grid {

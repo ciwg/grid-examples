@@ -31825,6 +31825,12 @@ var DocumentRegistry = class {
     this.save();
     return structuredClone(document2);
   }
+  setTitle(documentID, title) {
+    const document2 = this.ensureDocument(documentID);
+    document2.title = title?.trim() || defaultTitle(documentID);
+    this.save();
+    return structuredClone(document2);
+  }
   openTab(documentID) {
     this.ensureDocument(documentID);
     this.state.openTabs = [documentID, ...this.state.openTabs.filter((value) => value !== documentID)].slice(0, 8);
@@ -32230,6 +32236,59 @@ function escapeHTML(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+// src/metadata.js
+function parseMetadataList(raw) {
+  const seen = /* @__PURE__ */ new Set();
+  const values2 = [];
+  for (const entry of String(raw || "").split(",")) {
+    const value = entry.trim();
+    if (!value) {
+      continue;
+    }
+    const key = value.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    values2.push(value);
+  }
+  return values2;
+}
+function formatMetadataList(values2) {
+  return Array.isArray(values2) ? values2.join(", ") : "";
+}
+function normalizeMetadataRecord(documentID, record = {}) {
+  return {
+    offset: Number(record.offset || 0),
+    envelope_cid: String(record.envelope_cid || ""),
+    document_id: String(record.document_id || documentID || ""),
+    author: String(record.author || ""),
+    participant_id: String(record.participant_id || ""),
+    title: String(record.title || ""),
+    description: String(record.description || ""),
+    summary: String(record.summary || ""),
+    tags: Array.isArray(record.tags) ? record.tags.filter(Boolean) : [],
+    collections: Array.isArray(record.collections) ? record.collections.filter(Boolean) : [],
+    favorite: Boolean(record.favorite),
+    archived: Boolean(record.archived),
+    updated_at: String(record.updated_at || ""),
+    embodiment: String(record.embodiment || ""),
+    received_at: String(record.received_at || ""),
+    lamport: Number(record.lamport || 0)
+  };
+}
+function metadataDisplayTitle(documentID, localTitle, record) {
+  const relayTitle = String(record?.title || "").trim();
+  if (relayTitle) {
+    return relayTitle;
+  }
+  const local = String(localTitle || "").trim();
+  if (local) {
+    return local;
+  }
+  return `Document ${documentID}`;
+}
+
 // src/review.js
 function summarizeDocument(text) {
   const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
@@ -32349,6 +32408,7 @@ var metaEls = {
   localID: document.getElementById("local-id"),
   docPCID: document.getElementById("doc-pcid"),
   awarenessPCID: document.getElementById("awareness-pcid"),
+  metadataPCID: document.getElementById("metadata-pcid"),
   publishPCID: document.getElementById("publish-pcid")
 };
 var statusEl = document.getElementById("status");
@@ -32385,6 +32445,19 @@ var savedVersionsEl = document.getElementById("saved-versions");
 var recentParticipantsEl = document.getElementById("recent-participants");
 var activityFeedEl = document.getElementById("activity-feed");
 var publishedListEl = document.getElementById("published-list");
+var metadataResultsEl = document.getElementById("metadata-results");
+var metadataFields = {
+  description: document.getElementById("metadata-description"),
+  summary: document.getElementById("metadata-summary"),
+  tags: document.getElementById("metadata-tags"),
+  collections: document.getElementById("metadata-collections"),
+  favorite: document.getElementById("metadata-favorite"),
+  archived: document.getElementById("metadata-archived")
+};
+var metadataSearchFields = {
+  query: document.getElementById("metadata-search-query"),
+  includeArchived: document.getElementById("metadata-search-include-archived")
+};
 var timestampEls = {
   created: document.getElementById("doc-created"),
   viewed: document.getElementById("doc-viewed"),
@@ -32437,7 +32510,8 @@ var state = {
   previewEnabled: false,
   splitEnabled: false,
   focusMode: false,
-  pendingCommentSelection: null
+  pendingCommentSelection: null,
+  metadata: normalizeMetadataRecord("demo", {})
 };
 participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
@@ -32480,11 +32554,13 @@ async function loadMeta() {
   metaEls.localID.textContent = meta2.local_id;
   metaEls.docPCID.textContent = meta2.document_pcid;
   metaEls.awarenessPCID.textContent = meta2.awareness_pcid;
+  metaEls.metadataPCID.textContent = meta2.metadata_pcid;
   metaEls.publishPCID.textContent = meta2.publish_pcid;
 }
 async function bootDocument(documentID) {
   setStatus("connecting", "connecting\u2026");
   state.documentID = documentID;
+  state.metadata = normalizeMetadataRecord(documentID, {});
   docIDInput.value = documentID;
   updateDocumentURL(documentID);
   updateShareLink(documentID);
@@ -32566,8 +32642,10 @@ async function bootDocument(documentID) {
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());
   await refreshState(basePath);
+  await refreshMetadata(documentID);
   await applySeedIfNeeded(documentID);
   await refreshPublished(documentID);
+  await searchMetadataCatalog(false);
   renderPreview();
   renderReview();
 }
@@ -32723,6 +32801,44 @@ async function refreshPublished(documentID) {
   const payload = await response.json();
   renderPublished(payload.published || []);
 }
+async function refreshMetadata(documentID) {
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(documentID)}/metadata`);
+  if (!response.ok) {
+    state.metadata = normalizeMetadataRecord(documentID, {});
+    applyMetadataToForm(state.metadata);
+    showToast(`Metadata failed: ${response.status}`);
+    return;
+  }
+  state.metadata = normalizeMetadataRecord(documentID, await response.json());
+  if (state.metadata.title) {
+    registry.setTitle(documentID, metadataDisplayTitle(documentID, "", state.metadata));
+    renderRegistry();
+  }
+  applyMetadataToForm(state.metadata);
+  renderDocumentMeta(registry.get(documentID));
+}
+async function searchMetadataCatalog(showErrors = true) {
+  const query = metadataSearchFields.query.value.trim();
+  const includeArchived = metadataSearchFields.includeArchived.checked;
+  const url = new URL("/api/local/metadata/search", window.location.origin);
+  if (query) {
+    url.searchParams.set("q", query);
+  }
+  if (includeArchived) {
+    url.searchParams.set("include_archived", "true");
+  }
+  const response = await fetch(url);
+  if (!response.ok) {
+    metadataResultsEl.innerHTML = "";
+    appendEmptyState(metadataResultsEl, "Catalog unavailable");
+    if (showErrors) {
+      showToast(`Catalog search failed: ${response.status}`);
+    }
+    return;
+  }
+  const payload = await response.json();
+  renderMetadataResults(payload.results || []);
+}
 function renderDocumentList(target, documents, extraClass, onClick) {
   target.innerHTML = "";
   for (const documentMeta of documents) {
@@ -32769,6 +32885,14 @@ function renderDocumentMeta(documentMeta) {
   timestampEls.viewed.textContent = formatTime(documentMeta.lastViewedAt);
   timestampEls.edited.textContent = formatTime(documentMeta.lastEditedAt);
   timestampEls.exported.textContent = formatTime(documentMeta.lastExportedAt);
+}
+function applyMetadataToForm(record) {
+  metadataFields.description.value = record.description || "";
+  metadataFields.summary.value = record.summary || "";
+  metadataFields.tags.value = formatMetadataList(record.tags);
+  metadataFields.collections.value = formatMetadataList(record.collections);
+  metadataFields.favorite.checked = Boolean(record.favorite);
+  metadataFields.archived.checked = Boolean(record.archived);
 }
 function renderOutline() {
   const headings = state.editor ? extractHeadings(state.editor.getText()) : [];
@@ -32866,6 +32990,32 @@ function renderPublished(records) {
   }
   if (records.length === 0) {
     appendEmptyState(publishedListEl, "No published exchanges yet");
+  }
+}
+function renderMetadataResults(records) {
+  metadataResultsEl.innerHTML = "";
+  for (const record of records) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${metadataDisplayTitle(record.document_id, record.title, record)} (${record.document_id})`;
+    button.addEventListener("click", () => {
+      bootDocument(record.document_id).catch((error) => setStatus("error", error.message));
+    });
+    li.appendChild(button);
+    const meta2 = document.createElement("span");
+    meta2.className = "tiny muted meta-line";
+    meta2.textContent = [
+      record.favorite ? "favorite" : "",
+      record.archived ? "archived" : "",
+      record.tags?.length ? `tags: ${record.tags.join(", ")}` : "",
+      record.collections?.length ? `collections: ${record.collections.join(", ")}` : ""
+    ].filter(Boolean).join(" \xB7 ") || "No labels yet";
+    li.appendChild(meta2);
+    metadataResultsEl.appendChild(li);
+  }
+  if (records.length === 0) {
+    appendEmptyState(metadataResultsEl, "No catalog matches yet");
   }
 }
 function noteRecentParticipants(states) {
@@ -33239,6 +33389,35 @@ async function publishExchange() {
   await copyText(payload.manifest_url, "Exchange link copied");
   await refreshPublished(state.documentID);
 }
+async function saveMetadata() {
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/metadata`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      participant_id: state.participantID,
+      title: docTitleInput.value.trim(),
+      description: metadataFields.description.value.trim(),
+      summary: metadataFields.summary.value.trim(),
+      tags: parseMetadataList(metadataFields.tags.value),
+      collections: parseMetadataList(metadataFields.collections.value),
+      favorite: metadataFields.favorite.checked,
+      archived: metadataFields.archived.checked,
+      embodiment: "browser"
+    })
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    showToast(`Metadata save failed: ${response.status}${detail ? ` ${detail}` : ""}`);
+    return;
+  }
+  state.metadata = normalizeMetadataRecord(state.documentID, await response.json());
+  registry.setTitle(state.documentID, metadataDisplayTitle(state.documentID, docTitleInput.value, state.metadata));
+  applyMetadataToForm(state.metadata);
+  renderDocumentMeta(registry.get(state.documentID));
+  renderRegistry();
+  await searchMetadataCatalog(false);
+  showToast("Metadata saved");
+}
 function choosePublishSource() {
   const currentText = state.editor.getText();
   const versions = registry.listSavedVersions(state.documentID);
@@ -33286,7 +33465,9 @@ function exportAuditReport() {
     localID: metaEls.localID.textContent,
     protocol: {
       documentPCID: metaEls.docPCID.textContent,
-      awarenessPCID: metaEls.awarenessPCID.textContent
+      awarenessPCID: metaEls.awarenessPCID.textContent,
+      metadataPCID: metaEls.metadataPCID.textContent,
+      publishPCID: metaEls.publishPCID.textContent
     },
     generatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -33435,6 +33616,12 @@ function registerEvents() {
   document.getElementById("publish-exchange").addEventListener("click", publishExchange);
   document.getElementById("import-exchange").addEventListener("click", importExchange);
   document.getElementById("export-audit").addEventListener("click", exportAuditReport);
+  document.getElementById("save-metadata").addEventListener("click", () => {
+    saveMetadata().catch((error) => setStatus("error", error.message));
+  });
+  document.getElementById("metadata-search-button").addEventListener("click", () => {
+    searchMetadataCatalog().catch((error) => setStatus("error", error.message));
+  });
   document.getElementById("generate-demo-doc").addEventListener("click", generateDoc);
   document.getElementById("sample-doc").addEventListener("click", sampleDoc);
   document.getElementById("comment-save").addEventListener("click", saveComment);
@@ -33452,6 +33639,15 @@ function registerEvents() {
     renderDocumentMeta(registry.updateTitle(state.documentID, docTitleInput.value));
     renderRegistry();
     renderActivity();
+  });
+  metadataSearchFields.query.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchMetadataCatalog().catch((error) => setStatus("error", error.message));
+    }
+  });
+  metadataSearchFields.includeArchived.addEventListener("change", () => {
+    searchMetadataCatalog(false).catch((error) => setStatus("error", error.message));
   });
   settingsFields.theme.addEventListener("change", () => updatePreferences({ theme: settingsFields.theme.value }, { skipFormSync: true }));
   settingsFields.lineNumbers.addEventListener("change", () => updatePreferences({ lineNumbers: settingsFields.lineNumbers.checked }, { skipFormSync: true }));

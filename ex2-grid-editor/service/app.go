@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/cas"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/crdt"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/identity"
+	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/metadata"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocols"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/publish"
@@ -28,6 +30,7 @@ type Meta struct {
 	LocalID       string `json:"local_id"`
 	DocumentPCID  string `json:"document_pcid"`
 	AwarenessPCID string `json:"awareness_pcid"`
+	MetadataPCID  string `json:"metadata_pcid"`
 	PublishPCID   string `json:"publish_pcid"`
 	DataRoot      string `json:"data_root"`
 }
@@ -57,6 +60,7 @@ type App struct {
 	cas           *cas.Store
 	documentPCID  cid.Cid
 	awarenessPCID cid.Cid
+	metadataPCID  cid.Cid
 	publishPCID   cid.Cid
 
 	mu           sync.Mutex
@@ -64,6 +68,7 @@ type App struct {
 	seen         map[string]struct{}
 	presence     map[string]awareness.Index
 	syncFeeds    map[string][]crdt.SyncRecord
+	metadata     map[string]metadata.Record
 	published    map[string][]publish.Record
 	publishByCID map[string]publish.Record
 }
@@ -76,6 +81,10 @@ func NewApp(dataRoot string) (*App, error) {
 	awarenessPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.LiveAwarenessSpec))
 	if err != nil {
 		return nil, fmt.Errorf("awareness pCID: %w", err)
+	}
+	metadataPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.DocumentMetadataSpec))
+	if err != nil {
+		return nil, fmt.Errorf("metadata pCID: %w", err)
 	}
 	publishPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.PublishDocumentSpec))
 	if err != nil {
@@ -101,10 +110,12 @@ func NewApp(dataRoot string) (*App, error) {
 		cas:           casValue,
 		documentPCID:  documentPCID,
 		awarenessPCID: awarenessPCID,
+		metadataPCID:  metadataPCID,
 		publishPCID:   publishPCID,
 		seen:          map[string]struct{}{},
 		presence:      map[string]awareness.Index{},
 		syncFeeds:     map[string][]crdt.SyncRecord{},
+		metadata:      map[string]metadata.Record{},
 		published:     map[string][]publish.Record{},
 		publishByCID:  map[string]publish.Record{},
 	}
@@ -121,6 +132,7 @@ func (app *App) Meta() Meta {
 		LocalID:       app.identity.KeyID(),
 		DocumentPCID:  app.documentPCID.String(),
 		AwarenessPCID: app.awarenessPCID.String(),
+		MetadataPCID:  app.metadataPCID.String(),
 		PublishPCID:   app.publishPCID.String(),
 		DataRoot:      app.dataRoot,
 	}
@@ -217,6 +229,60 @@ func (app *App) UpdateAwareness(documentID string, participantID string, cursor 
 	}
 	_, err = app.ingestEnvelopeLocked(envelopeBytes, nil)
 	return err
+}
+
+// Intent: Keep document-management metadata as a relay-signed current-time
+// state instead of leaving description, tags, archive, and favorites purely in
+// browser storage. Source: DI-loruk; DI-sukip
+func (app *App) UpdateMetadata(documentID string, participantID string, title string, description string, summary string, tags []string, collections []string, favorite bool, archived bool, embodiment string) (metadata.Record, error) {
+	if err := validateDocumentID(documentID); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateParticipantID(participantID); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateMetadataTitle(title); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateMetadataDescription(description); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateMetadataSummary(summary); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateMetadataLabels("tags", tags); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateMetadataLabels("collections", collections); err != nil {
+		return metadata.Record{}, err
+	}
+	if err := validateEmbodiment(embodiment); err != nil {
+		return metadata.Record{}, err
+	}
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	app.maxLamport++
+	message := metadata.Message{
+		Kind:          "metadata",
+		DocumentID:    documentID,
+		Author:        app.identity.KeyID(),
+		ParticipantID: participantID,
+		Title:         title,
+		Description:   description,
+		Summary:       summary,
+		Tags:          append([]string(nil), tags...),
+		Collections:   append([]string(nil), collections...),
+		Favorite:      favorite,
+		Archived:      archived,
+		UpdatedAt:     time.Now().Format(time.RFC3339Nano),
+		Lamport:       app.maxLamport,
+		Embodiment:    embodiment,
+	}
+	envelopeBytes, err := app.makeSignedEnvelope(app.metadataPCID, message)
+	if err != nil {
+		return metadata.Record{}, fmt.Errorf("sign metadata message: %w", err)
+	}
+	return app.ingestMetadataEnvelopeLocked(envelopeBytes, nil)
 }
 
 // Intent: Make publish a separate current-time relay action that signs a
@@ -340,6 +406,45 @@ func (app *App) Published(documentID string) []publish.Record {
 	return append([]publish.Record(nil), records...)
 }
 
+func (app *App) Metadata(documentID string) metadata.Record {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	return cloneMetadataRecord(app.metadata[documentID], documentID)
+}
+
+func (app *App) SearchMetadata(query string, includeArchived bool) []metadata.Record {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	normalized := strings.ToLower(strings.TrimSpace(query))
+	results := make([]metadata.Record, 0, len(app.metadata))
+	for documentID, record := range app.metadata {
+		if record.Archived && !includeArchived {
+			continue
+		}
+		candidate := cloneMetadataRecord(record, documentID)
+		if normalized != "" && !metadataMatches(candidate, normalized) {
+			continue
+		}
+		results = append(results, candidate)
+	}
+	slices.SortFunc(results, func(left metadata.Record, right metadata.Record) int {
+		if left.Favorite != right.Favorite {
+			if left.Favorite {
+				return -1
+			}
+			return 1
+		}
+		if left.DocumentID < right.DocumentID {
+			return -1
+		}
+		if left.DocumentID > right.DocumentID {
+			return 1
+		}
+		return 0
+	})
+	return results
+}
+
 // Intent: Resolve published exchange manifests through relay-local CAS reads so
 // importers can fetch a durable handoff object and its referenced bytes
 // without pretending publish/import is the same thing as live sync.
@@ -394,7 +499,7 @@ func (app *App) PeerMessagesSince(offset uint64, limit int) ([]string, uint64) {
 		// traffic so publish/import exchange stays an explicit URL-resolved path
 		// instead of silently piggybacking on the live sync channel. Source:
 		// DI-tavul; DI-gosaf
-		if entry.PCID != app.documentPCID.String() && entry.PCID != app.awarenessPCID.String() {
+		if entry.PCID != app.documentPCID.String() && entry.PCID != app.awarenessPCID.String() && entry.PCID != app.metadataPCID.String() {
 			continue
 		}
 		if len(messages) >= maxEntries {
@@ -409,7 +514,7 @@ func (app *App) PeerMessagesSince(offset uint64, limit int) ([]string, uint64) {
 	if next == app.log.NextOffset() {
 		lastOffset := offset
 		for _, entry := range entries {
-			if entry.PCID == app.documentPCID.String() || entry.PCID == app.awarenessPCID.String() {
+			if entry.PCID == app.documentPCID.String() || entry.PCID == app.awarenessPCID.String() || entry.PCID == app.metadataPCID.String() {
 				lastOffset = entry.Offset
 			}
 		}
@@ -582,6 +687,12 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 			return crdt.SyncRecord{}, err
 		}
 		return crdt.SyncRecord{}, nil
+	case app.metadataPCID.String():
+		_, err = app.ingestMetadataEnvelopeLocked(envelopeBytes, &entry)
+		if err != nil {
+			return crdt.SyncRecord{}, err
+		}
+		return crdt.SyncRecord{}, nil
 	case app.awarenessPCID.String():
 		var message awareness.Message
 		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
@@ -679,4 +790,124 @@ func (app *App) ingestPublishEnvelopeLocked(envelopeBytes []byte, existing *stor
 	}
 	app.seen[envelopeCIDString] = struct{}{}
 	return record, nil
+}
+
+func (app *App) ingestMetadataEnvelopeLocked(envelopeBytes []byte, existing *store.Entry) (metadata.Record, error) {
+	envelopeCID, err := protocol.CIDForBytes(envelopeBytes)
+	if err != nil {
+		return metadata.Record{}, fmt.Errorf("metadata envelope cid: %w", err)
+	}
+	envelopeCIDString := envelopeCID.String()
+	envelope, err := protocol.ParseEnvelope(envelopeBytes)
+	if err != nil {
+		return metadata.Record{}, fmt.Errorf("parse metadata envelope: %w", err)
+	}
+	var message metadata.Message
+	if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+		return metadata.Record{}, fmt.Errorf("decode metadata payload: %w", err)
+	}
+	if _, ok := app.seen[envelopeCIDString]; ok {
+		return cloneMetadataRecord(app.metadata[message.DocumentID], message.DocumentID), nil
+	}
+	signable, err := envelope.SignableBytes()
+	if err != nil {
+		return metadata.Record{}, fmt.Errorf("build metadata signable bytes: %w", err)
+	}
+	if err := identity.VerifyProof(signable, envelope.Proof); err != nil {
+		return metadata.Record{}, fmt.Errorf("verify metadata proof: %w", err)
+	}
+	address, err := app.cas.Put(envelopeBytes)
+	if err != nil {
+		return metadata.Record{}, fmt.Errorf("persist metadata envelope: %w", err)
+	}
+	if address != envelopeCIDString {
+		return metadata.Record{}, fmt.Errorf("metadata cas address mismatch: got %s want %s", address, envelopeCIDString)
+	}
+	entry := store.Entry{}
+	if existing != nil {
+		entry = *existing
+	} else {
+		entry, err = app.log.Append(envelopeBytes, envelope.PCID.String())
+		if err != nil {
+			return metadata.Record{}, fmt.Errorf("append metadata log: %w", err)
+		}
+	}
+	if message.Author != envelope.Proof.KeyID {
+		return metadata.Record{}, fmt.Errorf("metadata author %q does not match proof key", message.Author)
+	}
+	// Intent: Keep cross-document labels and descriptive fields relay-backed as
+	// latest-state metadata so search, favorites, archive, and collections stay
+	// shareable without pretending they are part of the live CRDT text stream.
+	// Source: DI-loruk; DI-sukip
+	record := metadata.Record{
+		Offset:        entry.Offset,
+		EnvelopeCID:   envelopeCIDString,
+		DocumentID:    message.DocumentID,
+		Author:        message.Author,
+		ParticipantID: message.ParticipantID,
+		Title:         message.Title,
+		Description:   message.Description,
+		Summary:       message.Summary,
+		Tags:          append([]string(nil), message.Tags...),
+		Collections:   append([]string(nil), message.Collections...),
+		Favorite:      message.Favorite,
+		Archived:      message.Archived,
+		UpdatedAt:     message.UpdatedAt,
+		Embodiment:    message.Embodiment,
+		ReceivedAt:    entry.ReceivedAt,
+		Lamport:       message.Lamport,
+	}
+	current := app.metadata[message.DocumentID]
+	if metadataWins(record, current) {
+		app.metadata[message.DocumentID] = record
+	}
+	if message.Lamport > app.maxLamport {
+		app.maxLamport = message.Lamport
+	}
+	app.seen[envelopeCIDString] = struct{}{}
+	return record, nil
+}
+
+func metadataWins(next metadata.Record, current metadata.Record) bool {
+	if current.DocumentID == "" {
+		return true
+	}
+	if next.Lamport != current.Lamport {
+		return next.Lamport > current.Lamport
+	}
+	if next.Author != current.Author {
+		return next.Author > current.Author
+	}
+	return next.EnvelopeCID > current.EnvelopeCID
+}
+
+func metadataMatches(record metadata.Record, query string) bool {
+	values := []string{
+		record.DocumentID,
+		record.Title,
+		record.Description,
+		record.Summary,
+		strings.Join(record.Tags, " "),
+		strings.Join(record.Collections, " "),
+	}
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(value), query) {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneMetadataRecord(record metadata.Record, documentID string) metadata.Record {
+	record.DocumentID = firstNonEmpty(record.DocumentID, documentID)
+	record.Tags = append([]string(nil), record.Tags...)
+	record.Collections = append([]string(nil), record.Collections...)
+	return record
+}
+
+func firstNonEmpty(left string, right string) string {
+	if left != "" {
+		return left
+	}
+	return right
 }

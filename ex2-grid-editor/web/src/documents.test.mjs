@@ -29,6 +29,13 @@ test("document registry tracks recent docs and timestamps", () => {
   assert.ok(recent[0].lastEditedAt);
 });
 
+test("setTitle updates stored title without needing review activity", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  const document = registry.setTitle("demo", "Relay Title");
+  assert.equal(document.title, "Relay Title");
+  assert.equal(registry.listActivity("demo").length, 0);
+});
+
 test("document registry keeps recent docs in recency order", () => {
   const registry = new DocumentRegistry(new MemoryStorage());
   registry.touchViewed("first");

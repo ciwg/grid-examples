@@ -254,6 +254,106 @@ func TestPublishDocumentRejectsOversizedReplica(t *testing.T) {
 	}
 }
 
+func TestMetadataRoundTripsLocally(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	record, err := app.UpdateMetadata(
+		"demo",
+		"browser-a",
+		"Demo title",
+		"Longer description",
+		"Short summary",
+		[]string{"docs", "grid"},
+		[]string{"favorites"},
+		true,
+		false,
+		"browser",
+	)
+	if err != nil {
+		t.Fatalf("update metadata: %v", err)
+	}
+	got := app.Metadata("demo")
+	if got.EnvelopeCID != record.EnvelopeCID {
+		t.Fatalf("metadata envelope cid mismatch: got %s want %s", got.EnvelopeCID, record.EnvelopeCID)
+	}
+	if got.Title != "Demo title" || got.Description != "Longer description" || got.Summary != "Short summary" {
+		t.Fatalf("metadata fields mismatch: %#v", got)
+	}
+	if len(got.Tags) != 2 || len(got.Collections) != 1 {
+		t.Fatalf("metadata labels mismatch: %#v", got)
+	}
+}
+
+func TestMetadataSearchPrefersFavoritesAndFiltersArchived(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.UpdateMetadata("alpha", "browser-a", "Alpha", "", "", []string{"grid"}, []string{"team"}, false, false, "browser"); err != nil {
+		t.Fatalf("update alpha metadata: %v", err)
+	}
+	if _, err := app.UpdateMetadata("beta", "browser-b", "Beta", "", "", []string{"grid"}, []string{"team"}, true, false, "browser"); err != nil {
+		t.Fatalf("update beta metadata: %v", err)
+	}
+	if _, err := app.UpdateMetadata("archive", "browser-c", "Archive", "", "", []string{"grid"}, []string{"team"}, false, true, "browser"); err != nil {
+		t.Fatalf("update archive metadata: %v", err)
+	}
+
+	results := app.SearchMetadata("grid", false)
+	if len(results) != 2 {
+		t.Fatalf("metadata search count mismatch: got %d", len(results))
+	}
+	if results[0].DocumentID != "beta" {
+		t.Fatalf("expected favorite document first, got %s", results[0].DocumentID)
+	}
+	for _, result := range results {
+		if result.DocumentID == "archive" {
+			t.Fatalf("archived document unexpectedly returned when includeArchived=false")
+		}
+	}
+
+	withArchived := app.SearchMetadata("grid", true)
+	if len(withArchived) != 3 {
+		t.Fatalf("metadata search with archived count mismatch: got %d", len(withArchived))
+	}
+}
+
+func TestMetadataAppearsInPeerFeedAndReplays(t *testing.T) {
+	t.Parallel()
+	appA, err := service.NewApp(filepath.Join(t.TempDir(), "relay-a"))
+	if err != nil {
+		t.Fatalf("new app a: %v", err)
+	}
+	record, err := appA.UpdateMetadata("demo", "browser-a", "Shared title", "Description", "Summary", []string{"grid"}, []string{"docs"}, true, false, "browser")
+	if err != nil {
+		t.Fatalf("update metadata: %v", err)
+	}
+
+	rawMessages, _ := appA.PeerMessagesSince(0, 16)
+	if len(rawMessages) != 1 {
+		t.Fatalf("peer message count mismatch: got %d", len(rawMessages))
+	}
+
+	appB, err := service.NewApp(filepath.Join(t.TempDir(), "relay-b"))
+	if err != nil {
+		t.Fatalf("new app b: %v", err)
+	}
+	if err := appB.IngestRawBase64(rawMessages[0]); err != nil {
+		t.Fatalf("ingest metadata message: %v", err)
+	}
+	got := appB.Metadata("demo")
+	if got.EnvelopeCID != record.EnvelopeCID {
+		t.Fatalf("replayed metadata envelope cid mismatch: got %s want %s", got.EnvelopeCID, record.EnvelopeCID)
+	}
+	if got.Title != "Shared title" || got.Favorite != true {
+		t.Fatalf("replayed metadata mismatch: %#v", got)
+	}
+}
+
 func loadIdentityForTest(t *testing.T, path string) *identity.Identity {
 	t.Helper()
 	value, err := identity.LoadOrCreate(path)

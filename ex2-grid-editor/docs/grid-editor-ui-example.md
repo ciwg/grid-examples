@@ -117,6 +117,25 @@ service and the CRDT state around it, not just browser-only UI values. Source:
   exchange URL.
 - The list is relay-backed, not browser-local.
 
+## Phase 4 document metadata shell
+
+### Metadata
+
+- The `Metadata` card is now relay-backed, not just local browser workflow
+  state.
+- `Title`, `Description`, `Summary`, `Tags`, `Collections`, `Favorite`, and
+  `Archived` are saved through the local relay.
+- These values use a separate metadata protocol instead of being mixed into
+  live document typing. Source: `DI-loruk`; `DI-sukip`.
+
+### Catalog search
+
+- `Catalog search` queries the relay for metadata it already knows about.
+- It searches titles, descriptions, summaries, tags, and collections.
+- `Include archived` lets you decide whether archived documents should stay in
+  the result set.
+- This is a relay-backed document-management view, not a browser-only filter.
+
 ## Phase 3 review shell
 
 ### Comments and history
@@ -194,6 +213,15 @@ service and the CRDT state around it, not just browser-only UI values. Source:
   import/exchange manifests.
 - It is separate from `live-document` because durable exchange is not the same
   thing as live CRDT editing. Source: `DI-gosaf`.
+
+### `document-metadata pCID`
+
+- This is the content-addressed ID of the exact local `document-metadata` spec
+  file.
+- It identifies the separate draft protocol used for relay-signed document
+  labels, descriptions, favorites, archive state, and catalog search.
+- It is separate from `live-document` because document-management metadata is
+  not the same thing as CRDT typing traffic. Source: `DI-loruk`; `DI-sukip`.
 
 ## Peers
 

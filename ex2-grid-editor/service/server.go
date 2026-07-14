@@ -26,6 +26,7 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/style.css", server.handleStyleCSS)
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/peer/messages", server.handlePeerMessages)
+	mux.HandleFunc("/api/local/metadata/search", server.handleMetadataSearch)
 	mux.HandleFunc("/api/published/", server.handlePublished)
 	mux.HandleFunc("/api/local/documents/", server.handleLocalDocument)
 	return mux
@@ -128,9 +129,25 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		server.handlePublishedList(writer, request, documentID)
 	case "publish":
 		server.handlePublish(writer, request, documentID)
+	case "metadata":
+		server.handleMetadata(writer, request, documentID)
 	default:
 		http.NotFound(writer, request)
 	}
+}
+
+func (server *Server) handleMetadataSearch(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	query := request.URL.Query().Get("q")
+	includeArchived := request.URL.Query().Get("include_archived") == "true"
+	writeJSON(writer, http.StatusOK, map[string]any{
+		"query":            query,
+		"include_archived": includeArchived,
+		"results":          server.app.SearchMetadata(query, includeArchived),
+	})
 }
 
 func (server *Server) handlePublished(writer http.ResponseWriter, request *http.Request) {
@@ -249,6 +266,53 @@ func (server *Server) handlePublishedList(writer http.ResponseWriter, request *h
 		"document_id": documentID,
 		"published":   server.app.Published(documentID),
 	})
+}
+
+func (server *Server) handleMetadata(writer http.ResponseWriter, request *http.Request, documentID string) {
+	switch request.Method {
+	case http.MethodGet:
+		writeJSON(writer, http.StatusOK, server.app.Metadata(documentID))
+	case http.MethodPost:
+		if err := requireLoopbackMutation(request); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		request.Body = http.MaxBytesReader(writer, request.Body, 128*1024)
+		var payload struct {
+			ParticipantID string   `json:"participant_id"`
+			Title         string   `json:"title"`
+			Description   string   `json:"description"`
+			Summary       string   `json:"summary"`
+			Tags          []string `json:"tags"`
+			Collections   []string `json:"collections"`
+			Favorite      bool     `json:"favorite"`
+			Archived      bool     `json:"archived"`
+			Embodiment    string   `json:"embodiment"`
+		}
+		if err := decodeJSONBody(writer, request, &payload); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		record, err := server.app.UpdateMetadata(
+			documentID,
+			payload.ParticipantID,
+			payload.Title,
+			payload.Description,
+			payload.Summary,
+			payload.Tags,
+			payload.Collections,
+			payload.Favorite,
+			payload.Archived,
+			payload.Embodiment,
+		)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, http.StatusOK, record)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Request, documentID string) {

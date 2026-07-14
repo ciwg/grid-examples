@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,13 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
-	server := httptest.NewServer(service.NewServer(app).Handler())
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen tcp4: %v", err)
+	}
+	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
+	server.Listener = listener
+	server.Start()
 	defer server.Close()
 
 	repoRoot := repoRoot(t)

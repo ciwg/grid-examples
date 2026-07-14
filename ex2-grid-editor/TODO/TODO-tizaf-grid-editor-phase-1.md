@@ -27,3 +27,6 @@ Goal: Finish the first collaborative-editor UX milestone so browser and Neovim b
 - [x] tizaf.3 Add Neovim core parity improvements for selections, status, and help.
 - [x] tizaf.4 Add tests and docs for the new Phase 1 behavior.
 - [ ] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
+  Current gaps from the manual pass:
+  - Chrome still needs confirmation that remote cursor line color renders correctly instead of a tiny black line.
+  - Toolbar formatting needs a clear product decision on whether raw `<u>...</u>` text in the editor is acceptable or whether inline rendered underline is required.

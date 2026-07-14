@@ -101,6 +101,13 @@ export class DocumentRegistry {
     return structuredClone(document);
   }
 
+  setTitle(documentID, title) {
+    const document = this.ensureDocument(documentID);
+    document.title = title?.trim() || defaultTitle(documentID);
+    this.save();
+    return structuredClone(document);
+  }
+
   openTab(documentID) {
     this.ensureDocument(documentID);
     this.state.openTabs = [documentID, ...this.state.openTabs.filter((value) => value !== documentID)].slice(0, 8);

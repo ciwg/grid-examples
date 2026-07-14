@@ -41,6 +41,7 @@ Public, PromiseGrid-facing:
 
 - `protocols/live-document.md`
 - `protocols/live-awareness.md`
+- `protocols/document-metadata.md`
 - `protocols/publish-document.md`
 - signed `grid([42(pCID), payload, proof])` envelopes
 
@@ -72,7 +73,16 @@ Internal-only:
 - supports current-state or saved-version handoff
 - is separate from restore semantics and separate from live sync
 
-Source: `DI-tofug`; `DI-ramuv`; `DI-tavul`; `DI-gosaf`.
+### `document-metadata`
+
+- carries relay-signed latest-state document metadata
+- covers title, description, summary, tags, collections, favorite, and
+  archived state
+- powers relay-backed catalog search over known documents
+- is separate from both live CRDT typing and publish/import exchange
+
+Source: `DI-tofug`; `DI-ramuv`; `DI-tavul`; `DI-gosaf`; `DI-loruk`;
+`DI-sukip`.
 
 ## Storage model
 
@@ -83,6 +93,7 @@ The relay data root stores:
 - the relay signing identity
 - the append-only message log
 - CAS-backed signed envelopes
+- CAS-backed signed metadata envelopes
 - CAS-backed published text bytes
 - CAS-backed published replica bytes
 
@@ -94,9 +105,12 @@ The browser currently keeps some product-facing metadata locally:
 
 - preferences
 - recent docs
-- local document titles and timestamps
+- local timestamps, bookmarks, and snapshots
 - comments and review metadata
 - saved versions used by the current publish flow
+
+Relay-backed document metadata now covers title, description, summary, tags,
+collections, favorites, archive state, and relay-backed catalog search.
 
 The Neovim embodiment keeps its own local editor/session state and relies on
 the relay for shared collaboration artifacts.

@@ -8,16 +8,21 @@ import (
 )
 
 const (
-	maxDocumentIDLen     = 128
-	maxParticipantIDLen  = 128
-	maxEmbodimentLen     = 32
-	maxDisplayNameLen    = 80
-	maxPublishTitleLen   = 160
-	maxPublishSummaryLen = 512
-	maxChangeBytesLen    = 1 << 20
-	maxPublishBytesLen   = 4 << 20
-	defaultFeedLimit     = 256
-	maxFeedLimit         = 512
+	maxDocumentIDLen          = 128
+	maxParticipantIDLen       = 128
+	maxEmbodimentLen          = 32
+	maxDisplayNameLen         = 80
+	maxPublishTitleLen        = 160
+	maxPublishSummaryLen      = 512
+	maxMetadataTitleLen       = 160
+	maxMetadataSummaryLen     = 512
+	maxMetadataDescriptionLen = 4000
+	maxMetadataLabelLen       = 64
+	maxMetadataListLen        = 24
+	maxChangeBytesLen         = 1 << 20
+	maxPublishBytesLen        = 4 << 20
+	defaultFeedLimit          = 256
+	maxFeedLimit              = 512
 )
 
 var (
@@ -155,6 +160,47 @@ func validatePublishBytes(name string, bytes []byte) error {
 	}
 	if len(bytes) > maxPublishBytesLen {
 		return fmt.Errorf("%s bytes too large", name)
+	}
+	return nil
+}
+
+func validateMetadataTitle(title string) error {
+	if utf8.RuneCountInString(title) > maxMetadataTitleLen {
+		return fmt.Errorf("metadata title too long")
+	}
+	return nil
+}
+
+func validateMetadataDescription(description string) error {
+	if utf8.RuneCountInString(description) > maxMetadataDescriptionLen {
+		return fmt.Errorf("metadata description too long")
+	}
+	return nil
+}
+
+func validateMetadataSummary(summary string) error {
+	if utf8.RuneCountInString(summary) > maxMetadataSummaryLen {
+		return fmt.Errorf("metadata summary too long")
+	}
+	return nil
+}
+
+func validateMetadataLabels(name string, values []string) error {
+	if len(values) > maxMetadataListLen {
+		return fmt.Errorf("%s has too many values", name)
+	}
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s must not contain empty values", name)
+		}
+		if utf8.RuneCountInString(value) > maxMetadataLabelLen {
+			return fmt.Errorf("%s value too long", name)
+		}
+		for _, runeValue := range value {
+			if runeValue < 0x20 || runeValue == 0x7f {
+				return fmt.Errorf("%s must not contain control characters", name)
+			}
+		}
 	}
 	return nil
 }
