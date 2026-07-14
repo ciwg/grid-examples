@@ -20,6 +20,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/identity"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocols"
+	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/publish"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/store"
 )
 
@@ -27,6 +28,7 @@ type Meta struct {
 	LocalID       string `json:"local_id"`
 	DocumentPCID  string `json:"document_pcid"`
 	AwarenessPCID string `json:"awareness_pcid"`
+	PublishPCID   string `json:"publish_pcid"`
 	DataRoot      string `json:"data_root"`
 }
 
@@ -55,12 +57,15 @@ type App struct {
 	cas           *cas.Store
 	documentPCID  cid.Cid
 	awarenessPCID cid.Cid
+	publishPCID   cid.Cid
 
-	mu         sync.Mutex
-	maxLamport uint64
-	seen       map[string]struct{}
-	presence   map[string]awareness.Index
-	syncFeeds  map[string][]crdt.SyncRecord
+	mu           sync.Mutex
+	maxLamport   uint64
+	seen         map[string]struct{}
+	presence     map[string]awareness.Index
+	syncFeeds    map[string][]crdt.SyncRecord
+	published    map[string][]publish.Record
+	publishByCID map[string]publish.Record
 }
 
 func NewApp(dataRoot string) (*App, error) {
@@ -71,6 +76,10 @@ func NewApp(dataRoot string) (*App, error) {
 	awarenessPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.LiveAwarenessSpec))
 	if err != nil {
 		return nil, fmt.Errorf("awareness pCID: %w", err)
+	}
+	publishPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.PublishDocumentSpec))
+	if err != nil {
+		return nil, fmt.Errorf("publish pCID: %w", err)
 	}
 	identityPath := filepath.Join(dataRoot, "identity_ed25519_seed")
 	identityValue, err := identity.LoadOrCreate(identityPath)
@@ -92,9 +101,12 @@ func NewApp(dataRoot string) (*App, error) {
 		cas:           casValue,
 		documentPCID:  documentPCID,
 		awarenessPCID: awarenessPCID,
+		publishPCID:   publishPCID,
 		seen:          map[string]struct{}{},
 		presence:      map[string]awareness.Index{},
 		syncFeeds:     map[string][]crdt.SyncRecord{},
+		published:     map[string][]publish.Record{},
+		publishByCID:  map[string]publish.Record{},
 	}
 	for _, entry := range logValue.All() {
 		if err := app.replayEntry(entry); err != nil {
@@ -109,6 +121,7 @@ func (app *App) Meta() Meta {
 		LocalID:       app.identity.KeyID(),
 		DocumentPCID:  app.documentPCID.String(),
 		AwarenessPCID: app.awarenessPCID.String(),
+		PublishPCID:   app.publishPCID.String(),
 		DataRoot:      app.dataRoot,
 	}
 }
@@ -206,6 +219,72 @@ func (app *App) UpdateAwareness(documentID string, participantID string, cursor 
 	return err
 }
 
+// Intent: Make publish a separate current-time relay action that signs a
+// durable manifest referencing CAS-backed bytes, rather than overloading live
+// editing state or browser-local snapshot storage. Source: DI-tavul; DI-gosaf
+func (app *App) PublishDocument(documentID string, participantID string, sourceKind string, sourceVersionID string, sourceVersionName string, title string, summary string, textBytes []byte, replicaBytes []byte, embodiment string) (publish.Record, error) {
+	if err := validateDocumentID(documentID); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validateParticipantID(participantID); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validatePublishSourceKind(sourceKind); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validatePublishTitle(title); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validatePublishSummary(summary); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validatePublishBytes("text", textBytes); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validatePublishBytes("replica", replicaBytes); err != nil {
+		return publish.Record{}, err
+	}
+	if err := validateEmbodiment(embodiment); err != nil {
+		return publish.Record{}, err
+	}
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	textCID, err := app.cas.Put(textBytes)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("persist publish text: %w", err)
+	}
+	replicaCID, err := app.cas.Put(replicaBytes)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("persist publish replica: %w", err)
+	}
+	app.maxLamport++
+	message := publish.Message{
+		Kind:              "publish",
+		DocumentID:        documentID,
+		Author:            app.identity.KeyID(),
+		ParticipantID:     participantID,
+		SourceKind:        sourceKind,
+		SourceVersionID:   sourceVersionID,
+		SourceVersionName: sourceVersionName,
+		Title:             title,
+		Summary:           summary,
+		TextCID:           textCID,
+		ReplicaCID:        replicaCID,
+		PublishedAt:       time.Now().Format(time.RFC3339Nano),
+		Lamport:           app.maxLamport,
+		Embodiment:        embodiment,
+	}
+	envelopeBytes, err := app.makeSignedEnvelope(app.publishPCID, message)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("sign publish manifest: %w", err)
+	}
+	record, err := app.ingestPublishEnvelopeLocked(envelopeBytes, nil)
+	if err != nil {
+		return publish.Record{}, err
+	}
+	return record, nil
+}
+
 func (app *App) SyncFeed(documentID string, since uint64, limit int) SyncFeed {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -251,6 +330,38 @@ func (app *App) State(documentID string) RelayState {
 	}
 }
 
+func (app *App) Published(documentID string) []publish.Record {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	return append([]publish.Record(nil), app.published[documentID]...)
+}
+
+// Intent: Resolve published exchange manifests through relay-local CAS reads so
+// importers can fetch a durable handoff object and its referenced bytes
+// without pretending publish/import is the same thing as live sync.
+// Source: DI-tavul; DI-gosaf
+func (app *App) ResolvePublished(envelopeCID string) (publish.Resolved, error) {
+	app.mu.Lock()
+	record, ok := app.publishByCID[envelopeCID]
+	app.mu.Unlock()
+	if !ok {
+		return publish.Resolved{}, fmt.Errorf("published manifest not found")
+	}
+	textBytes, err := app.cas.Get(record.TextCID)
+	if err != nil {
+		return publish.Resolved{}, fmt.Errorf("resolve publish text: %w", err)
+	}
+	replicaBytes, err := app.cas.Get(record.ReplicaCID)
+	if err != nil {
+		return publish.Resolved{}, fmt.Errorf("resolve publish replica: %w", err)
+	}
+	return publish.Resolved{
+		Record:        record,
+		TextBase64:    base64.StdEncoding.EncodeToString(textBytes),
+		ReplicaBase64: base64.StdEncoding.EncodeToString(replicaBytes),
+	}, nil
+}
+
 func (app *App) awarenessLocked(documentID string) []awareness.PeerState {
 	presenceIndex := app.presence[documentID]
 	peers := make([]awareness.PeerState, 0, len(presenceIndex))
@@ -272,17 +383,35 @@ func (app *App) awarenessLocked(documentID string) []awareness.PeerState {
 func (app *App) PeerMessagesSince(offset uint64, limit int) ([]string, uint64) {
 	entries := app.log.EntriesSince(offset)
 	maxEntries := clampFeedLimit(limit)
-	if len(entries) > maxEntries {
-		entries = entries[:maxEntries]
-	}
-	messages := make([]string, 0, len(entries))
+	messages := make([]string, 0, maxEntries)
+	next := app.log.NextOffset()
 	for _, entry := range entries {
+		// Intent: Keep the peer relay feed limited to live document and awareness
+		// traffic so publish/import exchange stays an explicit URL-resolved path
+		// instead of silently piggybacking on the live sync channel. Source:
+		// DI-tavul; DI-gosaf
+		if entry.PCID != app.documentPCID.String() && entry.PCID != app.awarenessPCID.String() {
+			continue
+		}
+		if len(messages) >= maxEntries {
+			next = entry.Offset
+			break
+		}
 		messages = append(messages, entry.RawBase64)
 	}
-	if len(entries) == 0 {
+	if len(messages) == 0 {
 		return messages, app.log.NextOffset()
 	}
-	return messages, entries[len(entries)-1].Offset + 1
+	if next == app.log.NextOffset() {
+		lastOffset := offset
+		for _, entry := range entries {
+			if entry.PCID == app.documentPCID.String() || entry.PCID == app.awarenessPCID.String() {
+				lastOffset = entry.Offset
+			}
+		}
+		next = lastOffset + 1
+	}
+	return messages, next
 }
 
 func (app *App) IngestRawBase64(raw string) error {
@@ -443,6 +572,12 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		if message.Lamport > app.maxLamport {
 			app.maxLamport = message.Lamport
 		}
+	case app.publishPCID.String():
+		_, err = app.ingestPublishEnvelopeLocked(envelopeBytes, &entry)
+		if err != nil {
+			return crdt.SyncRecord{}, err
+		}
+		return crdt.SyncRecord{}, nil
 	case app.awarenessPCID.String():
 		var message awareness.Message
 		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
@@ -465,6 +600,78 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		}
 	default:
 		return crdt.SyncRecord{}, fmt.Errorf("unknown pCID %s", envelope.PCID)
+	}
+	app.seen[envelopeCIDString] = struct{}{}
+	return record, nil
+}
+
+func (app *App) ingestPublishEnvelopeLocked(envelopeBytes []byte, existing *store.Entry) (publish.Record, error) {
+	envelopeCID, err := protocol.CIDForBytes(envelopeBytes)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("publish envelope cid: %w", err)
+	}
+	envelopeCIDString := envelopeCID.String()
+	if _, ok := app.seen[envelopeCIDString]; ok {
+		return app.publishByCID[envelopeCIDString], nil
+	}
+	envelope, err := protocol.ParseEnvelope(envelopeBytes)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("parse publish envelope: %w", err)
+	}
+	signable, err := envelope.SignableBytes()
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("build publish signable bytes: %w", err)
+	}
+	if err := identity.VerifyProof(signable, envelope.Proof); err != nil {
+		return publish.Record{}, fmt.Errorf("verify publish proof: %w", err)
+	}
+	address, err := app.cas.Put(envelopeBytes)
+	if err != nil {
+		return publish.Record{}, fmt.Errorf("persist publish envelope: %w", err)
+	}
+	if address != envelopeCIDString {
+		return publish.Record{}, fmt.Errorf("publish cas address mismatch: got %s want %s", address, envelopeCIDString)
+	}
+	entry := store.Entry{}
+	if existing != nil {
+		entry = *existing
+	} else {
+		entry, err = app.log.Append(envelopeBytes, envelope.PCID.String())
+		if err != nil {
+			return publish.Record{}, fmt.Errorf("append publish log: %w", err)
+		}
+	}
+	var message publish.Message
+	if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+		return publish.Record{}, fmt.Errorf("decode publish payload: %w", err)
+	}
+	if message.Author != envelope.Proof.KeyID {
+		return publish.Record{}, fmt.Errorf("publish author %q does not match proof key", message.Author)
+	}
+	// Intent: Bind durable publish attribution to the verified signing key so a
+	// relay-signed exchange manifest cannot claim a different author than the
+	// key that actually signed it. Source: DI-tavul; DI-gosaf
+	record := publish.Record{
+		Offset:            entry.Offset,
+		EnvelopeCID:       envelopeCIDString,
+		DocumentID:        message.DocumentID,
+		Author:            message.Author,
+		ParticipantID:     message.ParticipantID,
+		SourceKind:        message.SourceKind,
+		SourceVersionID:   message.SourceVersionID,
+		SourceVersionName: message.SourceVersionName,
+		Title:             message.Title,
+		Summary:           message.Summary,
+		TextCID:           message.TextCID,
+		ReplicaCID:        message.ReplicaCID,
+		PublishedAt:       message.PublishedAt,
+		Embodiment:        message.Embodiment,
+		ReceivedAt:        entry.ReceivedAt,
+	}
+	app.published[message.DocumentID] = append(app.published[message.DocumentID], record)
+	app.publishByCID[record.EnvelopeCID] = record
+	if message.Lamport > app.maxLamport {
+		app.maxLamport = message.Lamport
 	}
 	app.seen[envelopeCIDString] = struct{}{}
 	return record, nil

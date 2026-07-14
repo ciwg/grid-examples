@@ -170,6 +170,53 @@ func TestIngestRejectsAuthorProofMismatch(t *testing.T) {
 	}
 }
 
+func TestPublishDocumentResolvesLocallyAndStaysOutOfPeerFeed(t *testing.T) {
+	t.Parallel()
+	appA, err := service.NewApp(filepath.Join(t.TempDir(), "relay-a"))
+	if err != nil {
+		t.Fatalf("new app a: %v", err)
+	}
+	record, err := appA.PublishDocument(
+		"demo",
+		"browser-a",
+		"current",
+		"",
+		"",
+		"Demo publish",
+		"Shared from relay a",
+		[]byte("# demo\n\nhello"),
+		[]byte{9, 8, 7, 6},
+		"browser",
+	)
+	if err != nil {
+		t.Fatalf("publish document: %v", err)
+	}
+	published := appA.Published("demo")
+	if len(published) != 1 {
+		t.Fatalf("published count mismatch: got %d", len(published))
+	}
+	if published[0].EnvelopeCID != record.EnvelopeCID {
+		t.Fatalf("publish envelope cid mismatch: got %s want %s", published[0].EnvelopeCID, record.EnvelopeCID)
+	}
+	resolved, err := appA.ResolvePublished(record.EnvelopeCID)
+	if err != nil {
+		t.Fatalf("resolve published: %v", err)
+	}
+	if got := decodedBase64(t, resolved.TextBase64); got != "# demo\n\nhello" {
+		t.Fatalf("resolved text mismatch: %q", got)
+	}
+
+	rawMessages, _ := appA.PeerMessagesSince(0, 16)
+	for _, raw := range rawMessages {
+		if raw == "" {
+			t.Fatalf("unexpected empty peer message")
+		}
+	}
+	if len(rawMessages) != 0 {
+		t.Fatalf("expected publish manifest to stay out of peer feed, got %d messages", len(rawMessages))
+	}
+}
+
 func loadIdentityForTest(t *testing.T, path string) *identity.Identity {
 	t.Helper()
 	value, err := identity.LoadOrCreate(path)
@@ -231,4 +278,13 @@ func signAwarenessMessage(t *testing.T, signer *identity.Identity, message aware
 		t.Fatalf("awareness envelope bytes: %v", err)
 	}
 	return base64.StdEncoding.EncodeToString(envelopeBytes)
+}
+
+func decodedBase64(t *testing.T, value string) string {
+	t.Helper()
+	bytes, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		t.Fatalf("decode base64: %v", err)
+	}
+	return string(bytes)
 }

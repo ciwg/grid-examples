@@ -32039,7 +32039,11 @@ function normalizeState(raw) {
       comments: Array.isArray(value.comments) ? value.comments : [],
       activity: Array.isArray(value.activity) ? value.activity : [],
       recentParticipants: Array.isArray(value.recentParticipants) ? value.recentParticipants : [],
-      savedVersions: Array.isArray(value.savedVersions) ? value.savedVersions : [],
+      savedVersions: Array.isArray(value.savedVersions) ? value.savedVersions.map((version) => ({
+        ...version,
+        content: version.content || "",
+        replicaBase64: version.replicaBase64 || ""
+      })) : [],
       seedContent: value.seedContent || ""
     };
   }
@@ -32240,7 +32244,8 @@ function inferVersionName(title, text) {
 var metaEls = {
   localID: document.getElementById("local-id"),
   docPCID: document.getElementById("doc-pcid"),
-  awarenessPCID: document.getElementById("awareness-pcid")
+  awarenessPCID: document.getElementById("awareness-pcid"),
+  publishPCID: document.getElementById("publish-pcid")
 };
 var statusEl = document.getElementById("status");
 var autosaveEl = document.getElementById("autosave-indicator");
@@ -32275,6 +32280,7 @@ var outlineListEl = document.getElementById("outline-list");
 var savedVersionsEl = document.getElementById("saved-versions");
 var recentParticipantsEl = document.getElementById("recent-participants");
 var activityFeedEl = document.getElementById("activity-feed");
+var publishedListEl = document.getElementById("published-list");
 var timestampEls = {
   created: document.getElementById("doc-created"),
   viewed: document.getElementById("doc-viewed"),
@@ -32370,6 +32376,7 @@ async function loadMeta() {
   metaEls.localID.textContent = meta2.local_id;
   metaEls.docPCID.textContent = meta2.document_pcid;
   metaEls.awarenessPCID.textContent = meta2.awareness_pcid;
+  metaEls.publishPCID.textContent = meta2.publish_pcid;
 }
 async function bootDocument(documentID) {
   setStatus("connecting", "connecting\u2026");
@@ -32456,6 +32463,7 @@ async function bootDocument(documentID) {
   noteRecentParticipants(awareness.getStates());
   await refreshState(basePath);
   await applySeedIfNeeded(documentID);
+  await refreshPublished(documentID);
   renderPreview();
   renderReview();
 }
@@ -32600,6 +32608,16 @@ function renderReview() {
   renderActivity();
   renderComments();
 }
+async function refreshPublished(documentID) {
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(documentID)}/published`);
+  if (!response.ok) {
+    publishedListEl.innerHTML = "";
+    appendEmptyState(publishedListEl, "No published exchanges yet");
+    return;
+  }
+  const payload = await response.json();
+  renderPublished(payload.published || []);
+}
 function renderDocumentList(target, documents, extraClass, onClick) {
   target.innerHTML = "";
   for (const documentMeta of documents) {
@@ -32724,6 +32742,27 @@ function renderComments() {
     appendEmptyState(commentListEl, "No comments yet");
   }
 }
+function renderPublished(records) {
+  publishedListEl.innerHTML = "";
+  for (const record of records.slice().reverse()) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${record.title} (${record.source_kind})`;
+    button.addEventListener("click", async () => {
+      await copyText(`${window.location.origin}/api/published/${record.envelope_cid}`, "Exchange link copied");
+    });
+    li.appendChild(button);
+    const meta2 = document.createElement("div");
+    meta2.className = "tiny muted";
+    meta2.textContent = formatTime(record.published_at);
+    li.appendChild(meta2);
+    publishedListEl.appendChild(li);
+  }
+  if (records.length === 0) {
+    appendEmptyState(publishedListEl, "No published exchanges yet");
+  }
+}
 function noteRecentParticipants(states) {
   states.forEach((peer, participantID) => {
     if (participantID === state.participantID) {
@@ -32813,7 +32852,9 @@ function saveNamedVersion() {
     id: crypto.randomUUID(),
     name: name2,
     createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-    summary: summarizeDocument(state.editor.getText())
+    summary: summarizeDocument(state.editor.getText()),
+    content: state.editor.getText(),
+    replicaBase64: bytesToBase642(state.relay.getReplicaBytes())
   });
   renderSavedVersions();
   renderActivity();
@@ -33060,6 +33101,93 @@ function publishSnapshot() {
   registry.addSnapshot(state.documentID, snapshot);
   showToast("Snapshot saved locally");
 }
+async function publishExchange() {
+  if (!state.editor || !state.relay) {
+    return;
+  }
+  const source = choosePublishSource();
+  if (!source) {
+    return;
+  }
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      participant_id: state.participantID,
+      source_kind: source.sourceKind,
+      source_version_id: source.sourceVersionID,
+      source_version_name: source.sourceVersionName,
+      title: source.title,
+      summary: source.summary,
+      text_base64: textToBase64(source.text),
+      replica_base64: source.replicaBase64,
+      embodiment: "browser"
+    })
+  });
+  if (!response.ok) {
+    showToast(`Publish failed: ${response.status}`);
+    return;
+  }
+  const payload = await response.json();
+  await copyText(payload.manifest_url, "Exchange link copied");
+  await refreshPublished(state.documentID);
+}
+function choosePublishSource() {
+  const currentText = state.editor.getText();
+  const current = {
+    sourceKind: "current",
+    sourceVersionID: "",
+    sourceVersionName: "",
+    title: docTitleInput.value || state.documentID,
+    summary: summarizeDocument(currentText),
+    text: currentText,
+    replicaBase64: bytesToBase642(state.relay.getReplicaBytes())
+  };
+  const versions = registry.listSavedVersions(state.documentID);
+  if (versions.length === 0) {
+    return current;
+  }
+  const raw = window.prompt("Publish 'current' or enter a saved version name", "current");
+  if (!raw || raw.trim().toLowerCase() === "current") {
+    return current;
+  }
+  const version = versions.find((value) => value.name === raw.trim() || value.id === raw.trim());
+  if (!version || !version.content || !version.replicaBase64) {
+    showToast("Saved version not found or missing content");
+    return null;
+  }
+  return {
+    sourceKind: "saved_version",
+    sourceVersionID: version.id,
+    sourceVersionName: version.name,
+    title: version.name,
+    summary: version.summary || summarizeDocument(version.content),
+    text: version.content,
+    replicaBase64: version.replicaBase64
+  };
+}
+async function importExchange() {
+  const raw = window.prompt("Paste a published exchange URL");
+  if (!raw) {
+    return;
+  }
+  const reference = parsePublishedReference(raw);
+  if (!reference) {
+    showToast("Could not parse an exchange URL");
+    return;
+  }
+  const response = await fetch(`${reference.origin}/api/published/${reference.envelopeCID}`);
+  if (!response.ok) {
+    showToast(`Import failed: ${response.status}`);
+    return;
+  }
+  const payload = await response.json();
+  const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
+  registry.registerSeedContent(nextDoc, base64ToText(payload.text_base64));
+  registry.updateTitle(nextDoc, `${payload.record.title} imported`);
+  await bootDocument(nextDoc);
+  showToast(`Imported ${payload.record.title}`);
+}
 function exportAuditReport() {
   const documentMeta = registry.get(state.documentID);
   const report = {
@@ -33197,6 +33325,8 @@ function registerEvents() {
   document.getElementById("copy-markdown").addEventListener("click", () => copyFormatted("markdown"));
   document.getElementById("copy-html").addEventListener("click", () => copyFormatted("html"));
   document.getElementById("publish-snapshot").addEventListener("click", publishSnapshot);
+  document.getElementById("publish-exchange").addEventListener("click", publishExchange);
+  document.getElementById("import-exchange").addEventListener("click", importExchange);
   document.getElementById("export-audit").addEventListener("click", exportAuditReport);
   document.getElementById("generate-demo-doc").addEventListener("click", generateDoc);
   document.getElementById("sample-doc").addEventListener("click", sampleDoc);
@@ -33313,6 +33443,22 @@ function parseDocumentReference(raw) {
     return trimmed;
   }
 }
+function parsePublishedReference(raw) {
+  try {
+    const url = new URL(raw.trim(), window.location.origin);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const publishedIndex = parts.indexOf("published");
+    if (publishedIndex === -1 || !parts[publishedIndex + 1]) {
+      return null;
+    }
+    return {
+      origin: url.origin,
+      envelopeCID: parts[publishedIndex + 1]
+    };
+  } catch {
+    return null;
+  }
+}
 function formatTime(value) {
   if (!value) {
     return "-";
@@ -33344,6 +33490,19 @@ async function copyText(value, successLabel) {
   } catch {
     showToast("Clipboard write failed");
   }
+}
+function textToBase64(value) {
+  return window.btoa(unescape(encodeURIComponent(value)));
+}
+function base64ToText(value) {
+  return decodeURIComponent(escape(window.atob(value)));
+}
+function bytesToBase642(bytes) {
+  let text = "";
+  bytes.forEach((value) => {
+    text += String.fromCharCode(value);
+  });
+  return window.btoa(text);
 }
 function escapeHTML2(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");

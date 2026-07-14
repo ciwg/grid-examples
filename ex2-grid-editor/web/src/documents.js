@@ -358,7 +358,13 @@ export function normalizeState(raw) {
       comments: Array.isArray(value.comments) ? value.comments : [],
       activity: Array.isArray(value.activity) ? value.activity : [],
       recentParticipants: Array.isArray(value.recentParticipants) ? value.recentParticipants : [],
-      savedVersions: Array.isArray(value.savedVersions) ? value.savedVersions : [],
+      savedVersions: Array.isArray(value.savedVersions)
+        ? value.savedVersions.map((version) => ({
+          ...version,
+          content: version.content || "",
+          replicaBase64: version.replicaBase64 || "",
+        }))
+        : [],
       seedContent: value.seedContent || "",
     };
   }

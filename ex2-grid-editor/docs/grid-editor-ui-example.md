@@ -88,6 +88,35 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 - `Copy Link` and `Email Link` are Phase 2 sharing helpers layered on top of
   the existing document ID and browser URL flow.
 
+## Phase 4 publish/import shell
+
+### Publish Exchange
+
+- `Publish Exchange` creates a relay-signed publish manifest for either:
+  - the current document state
+  - a named saved version
+- The manifest references CAS-backed text bytes and CAS-backed Automerge
+  replica bytes.
+- This is a durable exchange object, not a live-edit message. Source:
+  `DI-tavul`; `DI-gosaf`.
+
+### Import Exchange
+
+- `Import Exchange` accepts a published manifest URL.
+- The browser resolves that URL, fetches the published artifact, and creates a
+  new local document from it.
+- In this slice, import/exchange does not recreate the original live relay
+  history. It materializes a new local document from the chosen published
+  state instead. Source: `DI-gosaf`.
+
+### Published exchanges
+
+- The `Published exchanges` list shows the publish manifests already created
+  for the current document.
+- Each item is a durable handoff artifact that can be copied as a shareable
+  exchange URL.
+- The list is relay-backed, not browser-local.
+
 ## Phase 3 review shell
 
 ### Comments and history
@@ -156,6 +185,15 @@ service and the CRDT state around it, not just browser-only UI values. Source:
   file.
 - It identifies the current draft protocol used for signed awareness messages.
   Source: `DI-tofug`.
+
+### `publish-document pCID`
+
+- This is the content-addressed ID of the exact local `publish-document` spec
+  file.
+- It identifies the separate draft protocol used for relay-signed publish and
+  import/exchange manifests.
+- It is separate from `live-document` because durable exchange is not the same
+  thing as live CRDT editing. Source: `DI-gosaf`.
 
 ## Peers
 
@@ -230,3 +268,13 @@ service and the CRDT state around it, not just browser-only UI values. Source:
 - `live-document` and `live-awareness` are separate protocol families in this
   repo because document state and awareness state have different cadence and
   durability pressure. Source: `DI-tofug`.
+
+### Why there are now three pCIDs
+
+- `live-document` is for durable live-edit CRDT traffic.
+- `live-awareness` is for ephemeral cursor and presence traffic.
+- `publish-document` is for durable current-time handoff artifacts used by
+  publish/import exchange.
+- That split keeps live collaboration, ephemeral awareness, and durable
+  exchange from collapsing into one overloaded wire contract. Source:
+  `DI-tofug`; `DI-gosaf`.

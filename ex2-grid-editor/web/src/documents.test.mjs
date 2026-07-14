@@ -62,6 +62,8 @@ test("review metadata tracks comments, versions, and participants", () => {
     id: "version-1",
     name: "Draft 1",
     createdAt: "2026-07-13T10:02:00Z",
+    content: "# demo",
+    replicaBase64: "AQID",
   });
   registry.noteParticipant("demo", {
     participantID: "browser-1",
@@ -73,13 +75,14 @@ test("review metadata tracks comments, versions, and participants", () => {
   assert.equal(registry.listComments("demo")[0].reactions[0].emoji, "👍");
   assert.equal(registry.listComments("demo")[0].resolved, true);
   assert.equal(registry.listSavedVersions("demo")[0].name, "Draft 1");
+  assert.equal(registry.listSavedVersions("demo")[0].content, "# demo");
   assert.equal(registry.listRecentParticipants("demo")[0].name, "Mallory");
   assert.ok(registry.listActivity("demo").length >= 4);
 });
 
 test("normalizeState filters dangling recent and tab references", () => {
   const state = normalizeState({
-    documents: { demo: { title: "Demo", comments: [{}], activity: [{}], recentParticipants: [{}], savedVersions: [{}] } },
+    documents: { demo: { title: "Demo", comments: [{}], activity: [{}], recentParticipants: [{}], savedVersions: [{ content: "# doc", replicaBase64: "AQID" }] } },
     recent: ["demo", "missing"],
     openTabs: ["demo", "missing"],
   });
@@ -87,4 +90,5 @@ test("normalizeState filters dangling recent and tab references", () => {
   assert.deepEqual(state.openTabs, ["demo"]);
   assert.equal(state.documents.demo.comments.length, 1);
   assert.equal(state.documents.demo.savedVersions.length, 1);
+  assert.equal(state.documents.demo.savedVersions[0].content, "# doc");
 });

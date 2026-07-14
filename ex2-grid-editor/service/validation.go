@@ -8,13 +8,16 @@ import (
 )
 
 const (
-	maxDocumentIDLen    = 128
-	maxParticipantIDLen = 128
-	maxEmbodimentLen    = 32
-	maxDisplayNameLen   = 80
-	maxChangeBytesLen   = 1 << 20
-	defaultFeedLimit    = 256
-	maxFeedLimit        = 512
+	maxDocumentIDLen     = 128
+	maxParticipantIDLen  = 128
+	maxEmbodimentLen     = 32
+	maxDisplayNameLen    = 80
+	maxPublishTitleLen   = 160
+	maxPublishSummaryLen = 512
+	maxChangeBytesLen    = 1 << 20
+	maxPublishBytesLen   = 4 << 20
+	defaultFeedLimit     = 256
+	maxFeedLimit         = 512
 )
 
 var (
@@ -116,6 +119,42 @@ func validateChangeBytes(messageBytes []byte) error {
 	}
 	if len(messageBytes) > maxChangeBytesLen {
 		return fmt.Errorf("change bytes too large")
+	}
+	return nil
+}
+
+func validatePublishSourceKind(sourceKind string) error {
+	switch sourceKind {
+	case "current", "saved_version":
+		return nil
+	default:
+		return fmt.Errorf("source kind must be current or saved_version")
+	}
+}
+
+func validatePublishTitle(title string) error {
+	if strings.TrimSpace(title) == "" {
+		return fmt.Errorf("publish title is required")
+	}
+	if utf8.RuneCountInString(title) > maxPublishTitleLen {
+		return fmt.Errorf("publish title too long")
+	}
+	return nil
+}
+
+func validatePublishSummary(summary string) error {
+	if utf8.RuneCountInString(summary) > maxPublishSummaryLen {
+		return fmt.Errorf("publish summary too long")
+	}
+	return nil
+}
+
+func validatePublishBytes(name string, bytes []byte) error {
+	if len(bytes) == 0 {
+		return fmt.Errorf("%s bytes are required", name)
+	}
+	if len(bytes) > maxPublishBytesLen {
+		return fmt.Errorf("%s bytes too large", name)
 	}
 	return nil
 }

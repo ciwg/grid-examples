@@ -3,8 +3,9 @@ package protocols
 import "embed"
 
 const (
-	LiveDocumentSpec  = "live-document.md"
-	LiveAwarenessSpec = "live-awareness.md"
+	LiveDocumentSpec    = "live-document.md"
+	LiveAwarenessSpec   = "live-awareness.md"
+	PublishDocumentSpec = "publish-document.md"
 )
 
 // Intent: pCIDs must derive from the exact local draft spec bytes so the app

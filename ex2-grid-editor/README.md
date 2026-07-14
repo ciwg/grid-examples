@@ -32,6 +32,42 @@ is meant to demonstrate how a PromiseGrid-style tool can separate:
 - ephemeral presence and cursor awareness
 - local embodiment plumbing
 
+## Current Feature Set
+
+Grid Editor currently demonstrates four feature slices:
+
+### Phase 1: shared editing UX
+
+- remote cursors and selections
+- peer list, peer count, and presence aging
+- settings, theme, line numbers, and accessibility controls
+- search and quick formatting
+- new/open/paste-link document entry flows
+
+### Phase 2: document workflow
+
+- title and local document metadata
+- recent docs and open tabs
+- markdown preview and split view
+- find/replace and go-to-line
+- import/export, snapshots, bookmarks, and share-link helpers
+
+### Phase 3: review and history
+
+- inline comments and annotations
+- saved versions
+- recent participant history
+- activity feed
+- outline navigation, focus mode, summary, and diagnostics
+
+### Phase 4: publish and import exchange
+
+- publish the current state or a named saved version
+- relay-signed publish manifests
+- CAS-backed text and replica objects
+- published exchange URL resolution
+- import a published exchange as a new local document
+
 ## How It Uses Grid Technology
 
 Grid Editor is "grid-based" in a specific way.
@@ -42,6 +78,7 @@ This repo carries two draft, repo-local protocol specs:
 
 - [live-document](protocols/live-document.md)
 - [live-awareness](protocols/live-awareness.md)
+- [publish-document](protocols/publish-document.md)
 
 Each protocol is identified by the content hash of its own spec document. That
 `pCID` acts as the selector for the wire meaning being used.
@@ -77,6 +114,46 @@ history, but it does not own the canonical merged document text. Convergence
 happens in embodiment-local CRDT replicas. That is important for this example:
 the shared contract lives at the grid/protocol boundary, not inside one
 authoritative app server. Source: `DI-ramuv`; `DI-lumek`; `DI-larok`.
+
+### 5. Publish/import is separate from live editing
+
+`publish-document` is used for durable handoff artifacts, not for typing.
+That means a publish manifest can point at a chosen current state or saved
+version without pretending it is the same thing as joining the live sync
+stream. Source: `DI-tavul`; `DI-gosaf`.
+
+## Where Data Lives
+
+Grid Editor intentionally splits data by role.
+
+### Relay and CAS
+
+The Go relay persists durable signed objects under its data root:
+
+- relay identity seed
+- append-only relay log
+- CAS-backed signed envelopes
+- CAS-backed published text bytes
+- CAS-backed published Automerge replica bytes
+
+These are relay-owned and are the durable PromiseGrid-facing artifacts in the
+current slices.
+
+### Browser-local metadata
+
+Some workflow and review features are still local browser state in this repo:
+
+- recent docs and tabs
+- titles and local timestamps
+- bookmarks and local snapshots
+- comments and reactions
+- saved versions used by the current publish flow
+- recent participant history and activity feed
+- local preferences
+
+Those values are useful product features, but in the current implementation
+they are not yet new PromiseGrid wire semantics. Source: `DI-dovoz`;
+`DI-safor`; `DI-gosaf`.
 
 ## PromiseGrid Setup References
 
@@ -154,6 +231,19 @@ Phase 3 browser review surfaces now include:
 - outline navigation and focus mode
 - summary and diagnostics overlays
 
+Phase 4 browser exchange surfaces now include:
+
+- relay-signed publish manifests for either the current state or a named saved
+  version
+- import/exchange from a published manifest URL
+- a published-exchanges list for the current document
+- a separate `publish-document` protocol instead of overloading
+  `live-document`
+
+In this slice, the publish manifest plus its referenced text and replica bytes
+are durable CAS-backed relay objects, while the browser still chooses named
+saved versions from its local review metadata. Source: `DI-tavul`; `DI-gosaf`.
+
 ## Neovim Version
 
 The easiest Neovim path is the launcher script:
@@ -202,8 +292,10 @@ Use these as the main reading path after this README:
 - [Browser UI example](docs/grid-editor-ui-example.md)
 - [live-document protocol](protocols/live-document.md)
 - [live-awareness protocol](protocols/live-awareness.md)
+- [publish-document protocol](protocols/publish-document.md)
 - [CRDT relay thought experiment](docs/thought-experiments/TE-satuf-grid-editor-crdt-relay-slice.md)
 - [Neovim sidecar thought experiment](docs/thought-experiments/TE-zorud-grid-editor-nvim-sidecar-hybrid-helper.md)
+- [Publish/import thought experiment](docs/thought-experiments/TE-vafor-grid-editor-publish-exchange-slice.md)
 
 ## Tests
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/style.css", server.handleStyleCSS)
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/peer/messages", server.handlePeerMessages)
+	mux.HandleFunc("/api/published/", server.handlePublished)
 	mux.HandleFunc("/api/local/documents/", server.handleLocalDocument)
 	return mux
 }
@@ -122,9 +124,35 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		server.handleSync(writer, request, documentID)
 	case "awareness":
 		server.handleAwareness(writer, request, documentID)
+	case "published":
+		server.handlePublishedList(writer, request, documentID)
+	case "publish":
+		server.handlePublish(writer, request, documentID)
 	default:
 		http.NotFound(writer, request)
 	}
+}
+
+func (server *Server) handlePublished(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Intent: Keep publish/import exchange fetchable by explicit manifest URL so
+	// importers resolve a durable handoff artifact instead of silently joining
+	// the live relay feed. Source: DI-tavul; DI-gosaf
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	envelopeCID := strings.TrimPrefix(request.URL.Path, "/api/published/")
+	if envelopeCID == "" {
+		http.NotFound(writer, request)
+		return
+	}
+	resolved, err := server.app.ResolvePublished(envelopeCID)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(writer, http.StatusOK, resolved)
 }
 
 func (server *Server) handleSync(writer http.ResponseWriter, request *http.Request, documentID string) {
@@ -210,6 +238,78 @@ func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.
 	default:
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (server *Server) handlePublishedList(writer http.ResponseWriter, request *http.Request, documentID string) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(writer, http.StatusOK, map[string]any{
+		"document_id": documentID,
+		"published":   server.app.Published(documentID),
+	})
+}
+
+func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Request, documentID string) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := requireLoopbackMutation(request); err != nil {
+		http.Error(writer, err.Error(), http.StatusForbidden)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPublishBytesLen*12)
+	var payload struct {
+		ParticipantID     string `json:"participant_id"`
+		SourceKind        string `json:"source_kind"`
+		SourceVersionID   string `json:"source_version_id"`
+		SourceVersionName string `json:"source_version_name"`
+		Title             string `json:"title"`
+		Summary           string `json:"summary"`
+		TextBase64        string `json:"text_base64"`
+		ReplicaBase64     string `json:"replica_base64"`
+		Embodiment        string `json:"embodiment"`
+	}
+	if err := decodeJSONBody(writer, request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	textBytes, err := base64.StdEncoding.DecodeString(payload.TextBase64)
+	if err != nil {
+		http.Error(writer, "invalid text base64", http.StatusBadRequest)
+		return
+	}
+	replicaBytes, err := base64.StdEncoding.DecodeString(payload.ReplicaBase64)
+	if err != nil {
+		http.Error(writer, "invalid replica base64", http.StatusBadRequest)
+		return
+	}
+	// Intent: Publish through a separate loopback-only relay endpoint so local
+	// clients can request durable exchange manifests without overloading live
+	// CRDT sync or exposing an unauthenticated remote signer. Source: DI-tavul;
+	// DI-gosaf; DI-rabod
+	record, err := server.app.PublishDocument(
+		documentID,
+		payload.ParticipantID,
+		payload.SourceKind,
+		payload.SourceVersionID,
+		payload.SourceVersionName,
+		payload.Title,
+		payload.Summary,
+		textBytes,
+		replicaBytes,
+		payload.Embodiment,
+	)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, map[string]any{
+		"record":       record,
+		"manifest_url": fmt.Sprintf("http://%s/api/published/%s", request.Host, record.EnvelopeCID),
+	})
 }
 
 func writeJSON(writer http.ResponseWriter, status int, value any) {
