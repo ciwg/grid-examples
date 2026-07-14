@@ -167,9 +167,9 @@ This list is for live presence, not long-term history. Source: `DI-mivor`.
 - `Underline`
   - wraps selection in `<u>...</u>`
 - `Preview`
-  - toggles markdown preview
+  - opens the markdown preview pane below the editor
 - `Split View`
-  - shows editor and preview side by side
+  - shows the editor and preview together
 - `Import`
   - imports text or images
 - `Export`
@@ -237,6 +237,12 @@ fingerprint. Source: `DI-zegov`; `DI-larok`.
 
 - rendered markdown preview of the same document
 - visible when `Preview` or `Split View` is enabled
+
+## Current browser caveat
+
+- Underline currently saves as raw `<u>...</u>` markup.
+- Export and saved text preserve that markup correctly.
+- Browser-visible underline rendering is still an open demo-polish issue.
 
 ## Overlays
 

@@ -1,0 +1,9 @@
+.git
+.gitignore
+.nvimlog
+service/.nvimlog
+.grid-editor
+node_modules
+web/node_modules
+cmd/grid-nvim-sidecar/node_modules
+tmp

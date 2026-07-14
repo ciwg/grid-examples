@@ -115,6 +115,20 @@ collections, favorites, archive state, and relay-backed catalog search.
 The Neovim embodiment keeps its own local editor/session state and relies on
 the relay for shared collaboration artifacts.
 
+## Current browser UX note
+
+The browser supports two distinct markdown view modes:
+
+- `Preview`
+  - opens the preview pane for the same document
+- `Split View`
+  - keeps editor and preview visible together
+
+Underline is stored as raw `<u>...</u>` markup in the shared text stream so it
+round-trips through CRDT sync, export, and publish flows. The visible browser
+underline rendering is still being polished and should not be treated as fully
+closed UX work yet.
+
 ## Convergence model
 
 Live editing convergence is CRDT-based:

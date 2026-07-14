@@ -1,0 +1,36 @@
+services:
+  relay-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    command:
+      - --listen
+      - 127.0.0.1:7015
+      - --data-root
+      - /home/grid/data
+      - --peer
+      - http://127.0.0.1:7016
+    volumes:
+      - relay-a-data:/home/grid/data
+    restart: unless-stopped
+
+  relay-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    command:
+      - --listen
+      - 127.0.0.1:7016
+      - --data-root
+      - /home/grid/data
+      - --peer
+      - http://127.0.0.1:7015
+    volumes:
+      - relay-b-data:/home/grid/data
+    restart: unless-stopped
+
+volumes:
+  relay-a-data:
+  relay-b-data:

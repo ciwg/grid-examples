@@ -79,6 +79,12 @@ available.
 - That was the right security hardening for the current single-machine relay.
 - A server-hosted browser client will need an authenticated remote mutation
   mode before it can safely post live updates from non-loopback clients.
+- Browser underline currently round-trips as raw `<u>...</u>` text; that is
+  structurally fine for transport and storage, but the in-browser visible
+  underline presentation is still an open UI-polish item.
+- The browser markdown UI currently exposes a normal preview pane plus a split
+  view that keeps editor and preview visible together. Keep that behavior in
+  mind when remapping the shell onto a server-served bootstrap.
 
 ## Practical suggestion for tomorrow
 

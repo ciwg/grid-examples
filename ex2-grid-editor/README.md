@@ -187,6 +187,13 @@ points inside this example app.
 Use this README as the editor-specific entry point, then follow the repo-local
 docs below for architecture, protocols, browser usage, and Neovim usage.
 
+Useful docs:
+
+- [Browser UI walkthrough](docs/grid-editor-ui-example.md)
+- [Architecture overview](docs/architecture.md)
+- [Practical implementation notes](docs/practical-implementation.md)
+- [Docker simulation guide](docs/docker-simulation.md)
+
 ## Quick Start
 
 Start the local relay:
@@ -221,11 +228,6 @@ Run the relay, then open:
 http://127.0.0.1:7015/?doc=demo
 ```
 
-Useful browser docs:
-
-- [Browser UI walkthrough](docs/grid-editor-ui-example.md)
-- [Architecture overview](docs/architecture.md)
-
 Browser build notes:
 
 ```bash
@@ -237,11 +239,28 @@ npm run build
 The browser source lives under `web/src/` and is bundled into `web/app.js`
 with `esbuild`. Source: `DI-zegov`.
 
+## Docker simulation
+
+If you want to simulate two separate relay machines quickly on Linux, use the
+repo-local Docker setup:
+
+```bash
+docker-compose up --build
+```
+
+Then open:
+
+- `http://127.0.0.1:7015/?doc=demo`
+- `http://127.0.0.1:7016/?doc=demo`
+
+See [Docker simulation guide](docs/docker-simulation.md) for the short
+workflow and caveats.
+
 Phase 2 browser workflow surfaces now include:
 
 - local document title/metadata and recent-doc tracking
 - template and sample-doc creation
-- markdown preview and split view
+- markdown preview pane and split view
 - find/replace and go-to-line tools
 - import, export, snapshot, and audit-report actions
 - copy/share link flows and bookmark support
@@ -258,6 +277,14 @@ Phase 4 browser exchange surfaces now include:
 
 - relay-signed publish manifests for either the current state or a named saved
   version
+
+## Current demo caveats
+
+- Browser underline currently stores raw `<u>...</u>` markup correctly, but
+  the visible underline rendering in the browser editor is still under active
+  polish for the demo.
+- `Preview` opens the markdown preview pane below the editor.
+- `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL
 - a published-exchanges list for the current document
 - a separate `publish-document` protocol instead of overloading
