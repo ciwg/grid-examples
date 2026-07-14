@@ -9,7 +9,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/grid-relay ./cmd/grid-relay
 
-FROM debian:bookworm-slim
+FROM ubuntu:26.04
 
 RUN useradd --create-home --uid 10001 grid
 
