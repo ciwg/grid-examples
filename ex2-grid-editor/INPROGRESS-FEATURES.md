@@ -4,7 +4,7 @@ Current review status for features from the older collaborative editor.
 
 ## Suggested phases
 
-### Phase 1 - Core collaborative editor
+### Phase I - Core collaborative editor
 
 Status: implemented slice complete
 
@@ -20,7 +20,7 @@ Goal:
 - make the shared editor feel strong, usable, and demo-ready
 - finish, fix, and polish features that are already partially implemented
 
-### Phase 2 - Document workflow and export
+### Phase II - Document workflow and export
 
 Status: implemented slice complete
 
@@ -37,7 +37,7 @@ Status: implemented slice complete
 Goal:
 - make documents easier to create, navigate, share, export, and demo
 
-### Phase 3 - Review, comments, and history
+### Phase III - Review, comments, and history
 
 Status: implemented slice complete
 
@@ -50,7 +50,7 @@ Status: implemented slice complete
 Goal:
 - add richer collaboration, review flow, visibility, and content tools
 
-### Phase 4 - PromiseGrid-native backend features
+### Phase IV - PromiseGrid-native backend features
 
 Status: implemented slice complete
 
@@ -61,7 +61,7 @@ Status: implemented slice complete
 Goal:
 - handle version restore, permissions, ownership, publishing, and document exchange in PromiseGrid-native ways
 
-### Phase 5 - Later / optional / boss review
+### Phase V - Later / optional / boss review
 
 Status: approved
 
@@ -425,10 +425,10 @@ Phases 1 through 4 have been implemented as working slices.
 
 That does not mean every single feature in those groups is fully final.
 It means:
-- the main Phase 1 slice is in
-- the main Phase 2 slice is in
-- the main Phase 3 slice is in
-- the main Phase 4 slices completed so far are in
+- the main Phase I slice is in
+- the main Phase II slice is in
+- the main Phase III slice is in
+- the main Phase IV slices completed so far are in
 
 Remaining review and product-shaping work is mostly in:
 - the boss review items above
