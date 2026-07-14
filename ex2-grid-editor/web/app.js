@@ -26803,6 +26803,43 @@ function resolveFormattingSelection(current, previous) {
   return current || previous || { from: 0, to: 0 };
 }
 
+// src/underline.js
+function findUnderlineRanges(text) {
+  const source = String(text || "");
+  const ranges = [];
+  const stack = [];
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("<u>", index)) {
+      stack.push(index);
+      index += 3;
+      continue;
+    }
+    if (source.startsWith("</u>", index)) {
+      const openFrom = stack.pop();
+      if (openFrom != null) {
+        const openTo = openFrom + 3;
+        const closeFrom = index;
+        const closeTo = index + 4;
+        if (openTo <= closeFrom) {
+          ranges.push({
+            openFrom,
+            openTo,
+            contentFrom: openTo,
+            contentTo: closeFrom,
+            closeFrom,
+            closeTo
+          });
+        }
+      }
+      index += 4;
+      continue;
+    }
+    index += 1;
+  }
+  return ranges;
+}
+
 // src/editor.js
 function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
@@ -26827,7 +26864,8 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
         onSelectionChange(selection.anchor, selection.head);
       }
     }),
-    ...createRemoteCursorExtensions(dist_exports2, dist_exports, awareness, participantID)
+    ...createRemoteCursorExtensions(dist_exports2, dist_exports, awareness, participantID),
+    createUnderlineExtensions(dist_exports2)
   ];
   const state2 = EditorState.create({
     doc: "",
@@ -26957,6 +26995,53 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       view2.destroy();
     }
   };
+}
+function createUnderlineExtensions(cmView) {
+  const { Decoration: Decoration2, EditorView: EditorView2, ViewPlugin: ViewPlugin2, WidgetType: WidgetType2 } = cmView;
+  class HiddenUnderlineTag extends WidgetType2 {
+    toDOM() {
+      const node = document.createElement("span");
+      node.className = "grid-inline-tag-hidden";
+      return node;
+    }
+    eq() {
+      return true;
+    }
+  }
+  return ViewPlugin2.fromClass(class {
+    constructor(view2) {
+      this.decorations = buildUnderlineDecorations(view2, Decoration2, HiddenUnderlineTag);
+    }
+    update(update) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildUnderlineDecorations(update.view, Decoration2, HiddenUnderlineTag);
+      }
+    }
+  }, {
+    decorations: (plugin2) => plugin2.decorations,
+    provide: (plugin2) => EditorView2.atomicRanges.of((view2) => view2.plugin(plugin2)?.decorations || Decoration2.none)
+  });
+}
+function buildUnderlineDecorations(view2, Decoration2, HiddenUnderlineTag) {
+  const text = view2.state.doc.toString();
+  const ranges = findUnderlineRanges(text);
+  const decorations2 = [];
+  for (const range of ranges) {
+    decorations2.push(Decoration2.replace({
+      widget: new HiddenUnderlineTag(),
+      inclusive: false
+    }).range(range.openFrom, range.openTo));
+    decorations2.push(Decoration2.replace({
+      widget: new HiddenUnderlineTag(),
+      inclusive: false
+    }).range(range.closeFrom, range.closeTo));
+    if (range.contentFrom < range.contentTo) {
+      decorations2.push(Decoration2.mark({
+        class: "grid-inline-underline"
+      }).range(range.contentFrom, range.contentTo));
+    }
+  }
+  return Decoration2.set(decorations2, true);
 }
 function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
   const { Decoration: Decoration2, ViewPlugin: ViewPlugin2, EditorView: EditorView2, WidgetType: WidgetType2 } = cmView;
@@ -32085,6 +32170,15 @@ function nowISO() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 
+// src/color.js
+function normalizeBrowserColor(value) {
+  const candidate = String(value || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(candidate)) {
+    return candidate.toUpperCase();
+  }
+  return "#1D6FD6";
+}
+
 // src/markdown.js
 function renderMarkdown(source) {
   const escaped = escapeHTML(source || "");
@@ -32403,6 +32497,36 @@ function escapeHTML2(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+// src/panes.js
+function nextPaneState(current, action) {
+  const state2 = {
+    previewEnabled: Boolean(current?.previewEnabled),
+    splitEnabled: Boolean(current?.splitEnabled)
+  };
+  if (action === "preview") {
+    return {
+      previewEnabled: !state2.previewEnabled || state2.splitEnabled,
+      splitEnabled: false
+    };
+  }
+  if (action === "split") {
+    return {
+      previewEnabled: true,
+      splitEnabled: !state2.splitEnabled
+    };
+  }
+  return state2;
+}
+function describePaneMode(state2) {
+  const previewEnabled = Boolean(state2?.previewEnabled);
+  const splitEnabled = previewEnabled && Boolean(state2?.splitEnabled);
+  return {
+    showEditor: !previewEnabled || splitEnabled,
+    showPreview: previewEnabled,
+    splitEnabled
+  };
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -32429,7 +32553,11 @@ var docIDInput = document.getElementById("doc-id");
 var docTitleInput = document.getElementById("doc-title");
 var displayNameInput = document.getElementById("display-name");
 var colorInput = document.getElementById("color");
+var colorPreviewSwatchEl = document.getElementById("color-preview-swatch");
+var colorPreviewNameEl = document.getElementById("color-preview-name");
+var colorPreviewValueEl = document.getElementById("color-preview-value");
 var editorRoot = document.getElementById("editor");
+var editorPaneEl = document.querySelector(".editor-pane");
 var previewPaneEl = document.getElementById("preview-pane");
 var previewBodyEl = document.getElementById("preview-body");
 var previewMetaEl = document.getElementById("preview-meta");
@@ -32522,6 +32650,7 @@ function applyPreferences(nextPrefs, options = {}) {
   document.documentElement.style.setProperty("--editor-size", `${nextPrefs.fontSize}px`);
   displayNameInput.value = nextPrefs.displayName;
   colorInput.value = nextPrefs.color;
+  renderColorPreview(nextPrefs.displayName, nextPrefs.color);
   profilePillEl.textContent = `${nextPrefs.profile} profile`;
   if (!options.skipFormSync) {
     syncSettingsForm();
@@ -32533,6 +32662,14 @@ function applyPreferences(nextPrefs, options = {}) {
   }
   renderHelp();
   renderPeers(state.awareness?.getStates() || /* @__PURE__ */ new Map());
+}
+function renderColorPreview(name2, value) {
+  const color = normalizeBrowserColor(value);
+  colorPreviewSwatchEl.style.background = color;
+  colorPreviewNameEl.textContent = name2 || "Browser User";
+  colorPreviewNameEl.style.color = color;
+  colorPreviewValueEl.textContent = color;
+  colorPreviewValueEl.style.color = color;
 }
 function syncSettingsForm() {
   settingsFields.theme.value = state.prefs.theme;
@@ -33244,17 +33381,18 @@ function emailShareLink() {
   window.location.href = `mailto:?subject=${encodeURIComponent(`grid-editor document ${state.documentID}`)}&body=${encodeURIComponent(`${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`)}`;
 }
 function togglePreview() {
-  state.previewEnabled = !state.previewEnabled;
+  Object.assign(state, nextPaneState(state, "preview"));
   applyPaneMode();
 }
 function toggleSplit() {
-  state.splitEnabled = !state.splitEnabled;
-  state.previewEnabled = true;
+  Object.assign(state, nextPaneState(state, "split"));
   applyPaneMode();
 }
 function applyPaneMode() {
-  previewPaneEl.classList.toggle("hidden", !state.previewEnabled);
-  editorStageEl.classList.toggle("split", state.previewEnabled && state.splitEnabled);
+  const paneMode = describePaneMode(state);
+  previewPaneEl.classList.toggle("hidden", !paneMode.showPreview);
+  editorPaneEl.classList.toggle("hidden", !paneMode.showEditor);
+  editorStageEl.classList.toggle("split", paneMode.splitEnabled);
   renderPreview();
 }
 function applyFormat(action) {

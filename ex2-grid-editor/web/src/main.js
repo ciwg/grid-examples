@@ -3,10 +3,12 @@ import { RelayAwarenessClient } from "./relay-awareness.js";
 import { AutomergeRelayClient } from "./automerge-relay.js";
 import { PreferencesStore, defaultShortcuts, formatShortcut } from "./preferences.js";
 import { DocumentRegistry, generateDemoText, templateCatalog } from "./documents.js";
+import { normalizeBrowserColor } from "./color.js";
 import { extractHeadings, renderMarkdown } from "./markdown.js";
 import { formatMetadataList, metadataDisplayTitle, normalizeMetadataRecord, parseMetadataList } from "./metadata.js";
 import { extractMentions, inferVersionName, summarizeDocument } from "./review.js";
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
+import { describePaneMode, nextPaneState } from "./panes.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -34,7 +36,11 @@ const docIDInput = document.getElementById("doc-id");
 const docTitleInput = document.getElementById("doc-title");
 const displayNameInput = document.getElementById("display-name");
 const colorInput = document.getElementById("color");
+const colorPreviewSwatchEl = document.getElementById("color-preview-swatch");
+const colorPreviewNameEl = document.getElementById("color-preview-name");
+const colorPreviewValueEl = document.getElementById("color-preview-value");
 const editorRoot = document.getElementById("editor");
+const editorPaneEl = document.querySelector(".editor-pane");
 const previewPaneEl = document.getElementById("preview-pane");
 const previewBodyEl = document.getElementById("preview-body");
 const previewMetaEl = document.getElementById("preview-meta");
@@ -137,6 +143,7 @@ function applyPreferences(nextPrefs, options = {}) {
   document.documentElement.style.setProperty("--editor-size", `${nextPrefs.fontSize}px`);
   displayNameInput.value = nextPrefs.displayName;
   colorInput.value = nextPrefs.color;
+  renderColorPreview(nextPrefs.displayName, nextPrefs.color);
   profilePillEl.textContent = `${nextPrefs.profile} profile`;
   if (!options.skipFormSync) {
     syncSettingsForm();
@@ -148,6 +155,15 @@ function applyPreferences(nextPrefs, options = {}) {
   }
   renderHelp();
   renderPeers(state.awareness?.getStates() || new Map());
+}
+
+function renderColorPreview(name, value) {
+  const color = normalizeBrowserColor(value);
+  colorPreviewSwatchEl.style.background = color;
+  colorPreviewNameEl.textContent = name || "Browser User";
+  colorPreviewNameEl.style.color = color;
+  colorPreviewValueEl.textContent = color;
+  colorPreviewValueEl.style.color = color;
 }
 
 function syncSettingsForm() {
@@ -937,19 +953,20 @@ function emailShareLink() {
 }
 
 function togglePreview() {
-  state.previewEnabled = !state.previewEnabled;
+  Object.assign(state, nextPaneState(state, "preview"));
   applyPaneMode();
 }
 
 function toggleSplit() {
-  state.splitEnabled = !state.splitEnabled;
-  state.previewEnabled = true;
+  Object.assign(state, nextPaneState(state, "split"));
   applyPaneMode();
 }
 
 function applyPaneMode() {
-  previewPaneEl.classList.toggle("hidden", !state.previewEnabled);
-  editorStageEl.classList.toggle("split", state.previewEnabled && state.splitEnabled);
+  const paneMode = describePaneMode(state);
+  previewPaneEl.classList.toggle("hidden", !paneMode.showPreview);
+  editorPaneEl.classList.toggle("hidden", !paneMode.showEditor);
+  editorStageEl.classList.toggle("split", paneMode.splitEnabled);
   renderPreview();
 }
 

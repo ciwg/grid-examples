@@ -6,7 +6,7 @@ Current review status for features from the older collaborative editor.
 
 ### Phase 1 - Core collaborative editor
 
-Status: approved
+Status: implemented slice complete
 
 - 1, 2, 3, 4
 - 6, 7, 8
@@ -22,7 +22,7 @@ Goal:
 
 ### Phase 2 - Document workflow and export
 
-Status: approved
+Status: implemented slice complete
 
 - 9, 10, 11, 12, 13, 15, 16
 - 34, 43, 44
@@ -39,7 +39,7 @@ Goal:
 
 ### Phase 3 - Review, comments, and history
 
-Status: approved
+Status: implemented slice complete
 
 - 81, 82, 83, 84, 85, 86, 87, 88, 90
 - 102, 103, 104, 105, 106, 107, 108, 109, 110
@@ -52,7 +52,7 @@ Goal:
 
 ### Phase 4 - PromiseGrid-native backend features
 
-Status: approved
+Status: implemented slice complete
 
 - 89
 - 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
@@ -326,3 +326,54 @@ Planned flow:
 - implement selected features
 - review with boss
 - keep, change, or drop after review
+
+## Boss review items
+
+These need explicit boss review by feature name, not just feature number.
+
+- Restore old version
+  Note: should be a new current-time restore action, not a rollback that rewrites history
+- Per-user permissions
+- Document owner / admin role
+- Invite link management
+- Temporary guest access
+- Document description / summary
+- Tags or labels
+- Search across documents
+- Folder or collection grouping
+- Pin favorite documents
+- Archive document
+- PromiseGrid-native document exchange
+- PromiseGrid-native publish / commit flow
+- AI commit message generation under PromiseGrid-native publish flow
+- Shareable read-only view
+- Document lock / read-only mode
+- Browser installable / PWA behavior
+- Read-only spectator mode
+- Presenter / demo mode
+- Better document ID naming
+- Human-friendly share links
+- Custom document slug
+- Alias for a document
+- Permanent canonical document ID
+- Redirect old link to new link
+- Merge two documents
+- Split one document into two
+- Import markdown into new doc
+- Import existing file into shared doc
+
+## Phase completion note
+
+Phases 1 through 4 have been implemented as working slices.
+
+That does not mean every single feature in those groups is fully final.
+It means:
+- the main Phase 1 slice is in
+- the main Phase 2 slice is in
+- the main Phase 3 slice is in
+- the main Phase 4 slices completed so far are in
+
+Remaining review and product-shaping work is mostly in:
+- the boss review items above
+- the `Maybe` section
+- open TODOs in `TODO/`

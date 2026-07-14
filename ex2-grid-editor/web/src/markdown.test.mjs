@@ -42,6 +42,13 @@ test("renderMarkdown handles bold and underline in either nesting order", () => 
   assert.match(underlineOuter, /<u><strong>word<\/strong><\/u>/);
 });
 
+test("renderMarkdown handles the demo sentence with underline and trailing bold", () => {
+  const html = renderMarkdown("Consensus and governance <u>mechanisms</u> are implemented as basic system calls and exposed to higher-level code, applications, and ultimately the users. This means that the same mechanisms that govern the grid can also be used to govern the organizations and communities that use it.**text**");
+  assert.match(html, /<u>mechanisms<\/u>/);
+  assert.match(html, /<strong>text<\/strong>/);
+  assert.doesNotMatch(html, /&lt;u&gt;mechanisms&lt;\/u&gt;/);
+});
+
 test("renderMarkdown renders image references", () => {
   const html = renderMarkdown("![Alt](https://example.com/demo.png)");
   assert.match(html, /<img src="https:\/\/example.com\/demo.png" alt="Alt">/);

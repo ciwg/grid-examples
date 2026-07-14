@@ -159,6 +159,20 @@ textarea {
   resize: vertical;
 }
 
+input[type="color"] {
+  min-height: 48px;
+  padding: 6px 8px;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 10px;
+}
+
 button {
   cursor: pointer;
   font-weight: 600;
@@ -192,6 +206,27 @@ button {
 
 .button-row {
   gap: 10px;
+}
+
+.color-preview-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.color-preview-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  background: #1d6fd6;
+  flex: none;
+}
+
+.color-preview-name {
+  font-weight: 700;
 }
 
 .metadata-flags {
@@ -450,6 +485,18 @@ dd {
   opacity: 0.5;
 }
 
+.grid-inline-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.12em;
+}
+
+.grid-inline-tag-hidden {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+}
+
 .editor-stage {
   flex: 1;
   min-height: 0;
@@ -466,6 +513,10 @@ dd {
 .editor-pane,
 .preview-pane {
   min-height: 0;
+}
+
+.editor-pane.hidden {
+  display: none;
 }
 
 .editor-root {

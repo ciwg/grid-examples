@@ -29,6 +29,15 @@ Intent: Make publish/import easier to discover during manual review without resh
 Constraints: This is a wording/discoverability change only; the existing export and exchange actions stay in the same panel; broader search/new-document UX polish remains open in `lusab.5`.
 Affects: `ex2-grid-editor/web/index.html`, `ex2-grid-editor/README.md`, `ex2-grid-editor/docs/grid-editor-ui-example.md`
 
+ID: DI-zosuf
+Date: 2026-07-14 09:45:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Make `Preview` switch the browser editor into preview-only mode, while `Split View` switches into side-by-side editor-plus-preview mode.
+Intent: Prevent the toolbar from feeling broken when `Split View` is already active by giving the two buttons distinct visible outcomes instead of sharing a vague preview toggle.
+Constraints: This is a browser Phase 2 workflow behavior fix only; document content, markdown rendering, and export behavior must remain unchanged; the fix should be covered by pure helper tests.
+Affects: `ex2-grid-editor/web/src/main.js`, `ex2-grid-editor/web/src/panes.js`, `ex2-grid-editor/web/src/panes.test.mjs`, `ex2-grid-editor/docs/grid-editor-ui-example.md`
+
 Goal: Make documents easier to create, preview, navigate, export, and demo without changing the core CRDT relay contract.
 
 - [x] lusab.1 Add local document registry, recent docs, title/metadata, and sample/template flows.
@@ -40,3 +49,4 @@ Goal: Make documents easier to create, preview, navigate, export, and demo witho
   - `Search` still needs a simpler explanation or flow.
   - `New Shared Doc` still needs clearer wording or feedback after click.
   - `Publish Exchange` was hard to discover when it lived under `Export`, so the workflow needs another manual check after the label changes.
+  - `Preview` versus `Split View` needed clearer behavior; `Preview` now means preview-only and `Split View` means side-by-side, but this still needs a fresh manual check.

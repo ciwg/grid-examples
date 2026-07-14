@@ -5,6 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import * as cmView from "@codemirror/view";
 import * as cmState from "@codemirror/state";
 import { resolveFormattingSelection, wrapSelectedText } from "./formatting.js";
+import { findUnderlineRanges } from "./underline.js";
 
 export function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
@@ -34,6 +35,7 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       }
     }),
     ...createRemoteCursorExtensions(cmView, cmState, awareness, participantID),
+    createUnderlineExtensions(cmView),
   ];
 
   const state = EditorState.create({
@@ -166,6 +168,63 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       view.destroy();
     },
   };
+}
+
+function createUnderlineExtensions(cmView) {
+  const { Decoration, EditorView, ViewPlugin, WidgetType } = cmView;
+
+  class HiddenUnderlineTag extends WidgetType {
+    toDOM() {
+      const node = document.createElement("span");
+      node.className = "grid-inline-tag-hidden";
+      return node;
+    }
+
+    eq() {
+      return true;
+    }
+  }
+
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+      // Intent: Make underline visibly work in the browser editor by hiding
+      // the literal `<u>` tags and decorating the enclosed text, while keeping
+      // the exact document bytes unchanged for save, export, and relay sync.
+      // Source: DI-naruv
+      this.decorations = buildUnderlineDecorations(view, Decoration, HiddenUnderlineTag);
+    }
+
+    update(update) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildUnderlineDecorations(update.view, Decoration, HiddenUnderlineTag);
+      }
+    }
+  }, {
+    decorations: (plugin) => plugin.decorations,
+    provide: (plugin) => EditorView.atomicRanges.of((view) => view.plugin(plugin)?.decorations || Decoration.none),
+  });
+}
+
+function buildUnderlineDecorations(view, Decoration, HiddenUnderlineTag) {
+  const text = view.state.doc.toString();
+  const ranges = findUnderlineRanges(text);
+  const decorations = [];
+  for (const range of ranges) {
+    decorations.push(Decoration.replace({
+      widget: new HiddenUnderlineTag(),
+      inclusive: false,
+    }).range(range.openFrom, range.openTo));
+    decorations.push(Decoration.replace({
+      widget: new HiddenUnderlineTag(),
+      inclusive: false,
+    }).range(range.closeFrom, range.closeTo));
+    if (range.contentFrom < range.contentTo) {
+      decorations.push(Decoration.mark({
+        class: "grid-inline-underline",
+      }).range(range.contentFrom, range.contentTo));
+    }
+  }
+  return Decoration.set(decorations, true);
 }
 
 function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
