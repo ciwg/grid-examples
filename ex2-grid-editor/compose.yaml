@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     network_mode: host
+    user: "0:0"
     command:
       - --listen
       - 127.0.0.1:7015
@@ -20,6 +21,7 @@ services:
       context: .
       dockerfile: Dockerfile
     network_mode: host
+    user: "0:0"
     command:
       - --listen
       - 127.0.0.1:7016

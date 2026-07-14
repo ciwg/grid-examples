@@ -14,6 +14,10 @@ This uses `network_mode: host` on Linux so the browser still reaches the relay
 as a loopback client. That matters because local mutation endpoints are still
 loopback-only in the current security model.
 
+The compose file also runs the demo relays as root inside the container so the
+named Docker volumes are writable without extra permission setup. This keeps
+the simulation quick and predictable for local testing.
+
 ## Start it
 
 From the repo root:

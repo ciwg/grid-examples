@@ -32815,6 +32815,11 @@ function renderPeers(states) {
   peerListEl.innerHTML = "";
   peerBadgesEl.innerHTML = "";
   peerCountEl.textContent = `${remotePeers.length} peer${remotePeers.length === 1 ? "" : "s"}`;
+  const selfBadge = document.createElement("div");
+  selfBadge.className = "peer-badge self-badge";
+  selfBadge.dataset.presenceState = "self";
+  selfBadge.innerHTML = `<span class="swatch" style="background:${state.prefs.color}"></span><strong>${escapeHTML3(state.prefs.displayName || "You")}</strong><span>you</span>`;
+  peerBadgesEl.appendChild(selfBadge);
   const counts = { live: 0, stale: 0, offline: 0 };
   for (const peer of remotePeers) {
     counts[peer.presenceState] += 1;

@@ -327,6 +327,15 @@ function renderPeers(states) {
   peerBadgesEl.innerHTML = "";
   peerCountEl.textContent = `${remotePeers.length} peer${remotePeers.length === 1 ? "" : "s"}`;
 
+  // Intent: Always show the local user's chosen presence color in the same
+  // badge row as peers so the demo surface stays legible even when Chrome's
+  // native color input preview is weak. Source: DI-zafuk
+  const selfBadge = document.createElement("div");
+  selfBadge.className = "peer-badge self-badge";
+  selfBadge.dataset.presenceState = "self";
+  selfBadge.innerHTML = `<span class="swatch" style="background:${state.prefs.color}"></span><strong>${escapeHTML(state.prefs.displayName || "You")}</strong><span>you</span>`;
+  peerBadgesEl.appendChild(selfBadge);
+
   const counts = { live: 0, stale: 0, offline: 0 };
   for (const peer of remotePeers) {
     counts[peer.presenceState] += 1;

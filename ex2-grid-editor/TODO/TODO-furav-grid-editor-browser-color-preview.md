@@ -20,6 +20,15 @@ Intent: Track the bug honestly for the demo instead of treating a partial UI wor
 Constraints: The current swatch/hex change may stay in the worktree for evaluation, but TODO 012 remains open until the actual Chrome-side visibility problem is resolved to user satisfaction.
 Affects: `ex2-grid-editor/TODO/TODO.md`, `ex2-grid-editor/TODO/TODO-furav-grid-editor-browser-color-preview.md`, pending browser UI follow-up work
 
+ID: DI-zafuk
+Date: 2026-07-14 10:20:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Add a persistent `You` badge to the peer-badge row so the current user can always see their own chosen presence color without opening the color picker or reading the separate settings area.
+Intent: Keep the demo-ready presence surface honest and immediately legible in Chrome even while the native color chooser bug remains open.
+Constraints: The main peer count stays remote-only; this is a browser-UI visibility aid, not a protocol change; TODO 012 remains open until the Chrome-side visibility problem is fully satisfactory.
+Affects: `ex2-grid-editor/web/src/main.js`, `ex2-grid-editor/web/style.css`, `ex2-grid-editor/TODO/TODO-furav-grid-editor-browser-color-preview.md`
+
 Goal: Make the user’s current color obvious in the browser UI without opening the native color picker.
 
 - [x] furav.1 Add a pure helper for visible color display state.

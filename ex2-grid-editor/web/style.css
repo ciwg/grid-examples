@@ -485,6 +485,11 @@ dd {
   opacity: 0.5;
 }
 
+.peer-badge.self-badge {
+  border: 1px solid rgba(31, 111, 120, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
 .grid-inline-underline {
   text-decoration: underline;
   text-decoration-thickness: 2px;
