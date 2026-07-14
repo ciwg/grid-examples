@@ -26,3 +26,41 @@ test("renderMarkdown supports checklists and tables", () => {
   assert.match(html, /<th>Name<\/th>/);
   assert.match(html, /<td>B<\/td>/);
 });
+
+test("renderMarkdown preserves underline tags and safe links", () => {
+  const html = renderMarkdown("<u>underlined</u> [ok](https://example.com) [bad](javascript:alert(1))");
+  assert.match(html, /<u>underlined<\/u>/);
+  assert.match(html, /href="https:\/\/example.com"/);
+  assert.match(html, /href="#"/);
+});
+
+test("renderMarkdown handles bold and underline in either nesting order", () => {
+  const boldOuter = renderMarkdown("**<u>word</u>**");
+  assert.match(boldOuter, /<strong><u>word<\/u><\/strong>/);
+
+  const underlineOuter = renderMarkdown("<u>**word**</u>");
+  assert.match(underlineOuter, /<u><strong>word<\/strong><\/u>/);
+});
+
+test("renderMarkdown renders image references", () => {
+  const html = renderMarkdown("![Alt](https://example.com/demo.png)");
+  assert.match(html, /<img src="https:\/\/example.com\/demo.png" alt="Alt">/);
+});
+
+test("extractHeadings ignores non-heading markdown lines", () => {
+  const headings = extractHeadings("plain\n- list\n### Deep");
+  assert.deepEqual(headings, [
+    { level: 3, text: "Deep", line: 3 },
+  ]);
+});
+
+test("renderMarkdown preserves fenced code content", () => {
+  const html = renderMarkdown("```txt\n**not bold**\n```");
+  assert.match(html, /<pre><code>\*\*not bold\*\*<\/code><\/pre>/);
+});
+
+test("renderMarkdown escapes raw html outside allowed underline tags", () => {
+  const html = renderMarkdown("<script>alert(1)</script>");
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});

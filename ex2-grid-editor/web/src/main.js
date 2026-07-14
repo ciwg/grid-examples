@@ -5,6 +5,7 @@ import { PreferencesStore, defaultShortcuts, formatShortcut } from "./preference
 import { DocumentRegistry, generateDemoText, templateCatalog } from "./documents.js";
 import { extractHeadings, renderMarkdown } from "./markdown.js";
 import { extractMentions, inferVersionName, summarizeDocument } from "./review.js";
+import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -421,7 +422,8 @@ async function refreshPublished(documentID) {
   const response = await fetch(`/api/local/documents/${encodeURIComponent(documentID)}/published`);
   if (!response.ok) {
     publishedListEl.innerHTML = "";
-    appendEmptyState(publishedListEl, "No published exchanges yet");
+    appendEmptyState(publishedListEl, "Published exchanges unavailable");
+    showToast(`Published exchanges failed: ${response.status}`);
     return;
   }
   const payload = await response.json();
@@ -861,6 +863,18 @@ function applyFormat(action) {
   state.editor?.wrapSelection(prefix, suffix);
 }
 
+function preserveEditorSelectionOnMouseDown(button) {
+  if (!button) {
+    return;
+  }
+  // Intent: Keep toolbar actions from stealing focus away from the CodeMirror
+  // selection so stacked formatting actions like bold-plus-underline still
+  // apply to the same selected text in the real browser UI. Source: DI-favok
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+}
+
 function runSearchReplace(replaceMode = false) {
   const query = searchFields.query.value;
   if (!query) {
@@ -921,22 +935,15 @@ function exportDocument(format) {
   }
   const title = safeFilename(docTitleInput.value || state.documentID);
   const text = state.editor.getText();
-  const html = wrapHTML(docTitleInput.value || state.documentID, renderMarkdown(text));
-  let blob;
-  let extension;
-  if (format === "html") {
-    blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    extension = "html";
-  } else if (format === "text") {
-    blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    extension = "txt";
-  } else if (format === "automerge") {
-    blob = new Blob([state.relay.getReplicaBytes()], { type: "application/octet-stream" });
-    extension = "automerge";
-  } else {
-    blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
-    extension = "md";
-  }
+  const artifact = buildExportArtifact(
+    format,
+    docTitleInput.value || state.documentID,
+    text,
+    state.relay.getReplicaBytes(),
+    renderMarkdown,
+  );
+  const blob = new Blob([artifact.body], { type: artifact.mime });
+  const extension = artifact.extension;
   triggerDownload(blob, `${title}.${extension}`);
   registry.touchExported(state.documentID);
   renderDocumentMeta(registry.get(state.documentID));
@@ -984,7 +991,8 @@ async function publishExchange() {
     }),
   });
   if (!response.ok) {
-    showToast(`Publish failed: ${response.status}`);
+    const detail = await response.text();
+    showToast(`Publish failed: ${response.status}${detail ? ` ${detail}` : ""}`);
     return;
   }
   const payload = await response.json();
@@ -994,37 +1002,20 @@ async function publishExchange() {
 
 function choosePublishSource() {
   const currentText = state.editor.getText();
-  const current = {
-    sourceKind: "current",
-    sourceVersionID: "",
-    sourceVersionName: "",
-    title: docTitleInput.value || state.documentID,
-    summary: summarizeDocument(currentText),
-    text: currentText,
-    replicaBase64: bytesToBase64(state.relay.getReplicaBytes()),
-  };
   const versions = registry.listSavedVersions(state.documentID);
-  if (versions.length === 0) {
-    return current;
-  }
   const raw = window.prompt("Publish 'current' or enter a saved version name", "current");
-  if (!raw || raw.trim().toLowerCase() === "current") {
-    return current;
-  }
-  const version = versions.find((value) => value.name === raw.trim() || value.id === raw.trim());
-  if (!version || !version.content || !version.replicaBase64) {
+  const source = buildPublishSource(
+    currentText,
+    bytesToBase64(state.relay.getReplicaBytes()),
+    docTitleInput.value || state.documentID,
+    versions,
+    raw,
+  );
+  if (!source) {
     showToast("Saved version not found or missing content");
     return null;
   }
-  return {
-    sourceKind: "saved_version",
-    sourceVersionID: version.id,
-    sourceVersionName: version.name,
-    title: version.name,
-    summary: version.summary || summarizeDocument(version.content),
-    text: version.content,
-    replicaBase64: version.replicaBase64,
-  };
+  return source;
 }
 
 async function importExchange() {
@@ -1035,7 +1026,7 @@ async function importExchange() {
   if (!raw) {
     return;
   }
-  const reference = parsePublishedReference(raw);
+  const reference = parsePublishedURL(raw, window.location.origin);
   if (!reference) {
     showToast("Could not parse an exchange URL");
     return;
@@ -1181,6 +1172,23 @@ function registerEvents() {
   document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
   document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
   document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
+  [
+    "search-button",
+    "bold-button",
+    "italic-button",
+    "underline-button",
+    "preview-button",
+    "split-button",
+    "import-button",
+    "export-button",
+    "snapshot-button",
+    "bookmark-button",
+    "comment-button",
+    "save-version-button",
+    "summary-button",
+    "focus-button",
+    "debug-button",
+  ].forEach((id) => preserveEditorSelectionOnMouseDown(document.getElementById(id)));
   document.getElementById("settings-button").addEventListener("click", openSettings);
   document.getElementById("help-button").addEventListener("click", openHelp);
   document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
@@ -1328,23 +1336,6 @@ function parseDocumentReference(raw) {
     return url.searchParams.get("doc") || url.pathname.replaceAll("/", "");
   } catch {
     return trimmed;
-  }
-}
-
-function parsePublishedReference(raw) {
-  try {
-    const url = new URL(raw.trim(), window.location.origin);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const publishedIndex = parts.indexOf("published");
-    if (publishedIndex === -1 || !parts[publishedIndex + 1]) {
-      return null;
-    }
-    return {
-      origin: url.origin,
-      envelopeCID: parts[publishedIndex + 1],
-    };
-  } catch {
-    return null;
   }
 }
 

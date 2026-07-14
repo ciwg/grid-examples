@@ -12,3 +12,13 @@ export function wrapSelectedText(text, from, to, prefix, suffix) {
     selectionTo: from + prefix.length + fallback.length,
   };
 }
+
+export function resolveFormattingSelection(current, previous) {
+  if (current && current.from !== current.to) {
+    return current;
+  }
+  if (previous && previous.from !== previous.to) {
+    return previous;
+  }
+  return current || previous || { from: 0, to: 0 };
+}

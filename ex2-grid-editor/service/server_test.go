@@ -57,6 +57,87 @@ func TestServerRejectsMissingParticipantID(t *testing.T) {
 	}
 }
 
+func TestServerRejectsRemotePublishMutation(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/publish", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"source_kind":"current",
+		"title":"Demo exchange",
+		"text_base64":"IyBkZW1vCgpoZWxsbw==",
+		"replica_base64":"CQgHBg==",
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	}
+}
+
+func TestServerPublishedListStartsEmpty(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/local/documents/demo/published", nil)
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusOK)
+	}
+	assertBodyContains(t, response.Body.String(), `"published":[]`)
+}
+
+func TestServerRejectsInvalidPublishBase64(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/publish", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"source_kind":"current",
+		"title":"Demo exchange",
+		"text_base64":"%%%bad%%%",
+		"replica_base64":"CQgHBg==",
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "127.0.0.1:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusBadRequest, response.Body.String())
+	}
+}
+
+func TestServerRejectsPublishWithoutTitle(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/publish", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"source_kind":"current",
+		"title":"",
+		"text_base64":"IyBkZW1vCgpoZWxsbw==",
+		"replica_base64":"CQgHBg==",
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "127.0.0.1:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusBadRequest, response.Body.String())
+	}
+}
+
 func TestServerPublishesAndResolvesExchangeManifest(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
@@ -119,4 +200,11 @@ func newTestServer(t *testing.T) *service.Server {
 		t.Fatalf("new app: %v", err)
 	}
 	return service.NewServer(app)
+}
+
+func assertBodyContains(t *testing.T, body string, want string) {
+	t.Helper()
+	if !strings.Contains(body, want) {
+		t.Fatalf("response body %q does not contain %q", body, want)
+	}
 }

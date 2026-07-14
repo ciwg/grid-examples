@@ -26793,11 +26793,21 @@ function wrapSelectedText(text, from3, to, prefix, suffix) {
     selectionTo: from3 + prefix.length + fallback.length
   };
 }
+function resolveFormattingSelection(current, previous) {
+  if (current && current.from !== current.to) {
+    return current;
+  }
+  if (previous && previous.from !== previous.to) {
+    return previous;
+  }
+  return current || previous || { from: 0, to: 0 };
+}
 
 // src/editor.js
 function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
   let applyingRemote = false;
+  let lastFormattingSelection = { from: 0, to: 0 };
   const lineNumbersCompartment = new Compartment();
   const extensions = [
     lineNumbersCompartment.of(lineNumbers()),
@@ -26811,6 +26821,9 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       }
       if (update.selectionSet) {
         const selection = update.state.selection.main;
+        if (selection.from !== selection.to) {
+          lastFormattingSelection = { from: selection.from, to: selection.to };
+        }
         onSelectionChange(selection.anchor, selection.head);
       }
     }),
@@ -26926,8 +26939,13 @@ function createEditor(parent, awareness, participantID, onLocalUpdate, onSelecti
       view2.focus();
     },
     wrapSelection(prefix, suffix) {
-      const selection = view2.state.selection.main;
+      const currentSelection = view2.state.selection.main;
+      const selection = resolveFormattingSelection(
+        { from: currentSelection.from, to: currentSelection.to },
+        lastFormattingSelection
+      );
       const next = wrapSelectedText(view2.state.doc.toString(), selection.from, selection.to, prefix, suffix);
+      lastFormattingSelection = { from: next.selectionFrom, to: next.selectionTo };
       view2.dispatch({
         changes: { from: selection.from, to: selection.to, insert: next.insert },
         selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
@@ -26959,6 +26977,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
         wrapper.classList.add("typing");
       }
       wrapper.style.setProperty("--grid-peer-color", this.color);
+      wrapper.style.borderLeftColor = this.color;
       const label = document.createElement("span");
       label.className = "grid-remote-cursor-label";
       label.textContent = this.name;
@@ -32177,7 +32196,7 @@ function extractHeadings(source) {
   return headings;
 }
 function inlineFormat(text) {
-  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => renderMedia(alt, url)).replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) => renderLink(label, url)).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => renderMedia(alt, url)).replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) => renderLink(label, url)).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, "<u>$1</u>");
 }
 function renderLink(label, url) {
   const safeURL = sanitizeURL(url);
@@ -32238,6 +32257,91 @@ function inferVersionName(title, text) {
     return heading2.slice(0, 60);
   }
   return `${title || "Document"} version`;
+}
+
+// src/exchange.js
+function buildPublishSource(currentText, currentReplicaBase64, currentTitle, savedVersions, requestedValue) {
+  const current = {
+    sourceKind: "current",
+    sourceVersionID: "",
+    sourceVersionName: "",
+    title: currentTitle,
+    summary: summarizeDocument(currentText),
+    text: currentText,
+    replicaBase64: currentReplicaBase64
+  };
+  if (!Array.isArray(savedVersions) || savedVersions.length === 0) {
+    return current;
+  }
+  const normalized = String(requestedValue || "").trim();
+  if (!normalized || normalized.toLowerCase() === "current") {
+    return current;
+  }
+  const version = savedVersions.find((value) => value.name === normalized || value.id === normalized);
+  if (!version || !version.content || !version.replicaBase64) {
+    return null;
+  }
+  return {
+    sourceKind: "saved_version",
+    sourceVersionID: version.id,
+    sourceVersionName: version.name,
+    title: version.name,
+    summary: version.summary || summarizeDocument(version.content),
+    text: version.content,
+    replicaBase64: version.replicaBase64
+  };
+}
+function parsePublishedURL(raw, origin) {
+  try {
+    const url = new URL(String(raw || "").trim(), origin);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const publishedIndex = parts.indexOf("published");
+    if (publishedIndex === -1 || !parts[publishedIndex + 1]) {
+      return null;
+    }
+    return {
+      origin: url.origin,
+      envelopeCID: parts[publishedIndex + 1]
+    };
+  } catch {
+    return null;
+  }
+}
+function buildExportArtifact(format, title, text, replicaBytes, renderMarkdown2) {
+  const safeTitle = title || "document";
+  const rawText = text || "";
+  if (format === "html") {
+    return {
+      extension: "html",
+      mime: "text/html;charset=utf-8",
+      body: wrapHTML(safeTitle, renderMarkdown2(rawText))
+    };
+  }
+  if (format === "text") {
+    return {
+      extension: "txt",
+      mime: "text/plain;charset=utf-8",
+      body: rawText
+    };
+  }
+  if (format === "automerge") {
+    return {
+      extension: "automerge",
+      mime: "application/octet-stream",
+      body: replicaBytes
+    };
+  }
+  return {
+    extension: "md",
+    mime: "text/markdown;charset=utf-8",
+    body: rawText
+  };
+}
+function wrapHTML(title, body) {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML2(title)}</title></head><body>${body}</body></html>`;
+}
+function escapeHTML2(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 // src/main.js
@@ -32506,7 +32610,7 @@ function renderPeers(states) {
     li.innerHTML = `
       <span class="swatch" style="background:${color}"></span>
       <span class="peer-meta">
-        <strong>${escapeHTML2(name2)}</strong>
+        <strong>${escapeHTML3(name2)}</strong>
         <span class="peer-state ${peer.presenceState}">${peer.presenceState}</span>
       </span>
       <span class="tiny muted">@ ${cursor}</span>
@@ -32515,7 +32619,7 @@ function renderPeers(states) {
     const badge = document.createElement("div");
     badge.className = "peer-badge";
     badge.dataset.presenceState = peer.presenceState;
-    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${escapeHTML2(name2)}</strong><span>${peer.presenceState}</span>`;
+    badge.innerHTML = `<span class="swatch" style="background:${color}"></span><strong>${escapeHTML3(name2)}</strong><span>${peer.presenceState}</span>`;
     peerBadgesEl.appendChild(badge);
   }
   if (remotePeers.length === 0) {
@@ -32591,7 +32695,7 @@ function renderHelp() {
   for (const [action, label] of Object.entries(items)) {
     const row = document.createElement("div");
     row.className = "card";
-    row.innerHTML = `<strong>${label}</strong><div class="tiny muted">${escapeHTML2(formatShortcut(shortcuts[action]))}</div>`;
+    row.innerHTML = `<strong>${label}</strong><div class="tiny muted">${escapeHTML3(formatShortcut(shortcuts[action]))}</div>`;
     helpShortcutsEl.appendChild(row);
   }
 }
@@ -32612,7 +32716,8 @@ async function refreshPublished(documentID) {
   const response = await fetch(`/api/local/documents/${encodeURIComponent(documentID)}/published`);
   if (!response.ok) {
     publishedListEl.innerHTML = "";
-    appendEmptyState(publishedListEl, "No published exchanges yet");
+    appendEmptyState(publishedListEl, "Published exchanges unavailable");
+    showToast(`Published exchanges failed: ${response.status}`);
     return;
   }
   const payload = await response.json();
@@ -32643,7 +32748,7 @@ function renderDocTabs() {
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = `doc-tab ${documentMeta.documentID === state.documentID ? "active" : ""}`;
-    tab.innerHTML = `<strong>${escapeHTML2(documentMeta.title)}</strong><span class="tiny muted">${escapeHTML2(documentMeta.documentID)}</span>`;
+    tab.innerHTML = `<strong>${escapeHTML3(documentMeta.title)}</strong><span class="tiny muted">${escapeHTML3(documentMeta.documentID)}</span>`;
     tab.addEventListener("click", () => bootDocument(documentMeta.documentID));
     docTabBarEl.appendChild(tab);
   }
@@ -32686,7 +32791,7 @@ function renderSavedVersions() {
   savedVersionsEl.innerHTML = "";
   for (const version of versions) {
     const li = document.createElement("li");
-    li.innerHTML = `<strong>${escapeHTML2(version.name)}</strong><span class="tiny muted">${formatTime(version.createdAt)}</span>`;
+    li.innerHTML = `<strong>${escapeHTML3(version.name)}</strong><span class="tiny muted">${formatTime(version.createdAt)}</span>`;
     savedVersionsEl.appendChild(li);
   }
   if (versions.length === 0) {
@@ -32698,7 +32803,7 @@ function renderRecentParticipants() {
   recentParticipantsEl.innerHTML = "";
   for (const participant of participants) {
     const li = document.createElement("li");
-    li.innerHTML = `<span class="swatch" style="background:${participant.color || "#999999"}"></span><span><strong>${escapeHTML2(participant.name || participant.participantID)}</strong><span class="tiny muted"> ${formatTime(participant.lastSeenAt)}</span></span>`;
+    li.innerHTML = `<span class="swatch" style="background:${participant.color || "#999999"}"></span><span><strong>${escapeHTML3(participant.name || participant.participantID)}</strong><span class="tiny muted"> ${formatTime(participant.lastSeenAt)}</span></span>`;
     recentParticipantsEl.appendChild(li);
   }
   if (participants.length === 0) {
@@ -32710,7 +32815,7 @@ function renderActivity() {
   activityFeedEl.innerHTML = "";
   for (const event of events.slice(0, 12)) {
     const li = document.createElement("li");
-    li.innerHTML = `<strong>${escapeHTML2(event.label)}</strong><span class="tiny muted">${formatTime(event.at)}</span>`;
+    li.innerHTML = `<strong>${escapeHTML3(event.label)}</strong><span class="tiny muted">${formatTime(event.at)}</span>`;
     activityFeedEl.appendChild(li);
   }
   if (events.length === 0) {
@@ -32725,10 +32830,10 @@ function renderComments() {
     li.className = "card";
     const reactions = (comment2.reactions || []).map((reaction) => reaction.emoji).join(" ");
     li.innerHTML = `
-      <strong>${escapeHTML2(comment2.authorName)}</strong>
+      <strong>${escapeHTML3(comment2.authorName)}</strong>
       <div class="tiny muted">${formatTime(comment2.createdAt)}${comment2.resolved ? " \xB7 resolved" : ""}</div>
-      <div>${escapeHTML2(comment2.selectionText || "")}</div>
-      <div>${escapeHTML2(comment2.body)}</div>
+      <div>${escapeHTML3(comment2.selectionText || "")}</div>
+      <div>${escapeHTML3(comment2.body)}</div>
       <div class="tiny muted">${reactions || "no reactions"}</div>
     `;
     li.addEventListener("click", () => {
@@ -33011,6 +33116,14 @@ function applyFormat(action) {
   const [prefix, suffix] = wrappers[action];
   state.editor?.wrapSelection(prefix, suffix);
 }
+function preserveEditorSelectionOnMouseDown(button) {
+  if (!button) {
+    return;
+  }
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+}
 function runSearchReplace(replaceMode = false) {
   const query = searchFields.query.value;
   if (!query) {
@@ -33067,22 +33180,15 @@ function exportDocument(format) {
   }
   const title = safeFilename(docTitleInput.value || state.documentID);
   const text = state.editor.getText();
-  const html2 = wrapHTML(docTitleInput.value || state.documentID, renderMarkdown(text));
-  let blob;
-  let extension;
-  if (format === "html") {
-    blob = new Blob([html2], { type: "text/html;charset=utf-8" });
-    extension = "html";
-  } else if (format === "text") {
-    blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    extension = "txt";
-  } else if (format === "automerge") {
-    blob = new Blob([state.relay.getReplicaBytes()], { type: "application/octet-stream" });
-    extension = "automerge";
-  } else {
-    blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
-    extension = "md";
-  }
+  const artifact = buildExportArtifact(
+    format,
+    docTitleInput.value || state.documentID,
+    text,
+    state.relay.getReplicaBytes(),
+    renderMarkdown
+  );
+  const blob = new Blob([artifact.body], { type: artifact.mime });
+  const extension = artifact.extension;
   triggerDownload(blob, `${title}.${extension}`);
   registry.touchExported(state.documentID);
   renderDocumentMeta(registry.get(state.documentID));
@@ -33125,7 +33231,8 @@ async function publishExchange() {
     })
   });
   if (!response.ok) {
-    showToast(`Publish failed: ${response.status}`);
+    const detail = await response.text();
+    showToast(`Publish failed: ${response.status}${detail ? ` ${detail}` : ""}`);
     return;
   }
   const payload = await response.json();
@@ -33134,44 +33241,27 @@ async function publishExchange() {
 }
 function choosePublishSource() {
   const currentText = state.editor.getText();
-  const current = {
-    sourceKind: "current",
-    sourceVersionID: "",
-    sourceVersionName: "",
-    title: docTitleInput.value || state.documentID,
-    summary: summarizeDocument(currentText),
-    text: currentText,
-    replicaBase64: bytesToBase642(state.relay.getReplicaBytes())
-  };
   const versions = registry.listSavedVersions(state.documentID);
-  if (versions.length === 0) {
-    return current;
-  }
   const raw = window.prompt("Publish 'current' or enter a saved version name", "current");
-  if (!raw || raw.trim().toLowerCase() === "current") {
-    return current;
-  }
-  const version = versions.find((value) => value.name === raw.trim() || value.id === raw.trim());
-  if (!version || !version.content || !version.replicaBase64) {
+  const source = buildPublishSource(
+    currentText,
+    bytesToBase642(state.relay.getReplicaBytes()),
+    docTitleInput.value || state.documentID,
+    versions,
+    raw
+  );
+  if (!source) {
     showToast("Saved version not found or missing content");
     return null;
   }
-  return {
-    sourceKind: "saved_version",
-    sourceVersionID: version.id,
-    sourceVersionName: version.name,
-    title: version.name,
-    summary: version.summary || summarizeDocument(version.content),
-    text: version.content,
-    replicaBase64: version.replicaBase64
-  };
+  return source;
 }
 async function importExchange() {
   const raw = window.prompt("Paste a published exchange URL");
   if (!raw) {
     return;
   }
-  const reference = parsePublishedReference(raw);
+  const reference = parsePublishedURL(raw, window.location.origin);
   if (!reference) {
     showToast("Could not parse an exchange URL");
     return;
@@ -33209,7 +33299,7 @@ function copyFormatted(format) {
     return;
   }
   const text = state.editor.getText();
-  const value = format === "html" ? wrapHTML(docTitleInput.value || state.documentID, renderMarkdown(text)) : text;
+  const value = format === "html" ? wrapHTML2(docTitleInput.value || state.documentID, renderMarkdown(text)) : text;
   copyText(value, `Copied ${format}`);
 }
 function addBookmark() {
@@ -33301,6 +33391,23 @@ function registerEvents() {
   document.getElementById("bold-button").addEventListener("click", () => applyFormat("bold"));
   document.getElementById("italic-button").addEventListener("click", () => applyFormat("italic"));
   document.getElementById("underline-button").addEventListener("click", () => applyFormat("underline"));
+  [
+    "search-button",
+    "bold-button",
+    "italic-button",
+    "underline-button",
+    "preview-button",
+    "split-button",
+    "import-button",
+    "export-button",
+    "snapshot-button",
+    "bookmark-button",
+    "comment-button",
+    "save-version-button",
+    "summary-button",
+    "focus-button",
+    "debug-button"
+  ].forEach((id2) => preserveEditorSelectionOnMouseDown(document.getElementById(id2)));
   document.getElementById("settings-button").addEventListener("click", openSettings);
   document.getElementById("help-button").addEventListener("click", openHelp);
   document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
@@ -33443,22 +33550,6 @@ function parseDocumentReference(raw) {
     return trimmed;
   }
 }
-function parsePublishedReference(raw) {
-  try {
-    const url = new URL(raw.trim(), window.location.origin);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const publishedIndex = parts.indexOf("published");
-    if (publishedIndex === -1 || !parts[publishedIndex + 1]) {
-      return null;
-    }
-    return {
-      origin: url.origin,
-      envelopeCID: parts[publishedIndex + 1]
-    };
-  } catch {
-    return null;
-  }
-}
 function formatTime(value) {
   if (!value) {
     return "-";
@@ -33480,8 +33571,8 @@ function triggerDownload(blob, name2) {
 function safeFilename(value) {
   return String(value || "document").toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
 }
-function wrapHTML(title, body) {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML2(title)}</title></head><body>${body}</body></html>`;
+function wrapHTML2(title, body) {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML3(title)}</title></head><body>${body}</body></html>`;
 }
 async function copyText(value, successLabel) {
   try {
@@ -33504,7 +33595,7 @@ function bytesToBase642(bytes) {
   });
   return window.btoa(text);
 }
-function escapeHTML2(value) {
+function escapeHTML3(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 async function readFileAsDataURL(file) {

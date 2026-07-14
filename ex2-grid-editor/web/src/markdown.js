@@ -141,7 +141,7 @@ function inlineFormat(text) {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+    .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, "<u>$1</u>");
 }
 
 function renderLink(label, url) {

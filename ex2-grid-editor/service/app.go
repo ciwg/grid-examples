@@ -333,7 +333,11 @@ func (app *App) State(documentID string) RelayState {
 func (app *App) Published(documentID string) []publish.Record {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return append([]publish.Record(nil), app.published[documentID]...)
+	records := app.published[documentID]
+	if len(records) == 0 {
+		return []publish.Record{}
+	}
+	return append([]publish.Record(nil), records...)
 }
 
 // Intent: Resolve published exchange manifests through relay-local CAS reads so

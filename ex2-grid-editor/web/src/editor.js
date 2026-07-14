@@ -4,11 +4,12 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import * as cmView from "@codemirror/view";
 import * as cmState from "@codemirror/state";
-import { wrapSelectedText } from "./formatting.js";
+import { resolveFormattingSelection, wrapSelectedText } from "./formatting.js";
 
 export function createEditor(parent, awareness, participantID, onLocalUpdate, onSelectionChange) {
   injectCursorStyles();
   let applyingRemote = false;
+  let lastFormattingSelection = { from: 0, to: 0 };
   const lineNumbersCompartment = new Compartment();
 
   // Intent: Move the browser embodiment to a real CodeMirror surface so CRDT
@@ -26,6 +27,9 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       }
       if (update.selectionSet) {
         const selection = update.state.selection.main;
+        if (selection.from !== selection.to) {
+          lastFormattingSelection = { from: selection.from, to: selection.to };
+        }
         onSelectionChange(selection.anchor, selection.head);
       }
     }),
@@ -144,8 +148,13 @@ export function createEditor(parent, awareness, participantID, onLocalUpdate, on
       view.focus();
     },
     wrapSelection(prefix, suffix) {
-      const selection = view.state.selection.main;
+      const currentSelection = view.state.selection.main;
+      const selection = resolveFormattingSelection(
+        { from: currentSelection.from, to: currentSelection.to },
+        lastFormattingSelection,
+      );
       const next = wrapSelectedText(view.state.doc.toString(), selection.from, selection.to, prefix, suffix);
+      lastFormattingSelection = { from: next.selectionFrom, to: next.selectionTo };
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: next.insert },
         selection: EditorSelection.range(next.selectionFrom, next.selectionTo),
@@ -180,6 +189,7 @@ function createRemoteCursorExtensions(cmView, cmState, awareness, clientID) {
         wrapper.classList.add("typing");
       }
       wrapper.style.setProperty("--grid-peer-color", this.color);
+      wrapper.style.borderLeftColor = this.color;
 
       const label = document.createElement("span");
       label.className = "grid-remote-cursor-label";

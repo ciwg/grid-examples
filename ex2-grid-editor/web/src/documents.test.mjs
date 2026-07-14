@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DocumentRegistry, normalizeState, templateCatalog } from "./documents.js";
+import { DocumentRegistry, generateDemoText, normalizeState, templateCatalog } from "./documents.js";
 
 class MemoryStorage {
   constructor() {
@@ -29,6 +29,24 @@ test("document registry tracks recent docs and timestamps", () => {
   assert.ok(recent[0].lastEditedAt);
 });
 
+test("document registry keeps recent docs in recency order", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.touchViewed("first");
+  registry.touchViewed("second");
+  registry.touchViewed("first");
+  assert.deepEqual(registry.listRecent().map((value) => value.documentID), ["first", "second"]);
+});
+
+test("document registry manages open tabs in most-recent order", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.openTab("first");
+  registry.openTab("second");
+  registry.openTab("first");
+  assert.deepEqual(registry.listOpenTabs().map((value) => value.documentID), ["first", "second"]);
+  registry.closeTab("first");
+  assert.deepEqual(registry.listOpenTabs().map((value) => value.documentID), ["second"]);
+});
+
 test("duplicate document seeds a new local copy", () => {
   const registry = new DocumentRegistry(new MemoryStorage());
   registry.updateTitle("demo", "Original");
@@ -38,10 +56,37 @@ test("duplicate document seeds a new local copy", () => {
   assert.equal(registry.seedContent("demo-copy"), "# copied");
 });
 
+test("duplicate document resets review metadata and saved versions", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.addComment("demo", {
+    id: "comment-1",
+    authorName: "Mallory",
+    createdAt: "2026-07-13T10:00:00Z",
+    body: "Looks good",
+    reactions: [],
+  });
+  registry.addSavedVersion("demo", {
+    id: "version-1",
+    name: "Draft 1",
+    createdAt: "2026-07-13T10:02:00Z",
+    content: "# demo",
+    replicaBase64: "AQID",
+  });
+  const duplicate = registry.duplicateDocument("demo", "demo-copy", "# copied");
+  assert.equal(duplicate.comments.length, 0);
+  assert.equal(duplicate.savedVersions.length, 0);
+  assert.equal(duplicate.activity.length, 0);
+});
+
 test("template catalog exposes phase 2 starter docs", () => {
   const labels = templateCatalog().map((entry) => entry.label);
   assert.ok(labels.includes("Meeting Notes"));
   assert.ok(labels.includes("Demo Sample"));
+});
+
+test("generateDemoText includes checklist workflow hints", () => {
+  assert.match(generateDemoText(), /export markdown/);
+  assert.match(generateDemoText(), /Generated demo document/);
 });
 
 test("review metadata tracks comments, versions, and participants", () => {
@@ -80,6 +125,51 @@ test("review metadata tracks comments, versions, and participants", () => {
   assert.ok(registry.listActivity("demo").length >= 4);
 });
 
+test("bookmarks and snapshots are tracked in activity order", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.addBookmark("demo", {
+    id: "bookmark-1",
+    label: "Intro",
+    createdAt: "2026-07-13T10:00:00Z",
+  });
+  registry.addSnapshot("demo", {
+    id: "snapshot-1",
+    title: "Snapshot 1",
+    createdAt: "2026-07-13T10:01:00Z",
+  });
+  const document = registry.get("demo");
+  assert.equal(document.bookmarks.length, 1);
+  assert.equal(document.snapshots.length, 1);
+  assert.equal(registry.listActivity("demo")[0].type, "snapshot");
+});
+
+test("touchExported records export timestamps", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  const document = registry.touchExported("demo");
+  assert.ok(document.lastExportedAt);
+  assert.equal(registry.listActivity("demo")[0].type, "exported");
+});
+
+test("noteParticipant replaces existing participant entries", () => {
+  const registry = new DocumentRegistry(new MemoryStorage());
+  registry.noteParticipant("demo", {
+    participantID: "browser-1",
+    name: "Mallory",
+    color: "#123456",
+    lastSeenAt: "2026-07-13T10:00:00Z",
+  });
+  registry.noteParticipant("demo", {
+    participantID: "browser-1",
+    name: "Mallory 2",
+    color: "#654321",
+    lastSeenAt: "2026-07-13T10:05:00Z",
+  });
+  const participants = registry.listRecentParticipants("demo");
+  assert.equal(participants.length, 1);
+  assert.equal(participants[0].name, "Mallory 2");
+  assert.equal(participants[0].color, "#654321");
+});
+
 test("normalizeState filters dangling recent and tab references", () => {
   const state = normalizeState({
     documents: { demo: { title: "Demo", comments: [{}], activity: [{}], recentParticipants: [{}], savedVersions: [{ content: "# doc", replicaBase64: "AQID" }] } },
@@ -91,4 +181,24 @@ test("normalizeState filters dangling recent and tab references", () => {
   assert.equal(state.documents.demo.comments.length, 1);
   assert.equal(state.documents.demo.savedVersions.length, 1);
   assert.equal(state.documents.demo.savedVersions[0].content, "# doc");
+});
+
+test("normalizeState restores default arrays and titles", () => {
+  const state = normalizeState({
+    documents: {
+      demo: {},
+    },
+  });
+  assert.equal(state.documents.demo.title, "Document demo");
+  assert.deepEqual(state.documents.demo.comments, []);
+  assert.deepEqual(state.documents.demo.bookmarks, []);
+});
+
+test("normalizeState keeps seed content when present", () => {
+  const state = normalizeState({
+    documents: {
+      demo: { seedContent: "# seeded" },
+    },
+  });
+  assert.equal(state.documents.demo.seedContent, "# seeded");
 });

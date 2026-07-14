@@ -217,6 +217,43 @@ func TestPublishDocumentResolvesLocallyAndStaysOutOfPeerFeed(t *testing.T) {
 	}
 }
 
+func TestResolvePublishedMissingManifestFails(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.ResolvePublished("bafymissing"); err == nil {
+		t.Fatalf("expected missing manifest error")
+	}
+}
+
+func TestPublishDocumentRejectsInvalidInputs(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.PublishDocument("demo", "browser-a", "bad-kind", "", "", "Title", "", []byte("text"), []byte{1}, "browser"); err == nil {
+		t.Fatalf("expected invalid source kind error")
+	}
+	if _, err := app.PublishDocument("demo", "browser-a", "current", "", "", "", "", []byte("text"), []byte{1}, "browser"); err == nil {
+		t.Fatalf("expected missing title error")
+	}
+}
+
+func TestPublishDocumentRejectsOversizedReplica(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	oversized := make([]byte, 4<<20+1)
+	if _, err := app.PublishDocument("demo", "browser-a", "current", "", "", "Title", "", []byte("text"), oversized, "browser"); err == nil {
+		t.Fatalf("expected oversized replica error")
+	}
+}
+
 func loadIdentityForTest(t *testing.T, path string) *identity.Identity {
 	t.Helper()
 	value, err := identity.LoadOrCreate(path)
