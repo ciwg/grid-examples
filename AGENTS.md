@@ -272,8 +272,10 @@ Reference pattern:
 ## Commit & Pull Request Guidelines
 - Treat a line containing only `commit` as: add and commit all changes with an AGENTS-compliant message.
 - Use short, imperative, capitalized commit subjects.
-- Summarize changes per file in commit bodies.
+- Summarize changes per file in commit bodies, one set of bullet
+  points per file.
 - Stage files explicitly (avoid `git add .` / `git add -A`).
+- use a here-doc style commit message with a subject line, blank line, and body.  Do not use -m flags to build the commit message.
 - Do not force-push repo branches unless a scoped DI/DR explicitly authorizes the exception. Role overlays may add stricter no-force-push rules for their branches or may document a narrow private-remote exception, but the repo-wide default is no history rewrites. (DI-034-20260508-060134)
 - Do not commit local state files, generated binaries, credentials, tokens, signing keys, or other secrets. (DI-034-20260508-060134)
 
