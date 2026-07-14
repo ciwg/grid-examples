@@ -65,9 +65,66 @@ Goal:
 
 Status: approved
 
-- everything in `Maybe`
-- especially 58, 59, 69, 71, 72
-- and 191-200
+- 5. Activity log
+- 14. Rename document
+- 21. Word count / document stats
+- 23. Format document / whitespace cleanup
+- 49. PromiseGrid CBOR export
+- 50. Raw JSON / debug export
+- 58. Shareable read-only view
+- 59. Document lock / read-only mode
+- 69. Browser installable / PWA behavior
+- 71. Read-only spectator mode
+- 72. Presenter / demo mode
+- 75. Bigger cursor / higher-contrast cursor mode
+- 77. Mobile-friendly layout
+- 101. Presence status message
+- 139. Sticky heading while scrolling
+- 140. Minimap
+- 141. Track changes mode
+- 142. Accept / reject changes
+- 143. Suggestion mode
+- 144. Comment resolution
+- 145. Resolved comments view
+- 146. Mention notifications
+- 147. Follow another user’s cursor
+- 148. Bring me to where another user is editing
+- 149. Presence sound / alert
+- 150. Quiet / do-not-disturb mode
+- 151. Session recording / replay
+- 152. Demo script mode
+- 153. Guided tour overlay
+- 165. Deep link to heading
+- 166. Deep link to comment
+- 167. Deep link to selection
+- 169. Personal notes on a shared doc
+- 170. Private highlights on a shared doc
+- 172. AI writing assistance
+- 173. AI rewrite / tone change
+- 174. AI explain selected text
+- 175. AI action on selected text
+- 178. Live translation
+- 179. Multi-language UI
+- 181. Plugin system
+- 182. Custom extensions
+- 183. Scripting hooks
+- 184. Automation rules
+- 185. Keyboard macro recording
+- 186. Reusable command palette
+- 187. Custom toolbar actions
+- 188. Workspace settings per document
+- 189. Workspace settings per user
+- 190. Import / export settings
+- 191. Better document ID naming
+- 192. Human-friendly share links
+- 193. Custom document slug
+- 194. Alias for a document
+- 195. Permanent canonical document ID
+- 196. Redirect old link to new link
+- 197. Merge two documents
+- 198. Split one document into two
+- 199. Import markdown into new doc
+- 200. Import existing file into shared doc
 
 Goal:
 - reserve these for later product decisions, demo refinements, or boss review
