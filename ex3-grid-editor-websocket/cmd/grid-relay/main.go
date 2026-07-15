@@ -25,14 +25,15 @@ func main() {
 	var (
 		// Intent: Move the copied example off ex2's default loopback ports so the
 		// two examples can run side by side on one machine. Source: DI-vatub
-		listen   = flag.String("listen", "127.0.0.1:7025", "listen address")
-		dataRoot = flag.String("data-root", ".grid-editor", "local runtime data root")
-		peers    peerFlags
+		listen            = flag.String("listen", "127.0.0.1:7025", "listen address")
+		dataRoot          = flag.String("data-root", ".grid-editor", "local runtime data root")
+		remoteAccessToken = flag.String("remote-access-token", "", "optional bootstrap token for remote mutation sessions")
+		peers             peerFlags
 	)
 	flag.Var(&peers, "peer", "peer base URL to poll for signed messages (repeatable)")
 	flag.Parse()
 
-	app, err := service.NewApp(*dataRoot)
+	app, err := service.NewApp(*dataRoot, service.AppOptions{RemoteAccessToken: *remoteAccessToken})
 	if err != nil {
 		log.Fatalf("new relay: %v", err)
 	}
@@ -45,5 +46,6 @@ func main() {
 	log.Printf("relay author=%s", app.Meta().LocalID)
 	log.Printf("live-document pCID=%s", app.Meta().DocumentPCID)
 	log.Printf("live-awareness pCID=%s", app.Meta().AwarenessPCID)
+	log.Printf("remote mutation bootstrap enabled=%t", app.RemoteAccessEnabled())
 	log.Fatal(http.ListenAndServe(*listen, server.Handler()))
 }

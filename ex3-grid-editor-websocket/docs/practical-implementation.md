@@ -75,10 +75,13 @@ available.
 
 ## Current codebase cautions
 
-- Local mutation endpoints are loopback-only today.
-- That was the right security hardening for the current single-machine relay.
-- A server-hosted browser client will need an authenticated remote mutation
-  mode before it can safely post live updates from non-loopback clients.
+- Local mutation started as loopback-only hardening for the first single-host
+  relay slice.
+- `ex3` now adds a repo-local authenticated remote mutation mode: a bootstrap
+  token mints short-lived document-scoped capabilities for browser or Neovim
+  clients.
+- That is PromiseGrid-aligned in direction, but still provisional rather than a
+  frozen upstream app-auth API.
 - Browser underline currently round-trips as raw `<u>...</u>` text; that is
   structurally fine for transport and storage, but the in-browser visible
   underline presentation is still an open UI-polish item.
@@ -94,6 +97,11 @@ If the goal is to get something working quickly:
 2. add a thin authenticated WebSocket adapter
 3. reuse the current document / awareness / metadata / publish boundaries
 4. delay bigger server-only redesigns until after the first proof run
+
+That remains the right shape after the July 2026 upstream guide refresh as
+well: `POC20` semantic-model work and `POC21` DevOps/bootstrap work are now
+tracked separately, and app-facing auth/API guidance remains provisional.
+Source: `DI-talih`.
 
 That will give you a shorter path to a working demo without losing the
 PromiseGrid structure that is already paying off here.

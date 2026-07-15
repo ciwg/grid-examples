@@ -210,9 +210,30 @@ Then pick an embodiment:
 - browser: open `http://127.0.0.1:7025/?doc=demo`
 - Neovim: run `./scripts/grid-editor-nvim demo`
 
-Local browser and Neovim mutation endpoints are loopback-only in this slice.
-For multi-machine collaboration, run one relay per machine and connect the
-relays with `--peer` instead of pointing remote editors at one shared relay.
+Local loopback clients still work with no extra setup. For multi-machine
+browser or Neovim collaboration, start the relay with a bootstrap token and
+share that token in the document link or sidecar environment:
+
+```bash
+go run ./cmd/grid-relay --listen 0.0.0.0:7025 --remote-access-token ex3-demo-access
+```
+
+Then open the browser with:
+
+```text
+http://127.0.0.1:7025/?doc=demo&access_token=ex3-demo-access
+```
+
+Or launch Neovim with:
+
+```bash
+GRID_EDITOR_RELAY_URL=http://127.0.0.1:7025 GRID_EDITOR_ACCESS_TOKEN=ex3-demo-access ./scripts/grid-editor-nvim demo
+```
+
+That bootstrap token is only used to mint short-lived relay-signed mutation
+capabilities for the current document; steady-state live traffic still uses the
+existing `live-document`, `live-awareness`, metadata, and publish surfaces.
+Source: `DI-povip`.
 
 If you want a second relay to poll the first one for peer exchange:
 
@@ -226,6 +247,20 @@ In `ex3-grid-editor-websocket`, the browser and Neovim live `sync` and
 `awareness` flows prefer websocket transport when the runtime supports it,
 while metadata and publish remain on the existing HTTP endpoints. Source:
 `DI-vubih`; `DI-bitus`.
+
+This transport split is aligned with the current PromiseGrid dev-guide
+direction: websocket is only the carriage for live traffic here, not the
+protocol meaning, and the existing `live-document` / `live-awareness` /
+metadata / publish boundary remains explicit. It is still a repo-local
+provisional implementation, not a frozen upstream PromiseGrid app API. Source:
+`DI-vipat`; `DI-bitus`.
+
+The latest upstream guide refresh on July 13-14, 2026 kept that caution in
+place explicitly: app-facing auth/API guidance remains provisional under
+`DR-tuhaz`, and `POC20` semantic-model work is now tracked separately from the
+`POC21` DevOps/bootstrap track. This example follows that direction, but does
+not claim that its remote bootstrap or capability shape is a frozen upstream
+PromiseGrid contract. Source: `DI-talih`; `DI-vipat`.
 
 The browser embodiment is the easiest way to see the current CRDT slice in
 action.
@@ -258,8 +293,8 @@ docker-compose up --build
 
 Then open:
 
-- `http://127.0.0.1:7025/?doc=demo`
-- `http://127.0.0.1:7026/?doc=demo`
+- `http://127.0.0.1:7025/?doc=demo&access_token=ex3-demo-access`
+- `http://127.0.0.1:7026/?doc=demo&access_token=ex3-demo-access`
 
 See [Docker simulation guide](docs/docker-simulation.md) for the short
 workflow and caveats.

@@ -12,10 +12,12 @@ simulation can run beside `ex2-grid-editor`. Source: `DI-vatub`.
 - runs `relay-b` on `127.0.0.1:7026`
 - gives each relay its own Docker volume for data
 - makes each relay poll the other as a peer
+- enables one shared demo bootstrap token: `ex3-demo-access`
 
-This uses `network_mode: host` on Linux so the browser still reaches the relay
-as a loopback client. That matters because local mutation endpoints are still
-loopback-only in the current security model.
+This now uses normal published Docker ports instead of host networking. Remote
+mutation is admitted through a repo-local bootstrap token that mints
+short-lived relay-signed document capabilities for browser or Neovim clients.
+Source: `DI-povip`.
 
 The compose file also runs the demo relays as root inside the container so the
 named Docker volumes are writable without extra permission setup. This keeps
@@ -40,13 +42,13 @@ docker compose up --build
 Open one browser window to:
 
 ```text
-http://127.0.0.1:7025/?doc=demo
+http://127.0.0.1:7025/?doc=demo&access_token=ex3-demo-access
 ```
 
 Open a second browser window to:
 
 ```text
-http://127.0.0.1:7026/?doc=demo
+http://127.0.0.1:7026/?doc=demo&access_token=ex3-demo-access
 ```
 
 Use the same document ID in both windows.
@@ -57,13 +59,15 @@ Use the same document ID in both windows.
 - separate relay identities
 - separate relay data roots
 - peer-to-peer relay polling
+- published-port remote browser access
+- repo-local remote session bootstrap and mutation capabilities
 
 ## What this does not simulate perfectly
 
 - WAN latency
 - firewall problems
-- cross-host browser networking
-- a future authenticated remote-browser mutation mode
+- long-lived operator auth policy
+- a frozen upstream PromiseGrid app-auth API
 
 ## Useful commands
 
@@ -85,9 +89,11 @@ Show logs:
 docker-compose logs -f
 ```
 
-## Why host networking is used
+## Why the token is still provisional
 
-The current relay only accepts browser mutation requests from loopback clients.
-With normal Docker bridge networking, the relay would see the host browser as a
-non-loopback client and reject edits. Host networking keeps the simulation
-simple for the current demo slice.
+The newer upstream PromiseGrid snapshot still keeps app-facing auth/API
+guidance provisional, and now separates `POC20` semantic-model work from the
+`POC21` DevOps/bootstrap track. `ex3` therefore uses a repo-local bootstrap
+token and short-lived relay capabilities as a practical demo slice, not as a
+claim that upstream has already frozen one universal remote-editor auth shape.
+Source: `DI-talih`; `DI-povip`.

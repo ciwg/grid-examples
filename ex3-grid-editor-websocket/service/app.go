@@ -54,14 +54,15 @@ type peerResponse struct {
 }
 
 type App struct {
-	dataRoot      string
-	identity      *identity.Identity
-	log           *store.Log
-	cas           *cas.Store
-	documentPCID  cid.Cid
-	awarenessPCID cid.Cid
-	metadataPCID  cid.Cid
-	publishPCID   cid.Cid
+	dataRoot          string
+	identity          *identity.Identity
+	remoteAccessToken string
+	log               *store.Log
+	cas               *cas.Store
+	documentPCID      cid.Cid
+	awarenessPCID     cid.Cid
+	metadataPCID      cid.Cid
+	publishPCID       cid.Cid
 
 	mu           sync.Mutex
 	maxLamport   uint64
@@ -73,7 +74,11 @@ type App struct {
 	publishByCID map[string]publish.Record
 }
 
-func NewApp(dataRoot string) (*App, error) {
+func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
+	var option AppOptions
+	if len(options) > 0 {
+		option = options[0]
+	}
 	documentPCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.LiveDocumentSpec))
 	if err != nil {
 		return nil, fmt.Errorf("document pCID: %w", err)
@@ -104,20 +109,21 @@ func NewApp(dataRoot string) (*App, error) {
 		return nil, fmt.Errorf("open log: %w", err)
 	}
 	app := &App{
-		dataRoot:      dataRoot,
-		identity:      identityValue,
-		log:           logValue,
-		cas:           casValue,
-		documentPCID:  documentPCID,
-		awarenessPCID: awarenessPCID,
-		metadataPCID:  metadataPCID,
-		publishPCID:   publishPCID,
-		seen:          map[string]struct{}{},
-		presence:      map[string]awareness.Index{},
-		syncFeeds:     map[string][]crdt.SyncRecord{},
-		metadata:      map[string]metadata.Record{},
-		published:     map[string][]publish.Record{},
-		publishByCID:  map[string]publish.Record{},
+		dataRoot:          dataRoot,
+		identity:          identityValue,
+		remoteAccessToken: option.RemoteAccessToken,
+		log:               logValue,
+		cas:               casValue,
+		documentPCID:      documentPCID,
+		awarenessPCID:     awarenessPCID,
+		metadataPCID:      metadataPCID,
+		publishPCID:       publishPCID,
+		seen:              map[string]struct{}{},
+		presence:          map[string]awareness.Index{},
+		syncFeeds:         map[string][]crdt.SyncRecord{},
+		metadata:          map[string]metadata.Record{},
+		published:         map[string][]publish.Record{},
+		publishByCID:      map[string]publish.Record{},
 	}
 	for _, entry := range logValue.All() {
 		if err := app.replayEntry(entry); err != nil {

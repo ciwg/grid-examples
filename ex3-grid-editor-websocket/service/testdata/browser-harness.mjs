@@ -86,18 +86,21 @@ async function connect(message) {
   state.participantId = message.participant_id;
   state.documentId = message.doc_id || "demo";
   const basePath = `${message.relay_url.replace(/\/$/, "")}/api/local/documents/${encodeURIComponent(state.documentId)}`;
+  const capabilities = message.capabilities || {};
   state.awareness = new RelayAwarenessClient({
     basePath,
     participantID: state.participantId,
     documentID: state.documentId,
     displayName: message.display_name || "Browser User",
     color: message.color || "#1d6fd6",
+    capabilities,
   });
   state.relay = new AutomergeRelayClient({
     basePath,
     participantID: state.participantId,
     documentID: state.documentId,
     awareness: state.awareness,
+    capabilities,
   });
   state.relay.on("document", (text) => {
     send({ type: "document", content: text });

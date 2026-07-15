@@ -1,5 +1,5 @@
 import * as Automerge from "@automerge/automerge";
-import { canUseWebSocket, toWebSocketURL } from "./live-transport.js";
+import { bearerHeaders, canUseWebSocket, toWebSocketURL } from "./live-transport.js";
 
 const AutomergeNext = Automerge.next;
 const EMPTY_DOCUMENT_BYTES = base64ToBytes("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==");
@@ -19,6 +19,7 @@ export class AutomergeRelayClient {
     this.connected = false;
     this.pendingChanges = 0;
     this.transport = "polling";
+    this.capabilities = options.capabilities || {};
   }
 
   on(event, callback) {
@@ -88,6 +89,12 @@ export class AutomergeRelayClient {
       this.socket = socket;
       socket.addEventListener("open", () => {
         this.connected = true;
+        if (this.capabilities.sync) {
+          socket.send(JSON.stringify({
+            type: "auth",
+            capability: this.capabilities.sync,
+          }));
+        }
       });
       socket.addEventListener("message", (event) => {
         this.handleSocketMessage(event.data)
@@ -233,7 +240,10 @@ export class AutomergeRelayClient {
     }
     const response = await fetch(`${this.basePath}/sync`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...bearerHeaders(this.capabilities.sync),
+      },
       body: JSON.stringify({
         participant_id: this.participantID,
         recipient_id: "",

@@ -1,19 +1,24 @@
-# Intent: Keep the copied Docker simulation on ex3's own loopback ports so it
-# can run beside ex2's compose stack. Source: DI-vatub
+# Intent: Keep the copied Docker simulation on ex3's own ports so it can run
+# beside ex2's compose stack, while using published ports instead of host
+# networking so ex3 can demonstrate real remote clients. Source: DI-vatub;
+# DI-povip
 services:
   relay-a:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: host
     user: "0:0"
     command:
       - --listen
-      - 127.0.0.1:7025
+      - 0.0.0.0:7025
       - --data-root
       - /home/grid/data
+      - --remote-access-token
+      - ex3-demo-access
       - --peer
-      - http://127.0.0.1:7026
+      - http://relay-b:7026
+    ports:
+      - "7025:7025"
     volumes:
       - relay-a-data:/home/grid/data
     restart: unless-stopped
@@ -22,15 +27,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: host
     user: "0:0"
     command:
       - --listen
-      - 127.0.0.1:7026
+      - 0.0.0.0:7026
       - --data-root
       - /home/grid/data
+      - --remote-access-token
+      - ex3-demo-access
       - --peer
-      - http://127.0.0.1:7025
+      - http://relay-a:7025
+    ports:
+      - "7026:7026"
     volumes:
       - relay-b-data:/home/grid/data
     restart: unless-stopped

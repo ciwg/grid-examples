@@ -3,6 +3,7 @@ package service
 import (
 	"net"
 	"net/http"
+	"strings"
 )
 
 func requestIsLoopback(request *http.Request) bool {
@@ -18,4 +19,16 @@ func requestIsLoopback(request *http.Request) bool {
 		return host == "localhost"
 	}
 	return ip.IsLoopback()
+}
+
+func bearerToken(request *http.Request) string {
+	value := strings.TrimSpace(request.Header.Get("Authorization"))
+	if value == "" {
+		return ""
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(value, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(value, prefix))
 }

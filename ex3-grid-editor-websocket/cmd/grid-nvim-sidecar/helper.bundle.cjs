@@ -6134,6 +6134,8 @@ var AutomergeNext = next_slim_exports;
 var EMPTY_DOCUMENT_BYTES = Uint8Array.from(Buffer.from("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==", "base64"));
 var state = {
   relayUrl: "",
+  accessToken: "",
+  capabilities: {},
   participantId: "",
   displayName: "Neovim User",
   color: "#d66f1d",
@@ -6181,6 +6183,8 @@ async function handleMessage(message) {
   switch (message.type) {
     case "connect":
       state.relayUrl = message.relay_url;
+      state.accessToken = message.access_token || "";
+      state.capabilities = {};
       state.participantId = message.participant_id;
       state.displayName = message.display_name || state.displayName;
       state.color = message.color || state.color;
@@ -6224,6 +6228,14 @@ async function openDocument(documentId) {
   state.documentId = documentId;
   state.doc = ensureDocument(null);
   state.offset = 0;
+  if (state.accessToken) {
+    const session = await requestJSON("POST", `${basePath()}/session`, {
+      participant_id: state.participantId
+    }, {
+      "X-Grid-Access-Token": state.accessToken
+    });
+    state.capabilities = session.capabilities || {};
+  }
   if (websocketCapable()) {
     await connectSyncSocket();
     await connectAwarenessSocket();
@@ -6392,11 +6404,12 @@ async function getJSON(url) {
 async function postJSON(url, body) {
   return requestJSON("POST", url, body);
 }
-function requestJSON(method, rawURL, body) {
+function requestJSON(method, rawURL, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(rawURL);
     const client = url.protocol === "https:" ? https : http;
     const payload = body ? JSON.stringify(body) : null;
+    const authHeaders = mutationHeaders(method, url.pathname);
     const request = client.request({
       protocol: url.protocol,
       hostname: url.hostname,
@@ -6405,7 +6418,12 @@ function requestJSON(method, rawURL, body) {
       method,
       headers: payload ? {
         "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload)
+        "Content-Length": Buffer.byteLength(payload),
+        ...authHeaders,
+        ...extraHeaders
+      } : Object.keys(authHeaders).length > 0 || Object.keys(extraHeaders).length > 0 ? {
+        ...authHeaders,
+        ...extraHeaders
       } : void 0
     }, (response) => {
       let data = "";
@@ -6466,6 +6484,12 @@ async function connectSyncSocket() {
     let settled = false;
     socket.addEventListener("open", () => {
       setRelayConnected(true);
+      if (state.capabilities.sync) {
+        socket.send(JSON.stringify({
+          type: "auth",
+          capability: state.capabilities.sync
+        }));
+      }
     });
     socket.addEventListener("message", (event) => {
       handleSyncSocketMessage(event.data).then(() => {
@@ -6507,6 +6531,12 @@ async function connectAwarenessSocket() {
   await new Promise((resolve, reject) => {
     let settled = false;
     socket.addEventListener("open", () => {
+      if (state.capabilities.awareness) {
+        socket.send(JSON.stringify({
+          type: "auth",
+          capability: state.capabilities.awareness
+        }));
+      }
       Promise.resolve(postAwareness(false)).catch((error) => {
         if (!settled) {
           settled = true;
@@ -6628,6 +6658,27 @@ function setRelayConnected(connected) {
   }
   state.relayConnected = connected;
   send({ type: "relay_status", connected });
+}
+function mutationHeaders(method, pathname) {
+  if (method !== "POST") {
+    return {};
+  }
+  let capability = "";
+  if (pathname.endsWith("/sync")) {
+    capability = state.capabilities.sync || "";
+  } else if (pathname.endsWith("/awareness")) {
+    capability = state.capabilities.awareness || "";
+  } else if (pathname.endsWith("/metadata")) {
+    capability = state.capabilities.metadata || "";
+  } else if (pathname.endsWith("/publish")) {
+    capability = state.capabilities.publish || "";
+  }
+  if (!capability) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${capability}`
+  };
 }
 function ensureDocument(doc) {
   if (doc?.content !== void 0) {

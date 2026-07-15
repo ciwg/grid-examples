@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/web"
 )
@@ -123,6 +124,8 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		writeJSON(writer, http.StatusOK, server.app.State(documentID))
 	case "sync":
 		server.handleSync(writer, request, documentID)
+	case "session":
+		server.handleSession(writer, request, documentID)
 	case "sync-socket":
 		server.handleSyncSocket(writer, request, documentID)
 	case "awareness":
@@ -195,10 +198,6 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 		}
 		writeJSON(writer, http.StatusOK, server.app.SyncFeed(documentID, since, limit))
 	case http.MethodPost:
-		if err := requireLoopbackMutation(request); err != nil {
-			http.Error(writer, err.Error(), http.StatusForbidden)
-			return
-		}
 		request.Body = http.MaxBytesReader(writer, request.Body, maxChangeBytesLen*4)
 		var payload struct {
 			ParticipantID string `json:"participant_id"`
@@ -208,6 +207,10 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 		}
 		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.documentPCID.String()); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
 			return
 		}
 		// Intent: Keep the relay HTTP surface explicit about CRDT sync so browser
@@ -233,10 +236,6 @@ func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.
 			"awareness":   server.app.AwarenessState(documentID),
 		})
 	case http.MethodPost:
-		if err := requireLoopbackMutation(request); err != nil {
-			http.Error(writer, err.Error(), http.StatusForbidden)
-			return
-		}
 		request.Body = http.MaxBytesReader(writer, request.Body, 16*1024)
 		var payload struct {
 			ParticipantID string `json:"participant_id"`
@@ -249,6 +248,10 @@ func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.
 		}
 		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.awarenessPCID.String()); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
 			return
 		}
 		if err := server.app.UpdateAwareness(documentID, payload.ParticipantID, payload.Cursor, payload.Head, payload.Typing, payload.DisplayName, payload.Color, payload.Embodiment); err != nil {
@@ -272,15 +275,36 @@ func (server *Server) handlePublishedList(writer http.ResponseWriter, request *h
 	})
 }
 
+func (server *Server) handleSession(writer http.ResponseWriter, request *http.Request, documentID string) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, 8*1024)
+	var payload struct {
+		ParticipantID string `json:"participant_id"`
+	}
+	if err := decodeJSONBody(writer, request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := server.requireSessionBootstrap(request); err != nil {
+		http.Error(writer, err.Error(), http.StatusForbidden)
+		return
+	}
+	session, err := server.app.IssueRemoteSession(documentID, payload.ParticipantID)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, session)
+}
+
 func (server *Server) handleMetadata(writer http.ResponseWriter, request *http.Request, documentID string) {
 	switch request.Method {
 	case http.MethodGet:
 		writeJSON(writer, http.StatusOK, server.app.Metadata(documentID))
 	case http.MethodPost:
-		if err := requireLoopbackMutation(request); err != nil {
-			http.Error(writer, err.Error(), http.StatusForbidden)
-			return
-		}
 		request.Body = http.MaxBytesReader(writer, request.Body, 128*1024)
 		var payload struct {
 			ParticipantID string   `json:"participant_id"`
@@ -295,6 +319,10 @@ func (server *Server) handleMetadata(writer http.ResponseWriter, request *http.R
 		}
 		if err := decodeJSONBody(writer, request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.metadataPCID.String()); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
 			return
 		}
 		record, err := server.app.UpdateMetadata(
@@ -324,10 +352,6 @@ func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Re
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := requireLoopbackMutation(request); err != nil {
-		http.Error(writer, err.Error(), http.StatusForbidden)
-		return
-	}
 	request.Body = http.MaxBytesReader(writer, request.Body, maxPublishBytesLen*12)
 	var payload struct {
 		ParticipantID     string `json:"participant_id"`
@@ -344,6 +368,10 @@ func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Re
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.publishPCID.String()); err != nil {
+		http.Error(writer, err.Error(), http.StatusForbidden)
+		return
+	}
 	textBytes, err := base64.StdEncoding.DecodeString(payload.TextBase64)
 	if err != nil {
 		http.Error(writer, "invalid text base64", http.StatusBadRequest)
@@ -354,10 +382,10 @@ func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Re
 		http.Error(writer, "invalid replica base64", http.StatusBadRequest)
 		return
 	}
-	// Intent: Publish through a separate loopback-only relay endpoint so local
-	// clients can request durable exchange manifests without overloading live
-	// CRDT sync or exposing an unauthenticated remote signer. Source: DI-tavul;
-	// DI-gosaf; DI-rabod
+	// Intent: Publish through a separate relay endpoint so clients can request
+	// durable exchange manifests without overloading live CRDT sync, while
+	// reusing the same remote-capability gate as the other document mutation
+	// surfaces. Source: DI-tavul; DI-gosaf; DI-povip
 	record, err := server.app.PublishDocument(
 		documentID,
 		payload.ParticipantID,
@@ -388,14 +416,42 @@ func writeJSON(writer http.ResponseWriter, status int, value any) {
 	}
 }
 
-func requireLoopbackMutation(request *http.Request) error {
-	// Intent: Keep the relay from acting as an open network signer by allowing
-	// local mutation requests only from loopback clients unless a later
-	// authenticated remote-client mode is explicitly designed. Source: DI-rabod
+func (server *Server) requireMutationAccess(request *http.Request, participantID string, documentID string, protocolCID string) error {
+	// Intent: Preserve loopback's zero-config local workflow while requiring a
+	// short-lived relay-signed capability for non-loopback mutation, so ex3 can
+	// run across machines without exposing an unauthenticated signer. Source:
+	// DI-povip
 	if requestIsLoopback(request) {
 		return nil
 	}
-	return fmt.Errorf("local mutation endpoints require a loopback client")
+	if participantID == "" {
+		return fmt.Errorf("participant_id is required for remote mutation")
+	}
+	token := bearerToken(request)
+	if token == "" {
+		return fmt.Errorf("remote mutation requires a bearer capability")
+	}
+	if _, err := verifyMutationCapability(token, participantID, documentID, protocolCID, "mutate", time.Now().UTC()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (server *Server) requireSessionBootstrap(request *http.Request) error {
+	// Intent: Keep the long-lived admission secret out of ex3's steady-state
+	// mutation traffic by using it only for remote session bootstrap, while
+	// allowing loopback clients to keep the old zero-config local path. Source:
+	// DI-povip
+	if requestIsLoopback(request) {
+		return nil
+	}
+	if !server.app.RemoteAccessEnabled() {
+		return fmt.Errorf("remote mutation bootstrap is disabled")
+	}
+	if server.app.ValidateRemoteAccessToken(request.Header.Get("X-Grid-Access-Token")) {
+		return nil
+	}
+	return fmt.Errorf("remote session bootstrap requires X-Grid-Access-Token")
 }
 
 func decodeJSONBody(writer http.ResponseWriter, request *http.Request, value any) error {

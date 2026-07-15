@@ -42,6 +42,56 @@ func TestServerAllowsLoopbackSyncMutation(t *testing.T) {
 	}
 }
 
+func TestServerIssuesRemoteSessionWithBootstrapToken(t *testing.T) {
+	t.Parallel()
+	server := newTestServerWithOptions(t, service.AppOptions{RemoteAccessToken: "ex3-demo-access"})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/session", bytes.NewBufferString(`{"participant_id":"browser-a"}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	request.Header.Set("X-Grid-Access-Token", "ex3-demo-access")
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+	assertBodyContains(t, response.Body.String(), `"participant_id":"browser-a"`)
+	assertBodyContains(t, response.Body.String(), `"sync":"`)
+	assertBodyContains(t, response.Body.String(), `"awareness":"`)
+}
+
+func TestServerAllowsRemoteSyncMutationWithCapability(t *testing.T) {
+	t.Parallel()
+	server := newTestServerWithOptions(t, service.AppOptions{RemoteAccessToken: "ex3-demo-access"})
+
+	sessionRequest := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/session", bytes.NewBufferString(`{"participant_id":"browser-a"}`))
+	sessionRequest.RemoteAddr = "198.51.100.20:4123"
+	sessionRequest.Header.Set("X-Grid-Access-Token", "ex3-demo-access")
+	sessionResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(sessionResponse, sessionRequest)
+	if sessionResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected session status: got %d want %d body=%s", sessionResponse.Code, http.StatusOK, sessionResponse.Body.String())
+	}
+	var sessionPayload struct {
+		Capabilities map[string]string `json:"capabilities"`
+	}
+	if err := json.Unmarshal(sessionResponse.Body.Bytes(), &sessionPayload); err != nil {
+		t.Fatalf("decode session payload: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/sync", bytes.NewBufferString(`{"participant_id":"browser-a","recipient_id":"","message_base64":"AQID","embodiment":"browser"}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	request.Header.Set("Authorization", "Bearer "+sessionPayload.Capabilities["sync"])
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+}
+
 func TestServerRejectsRemoteSyncSocketUpgrade(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
@@ -56,8 +106,8 @@ func TestServerRejectsRemoteSyncSocketUpgrade(t *testing.T) {
 
 	server.Handler().ServeHTTP(response, request)
 
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	if response.Code == http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want non-%d", response.Code, http.StatusForbidden)
 	}
 }
 
@@ -331,8 +381,12 @@ func TestServerSearchesMetadata(t *testing.T) {
 }
 
 func newTestServer(t *testing.T) *service.Server {
+	return newTestServerWithOptions(t, service.AppOptions{})
+}
+
+func newTestServerWithOptions(t *testing.T, options service.AppOptions) *service.Server {
 	t.Helper()
-	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"), options)
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}

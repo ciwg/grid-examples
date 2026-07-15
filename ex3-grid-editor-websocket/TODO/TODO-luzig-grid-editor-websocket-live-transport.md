@@ -21,6 +21,15 @@ Constraints: Preserve the sidecar's stdin/stdout control contract with Neovim; k
 Affects: `ex3-grid-editor-websocket/cmd/grid-nvim-sidecar/**`, `ex3-grid-editor-websocket/service/*tests*`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/docs/practical-implementation.md`
 Supersedes: DI-vubih
 
+ID: DI-vipat
+Date: 2026-07-14 20:25:55 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Document in the ex3 README that the websocket transport split is aligned with current PromiseGrid dev-guide direction, while remaining a repo-local provisional implementation rather than a frozen upstream app API.
+Intent: Keep ex3 readers from confusing "PromiseGrid-aligned" with "already standardized," while making the transport and capability-token direction explicit for future multi-machine work.
+Constraints: Do not claim a frozen upstream websocket or editor-auth spec; keep the note tied to the existing ex3 split between websocket live transport and HTTP metadata/publish surfaces.
+Affects: `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/TODO/TODO-luzig-grid-editor-websocket-live-transport.md`
+
 ## Goal
 
 Enable the browser live editing path in `ex3-grid-editor-websocket` to use

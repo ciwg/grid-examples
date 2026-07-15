@@ -1,4 +1,4 @@
-import { canUseWebSocket, toWebSocketURL } from "./live-transport.js";
+import { bearerHeaders, canUseWebSocket, toWebSocketURL } from "./live-transport.js";
 
 export class RelayAwarenessClient {
   constructor(options) {
@@ -16,6 +16,7 @@ export class RelayAwarenessClient {
     this.pollTimer = null;
     this.socket = null;
     this.transport = "polling";
+    this.capabilities = options.capabilities || {};
   }
 
   on(event, callback) {
@@ -80,6 +81,12 @@ export class RelayAwarenessClient {
       const socket = new WebSocket(url);
       this.socket = socket;
       socket.addEventListener("open", () => {
+        if (this.capabilities.awareness) {
+          socket.send(JSON.stringify({
+            type: "auth",
+            capability: this.capabilities.awareness,
+          }));
+        }
         Promise.resolve(this.broadcast()).catch((error) => {
           if (!settled) {
             settled = true;
@@ -165,7 +172,10 @@ export class RelayAwarenessClient {
     // DI-zegov
     const response = await fetch(`${this.basePath}/awareness`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...bearerHeaders(this.capabilities.awareness),
+      },
       body: JSON.stringify({
         participant_id: this.participantID,
         cursor: this.selection.anchor,

@@ -1,6 +1,7 @@
 import { createEditor } from "./editor.js";
 import { RelayAwarenessClient } from "./relay-awareness.js";
 import { AutomergeRelayClient } from "./automerge-relay.js";
+import { bearerHeaders, bootstrapRemoteSession } from "./live-transport.js";
 import { PreferencesStore, defaultShortcuts, formatShortcut } from "./preferences.js";
 import { DocumentRegistry, generateDemoText, templateCatalog } from "./documents.js";
 import { normalizeBrowserColor } from "./color.js";
@@ -116,10 +117,12 @@ const registry = new DocumentRegistry();
 
 const state = {
   documentID: new URLSearchParams(window.location.search).get("doc") || "demo",
+  accessToken: new URLSearchParams(window.location.search).get("access_token") || "",
   participantID: getOrCreateParticipantID(),
   editor: null,
   awareness: null,
   relay: null,
+  remoteSession: null,
   prefs: preferences.get(),
   visiblePeers: new Map(),
   previewEnabled: false,
@@ -213,19 +216,23 @@ async function bootDocument(documentID) {
   editorRoot.innerHTML = "";
 
   const basePath = `/api/local/documents/${encodeURIComponent(documentID)}`;
+  const remoteSession = await bootstrapRemoteSession(basePath, state.participantID, state.accessToken);
   const awareness = new RelayAwarenessClient({
     basePath,
     participantID: state.participantID,
     documentID,
     displayName: state.prefs.displayName,
     color: state.prefs.color,
+    capabilities: remoteSession?.capabilities || {},
   });
   const relay = new AutomergeRelayClient({
     basePath,
     participantID: state.participantID,
     documentID,
     awareness,
+    capabilities: remoteSession?.capabilities || {},
   });
+  state.remoteSession = remoteSession;
   const editor = createEditor(
     editorRoot,
     awareness,
@@ -928,12 +935,13 @@ function openFromPromptedLink() {
   if (!raw) {
     return;
   }
-  const docID = parseDocumentReference(raw);
-  if (!docID) {
+  const reference = parseDocumentReference(raw);
+  if (!reference.documentID) {
     showToast("Could not parse a document from that input");
     return;
   }
-  bootDocument(docID).catch((error) => setStatus("error", error.message));
+  state.accessToken = reference.accessToken || state.accessToken;
+  bootDocument(reference.documentID).catch((error) => setStatus("error", error.message));
 }
 
 function duplicateCurrentDocument() {
@@ -946,19 +954,24 @@ function duplicateCurrentDocument() {
 }
 
 function updateDocumentURL(documentID) {
-  window.history.replaceState(null, "", `/?doc=${encodeURIComponent(documentID)}${window.location.hash}`);
+  const params = new URLSearchParams();
+  params.set("doc", documentID);
+  if (state.accessToken) {
+    params.set("access_token", state.accessToken);
+  }
+  window.history.replaceState(null, "", `/?${params.toString()}${window.location.hash}`);
 }
 
 function updateShareLink(documentID) {
-  shareLinkEl.textContent = `Current link: ${window.location.origin}/?doc=${encodeURIComponent(documentID)}`;
+  shareLinkEl.textContent = `Current link: ${shareLinkFor(documentID)}`;
 }
 
 function copyShareLink() {
-  copyText(`${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`, "Link copied");
+  copyText(shareLinkFor(state.documentID), "Link copied");
 }
 
 function emailShareLink() {
-  window.location.href = `mailto:?subject=${encodeURIComponent(`grid-editor document ${state.documentID}`)}&body=${encodeURIComponent(`${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`)}`;
+  window.location.href = `mailto:?subject=${encodeURIComponent(`grid-editor document ${state.documentID}`)}&body=${encodeURIComponent(shareLinkFor(state.documentID))}`;
 }
 
 function togglePreview() {
@@ -1103,7 +1116,10 @@ async function publishExchange() {
   }
   const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...bearerHeaders(state.remoteSession?.capabilities?.publish),
+    },
     body: JSON.stringify({
       participant_id: state.participantID,
       source_kind: source.sourceKind,
@@ -1133,7 +1149,10 @@ async function saveMetadata() {
   // DI-loruk; DI-sukip
   const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/metadata`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...bearerHeaders(state.remoteSession?.capabilities?.metadata),
+    },
     body: JSON.stringify({
       participant_id: state.participantID,
       title: docTitleInput.value.trim(),
@@ -1208,7 +1227,7 @@ function exportAuditReport() {
   const documentMeta = registry.get(state.documentID);
   const report = {
     document: documentMeta,
-    shareLink: `${window.location.origin}/?doc=${encodeURIComponent(state.documentID)}`,
+    shareLink: shareLinkFor(state.documentID),
     localID: metaEls.localID.textContent,
     protocol: {
       documentPCID: metaEls.docPCID.textContent,
@@ -1506,14 +1525,26 @@ function getOrCreateParticipantID() {
 function parseDocumentReference(raw) {
   const trimmed = raw.trim();
   if (!trimmed) {
-    return "";
+    return { documentID: "", accessToken: "" };
   }
   try {
     const url = new URL(trimmed, window.location.origin);
-    return url.searchParams.get("doc") || url.pathname.replaceAll("/", "");
+    return {
+      documentID: url.searchParams.get("doc") || url.pathname.replaceAll("/", ""),
+      accessToken: url.searchParams.get("access_token") || "",
+    };
   } catch {
-    return trimmed;
+    return { documentID: trimmed, accessToken: "" };
   }
+}
+
+function shareLinkFor(documentID) {
+  const url = new URL("/", window.location.origin);
+  url.searchParams.set("doc", documentID);
+  if (state.accessToken) {
+    url.searchParams.set("access_token", state.accessToken);
+  }
+  return url.toString();
 }
 
 function formatTime(value) {

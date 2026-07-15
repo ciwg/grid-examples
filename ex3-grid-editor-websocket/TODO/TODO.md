@@ -1,5 +1,6 @@
 # TODO
 
+- [x] 014 - grid-editor remote mutation capabilities for multi-machine ex3 - `TODO/TODO-buvir-grid-editor-remote-mutation-capabilities.md`
 - [x] 013 - grid-editor websocket live transport for browser sync and awareness - `TODO/TODO-luzig-grid-editor-websocket-live-transport.md`
 - [ ] 012 - grid-editor browser color chooser visibility in Chrome - `TODO/TODO-furav-grid-editor-browser-color-preview.md`
 - [ ] 011 - grid-editor browser inline underline rendering - `TODO/TODO-huvok-grid-editor-browser-underline.md`

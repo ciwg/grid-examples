@@ -21,6 +21,11 @@ type syncSocketRequest struct {
 	Embodiment    string `json:"embodiment"`
 }
 
+type socketAuthRequest struct {
+	Type       string `json:"type"`
+	Capability string `json:"capability"`
+}
+
 type syncSocketFeed struct {
 	Type       string            `json:"type"`
 	DocumentID string            `json:"document_id"`
@@ -50,10 +55,6 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := requireLoopbackMutation(request); err != nil {
-		http.Error(writer, err.Error(), http.StatusForbidden)
-		return
-	}
 	since := uint64(0)
 	if raw := request.URL.Query().Get("since"); raw != "" {
 		if _, err := fmt.Sscanf(raw, "%d", &since); err != nil {
@@ -67,10 +68,18 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 		return
 	}
 	defer closeSocket(socket)
+	expectedParticipantID := ""
+	if !requestIsLoopback(request) {
+		participantID, err := server.authorizeSocket(socket, documentID, server.app.documentPCID.String())
+		if err != nil {
+			return
+		}
+		expectedParticipantID = participantID
+	}
 
 	readErr := make(chan error, 1)
 	go func() {
-		readErr <- server.readSyncSocket(socket, documentID)
+		readErr <- server.readSyncSocket(socket, documentID, expectedParticipantID)
 	}()
 
 	// Intent: Move the browser live-document transport onto websocket while
@@ -106,7 +115,7 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 	}
 }
 
-func (server *Server) readSyncSocket(socket *websocketConn, documentID string) error {
+func (server *Server) readSyncSocket(socket *websocketConn, documentID string, expectedParticipantID string) error {
 	for {
 		var payload syncSocketRequest
 		if err := socket.ReadJSON(&payload); err != nil {
@@ -116,6 +125,15 @@ func (server *Server) readSyncSocket(socket *websocketConn, documentID string) e
 			if err := socket.WriteJSON(map[string]any{
 				"type":    "error",
 				"message": fmt.Sprintf("unknown sync socket message type %q", payload.Type),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+		if expectedParticipantID != "" && payload.ParticipantID != expectedParticipantID {
+			if err := socket.WriteJSON(map[string]any{
+				"type":    "error",
+				"message": fmt.Sprintf("capability audience %q does not match participant %q", expectedParticipantID, payload.ParticipantID),
 			}); err != nil {
 				return err
 			}
@@ -166,20 +184,24 @@ func (server *Server) handleAwarenessSocket(writer http.ResponseWriter, request 
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := requireLoopbackMutation(request); err != nil {
-		http.Error(writer, err.Error(), http.StatusForbidden)
-		return
-	}
 	socket, err := upgradeWebSocket(writer, request)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
 	defer closeSocket(socket)
+	expectedParticipantID := ""
+	if !requestIsLoopback(request) {
+		participantID, err := server.authorizeSocket(socket, documentID, server.app.awarenessPCID.String())
+		if err != nil {
+			return
+		}
+		expectedParticipantID = participantID
+	}
 
 	readErr := make(chan error, 1)
 	go func() {
-		readErr <- server.readAwarenessSocket(socket, documentID)
+		readErr <- server.readAwarenessSocket(socket, documentID, expectedParticipantID)
 	}()
 
 	// Intent: Keep live-awareness as its own websocket-fed stream so cursor and
@@ -208,7 +230,7 @@ func (server *Server) handleAwarenessSocket(writer http.ResponseWriter, request 
 	}
 }
 
-func (server *Server) readAwarenessSocket(socket *websocketConn, documentID string) error {
+func (server *Server) readAwarenessSocket(socket *websocketConn, documentID string, expectedParticipantID string) error {
 	for {
 		var payload awarenessSocketRequest
 		if err := socket.ReadJSON(&payload); err != nil {
@@ -218,6 +240,15 @@ func (server *Server) readAwarenessSocket(socket *websocketConn, documentID stri
 			if err := socket.WriteJSON(map[string]any{
 				"type":    "error",
 				"message": fmt.Sprintf("unknown awareness socket message type %q", payload.Type),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+		if expectedParticipantID != "" && payload.ParticipantID != expectedParticipantID {
+			if err := socket.WriteJSON(map[string]any{
+				"type":    "error",
+				"message": fmt.Sprintf("capability audience %q does not match participant %q", expectedParticipantID, payload.ParticipantID),
 			}); err != nil {
 				return err
 			}
@@ -260,4 +291,46 @@ func closeSocket(socket *websocketConn) {
 	}
 	if err := socket.Close(); err != nil {
 	}
+}
+
+func (server *Server) authorizeSocket(socket *websocketConn, documentID string, protocolCID string) (string, error) {
+	var auth socketAuthRequest
+	if err := socket.ReadJSON(&auth); err != nil {
+		if writeErr := socket.WriteJSON(map[string]any{
+			"type":    "error",
+			"message": "remote websocket auth required",
+		}); writeErr != nil {
+			return "", writeErr
+		}
+		return "", err
+	}
+	if auth.Type != "auth" || auth.Capability == "" {
+		if err := socket.WriteJSON(map[string]any{
+			"type":    "error",
+			"message": "remote websocket auth required",
+		}); err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("remote websocket auth required")
+	}
+	claims, err := verifyMutationCapability(auth.Capability, "", documentID, protocolCID, "mutate", time.Now().UTC())
+	if err != nil {
+		if writeErr := socket.WriteJSON(map[string]any{
+			"type":    "error",
+			"message": err.Error(),
+		}); writeErr != nil {
+			return "", writeErr
+		}
+		return "", err
+	}
+	if claims.Audience == "" {
+		if err := socket.WriteJSON(map[string]any{
+			"type":    "error",
+			"message": "capability audience missing",
+		}); err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("capability audience missing")
+	}
+	return claims.Audience, nil
 }

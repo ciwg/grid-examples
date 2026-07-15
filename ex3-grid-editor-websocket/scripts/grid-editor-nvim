@@ -7,6 +7,7 @@ doc_id="${1:-${GRID_EDITOR_DOC_ID:-demo}}"
 # Intent: Point the copied launcher at ex3's relay defaults so it can run next
 # to ex2 without an environment override. Source: DI-vatub
 export GRID_EDITOR_RELAY_URL="${GRID_EDITOR_RELAY_URL:-http://127.0.0.1:7025}"
+export GRID_EDITOR_ACCESS_TOKEN="${GRID_EDITOR_ACCESS_TOKEN:-}"
 export GRID_EDITOR_DISPLAY_NAME="${GRID_EDITOR_DISPLAY_NAME:-Neovim User}"
 export GRID_EDITOR_COLOR="${GRID_EDITOR_COLOR:-#d66f1d}"
 

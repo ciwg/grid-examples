@@ -21,6 +21,7 @@ M.config = {
   -- Intent: Keep the copied Neovim embodiment on ex3's relay default so it
   -- does not collide with ex2 during local parallel runs. Source: DI-vatub
   relay_url = vim.env.GRID_EDITOR_RELAY_URL or 'http://127.0.0.1:7025',
+  access_token = vim.env.GRID_EDITOR_ACCESS_TOKEN or '',
   sidecar_cmd = nil,
   display_name = vim.env.GRID_EDITOR_DISPLAY_NAME or 'Neovim User',
   color = vim.env.GRID_EDITOR_COLOR or '#d66f1d',
@@ -208,6 +209,7 @@ local function session_lines()
     'participant: ' .. M.state.participant_id,
     'display name: ' .. M.config.display_name,
     'color: ' .. M.config.color,
+    'remote access token: ' .. (M.config.access_token ~= '' and '(configured)' or '(none)'),
     'relay status: ' .. (M.state.relay_connected and 'connected' or 'disconnected'),
     'sidecar: ' .. table.concat(sidecar_argv(), ' '),
     '',
@@ -435,6 +437,7 @@ local function start_sidecar()
   send_sidecar({
     type = 'connect',
     relay_url = M.config.relay_url,
+    access_token = M.config.access_token,
     participant_id = M.state.participant_id,
     display_name = M.config.display_name,
     color = M.config.color,
