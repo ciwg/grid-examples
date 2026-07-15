@@ -1,0 +1,40 @@
+# Intent: Keep the copied Docker simulation on ex3's own loopback ports so it
+# can run beside ex2's compose stack. Source: DI-vatub
+services:
+  relay-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    user: "0:0"
+    command:
+      - --listen
+      - 127.0.0.1:7025
+      - --data-root
+      - /home/grid/data
+      - --peer
+      - http://127.0.0.1:7026
+    volumes:
+      - relay-a-data:/home/grid/data
+    restart: unless-stopped
+
+  relay-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    user: "0:0"
+    command:
+      - --listen
+      - 127.0.0.1:7026
+      - --data-root
+      - /home/grid/data
+      - --peer
+      - http://127.0.0.1:7025
+    volumes:
+      - relay-b-data:/home/grid/data
+    restart: unless-stopped
+
+volumes:
+  relay-a-data:
+  relay-b-data:

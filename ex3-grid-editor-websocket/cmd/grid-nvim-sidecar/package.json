@@ -1,0 +1,12 @@
+{
+  "name": "grid-nvim-sidecar-helper",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ./src/build.mjs"
+  },
+  "dependencies": {
+    "@automerge/automerge": "^2.2.8",
+    "esbuild": "^0.25.9"
+  }
+}

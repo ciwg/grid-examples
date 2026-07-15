@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>grid-editor</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body data-theme="paper">
+    <main class="layout">
+      <section class="sidebar">
+        <div class="sidebar-head">
+          <div>
+            <h1>grid-editor</h1>
+            <p class="muted">PromiseGrid collaborative editor example</p>
+          </div>
+          <button id="help-button" class="ghost-button" type="button">Help</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Document</h2>
+            <span class="pill" id="peer-count">0 peers</span>
+          </div>
+          <label>Document ID
+            <div class="row">
+              <input id="doc-id" type="text" value="demo">
+              <button id="open-doc" type="button">Open</button>
+            </div>
+          </label>
+          <label>Title
+            <input id="doc-title" type="text" value="">
+          </label>
+          <div class="button-row">
+            <button id="new-doc" type="button">New Shared Doc</button>
+            <button id="duplicate-doc" class="ghost-button" type="button">Duplicate</button>
+          </div>
+          <div class="button-row">
+            <button id="paste-link" class="ghost-button" type="button">Paste Link</button>
+            <button id="copy-link" class="ghost-button" type="button">Copy Link</button>
+            <button id="email-link" class="ghost-button" type="button">Email Link</button>
+          </div>
+          <p class="tiny muted" id="share-link">Current link: loading…</p>
+          <dl class="meta-grid">
+            <dt>Created</dt>
+            <dd id="doc-created">-</dd>
+            <dt>Last viewed</dt>
+            <dd id="doc-viewed">-</dd>
+            <dt>Last edited</dt>
+            <dd id="doc-edited">-</dd>
+            <dt>Last exported</dt>
+            <dd id="doc-exported">-</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>You</h2>
+            <button id="settings-button" class="ghost-button" type="button">Settings</button>
+          </div>
+          <label>Display name
+            <input id="display-name" type="text" value="Browser User">
+          </label>
+          <label>Color
+            <input id="color" type="color" value="#1d6fd6">
+          </label>
+          <div class="color-preview-row" aria-live="polite">
+            <span id="color-preview-swatch" class="color-preview-swatch"></span>
+            <span id="color-preview-name" class="color-preview-name">Browser User</span>
+            <strong id="color-preview-value">#1D6FD6</strong>
+          </div>
+          <dl>
+            <dt>Participant</dt>
+            <dd id="participant-id">loading…</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Workspace</h2>
+            <span class="tiny muted">Recent docs and templates</span>
+          </div>
+          <div class="workspace-lists">
+            <div>
+              <h3>Open tabs</h3>
+              <ul id="open-tabs" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Recent docs</h3>
+              <ul id="recent-docs" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Templates</h3>
+              <div id="template-gallery" class="template-grid"></div>
+              <div class="button-row">
+                <button id="generate-demo-doc" class="ghost-button" type="button">Generate Demo Doc</button>
+                <button id="sample-doc" class="ghost-button" type="button">Sample Doc</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Metadata</h2>
+            <span class="tiny muted">Relay-backed document labels</span>
+          </div>
+          <label>Description
+            <textarea id="metadata-description" rows="3" placeholder="Short description for this document"></textarea>
+          </label>
+          <label>Summary
+            <input id="metadata-summary" type="text" placeholder="One-line summary">
+          </label>
+          <label>Tags
+            <input id="metadata-tags" type="text" placeholder="grid, demo, docs">
+          </label>
+          <label>Collections
+            <input id="metadata-collections" type="text" placeholder="team, review">
+          </label>
+          <div class="checkbox-row metadata-flags">
+            <label class="checkbox-row"><input id="metadata-favorite" type="checkbox"> Favorite</label>
+            <label class="checkbox-row"><input id="metadata-archived" type="checkbox"> Archived</label>
+          </div>
+          <div class="button-row">
+            <button id="save-metadata" type="button">Save Metadata</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Relay</h2>
+            <span class="pill pill-muted" id="profile-pill">demo profile</span>
+          </div>
+          <dl>
+            <dt>Author</dt>
+            <dd id="local-id">loading…</dd>
+            <dt>live-document pCID</dt>
+            <dd id="doc-pcid">loading…</dd>
+            <dt>live-awareness pCID</dt>
+            <dd id="awareness-pcid">loading…</dd>
+            <dt>document-metadata pCID</dt>
+            <dd id="metadata-pcid">loading…</dd>
+            <dt>publish-document pCID</dt>
+            <dd id="publish-pcid">loading…</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Peers</h2>
+            <span class="tiny muted" id="presence-legend">Live presence</span>
+          </div>
+          <ul id="peer-list"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Review</h2>
+            <span class="tiny muted">Outline and history</span>
+          </div>
+          <div class="workspace-lists">
+            <div>
+              <h3>Outline</h3>
+              <ul id="outline-list" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Saved versions</h3>
+              <ul id="saved-versions" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Recent participants</h3>
+              <ul id="recent-participants" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Activity</h3>
+              <ul id="activity-feed" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Published exchanges</h3>
+              <ul id="published-list" class="doc-list"></ul>
+            </div>
+            <div>
+              <h3>Catalog search</h3>
+              <label>Search relay metadata
+                <input id="metadata-search-query" type="text" placeholder="title, tag, collection">
+              </label>
+              <label class="checkbox-row"><input id="metadata-search-include-archived" type="checkbox"> Include archived</label>
+              <div class="button-row">
+                <button id="metadata-search-button" class="ghost-button" type="button">Search Catalog</button>
+              </div>
+              <ul id="metadata-results" class="doc-list compact"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-shell">
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <button id="search-button" class="toolbar-button" type="button">Search</button>
+            <button id="bold-button" class="toolbar-button" type="button">Bold</button>
+            <button id="italic-button" class="toolbar-button" type="button">Italic</button>
+            <button id="underline-button" class="toolbar-button" type="button">Underline</button>
+            <button id="preview-button" class="toolbar-button" type="button">Preview</button>
+            <button id="split-button" class="toolbar-button" type="button">Split View</button>
+            <button id="import-button" class="toolbar-button" type="button">Import</button>
+            <button id="export-button" class="toolbar-button" type="button">Export / Exchange</button>
+            <button id="snapshot-button" class="toolbar-button" type="button">Snapshot</button>
+            <button id="bookmark-button" class="toolbar-button" type="button">Bookmark</button>
+            <button id="comment-button" class="toolbar-button" type="button">Comment</button>
+            <button id="save-version-button" class="toolbar-button" type="button">Save Version</button>
+            <button id="summary-button" class="toolbar-button" type="button">Summary</button>
+            <button id="focus-button" class="toolbar-button" type="button">Focus</button>
+            <button id="debug-button" class="toolbar-button" type="button">Inspect</button>
+          </div>
+          <div class="toolbar-group toolbar-status">
+            <span id="status" class="status-pill status-connecting">connecting…</span>
+            <span id="autosave-indicator" class="pill pill-muted">auto-save idle</span>
+            <span id="revision">messages: -</span>
+            <span id="content-cid">local replica: -</span>
+          </div>
+        </div>
+
+        <div id="welcome-banner" class="welcome-banner">
+          <div>
+            <strong>Quick start</strong>
+            <p class="muted">Open a shared doc, try Preview, then use Export / Exchange or Snapshot when you want a stable handoff or demo artifact.</p>
+          </div>
+          <div class="button-row compact">
+            <button id="welcome-open-settings" class="ghost-button" type="button">Settings</button>
+            <button id="welcome-dismiss" class="ghost-button" type="button">Dismiss</button>
+          </div>
+        </div>
+
+        <div class="doc-tab-bar" id="doc-tab-bar"></div>
+
+        <div class="editor-presence">
+          <div class="peer-badges" id="peer-badges"></div>
+        </div>
+
+        <div class="editor-stage" id="editor-stage">
+          <div class="editor-pane">
+            <div id="editor" class="editor-root"></div>
+          </div>
+          <div class="preview-pane hidden" id="preview-pane">
+            <div class="preview-head">
+              <strong id="preview-title">Markdown Preview</strong>
+              <span class="tiny muted" id="preview-meta">same document</span>
+            </div>
+            <div class="preview-body" id="preview-body"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="settings-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Settings</h2>
+          <button id="settings-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Theme
+          <select id="theme-select">
+            <option value="paper">Paper</option>
+            <option value="night">Night</option>
+          </select>
+        </label>
+        <label class="checkbox-row"><input id="line-numbers-toggle" type="checkbox"> Show line numbers</label>
+        <label>Font size
+          <input id="font-size-range" type="range" min="14" max="24" step="1">
+        </label>
+        <label class="checkbox-row"><input id="dyslexia-toggle" type="checkbox"> Dyslexia-friendly spacing</label>
+        <label>Presence profile
+          <select id="profile-select">
+            <option value="demo">Demo-friendly</option>
+            <option value="normal">Normal</option>
+          </select>
+        </label>
+        <div class="shortcut-grid">
+          <label>Search<input id="shortcut-search" type="text"></label>
+          <label>Bold<input id="shortcut-bold" type="text"></label>
+          <label>Italic<input id="shortcut-italic" type="text"></label>
+          <label>Underline<input id="shortcut-underline" type="text"></label>
+          <label>Settings<input id="shortcut-settings" type="text"></label>
+          <label>Help<input id="shortcut-help" type="text"></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="help-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Help</h2>
+          <button id="help-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <div id="help-shortcuts" class="help-grid"></div>
+      </div>
+    </div>
+
+    <div id="search-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Find / Replace</h2>
+          <button id="search-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Find
+          <input id="search-query" type="text">
+        </label>
+        <label>Replace with
+          <input id="replace-query" type="text">
+        </label>
+        <div class="checkbox-row">
+          <label class="checkbox-row"><input id="search-case" type="checkbox"> Case sensitive</label>
+          <label class="checkbox-row"><input id="search-regex" type="checkbox"> Regex</label>
+        </div>
+        <div class="button-row">
+          <button id="find-next" type="button">Find Next</button>
+          <button id="replace-all" class="ghost-button" type="button">Replace All</button>
+          <button id="goto-line" class="ghost-button" type="button">Go To Line</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="export-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Export / Exchange</h2>
+          <button id="export-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <div class="template-grid">
+          <button id="export-markdown" type="button">Markdown</button>
+          <button id="export-html" type="button">HTML</button>
+          <button id="export-text" type="button">Plain Text</button>
+          <button id="export-automerge" type="button">Automerge</button>
+          <button id="copy-markdown" class="ghost-button" type="button">Copy Markdown</button>
+          <button id="copy-html" class="ghost-button" type="button">Copy HTML</button>
+          <button id="publish-snapshot" class="ghost-button" type="button">Publish Snapshot</button>
+          <button id="publish-exchange" class="ghost-button" type="button">Publish Exchange</button>
+          <button id="import-exchange" class="ghost-button" type="button">Import Exchange</button>
+          <button id="export-audit" class="ghost-button" type="button">Audit Report</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="comment-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Comments</h2>
+          <button id="comment-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <label>Selected text
+          <textarea id="comment-selection" rows="3" readonly></textarea>
+        </label>
+        <label>Comment
+          <textarea id="comment-body" rows="4" placeholder="Add an inline comment or note"></textarea>
+        </label>
+        <div class="button-row">
+          <button id="comment-save" type="button">Save Comment</button>
+          <button id="comment-resolve-all" class="ghost-button" type="button">Resolve Selected</button>
+        </div>
+        <ul id="comment-list" class="doc-list"></ul>
+      </div>
+    </div>
+
+    <div id="summary-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Document Summary</h2>
+          <button id="summary-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <p id="summary-text" class="muted"></p>
+        <div class="button-row">
+          <button id="speak-summary" type="button">Read Aloud</button>
+          <button id="dictate-summary" class="ghost-button" type="button">Voice Input</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="debug-panel" class="overlay hidden" aria-hidden="true">
+      <div class="panel">
+        <div class="card-head">
+          <h2>Diagnostics</h2>
+          <button id="debug-close" class="ghost-button" type="button">Close</button>
+        </div>
+        <pre id="debug-output" class="debug-output"></pre>
+      </div>
+    </div>
+
+    <input id="file-import" type="file" class="hidden" accept=".md,.txt,.html,.json,image/*">
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

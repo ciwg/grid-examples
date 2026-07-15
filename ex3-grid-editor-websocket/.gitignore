@@ -1,0 +1,4 @@
+.grid-editor/
+web/node_modules/
+cmd/grid-nvim-sidecar/node_modules/
+cmd/grid-nvim-sidecar/helper.bundle.mjs
