@@ -33,6 +33,19 @@ and the current default team is `CORE`, but the storage model already keeps the
 field so later multi-team work does not require a data rewrite. Source:
 DI-gofub
 
+## What You Need To Run
+
+For the normal browser flow:
+
+- Go
+- a modern browser
+
+Optional tools:
+
+- a shell that can run `bash`, only if you want the seeded demo script
+
+You do not need Node, npm, Docker, or Neovim to run `ex4`.
+
 ## Run
 
 Start the server:

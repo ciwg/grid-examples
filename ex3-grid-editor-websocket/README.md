@@ -194,6 +194,24 @@ Useful docs:
 - [Practical implementation notes](docs/practical-implementation.md)
 - [Docker simulation guide](docs/docker-simulation.md)
 
+## What You Need To Run
+
+For the basic local relay plus browser flow:
+
+- Go
+- a modern browser
+
+Optional tools:
+
+- Node and npm, only if you want to rebuild or test the browser bundle under
+  `web/`
+- Neovim, only if you want to run the Neovim embodiment
+- Docker plus either `docker compose` or `docker-compose`, only if you want the
+  two-relay simulation
+
+By default the relay stores runtime data under `.grid-editor/`. If you do not
+pass `--data-root`, that directory is created next to this README.
+
 ## Quick Start
 
 This copied example defaults to `127.0.0.1:7025` and `127.0.0.1:7026` so it
@@ -349,6 +367,10 @@ This slice keeps document management durable and shareable without treating it
 as live typing traffic. Source: `DI-loruk`; `DI-sukip`.
 
 ## Neovim Version
+
+The Neovim embodiment needs Neovim in addition to the relay above. For
+multi-machine use, also provide `GRID_EDITOR_ACCESS_TOKEN` so the sidecar can
+bootstrap a remote session.
 
 The easiest Neovim path is the launcher script:
 
