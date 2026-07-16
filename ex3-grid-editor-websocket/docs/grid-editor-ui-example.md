@@ -240,9 +240,10 @@ fingerprint. Source: `DI-zegov`; `DI-larok`.
 
 ## Current browser caveat
 
-- Underline currently saves as raw `<u>...</u>` markup.
+- Underline saves as raw `<u>...</u>` markup.
 - Export and saved text preserve that markup correctly.
-- Browser-visible underline rendering is still an open demo-polish issue.
+- The browser editor now renders underline inline with normal text color rather
+  than link-like styling.
 
 ## Overlays
 

@@ -29,4 +29,3 @@ Goal: Finish the first collaborative-editor UX milestone so browser and Neovim b
 - [ ] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
   Current gaps from the manual pass:
   - Chrome still needs confirmation that remote cursor line color renders correctly instead of a tiny black line.
-  - Toolbar formatting needs a clear product decision on whether raw `<u>...</u>` text in the editor is acceptable or whether inline rendered underline is required.

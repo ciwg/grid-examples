@@ -38,6 +38,7 @@ func (server *Server) handleIndex(writer http.ResponseWriter, request *http.Requ
 		http.NotFound(writer, request)
 		return
 	}
+	setStaticAssetHeaders(writer)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := writer.Write(web.MustRead("index.html")); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -45,6 +46,7 @@ func (server *Server) handleIndex(writer http.ResponseWriter, request *http.Requ
 }
 
 func (server *Server) handleAppJS(writer http.ResponseWriter, request *http.Request) {
+	setStaticAssetHeaders(writer)
 	writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	if _, err := writer.Write(web.MustRead("app.js")); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -52,10 +54,20 @@ func (server *Server) handleAppJS(writer http.ResponseWriter, request *http.Requ
 }
 
 func (server *Server) handleStyleCSS(writer http.ResponseWriter, request *http.Request) {
+	setStaticAssetHeaders(writer)
 	writer.Header().Set("Content-Type", "text/css; charset=utf-8")
 	if _, err := writer.Write(web.MustRead("style.css")); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func setStaticAssetHeaders(writer http.ResponseWriter) {
+	// Intent: Force browsers to revalidate ex3's embedded UI assets after relay
+	// upgrades so stale cached bundles do not keep calling the retired
+	// bootstrap path and fail before the user can interact. Source: DI-povip
+	writer.Header().Set("Cache-Control", "no-store, max-age=0")
+	writer.Header().Set("Pragma", "no-cache")
+	writer.Header().Set("Expires", "0")
 }
 
 func (server *Server) handleMeta(writer http.ResponseWriter, request *http.Request) {
@@ -449,6 +461,9 @@ func (server *Server) requireSessionBootstrap(request *http.Request) error {
 		return fmt.Errorf("remote mutation bootstrap is disabled")
 	}
 	if server.app.ValidateRemoteAccessToken(request.Header.Get("X-Grid-Access-Token")) {
+		return nil
+	}
+	if server.app.ValidateRemoteAccessToken(request.URL.Query().Get("access_token")) {
 		return nil
 	}
 	return fmt.Errorf("remote session bootstrap requires X-Grid-Access-Token")

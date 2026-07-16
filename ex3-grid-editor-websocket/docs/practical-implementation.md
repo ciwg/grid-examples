@@ -82,9 +82,9 @@ available.
   clients.
 - That is PromiseGrid-aligned in direction, but still provisional rather than a
   frozen upstream app-auth API.
-- Browser underline currently round-trips as raw `<u>...</u>` text; that is
-  structurally fine for transport and storage, but the in-browser visible
-  underline presentation is still an open UI-polish item.
+- Browser underline round-trips as raw `<u>...</u>` text and now renders in
+  the browser editor with inherited text color so it no longer presents like a
+  hyperlink.
 - The browser markdown UI currently exposes a normal preview pane plus a split
   view that keeps editor and preview visible together. Keep that behavior in
   mind when remapping the shell onto a server-served bootstrap.

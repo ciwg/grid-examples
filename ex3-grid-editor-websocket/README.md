@@ -323,9 +323,8 @@ Phase 4 browser exchange surfaces now include:
 
 ## Current demo caveats
 
-- Browser underline currently stores raw `<u>...</u>` markup correctly, but
-  the visible underline rendering in the browser editor is still under active
-  polish for the demo.
+- Browser underline stores raw `<u>...</u>` markup and now renders inline in
+  the browser editor using normal text color rather than link-like styling.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL

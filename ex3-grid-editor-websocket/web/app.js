@@ -27263,7 +27263,9 @@ async function bootstrapRemoteSession(basePath, participantID, accessToken) {
   if (!accessToken) {
     return null;
   }
-  const response = await fetch(`${basePath}/session`, {
+  const url = new URL(`${basePath}/session`, globalThis.window?.location?.origin || "http://127.0.0.1");
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

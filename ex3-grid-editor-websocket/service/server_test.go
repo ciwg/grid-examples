@@ -27,6 +27,40 @@ func TestServerRejectsRemoteSyncMutation(t *testing.T) {
 	}
 }
 
+func TestServerDisablesCachingForIndex(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusOK)
+	}
+	assertHeaderEquals(t, response, "Cache-Control", "no-store, max-age=0")
+	assertHeaderEquals(t, response, "Pragma", "no-cache")
+	assertHeaderEquals(t, response, "Expires", "0")
+}
+
+func TestServerDisablesCachingForAppJS(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/app.js", nil)
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusOK)
+	}
+	assertHeaderEquals(t, response, "Cache-Control", "no-store, max-age=0")
+	assertHeaderEquals(t, response, "Pragma", "no-cache")
+	assertHeaderEquals(t, response, "Expires", "0")
+}
+
 func TestServerAllowsLoopbackSyncMutation(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
@@ -59,6 +93,22 @@ func TestServerIssuesRemoteSessionWithBootstrapToken(t *testing.T) {
 	assertBodyContains(t, response.Body.String(), `"participant_id":"browser-a"`)
 	assertBodyContains(t, response.Body.String(), `"sync":"`)
 	assertBodyContains(t, response.Body.String(), `"awareness":"`)
+}
+
+func TestServerIssuesRemoteSessionWithBootstrapQueryToken(t *testing.T) {
+	t.Parallel()
+	server := newTestServerWithOptions(t, service.AppOptions{RemoteAccessToken: "ex3-demo-access"})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/session?access_token=ex3-demo-access", bytes.NewBufferString(`{"participant_id":"browser-a"}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+	assertBodyContains(t, response.Body.String(), `"participant_id":"browser-a"`)
 }
 
 func TestServerAllowsRemoteSyncMutationWithCapability(t *testing.T) {
@@ -397,5 +447,12 @@ func assertBodyContains(t *testing.T, body string, want string) {
 	t.Helper()
 	if !strings.Contains(body, want) {
 		t.Fatalf("response body %q does not contain %q", body, want)
+	}
+}
+
+func assertHeaderEquals(t *testing.T, response *httptest.ResponseRecorder, key string, want string) {
+	t.Helper()
+	if got := response.Header().Get(key); got != want {
+		t.Fatalf("header %s mismatch: got %q want %q", key, got, want)
 	}
 }

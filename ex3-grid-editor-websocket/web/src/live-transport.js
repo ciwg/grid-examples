@@ -19,10 +19,12 @@ export async function bootstrapRemoteSession(basePath, participantID, accessToke
   if (!accessToken) {
     return null;
   }
+  const url = new URL(`${basePath}/session`, globalThis.window?.location?.origin || "http://127.0.0.1");
+  url.searchParams.set("access_token", accessToken);
   // Intent: Keep the long-lived share token out of ex3's steady-state live
   // mutation traffic by exchanging it once for short-lived document-scoped
   // capabilities before HTTP or websocket mutation begins. Source: DI-povip
-  const response = await fetch(`${basePath}/session`, {
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
