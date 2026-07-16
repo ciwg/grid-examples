@@ -1,7 +1,7 @@
 # TODO
 
 - [ ] 012 - grid-editor browser color chooser visibility in Chrome - `TODO/TODO-furav-grid-editor-browser-color-preview.md`
-- [ ] 011 - grid-editor browser inline underline rendering - `TODO/TODO-huvok-grid-editor-browser-underline.md`
+- [x] 011 - grid-editor browser inline underline rendering - `TODO/TODO-huvok-grid-editor-browser-underline.md`
 - [x] 010 - grid-editor phase 4 document metadata slice - `TODO/TODO-pamov-grid-editor-phase-4-metadata.md`
 - [x] 009 - grid-editor phase 4 publish and import exchange slice - `TODO/TODO-ravup-grid-editor-phase-4-publish.md`
 - [x] 008 - grid-editor phase 3 review, comments, and history surfaces - `TODO/TODO-mudak-grid-editor-phase-3.md`

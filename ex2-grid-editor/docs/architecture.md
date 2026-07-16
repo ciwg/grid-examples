@@ -125,9 +125,9 @@ The browser supports two distinct markdown view modes:
   - keeps editor and preview visible together
 
 Underline is stored as raw `<u>...</u>` markup in the shared text stream so it
-round-trips through CRDT sync, export, and publish flows. The visible browser
-underline rendering is still being polished and should not be treated as fully
-closed UX work yet.
+round-trips through CRDT sync, export, and publish flows. The browser editor
+now renders that underline inline with inherited text color instead of
+link-like styling.
 
 ## Convergence model
 

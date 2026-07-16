@@ -491,9 +491,21 @@ dd {
 }
 
 .grid-inline-underline {
+  /* Intent: Keep ex2's inline underline visually distinct from markdown link
+     styling inside CodeMirror so `<u>...</u>` content reads like plain text,
+     not a clickable hyperlink, while preserving the saved source bytes.
+     Source: DI-kotip */
+  color: inherit !important;
+  cursor: text;
   text-decoration: underline;
+  text-decoration-color: currentColor;
   text-decoration-thickness: 2px;
   text-underline-offset: 0.12em;
+}
+
+.grid-inline-underline * {
+  color: inherit !important;
+  cursor: text;
 }
 
 .grid-inline-tag-hidden {
