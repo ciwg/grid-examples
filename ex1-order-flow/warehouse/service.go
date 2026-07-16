@@ -41,8 +41,14 @@ func Run(ctx context.Context, cfg agent.Config) (runErr error) {
 			ParentOrderCID:   request.ParentOrderCID,
 			Notes:            "warehouse processed request",
 		}
-		switch request.Items[0].SKU {
-		case "widget-oos":
+		// Intent: Refuse malformed empty orders instead of indexing into a
+		// missing item slot and crashing the warehouse worker during a demo.
+		// Source: DI-warehouse-validation
+		switch {
+		case len(request.Items) == 0:
+			result.Status = "refused"
+			result.Notes = "warehouse refusal for empty item list"
+		case request.Items[0].SKU == "widget-oos":
 			result.Status = "refused"
 			result.Notes = "warehouse refusal for out-of-stock widget"
 		default:

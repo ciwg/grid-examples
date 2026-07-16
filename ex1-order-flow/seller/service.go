@@ -1,6 +1,7 @@
 package seller
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/ipfs/go-cid"
@@ -50,6 +51,12 @@ func handleOneOrder(ctx context.Context, client *agent.Client, cfg agent.Config)
 	defer cancel()
 	if err := agent.VerifyMessageCapability(submit.CapabilityToken, "intake", "seller", protocol.OrderProfile, submit.Kind); err != nil {
 		return sendFailure(ctx, client, submit, requestCID, "seller_validation", "failed", "invalid intake capability token")
+	}
+	// Intent: Fail malformed intake orders before contacting downstream services so
+	// demo runs stay deterministic and an empty item list cannot crash warehouse.
+	// Source: DI-seller-validation
+	if len(submit.Items) == 0 {
+		return sendFailure(ctx, client, submit, requestCID, "seller_validation", "failed", "order must contain at least one item")
 	}
 	requestCIDParsed, err := cid.Parse(requestCID)
 	if err != nil {
@@ -131,19 +138,27 @@ func runPickPack(ctx context.Context, client *agent.Client, submit protocol.Orde
 	if err != nil {
 		return cid.Undef, protocol.PickPackMessage{}, "", err
 	}
-	var result protocol.PickPackMessage
-	_, resultCID, err := agent.ReceiveTyped(ctx, client, "warehouse", protocol.PickPackProfile, &result)
-	if err != nil {
-		return cid.Undef, protocol.PickPackMessage{}, "", err
+	for {
+		var result protocol.PickPackMessage
+		_, resultCID, err := agent.ReceiveTyped(ctx, client, "warehouse", protocol.PickPackProfile, &result)
+		if err != nil {
+			return cid.Undef, protocol.PickPackMessage{}, "", err
+		}
+		if err := agent.VerifyMessageCapability(result.CapabilityToken, "warehouse", "seller", protocol.PickPackProfile, result.Kind); err != nil {
+			return cid.Undef, protocol.PickPackMessage{}, "", err
+		}
+		// Intent: Accept only the warehouse result that matches the request just
+		// sent so delayed or replayed results from another order cannot satisfy the
+		// current order's wait path. Source: DI-seller-correlation
+		if !pickPackMatchesRequest(request, result) {
+			continue
+		}
+		requestParsed, err := cid.Parse(requestCID)
+		if err != nil {
+			return cid.Undef, protocol.PickPackMessage{}, "", err
+		}
+		return requestParsed, result, resultCID, nil
 	}
-	if err := agent.VerifyMessageCapability(result.CapabilityToken, "warehouse", "seller", protocol.PickPackProfile, result.Kind); err != nil {
-		return cid.Undef, protocol.PickPackMessage{}, "", err
-	}
-	requestParsed, err := cid.Parse(requestCID)
-	if err != nil {
-		return cid.Undef, protocol.PickPackMessage{}, "", err
-	}
-	return requestParsed, result, resultCID, nil
 }
 
 func runAccounting(ctx context.Context, client *agent.Client, submit protocol.OrderMessage, parentOrderCID []byte) (cid.Cid, protocol.AccountingMessage, string, error) {
@@ -172,19 +187,27 @@ func runAccounting(ctx context.Context, client *agent.Client, submit protocol.Or
 	if err != nil {
 		return cid.Undef, protocol.AccountingMessage{}, "", err
 	}
-	var result protocol.AccountingMessage
-	_, resultCID, err := agent.ReceiveTyped(ctx, client, "accounting", protocol.AccountingProfile, &result)
-	if err != nil {
-		return cid.Undef, protocol.AccountingMessage{}, "", err
+	for {
+		var result protocol.AccountingMessage
+		_, resultCID, err := agent.ReceiveTyped(ctx, client, "accounting", protocol.AccountingProfile, &result)
+		if err != nil {
+			return cid.Undef, protocol.AccountingMessage{}, "", err
+		}
+		if err := agent.VerifyMessageCapability(result.CapabilityToken, "accounting", "seller", protocol.AccountingProfile, result.Kind); err != nil {
+			return cid.Undef, protocol.AccountingMessage{}, "", err
+		}
+		// Intent: Keep accounting correlation bound to the current order request so
+		// a stale accounting reply cannot satisfy a later order. Source:
+		// DI-seller-correlation
+		if !accountingMatchesRequest(request, result) {
+			continue
+		}
+		requestParsed, err := cid.Parse(requestCID)
+		if err != nil {
+			return cid.Undef, protocol.AccountingMessage{}, "", err
+		}
+		return requestParsed, result, resultCID, nil
 	}
-	if err := agent.VerifyMessageCapability(result.CapabilityToken, "accounting", "seller", protocol.AccountingProfile, result.Kind); err != nil {
-		return cid.Undef, protocol.AccountingMessage{}, "", err
-	}
-	requestParsed, err := cid.Parse(requestCID)
-	if err != nil {
-		return cid.Undef, protocol.AccountingMessage{}, "", err
-	}
-	return requestParsed, result, resultCID, nil
 }
 
 func runShipment(ctx context.Context, client *agent.Client, submit protocol.OrderMessage, parentOrderCID []byte, pickPackCID []byte, accountingCID []byte, pickPackResult protocol.PickPackMessage) (protocol.ShipmentMessage, string, error) {
@@ -220,15 +243,23 @@ func runShipment(ctx context.Context, client *agent.Client, submit protocol.Orde
 	if _, err := client.Send(ctx, envelope, parents); err != nil {
 		return protocol.ShipmentMessage{}, "", err
 	}
-	var result protocol.ShipmentMessage
-	_, resultCID, err := agent.ReceiveTyped(ctx, client, "carrier", protocol.ShipmentProfile, &result)
-	if err != nil {
-		return protocol.ShipmentMessage{}, "", err
+	for {
+		var result protocol.ShipmentMessage
+		_, resultCID, err := agent.ReceiveTyped(ctx, client, "carrier", protocol.ShipmentProfile, &result)
+		if err != nil {
+			return protocol.ShipmentMessage{}, "", err
+		}
+		if err := agent.VerifyMessageCapability(result.CapabilityToken, "carrier", "seller", protocol.ShipmentProfile, result.Kind); err != nil {
+			return protocol.ShipmentMessage{}, "", err
+		}
+		// Intent: Keep carrier replies correlated to the exact shipment request so
+		// delayed booking results cannot be attached to the wrong order.
+		// Source: DI-seller-correlation
+		if !shipmentMatchesRequest(request, result) {
+			continue
+		}
+		return result, resultCID, nil
 	}
-	if err := agent.VerifyMessageCapability(result.CapabilityToken, "carrier", "seller", protocol.ShipmentProfile, result.Kind); err != nil {
-		return protocol.ShipmentMessage{}, "", err
-	}
-	return result, resultCID, nil
 }
 
 func sendFailure(ctx context.Context, client *agent.Client, submit protocol.OrderMessage, parentCID string, stage string, status string, summary string) error {
@@ -274,4 +305,22 @@ func mustCIDText(raw []byte) string {
 		panic(err)
 	}
 	return parsed.String()
+}
+
+func pickPackMatchesRequest(request protocol.PickPackMessage, result protocol.PickPackMessage) bool {
+	return request.CustomerOrderRef == result.CustomerOrderRef &&
+		bytes.Equal(request.ParentOrderCID, result.ParentOrderCID)
+}
+
+func accountingMatchesRequest(request protocol.AccountingMessage, result protocol.AccountingMessage) bool {
+	return request.CustomerOrderRef == result.CustomerOrderRef &&
+		bytes.Equal(request.ParentOrderCID, result.ParentOrderCID)
+}
+
+func shipmentMatchesRequest(request protocol.ShipmentMessage, result protocol.ShipmentMessage) bool {
+	return request.CustomerOrderRef == result.CustomerOrderRef &&
+		bytes.Equal(request.ParentOrderCID, result.ParentOrderCID) &&
+		bytes.Equal(request.ParentPickPackCID, result.ParentPickPackCID) &&
+		bytes.Equal(request.ParentAccountingCID, result.ParentAccountingCID) &&
+		request.PackageID == result.PackageID
 }

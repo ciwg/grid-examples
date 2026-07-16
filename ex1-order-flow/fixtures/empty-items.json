@@ -1,0 +1,16 @@
+{
+  "customer_order_ref": "demo-empty-items",
+  "requested_by": "customer-demo",
+  "ship_to": {
+    "name": "Alice Example",
+    "address1": "123 Example St",
+    "city": "Portland",
+    "region": "OR",
+    "postal_code": "97201",
+    "country": "US"
+  },
+  "items": [],
+  "service_level": "ground",
+  "payment_ref": "pay-demo-empty",
+  "notes": "Empty item list for regression coverage"
+}

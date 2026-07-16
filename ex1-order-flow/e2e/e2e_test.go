@@ -58,6 +58,13 @@ func TestCarrierTimeout(t *testing.T) {
 	}
 }
 
+func TestEmptyItemsFailsValidation(t *testing.T) {
+	result, _ := runScenario(t, "empty-items.json", 2*time.Second)
+	if result.OrderStatus != "failed" || result.FailureStage != "seller_validation" {
+		t.Fatalf("empty-items result = %#v", result)
+	}
+}
+
 func runScenario(t *testing.T, fixtureName string, timeout time.Duration) (intake.Result, analyzer.Summary) {
 	t.Helper()
 	root := t.TempDir()
