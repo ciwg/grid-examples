@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ex4 Bug Tracker</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Ex4</p>
+          <h1>Bug Tracker</h1>
+        </div>
+        <div class="topbar-controls">
+          <label class="field compact">
+            <span>User</span>
+            <select id="user-select"></select>
+          </label>
+          <button id="new-issue-button" type="button">New Issue</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="sidebar">
+          <section class="card filters">
+            <h2>Queue</h2>
+            <label class="field compact">
+              <span>Status</span>
+              <select id="filter-status">
+                <option value="">All statuses</option>
+              </select>
+            </label>
+            <label class="field compact">
+              <span>Assignee</span>
+              <select id="filter-assignee">
+                <option value="">Anyone</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="card">
+            <ul id="issue-list" class="issue-list"></ul>
+          </section>
+        </aside>
+
+        <main class="main">
+          <section id="message-banner" class="message-banner" hidden></section>
+
+          <section id="new-issue-panel" class="card panel" hidden>
+            <div class="panel-header">
+              <h2>Create Issue</h2>
+            </div>
+            <form id="new-issue-form" class="form-grid">
+              <label class="field">
+                <span>Title</span>
+                <input id="issue-title" name="title" required maxlength="120">
+              </label>
+              <label class="field">
+                <span>Severity</span>
+                <select id="issue-severity" name="severity"></select>
+              </label>
+              <label class="field full">
+                <span>Description</span>
+                <textarea id="issue-description" name="description" rows="6" required></textarea>
+              </label>
+              <div class="actions full">
+                <button type="submit">Create Issue</button>
+                <button id="cancel-new-issue" type="button" class="secondary">Cancel</button>
+              </div>
+            </form>
+          </section>
+
+          <section id="issue-detail-panel" class="card panel" hidden>
+            <div class="panel-header">
+              <div>
+                <p id="issue-id" class="issue-id"></p>
+                <h2 id="issue-title-display"></h2>
+              </div>
+              <span id="issue-status-badge" class="badge"></span>
+            </div>
+
+            <div class="summary-grid">
+              <div>
+                <span class="label">Severity</span>
+                <p id="issue-severity-display"></p>
+              </div>
+              <div>
+                <span class="label">Reporter</span>
+                <p id="issue-reporter-display"></p>
+              </div>
+              <div>
+                <span class="label">Assignee</span>
+                <p id="issue-assignee-display"></p>
+              </div>
+              <div>
+                <span class="label">Updated</span>
+                <p id="issue-updated-display"></p>
+              </div>
+            </div>
+
+            <div class="description-block">
+              <span class="label">Description</span>
+              <pre id="issue-description-display"></pre>
+            </div>
+
+            <div class="controls-grid">
+              <form id="assignment-form" class="field-row">
+                <label class="field compact">
+                  <span>Assign</span>
+                  <select id="assignment-select"></select>
+                </label>
+                <button type="submit">Update</button>
+              </form>
+              <form id="status-form" class="field-row">
+                <label class="field compact">
+                  <span>Status</span>
+                  <select id="status-select"></select>
+                </label>
+                <button type="submit">Apply</button>
+              </form>
+            </div>
+
+            <section class="timeline-section">
+              <h3>Timeline</h3>
+              <ul id="timeline-list" class="timeline-list"></ul>
+            </section>
+
+            <section class="composer-grid">
+              <form id="comment-form" class="card inset">
+                <h3>Add Comment</h3>
+                <textarea id="comment-body" rows="4" required></textarea>
+                <div class="actions">
+                  <button type="submit">Post Comment</button>
+                </div>
+              </form>
+              <form id="attachment-form" class="card inset">
+                <h3>Upload Attachment</h3>
+                <input id="attachment-file" type="file" required>
+                <div class="actions">
+                  <button type="submit">Upload</button>
+                </div>
+              </form>
+            </section>
+          </section>
+
+          <section id="empty-state" class="card empty-state">
+            <h2>No issue selected</h2>
+            <p>Create a new issue or choose one from the queue.</p>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
