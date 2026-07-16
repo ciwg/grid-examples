@@ -372,8 +372,24 @@ func (server *Server) handlePublish(writer http.ResponseWriter, request *http.Re
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"record":       record,
-		"manifest_url": fmt.Sprintf("http://%s/api/published/%s", request.Host, record.EnvelopeCID),
+		"manifest_url": fmt.Sprintf("%s/api/published/%s", requestBaseURL(request), record.EnvelopeCID),
 	})
+}
+
+func requestBaseURL(request *http.Request) string {
+	scheme := "http"
+	if forwarded := strings.TrimSpace(request.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+		if comma := strings.Index(forwarded, ","); comma >= 0 {
+			forwarded = forwarded[:comma]
+		}
+		forwarded = strings.TrimSpace(forwarded)
+		if forwarded != "" {
+			scheme = forwarded
+		}
+	} else if request.TLS != nil {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s", scheme, request.Host)
 }
 
 func writeJSON(writer http.ResponseWriter, status int, value any) {

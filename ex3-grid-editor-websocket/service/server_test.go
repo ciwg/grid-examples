@@ -288,6 +288,9 @@ func TestServerPublishesAndResolvesExchangeManifest(t *testing.T) {
 	if !ok || manifestURL == "" {
 		t.Fatalf("missing manifest url in publish payload: %#v", publishPayload)
 	}
+	if manifestURL != "http://127.0.0.1:7017/api/published/"+manifestURL[strings.LastIndex(manifestURL, "/")+1:] {
+		t.Fatalf("unexpected manifest url %q", manifestURL)
+	}
 
 	listRequest := httptest.NewRequest(http.MethodGet, "/api/local/documents/demo/published", nil)
 	listResponse := httptest.NewRecorder()
@@ -309,6 +312,45 @@ func TestServerPublishesAndResolvesExchangeManifest(t *testing.T) {
 	}
 	if got, _ := resolvedPayload["text_base64"].(string); got != "IyBkZW1vCgpoZWxsbw==" {
 		t.Fatalf("resolved text base64 mismatch: got %q", got)
+	}
+}
+
+func TestServerUsesForwardedProtoForManifestURL(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/publish", bytes.NewBufferString(`{
+		"participant_id":"browser-a",
+		"source_kind":"current",
+		"source_version_id":"live",
+		"source_version_name":"Live",
+		"title":"Demo publish",
+		"summary":"Summary",
+		"text_base64":"IyBkZW1vCgpoZWxsbw==",
+		"replica_base64":"CQgHBg==",
+		"embodiment":"browser"
+	}`))
+	request.RemoteAddr = "127.0.0.1:4123"
+	request.Host = "demo.example"
+	request.Header.Set("X-Forwarded-Proto", "https")
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected publish status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+
+	var publishPayload map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &publishPayload); err != nil {
+		t.Fatalf("decode publish payload: %v", err)
+	}
+	manifestURL, ok := publishPayload["manifest_url"].(string)
+	if !ok {
+		t.Fatalf("missing manifest url in publish payload: %#v", publishPayload)
+	}
+	if manifestURL != "https://demo.example/api/published/"+manifestURL[strings.LastIndex(manifestURL, "/")+1:] {
+		t.Fatalf("unexpected manifest url %q", manifestURL)
 	}
 }
 

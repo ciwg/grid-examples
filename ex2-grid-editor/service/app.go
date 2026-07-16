@@ -578,10 +578,20 @@ func (app *App) fetchPeerMessages(client *http.Client, peerURL string, offset ui
 	if err != nil {
 		return nil, offset, err
 	}
-	defer response.Body.Close()
 	var payload peerResponse
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		return nil, offset, err
+	// Intent: Keep ex2's peer-feed teardown explicit so relay verification does
+	// not silently drop response-body close failures during inter-host polling.
+	// Source: DI-rokod
+	decodeErr := json.NewDecoder(response.Body).Decode(&payload)
+	closeErr := response.Body.Close()
+	if decodeErr != nil {
+		if closeErr != nil {
+			return nil, offset, fmt.Errorf("decode peer response: %w (close body: %v)", decodeErr, closeErr)
+		}
+		return nil, offset, decodeErr
+	}
+	if closeErr != nil {
+		return nil, offset, fmt.Errorf("close peer response body: %w", closeErr)
 	}
 	return payload.Messages, payload.NextOffset, nil
 }

@@ -241,6 +241,12 @@ func (server *Server) handleAttachmentUpload(writer http.ResponseWriter, request
 		http.Error(writer, fmt.Sprintf("parse multipart form: %v", err), http.StatusBadRequest)
 		return
 	}
+	if request.MultipartForm != nil {
+		defer func() {
+			if err := request.MultipartForm.RemoveAll(); err != nil {
+			}
+		}()
+	}
 	file, header, err := request.FormFile("attachment")
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("read attachment: %v", err), http.StatusBadRequest)

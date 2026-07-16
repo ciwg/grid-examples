@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var issueIDPattern = regexp.MustCompile(`^BUG-\d{4}$`)
+var issueIDPattern = regexp.MustCompile(`^BUG-\d+$`)
 
 func validateIdentity(id string) (Identity, error) {
 	identity, ok := IdentityByID(id)
