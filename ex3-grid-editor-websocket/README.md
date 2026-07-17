@@ -259,6 +259,75 @@ If you want a second relay to poll the first one for peer exchange:
 go run ./cmd/grid-relay --listen 127.0.0.1:7026 --peer http://127.0.0.1:7025
 ```
 
+## Docker Container Start
+
+If you want the two-relay Docker demo instead of running `grid-relay`
+directly, use the checked-in `compose.yaml`. The container setup publishes
+`7025` and `7026` on the host and enables the demo bootstrap token
+`ex3-demo-access`. Source: `DI-vatub`; `DI-povip`.
+
+From this directory:
+
+```bash
+docker compose up -d --build
+```
+
+If your machine does not have the `docker compose` plugin, use the standalone
+binary instead:
+
+```bash
+docker-compose up -d --build
+```
+
+Check that both relays are up:
+
+```bash
+docker compose ps
+```
+
+or:
+
+```bash
+docker-compose ps
+```
+
+Then open either browser URL:
+
+- `http://127.0.0.1:7025/?doc=demo&access_token=ex3-demo-access`
+- `http://127.0.0.1:7026/?doc=demo&access_token=ex3-demo-access`
+
+To attach Neovim to the same shared document through relay `7026`:
+
+```bash
+GRID_EDITOR_RELAY_URL=http://127.0.0.1:7026 \
+GRID_EDITOR_ACCESS_TOKEN=ex3-demo-access \
+GRID_EDITOR_DISPLAY_NAME="Neovim" \
+GRID_EDITOR_COLOR="#d66f1d" \
+./scripts/grid-editor-nvim demo
+```
+
+To stop the containers:
+
+```bash
+docker compose down
+```
+
+or:
+
+```bash
+docker-compose down
+```
+
+To fully reset the Docker runtime state and bring the demo back up, use the
+repo-local helper:
+
+```bash
+./scripts/run-clean.sh
+```
+
+That script detects either `docker compose` or `docker-compose` on the local
+host before resetting and rebuilding the demo stack. Source: `DI-samuv`.
+
 ## Browser Version
 
 In `ex3-grid-editor-websocket`, the browser and Neovim live `sync` and

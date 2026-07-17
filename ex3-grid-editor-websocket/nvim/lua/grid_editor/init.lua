@@ -1,5 +1,16 @@
 local M = {}
 
+local function default_participant_id()
+  local pid = tostring(vim.fn.getpid())
+  local host = ((vim.uv or vim.loop).os_gethostname and (vim.uv or vim.loop).os_gethostname()) or 'host'
+  host = host:gsub('[^%w%-_]', '-')
+  local nonce = tostring(math.floor(((vim.uv or vim.loop).hrtime() or 0) % 1000000))
+  -- Intent: Keep Neovim awareness participants distinct across machines and
+  -- restarts so relay presence state and peer filtering do not collapse two
+  -- separate editors onto the same participant ID. Source: DI-samuv; DI-gafit
+  return table.concat({ 'nvim', host, pid, nonce }, '-')
+end
+
 local function default_repo_root()
   local source = debug.getinfo(1, 'S').source
   if vim.startswith(source, '@') then
@@ -33,11 +44,12 @@ M.state = {
   bufnr = nil,
   doc_id = nil,
   suppress = false,
+  expected_content = nil,
   cursor_ns = nil,
   selection_ns = nil,
   augroup = nil,
   job_id = nil,
-  participant_id = 'nvim-' .. tostring(vim.fn.getpid()),
+  participant_id = default_participant_id(),
   peers = {},
   peer_index = {},
   relay_connected = false,
@@ -152,8 +164,8 @@ local function draw_peers(peers)
         { '▏', group },
         { ' ' .. (peer.name or peer.participant_id or 'peer') .. (peer.typing and ' typing' or '') .. ' ', group },
       },
-      virt_text_pos = 'overlay',
-      end_col = math.min(col + 1, #(lines[row + 1] or '')),
+      virt_text_pos = 'inline',
+      hl_mode = 'combine',
     })
     ::continue::
   end
@@ -322,9 +334,13 @@ local function set_buffer_content(content)
     return
   end
   M.state.suppress = true
+  M.state.expected_content = content or ''
   local lines = vim.split(content or '', '\n', { plain = true })
   vim.api.nvim_buf_set_lines(M.state.bufnr, 0, -1, false, lines)
   M.state.suppress = false
+  -- Intent: Treat sidecar-driven buffer replacement as a remote replica update,
+  -- not as a new local edit to echo back into the sidecar. Source: DI-sulod; DI-gafit
+  draw_peers(M.state.peers)
 end
 
 local function update_cursor(typing)
@@ -469,9 +485,15 @@ function M.open(doc_id)
       if M.state.suppress then
         return
       end
+      local content = join_lines()
+      if M.state.expected_content ~= nil and content == M.state.expected_content then
+        M.state.expected_content = nil
+        return
+      end
+      M.state.expected_content = nil
       send_sidecar({
         type = 'set_text',
-        content = join_lines(),
+        content = content,
       })
       update_cursor(true)
     end,
