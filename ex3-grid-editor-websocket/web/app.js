@@ -32801,6 +32801,29 @@ function describePaneMode(state2) {
   };
 }
 
+// src/promisegrid-flow.js
+function formatTransportSummary(syncMode, awarenessMode) {
+  return `browser sync: ${syncMode || "-"} \xB7 awareness: ${awarenessMode || "-"} \xB7 path: relay`;
+}
+function traceCaption(documentID, entryCount) {
+  if (entryCount > 0) {
+    return `Live relay-observed PromiseGrid traffic for ${documentID}. Click a message for decoded payload and raw CBOR base64.`;
+  }
+  return `No relay traffic yet for ${documentID}. Start typing to watch signed messages flow.`;
+}
+function traceProtocolClass(protocolName) {
+  if (protocolName === "live-awareness") {
+    return "awareness";
+  }
+  if (protocolName === "document-metadata") {
+    return "metadata";
+  }
+  if (protocolName === "publish-document") {
+    return "publish";
+  }
+  return "document";
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -32978,7 +33001,7 @@ async function loadMeta() {
 function renderTransportSummary() {
   const syncMode = state.relay?.transportMode() || "-";
   const awarenessMode = state.awareness?.transportMode() || "-";
-  transportModeEl.textContent = `browser sync: ${syncMode} \xB7 awareness: ${awarenessMode} \xB7 path: relay`;
+  transportModeEl.textContent = formatTransportSummary(syncMode, awarenessMode);
 }
 async function bootDocument(documentID) {
   setStatus("connecting", "connecting\u2026");
@@ -33121,7 +33144,7 @@ async function refreshTrace(documentID) {
   }
   const payload = await response.json();
   state.traceEntries = payload.entries || [];
-  traceCaptionEl.textContent = state.traceEntries.length > 0 ? `Live relay-observed PromiseGrid traffic for ${documentID}. Click a message for decoded payload and raw CBOR base64.` : `No relay traffic yet for ${documentID}. Start typing to watch signed messages flow.`;
+  traceCaptionEl.textContent = traceCaption(documentID, state.traceEntries.length);
   renderTrace();
 }
 function renderTrace() {
@@ -33157,18 +33180,6 @@ function openTraceEntry(entry) {
     selected_message: entry
   }, null, 2);
   openOverlay(debugPanel);
-}
-function traceProtocolClass(protocolName) {
-  if (protocolName === "live-awareness") {
-    return "awareness";
-  }
-  if (protocolName === "document-metadata") {
-    return "metadata";
-  }
-  if (protocolName === "publish-document") {
-    return "publish";
-  }
-  return "document";
 }
 function renderPeers(states) {
   const remotePeers = Array.from(states.entries()).filter(([participantID]) => participantID !== state.participantID).map(([participantID, peer]) => ({ participantID, ...peer })).map((peer) => ({ ...peer, presenceState: presenceState(peer.lastSeenAt, state.prefs.profile) })).filter((peer) => peer.presenceState !== "gone");

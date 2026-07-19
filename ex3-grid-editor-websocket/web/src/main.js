@@ -10,6 +10,7 @@ import { formatMetadataList, metadataDisplayTitle, normalizeMetadataRecord, pars
 import { extractMentions, inferVersionName, summarizeDocument } from "./review.js";
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 import { describePaneMode, nextPaneState } from "./panes.js";
+import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -206,7 +207,7 @@ function renderTransportSummary() {
   // Intent: Put the active browser transport modes on screen during the demo
   // so viewers can verify ex3 is using the relay websocket path rather than
   // an invisible direct-browser shortcut. Source: DI-holoz
-  transportModeEl.textContent = `browser sync: ${syncMode} · awareness: ${awarenessMode} · path: relay`;
+  transportModeEl.textContent = formatTransportSummary(syncMode, awarenessMode);
 }
 
 async function bootDocument(documentID) {
@@ -358,9 +359,7 @@ async function refreshTrace(documentID) {
   }
   const payload = await response.json();
   state.traceEntries = payload.entries || [];
-  traceCaptionEl.textContent = state.traceEntries.length > 0
-    ? `Live relay-observed PromiseGrid traffic for ${documentID}. Click a message for decoded payload and raw CBOR base64.`
-    : `No relay traffic yet for ${documentID}. Start typing to watch signed messages flow.`;
+  traceCaptionEl.textContent = traceCaption(documentID, state.traceEntries.length);
   renderTrace();
 }
 
@@ -398,19 +397,6 @@ function openTraceEntry(entry) {
     selected_message: entry,
   }, null, 2);
   openOverlay(debugPanel);
-}
-
-function traceProtocolClass(protocolName) {
-  if (protocolName === "live-awareness") {
-    return "awareness";
-  }
-  if (protocolName === "document-metadata") {
-    return "metadata";
-  }
-  if (protocolName === "publish-document") {
-    return "publish";
-  }
-  return "document";
 }
 
 function renderPeers(states) {

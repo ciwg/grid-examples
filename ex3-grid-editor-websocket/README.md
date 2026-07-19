@@ -190,6 +190,7 @@ docs below for architecture, protocols, browser usage, and Neovim usage.
 Useful docs:
 
 - [Browser UI walkthrough](docs/grid-editor-ui-example.md)
+- [Feature guide](docs/features-guide.md)
 - [Architecture overview](docs/architecture.md)
 - [Practical implementation notes](docs/practical-implementation.md)
 - [Docker simulation guide](docs/docker-simulation.md)
