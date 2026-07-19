@@ -64,14 +64,16 @@ type App struct {
 	metadataPCID      cid.Cid
 	publishPCID       cid.Cid
 
-	mu           sync.Mutex
-	maxLamport   uint64
-	seen         map[string]struct{}
-	presence     map[string]awareness.Index
-	syncFeeds    map[string][]crdt.SyncRecord
-	metadata     map[string]metadata.Record
-	published    map[string][]publish.Record
-	publishByCID map[string]publish.Record
+	mu                 sync.Mutex
+	maxLamport         uint64
+	seen               map[string]struct{}
+	presence           map[string]awareness.Index
+	syncFeeds          map[string][]crdt.SyncRecord
+	metadata           map[string]metadata.Record
+	published          map[string][]publish.Record
+	publishByCID       map[string]publish.Record
+	onSyncChanged      func(string)
+	onAwarenessChanged func(string)
 }
 
 func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
@@ -142,6 +144,13 @@ func (app *App) Meta() Meta {
 		PublishPCID:   app.publishPCID.String(),
 		DataRoot:      app.dataRoot,
 	}
+}
+
+func (app *App) SetLiveChangeHooks(onSyncChanged func(string), onAwarenessChanged func(string)) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	app.onSyncChanged = onSyncChanged
+	app.onAwarenessChanged = onAwarenessChanged
 }
 
 // Intent: Keep the relay non-canonical by signing and relaying exact Automerge
@@ -670,6 +679,8 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		}
 	}
 	var record crdt.SyncRecord
+	var syncDocumentID string
+	var awarenessDocumentID string
 	switch envelope.PCID.String() {
 	case app.documentPCID.String():
 		var message crdt.Message
@@ -693,6 +704,7 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 			ReceivedAt:    entry.ReceivedAt,
 		}
 		app.syncFeeds[message.DocumentID] = append(app.syncFeeds[message.DocumentID], record)
+		syncDocumentID = message.DocumentID
 		if message.Lamport > app.maxLamport {
 			app.maxLamport = message.Lamport
 		}
@@ -725,6 +737,7 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		}
 		index, _ := awareness.Apply(app.presence[message.DocumentID], message, envelopeCIDString, observedAt)
 		app.presence[message.DocumentID] = index
+		awarenessDocumentID = message.DocumentID
 		if message.Lamport > app.maxLamport {
 			app.maxLamport = message.Lamport
 		}
@@ -732,6 +745,12 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		return crdt.SyncRecord{}, fmt.Errorf("unknown pCID %s", envelope.PCID)
 	}
 	app.seen[envelopeCIDString] = struct{}{}
+	if syncDocumentID != "" && app.onSyncChanged != nil {
+		app.onSyncChanged(syncDocumentID)
+	}
+	if awarenessDocumentID != "" && app.onAwarenessChanged != nil {
+		app.onAwarenessChanged(awarenessDocumentID)
+	}
 	return record, nil
 }
 

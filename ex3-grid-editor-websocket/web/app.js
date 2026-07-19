@@ -32823,6 +32823,8 @@ var participantEl = document.getElementById("participant-id");
 var toastStackEl = document.getElementById("toast-stack");
 var helpShortcutsEl = document.getElementById("help-shortcuts");
 var welcomeBannerEl = document.getElementById("welcome-banner");
+var transportModeEl = document.getElementById("transport-mode");
+var traceCaptionEl = document.getElementById("trace-caption");
 var docIDInput = document.getElementById("doc-id");
 var docTitleInput = document.getElementById("doc-title");
 var displayNameInput = document.getElementById("display-name");
@@ -32848,6 +32850,7 @@ var recentParticipantsEl = document.getElementById("recent-participants");
 var activityFeedEl = document.getElementById("activity-feed");
 var publishedListEl = document.getElementById("published-list");
 var metadataResultsEl = document.getElementById("metadata-results");
+var messageTraceEl = document.getElementById("message-trace");
 var metadataFields = {
   description: document.getElementById("metadata-description"),
   summary: document.getElementById("metadata-summary"),
@@ -32915,7 +32918,9 @@ var state = {
   splitEnabled: false,
   focusMode: false,
   pendingCommentSelection: null,
-  metadata: normalizeMetadataRecord("demo", {})
+  metadata: normalizeMetadataRecord("demo", {}),
+  traceEntries: [],
+  tracePollTimer: null
 };
 participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
@@ -32970,6 +32975,11 @@ async function loadMeta() {
   metaEls.metadataPCID.textContent = meta2.metadata_pcid;
   metaEls.publishPCID.textContent = meta2.publish_pcid;
 }
+function renderTransportSummary() {
+  const syncMode = state.relay?.transportMode() || "-";
+  const awarenessMode = state.awareness?.transportMode() || "-";
+  transportModeEl.textContent = `browser sync: ${syncMode} \xB7 awareness: ${awarenessMode} \xB7 path: relay`;
+}
 async function bootDocument(documentID) {
   setStatus("connecting", "connecting\u2026");
   state.documentID = documentID;
@@ -32986,7 +32996,12 @@ async function bootDocument(documentID) {
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
+  if (state.tracePollTimer !== null) {
+    window.clearInterval(state.tracePollTimer);
+    state.tracePollTimer = null;
+  }
   state.visiblePeers = /* @__PURE__ */ new Map();
+  state.traceEntries = [];
   editorRoot.innerHTML = "";
   const basePath = `/api/local/documents/${encodeURIComponent(documentID)}`;
   const remoteSession = await bootstrapRemoteSession(basePath, state.participantID, state.accessToken);
@@ -33028,6 +33043,7 @@ async function bootDocument(documentID) {
   state.relay = relay;
   state.editor = editor;
   applyPreferences(state.prefs);
+  renderTransportSummary();
   editor.setText(relay.getText());
   contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
   relay.on("document", (text) => {
@@ -33038,6 +33054,7 @@ async function bootDocument(documentID) {
   });
   relay.on("status", (status) => {
     renderStatus(status);
+    renderTransportSummary();
   });
   relay.on("error", (error) => {
     setStatus("error", error.message);
@@ -33056,15 +33073,20 @@ async function bootDocument(documentID) {
   });
   await awareness.connect();
   await relay.connect();
+  renderTransportSummary();
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());
   await refreshState(basePath);
+  await refreshTrace(documentID);
   await refreshMetadata(documentID);
   await applySeedIfNeeded(documentID);
   await refreshPublished(documentID);
   await searchMetadataCatalog(false);
   renderPreview();
   renderReview();
+  state.tracePollTimer = window.setInterval(() => {
+    refreshTrace(documentID).catch((error) => showToast(`PromiseGrid trace failed: ${error.message}`));
+  }, 350);
 }
 async function applySeedIfNeeded(documentID) {
   const seed = registry.seedContent(documentID);
@@ -33088,6 +33110,65 @@ async function refreshState(basePath) {
   }
   const payload = await response.json();
   revisionEl.textContent = `messages: ${payload.message_count || 0}`;
+}
+async function refreshTrace(documentID) {
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(documentID)}/trace?limit=18`);
+  if (!response.ok) {
+    messageTraceEl.innerHTML = "";
+    appendEmptyState(messageTraceEl, "PromiseGrid trace unavailable");
+    traceCaptionEl.textContent = `Live relay trace unavailable (${response.status})`;
+    return;
+  }
+  const payload = await response.json();
+  state.traceEntries = payload.entries || [];
+  traceCaptionEl.textContent = state.traceEntries.length > 0 ? `Live relay-observed PromiseGrid traffic for ${documentID}. Click a message for decoded payload and raw CBOR base64.` : `No relay traffic yet for ${documentID}. Start typing to watch signed messages flow.`;
+  renderTrace();
+}
+function renderTrace() {
+  messageTraceEl.innerHTML = "";
+  for (const entry of state.traceEntries) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "trace-button";
+    button.innerHTML = `
+      <span class="trace-protocol ${traceProtocolClass(entry.protocol)}">${escapeHTML3(entry.protocol)}</span>
+      <span class="trace-meta">
+        <strong>${escapeHTML3(entry.summary)}</strong>
+        <span class="tiny muted">${escapeHTML3(formatTime(entry.received_at))} \xB7 ${escapeHTML3(entry.envelope_cid.slice(0, 16))} \xB7 lamport ${escapeHTML3(String(entry.lamport || 0))}</span>
+      </span>
+    `;
+    button.addEventListener("click", () => openTraceEntry(entry));
+    li.appendChild(button);
+    messageTraceEl.appendChild(li);
+  }
+  if (state.traceEntries.length === 0) {
+    appendEmptyState(messageTraceEl, "No PromiseGrid messages yet");
+  }
+}
+function openTraceEntry(entry) {
+  debugOutputEl.textContent = JSON.stringify({
+    documentID: state.documentID,
+    browser_transport: {
+      sync: state.relay?.transportMode() || "-",
+      awareness: state.awareness?.transportMode() || "-",
+      relay_path: true
+    },
+    selected_message: entry
+  }, null, 2);
+  openOverlay(debugPanel);
+}
+function traceProtocolClass(protocolName) {
+  if (protocolName === "live-awareness") {
+    return "awareness";
+  }
+  if (protocolName === "document-metadata") {
+    return "metadata";
+  }
+  if (protocolName === "publish-document") {
+    return "publish";
+  }
+  return "document";
 }
 function renderPeers(states) {
   const remotePeers = Array.from(states.entries()).filter(([participantID]) => participantID !== state.participantID).map(([participantID, peer]) => ({ participantID, ...peer })).map((peer) => ({ ...peer, presenceState: presenceState(peer.lastSeenAt, state.prefs.profile) })).filter((peer) => peer.presenceState !== "gone");
@@ -33578,8 +33659,14 @@ function openDebugPanel() {
     documentID: state.documentID,
     profile: state.prefs.profile,
     participantID: state.participantID,
+    browserTransport: {
+      sync: state.relay?.transportMode() || "-",
+      awareness: state.awareness?.transportMode() || "-",
+      relayPath: true
+    },
     revision: revisionEl.textContent,
     localReplica: contentCIDEl.textContent,
+    traceEntries: state.traceEntries,
     comments: registry.listComments(state.documentID),
     activity: registry.listActivity(state.documentID).slice(0, 12),
     participants: registry.listRecentParticipants(state.documentID),

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/web"
@@ -14,10 +15,20 @@ import (
 
 type Server struct {
 	app *App
+
+	mu                   sync.Mutex
+	syncSubscribers      map[string]map[chan struct{}]struct{}
+	awarenessSubscribers map[string]map[chan struct{}]struct{}
 }
 
 func NewServer(app *App) *Server {
-	return &Server{app: app}
+	server := &Server{
+		app:                  app,
+		syncSubscribers:      map[string]map[chan struct{}]struct{}{},
+		awarenessSubscribers: map[string]map[chan struct{}]struct{}{},
+	}
+	app.SetLiveChangeHooks(server.notifySyncSubscribers, server.notifyAwarenessSubscribers)
+	return server
 }
 
 func (server *Server) Handler() http.Handler {
@@ -134,6 +145,19 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 			return
 		}
 		writeJSON(writer, http.StatusOK, server.app.State(documentID))
+	case "trace":
+		if request.Method != http.MethodGet {
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		limit := defaultFeedLimit
+		if raw := request.URL.Query().Get("limit"); raw != "" {
+			if _, err := fmt.Sscanf(raw, "%d", &limit); err != nil {
+				http.Error(writer, "invalid limit", http.StatusBadRequest)
+				return
+			}
+		}
+		writeJSON(writer, http.StatusOK, server.app.Trace(documentID, limit))
 	case "sync":
 		server.handleSync(writer, request, documentID)
 	case "session":
@@ -495,4 +519,57 @@ func decodeJSONBody(writer http.ResponseWriter, request *http.Request, value any
 		return fmt.Errorf("unexpected trailing JSON")
 	}
 	return nil
+}
+
+func (server *Server) subscribeSync(documentID string) (chan struct{}, func()) {
+	return server.subscribe(server.syncSubscribers, documentID)
+}
+
+func (server *Server) subscribeAwareness(documentID string) (chan struct{}, func()) {
+	return server.subscribe(server.awarenessSubscribers, documentID)
+}
+
+func (server *Server) subscribe(index map[string]map[chan struct{}]struct{}, documentID string) (chan struct{}, func()) {
+	channel := make(chan struct{}, 1)
+	server.mu.Lock()
+	if index[documentID] == nil {
+		index[documentID] = map[chan struct{}]struct{}{}
+	}
+	index[documentID][channel] = struct{}{}
+	server.mu.Unlock()
+	return channel, func() {
+		server.mu.Lock()
+		subscribers := index[documentID]
+		if subscribers != nil {
+			delete(subscribers, channel)
+			if len(subscribers) == 0 {
+				delete(index, documentID)
+			}
+		}
+		server.mu.Unlock()
+		close(channel)
+	}
+}
+
+func (server *Server) notifySyncSubscribers(documentID string) {
+	server.notifySubscribers(server.syncSubscribers, documentID)
+}
+
+func (server *Server) notifyAwarenessSubscribers(documentID string) {
+	server.notifySubscribers(server.awarenessSubscribers, documentID)
+}
+
+func (server *Server) notifySubscribers(index map[string]map[chan struct{}]struct{}, documentID string) {
+	server.mu.Lock()
+	subscribers := make([]chan struct{}, 0, len(index[documentID]))
+	for channel := range index[documentID] {
+		subscribers = append(subscribers, channel)
+	}
+	server.mu.Unlock()
+	for _, channel := range subscribers {
+		select {
+		case channel <- struct{}{}:
+		default:
+		}
+	}
 }

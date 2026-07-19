@@ -17,7 +17,7 @@
           <button id="help-button" class="ghost-button" type="button">Help</button>
         </div>
 
-        <div class="card">
+        <div class="card" id="promisegrid-flow-card">
           <div class="card-head">
             <h2>Document</h2>
             <span class="pill" id="peer-count">0 peers</span>
@@ -98,6 +98,24 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>PromiseGrid Flow</h2>
+            <span id="transport-mode" class="pill">browser sync: -</span>
+          </div>
+          <div class="flow-diagram" aria-label="Browser to relay data flow">
+            <div class="flow-node">Browser</div>
+            <div class="flow-arrow">signed grid message</div>
+            <div class="flow-node">Relay</div>
+            <div class="flow-arrow">peer feed</div>
+            <div class="flow-node">Peer relay</div>
+            <div class="flow-arrow">websocket fanout</div>
+            <div class="flow-node">Other editor</div>
+          </div>
+          <p class="tiny muted" id="trace-caption">Live relay-observed PromiseGrid traffic for this document. Click a message for decoded payload and raw CBOR base64.</p>
+          <ul id="message-trace" class="doc-list compact"></ul>
         </div>
 
         <div class="card">
@@ -379,7 +397,7 @@
     <div id="debug-panel" class="overlay hidden" aria-hidden="true">
       <div class="panel">
         <div class="card-head">
-          <h2>Diagnostics</h2>
+          <h2>PromiseGrid Inspector</h2>
           <button id="debug-close" class="ghost-button" type="button">Close</button>
         </div>
         <pre id="debug-output" class="debug-output"></pre>

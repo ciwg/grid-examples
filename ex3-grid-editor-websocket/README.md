@@ -296,6 +296,13 @@ Then open either browser URL:
 - `http://127.0.0.1:7025/?doc=demo&access_token=ex3-demo-access`
 - `http://127.0.0.1:7026/?doc=demo&access_token=ex3-demo-access`
 
+The browser demo now shows a `PromiseGrid Flow` card while you edit. That
+surface puts the active browser transport modes on screen, draws the
+browser-to-relay data path, and lists the most recent relay-observed signed
+messages for the current document. Click any listed message to inspect its
+decoded payload plus raw envelope/payload base64 in the `PromiseGrid
+Inspector`. Source: `DI-holoz`; `DI-dogub`.
+
 To attach Neovim to the same shared document through relay `7026`:
 
 ```bash

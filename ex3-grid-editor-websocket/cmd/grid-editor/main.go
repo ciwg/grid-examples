@@ -10,6 +10,8 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/service"
 )
 
+const demoPeerPollInterval = 150 * time.Millisecond
+
 type peerFlags []string
 
 func (flags *peerFlags) String() string {
@@ -39,7 +41,11 @@ func main() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	app.StartPeerPolling(ctx, peers, 2*time.Second)
+	// Intent: Keep the one-process launcher on the same signed peer-message
+	// replication model as `grid-relay`, while reducing cross-relay demo lag to
+	// near-immediate sync and awareness updates. Source: DI-ramuv; DI-lumek
+	// DI-holoz
+	app.StartPeerPolling(ctx, peers, demoPeerPollInterval)
 
 	server := service.NewServer(app)
 	log.Printf("grid-editor listening on %s", *listen)

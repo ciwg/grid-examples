@@ -490,6 +490,99 @@ dd {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
+.flow-diagram {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.flow-node,
+.flow-arrow {
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 0.82rem;
+}
+
+.flow-node {
+  background: rgba(31, 111, 120, 0.12);
+  border: 1px solid rgba(31, 111, 120, 0.2);
+  font-weight: 700;
+}
+
+.flow-arrow {
+  color: rgba(132, 125, 117, 0.92);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px dashed rgba(214, 200, 180, 0.9);
+}
+
+body[data-theme="night"] .flow-arrow {
+  color: rgba(214, 222, 227, 0.88);
+}
+
+#promisegrid-flow-card .muted,
+#promisegrid-flow-card .tiny.muted {
+  color: #a29a90;
+}
+
+body[data-theme="night"] #promisegrid-flow-card .muted,
+body[data-theme="night"] #promisegrid-flow-card .tiny.muted {
+  color: #c8d2d8;
+}
+
+#message-trace {
+  margin-top: 12px;
+}
+
+.trace-button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.trace-protocol {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(31, 111, 120, 0.12);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trace-protocol.awareness {
+  background: rgba(188, 131, 27, 0.16);
+  color: #f7f1dc;
+}
+
+.trace-protocol.metadata {
+  background: rgba(72, 95, 153, 0.16);
+}
+
+.trace-protocol.publish {
+  background: rgba(118, 70, 153, 0.16);
+}
+
+.trace-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#message-trace .trace-meta .tiny.muted {
+  color: #b8b0a6;
+}
+
+body[data-theme="night"] #message-trace .trace-meta .tiny.muted {
+  color: #d0d8dd;
+}
+
 .grid-inline-underline {
   /* Intent: Keep ex3's inline underline visually distinct from markdown link
      styling inside CodeMirror so `<u>...</u>` content reads like plain text,
@@ -770,7 +863,8 @@ body.focus-mode .editor-shell {
 @media (max-width: 720px) {
   .shortcut-grid,
   .help-grid,
-  .template-grid {
+  .template-grid,
+  .flow-diagram {
     grid-template-columns: 1fr;
   }
 

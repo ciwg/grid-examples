@@ -61,6 +61,39 @@ func TestServerDisablesCachingForAppJS(t *testing.T) {
 	assertHeaderEquals(t, response, "Expires", "0")
 }
 
+func TestServerReturnsDocumentTrace(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	syncRequest := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/sync", bytes.NewBufferString(`{"participant_id":"browser-a","recipient_id":"","message_base64":"AQID","embodiment":"browser"}`))
+	syncRequest.RemoteAddr = "127.0.0.1:4123"
+	syncResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(syncResponse, syncRequest)
+	if syncResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected sync status: got %d want %d body=%s", syncResponse.Code, http.StatusOK, syncResponse.Body.String())
+	}
+
+	awarenessRequest := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/awareness", bytes.NewBufferString(`{"participant_id":"browser-a","cursor":7,"head":9,"typing":true,"display_name":"Alice","color":"#1d6fd6","embodiment":"browser"}`))
+	awarenessRequest.RemoteAddr = "127.0.0.1:4123"
+	awarenessResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(awarenessResponse, awarenessRequest)
+	if awarenessResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected awareness status: got %d want %d body=%s", awarenessResponse.Code, http.StatusOK, awarenessResponse.Body.String())
+	}
+
+	traceRequest := httptest.NewRequest(http.MethodGet, "/api/local/documents/demo/trace?limit=8", nil)
+	traceResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(traceResponse, traceRequest)
+
+	if traceResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected trace status: got %d want %d body=%s", traceResponse.Code, http.StatusOK, traceResponse.Body.String())
+	}
+	assertBodyContains(t, traceResponse.Body.String(), `"protocol":"live-document"`)
+	assertBodyContains(t, traceResponse.Body.String(), `"protocol":"live-awareness"`)
+	assertBodyContains(t, traceResponse.Body.String(), `"participant_id":"browser-a"`)
+	assertBodyContains(t, traceResponse.Body.String(), `"cursor":7`)
+}
+
 func TestServerAllowsLoopbackSyncMutation(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)

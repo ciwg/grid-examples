@@ -11,7 +11,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/crdt"
 )
 
-const liveSocketInterval = 200 * time.Millisecond
+const liveSocketFallbackInterval = 2 * time.Second
 
 type syncSocketRequest struct {
 	Type          string `json:"type"`
@@ -81,6 +81,8 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 	go func() {
 		readErr <- server.readSyncSocket(socket, documentID, expectedParticipantID)
 	}()
+	updates, unsubscribe := server.subscribeSync(documentID)
+	defer unsubscribe()
 
 	// Intent: Move the browser live-document transport onto websocket while
 	// keeping the relay's signed feed model and HTTP metadata/publish surfaces
@@ -97,7 +99,7 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 		return
 	}
 
-	ticker := time.NewTicker(liveSocketInterval)
+	ticker := time.NewTicker(liveSocketFallbackInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -106,6 +108,11 @@ func (server *Server) handleSyncSocket(writer http.ResponseWriter, request *http
 				return
 			}
 			return
+		case <-updates:
+			offset, err = server.writeSyncFeed(socket, documentID, offset)
+			if err != nil {
+				return
+			}
 		case <-ticker.C:
 			offset, err = server.writeSyncFeed(socket, documentID, offset)
 			if err != nil {
@@ -203,6 +210,8 @@ func (server *Server) handleAwarenessSocket(writer http.ResponseWriter, request 
 	go func() {
 		readErr <- server.readAwarenessSocket(socket, documentID, expectedParticipantID)
 	}()
+	updates, unsubscribe := server.subscribeAwareness(documentID)
+	defer unsubscribe()
 
 	// Intent: Keep live-awareness as its own websocket-fed stream so cursor and
 	// presence updates do not get collapsed into the document-sync channel.
@@ -212,7 +221,7 @@ func (server *Server) handleAwarenessSocket(writer http.ResponseWriter, request 
 		return
 	}
 
-	ticker := time.NewTicker(liveSocketInterval)
+	ticker := time.NewTicker(liveSocketFallbackInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -221,6 +230,11 @@ func (server *Server) handleAwarenessSocket(writer http.ResponseWriter, request 
 				return
 			}
 			return
+		case <-updates:
+			lastSnapshot, err = server.writeAwarenessSnapshot(socket, documentID, lastSnapshot)
+			if err != nil {
+				return
+			}
 		case <-ticker.C:
 			lastSnapshot, err = server.writeAwarenessSnapshot(socket, documentID, lastSnapshot)
 			if err != nil {
