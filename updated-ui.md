@@ -1,8 +1,10 @@
 # Updated UI
 
 - Page: `http://127.0.0.1:7026/?doc=demo&access_token=ex3-demo-access`
-- Screenshot: `/tmp/ex3-updated-ui.png`
+- Screenshot: `docs/screenshots/ex3-updated-ui.png`
 - Captured: `2026-07-19 12:43 America/Los_Angeles`
+
+![Ex3 updated UI](docs/screenshots/ex3-updated-ui.png)
 
 ## Visible State In The Captured Screenshot
 
