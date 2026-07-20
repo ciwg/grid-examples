@@ -11,6 +11,7 @@ const toastEl = document.getElementById("toast");
 const detailMetaEl = document.getElementById("detail-meta");
 const detailSummaryEl = document.getElementById("detail-summary");
 const detailActionsEl = document.getElementById("detail-actions");
+const detailReviewEl = document.getElementById("detail-review");
 const detailTimelineEl = document.getElementById("detail-timeline");
 const detailJSONEl = document.getElementById("detail-json");
 
@@ -506,10 +507,12 @@ async function inspectRecord(type, id) {
   detailMetaEl.textContent = `Loading ${type} ${id}...`;
   detailSummaryEl.innerHTML = "";
   detailActionsEl.innerHTML = "";
+  detailReviewEl.innerHTML = "";
   detailTimelineEl.innerHTML = "";
   const record = await getJSON(detailPath(type, id));
   detailMetaEl.textContent = detailSummary(type, record);
   renderDetailSummary(type, record);
+  renderDetailReview(type, record);
   renderDetailTimeline(record.timeline || []);
   detailJSONEl.textContent = JSON.stringify(record, null, 2);
   renderDetailActions(type, record);
@@ -674,6 +677,47 @@ function renderDetailTimeline(events) {
     card.className = "timeline-entry";
     card.innerHTML = `<div class="timeline-head"><span class="kind">${event.type}</span><span class="meta">${event.timestamp || ""}</span></div><div class="timeline-body">${timelineSummary(event)}</div>`;
     detailTimelineEl.appendChild(card);
+  }
+}
+
+// Intent: Make run/item review practical in the browser by surfacing revision,
+// approval, and evidence history as first-class panels instead of hiding them
+// inside raw record JSON. Source: DI-honus
+function renderDetailReview(type, record) {
+  detailReviewEl.innerHTML = "";
+  const sections = [];
+  if (type === "item") {
+    sections.push(["Revisions", (record.revisions || []).map((revision) => `${revision.number} · ${revision.title} · ${revision.author} · ${revision.created_at}`)]);
+    sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor} · rev ${approval.revision}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
+  }
+  if (type === "run") {
+    sections.push(["Evidence", (record.evidence || []).map((evidence) => `${evidence.summary} · ${evidence.actor} · ${evidence.created_at}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`)]);
+    sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
+    sections.push(["Responsibilities", (record.responsibility_ids || []).map((id) => id)]);
+  }
+  if (type === "responsibility") {
+    sections.push(["Linked items", (record.linked_item_ids || []).map((id) => id)]);
+    sections.push(["Linked runs", (record.linked_run_ids || []).map((id) => id)]);
+  }
+  for (const [title, entries] of sections) {
+    if (!entries.length) {
+      continue;
+    }
+    const panel = document.createElement("section");
+    panel.className = "detail-subpanel";
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    panel.appendChild(heading);
+    const list = document.createElement("div");
+    list.className = "detail-list";
+    for (const entry of entries) {
+      const row = document.createElement("div");
+      row.className = "detail-list-item";
+      row.textContent = entry;
+      list.appendChild(row);
+    }
+    panel.appendChild(list);
+    detailReviewEl.appendChild(panel);
   }
 }
 

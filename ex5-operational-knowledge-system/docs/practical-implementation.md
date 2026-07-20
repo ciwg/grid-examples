@@ -32,6 +32,7 @@ Browser:
 - snapshots the current working draft into a new revision
 - approves or supersedes the current item
 - inspects records, reads timelines, and follows contextual links between them
+- reviews item revisions plus run evidence/approvals in the record inspector
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals

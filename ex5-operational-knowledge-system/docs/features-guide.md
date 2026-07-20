@@ -126,6 +126,8 @@ It supports:
   - place -> child places and resources
 - viewing timeline entries for the selected record
 - viewing summary cards for the selected record instead of only raw JSON
+- reviewing item revisions and approvals directly in the inspector
+- reviewing run evidence and approvals directly in the inspector
 
 This does not replace richer future navigation, but it removes the need to
 copy raw IDs manually just to understand the current operational graph.
@@ -205,6 +207,9 @@ Current implementation uses:
 
 Team policy remains local and outside the durable event schema, which keeps the
 model portable across organizations.
+
+The browser inspector now makes that review trail easier to read for both
+knowledge items and runs, rather than forcing operators to inspect raw JSON.
 
 ### Typed links
 

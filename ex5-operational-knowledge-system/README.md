@@ -53,6 +53,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - browser dashboard and forms
 - browser search filters by kind, status, place, resource, and responsibility
 - browser record inspector with summary cards and timelines
+- browser review panels for item revisions, run evidence, and approvals
 - CLI inspection and creation commands
 
 For the longer feature walkthrough, see
