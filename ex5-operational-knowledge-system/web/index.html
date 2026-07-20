@@ -175,7 +175,15 @@
           <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
           <button type="submit">Search</button>
         </form>
-        <pre id="search-results"></pre>
+        <div id="search-results" class="search-results"></div>
+        <pre id="search-raw" hidden></pre>
+      </section>
+
+      <section class="panel detail-panel">
+        <h2>Record Inspector</h2>
+        <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
+        <div id="detail-actions" class="detail-actions"></div>
+        <pre id="detail-json"></pre>
       </section>
 
       <section class="panel">

@@ -156,3 +156,9 @@ go run ./cmd/oks-cli runs
 - [Knowledge link protocol](protocols/knowledge-link.md)
 - [Knowledge responsibility protocol](protocols/knowledge-responsibility.md)
 - [Knowledge search metadata protocol](protocols/knowledge-search-metadata.md)
+
+## Open items
+
+- whether to fully port the `ex3` websocket collaboration model
+- whether collaborative editing is truly core or optional
+- whether `ex5` should eventually include another editor embodiment like Neovim

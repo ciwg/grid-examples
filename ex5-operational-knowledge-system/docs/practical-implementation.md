@@ -31,6 +31,7 @@ Browser:
 - edits shared live drafts for knowledge items
 - snapshots the current working draft into a new revision
 - approves or supersedes the current item
+- inspects records and follows contextual links between them
 - records runs
 - records approvals
 - uploads evidence

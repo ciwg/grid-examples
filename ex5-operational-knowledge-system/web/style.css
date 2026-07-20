@@ -118,6 +118,9 @@ button:hover { filter: brightness(1.05); }
 .editor-panel {
   grid-column: 1 / -1;
 }
+.detail-panel {
+  grid-column: 1 / -1;
+}
 .editor-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
@@ -161,6 +164,27 @@ button:hover { filter: brightness(1.05); }
 .selectable-card:hover {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(12, 109, 98, 0.14);
+}
+.search-results {
+  display: grid;
+  gap: 0.9rem;
+}
+.search-group {
+  display: grid;
+  gap: 0.6rem;
+}
+.search-group h3 {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.75rem 0;
 }
 pre {
   overflow: auto;

@@ -110,6 +110,24 @@ with version checks and participant presence. That gives the browser a real
 collaborative drafting surface while keeping the durable revision workflow
 explicit and auditable.
 
+### Record inspector and contextual navigation
+
+The browser now also includes a record inspector.
+
+It supports:
+
+- opening a place, resource, responsibility, item, or run from the visible lists
+- opening mixed search results directly into the inspector
+- jumping from one record to related records, such as:
+  - run -> item
+  - run -> place
+  - run -> resource
+  - responsibility -> linked items and runs
+  - place -> child places and resources
+
+This does not replace richer future navigation, but it removes the need to
+copy raw IDs manually just to understand the current operational graph.
+
 ### Performed runs
 
 Performed runs are the durable anchor for completed work.
@@ -188,6 +206,7 @@ Current browser surface:
 - create responsibility
 - create knowledge item
 - live draft studio for knowledge items
+- record inspector with contextual navigation
 - record run
 - upload evidence
 - record approval
@@ -236,3 +255,11 @@ information about real work gets split across text, memory, tools, and time.
 
 `ex5` is the first runnable example in this repo that treats that as one
 problem and gives it one durable local history.
+
+## Still open
+
+These product and architecture questions are still open:
+
+- whether to fully port the `ex3` websocket collaboration model
+- whether collaborative editing is truly core or optional
+- whether `ex5` should eventually include another editor embodiment like Neovim

@@ -11,6 +11,7 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"Create Place",
 		"Create Resource",
 		"Live Draft Studio",
+		"Record Inspector",
 		"inventory_audit",
 		"Record Run",
 	}
@@ -28,6 +29,9 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"/api/items/${editorState.itemID}/live",
 		"editor-snapshot",
 		"renderPlaces",
+		"renderSearchResults",
+		"inspectRecord",
+		"detail-json",
 		"participant_id",
 	}
 	for _, marker := range required {

@@ -5,7 +5,11 @@ const responsibilityListEl = document.getElementById("responsibility-list");
 const itemListEl = document.getElementById("item-list");
 const runListEl = document.getElementById("run-list");
 const searchResultsEl = document.getElementById("search-results");
+const searchRawEl = document.getElementById("search-raw");
 const toastEl = document.getElementById("toast");
+const detailMetaEl = document.getElementById("detail-meta");
+const detailActionsEl = document.getElementById("detail-actions");
+const detailJSONEl = document.getElementById("detail-json");
 
 const editorItemIDEl = document.getElementById("editor-item-id");
 const editorActorEl = document.getElementById("editor-actor");
@@ -31,6 +35,11 @@ const editorState = {
   lastRenderedBody: "",
   pushTimer: 0,
   pollTimer: 0,
+};
+
+const detailState = {
+  type: "",
+  id: "",
 };
 
 // Intent: Keep the browser as an equal operational embodiment while making
@@ -171,7 +180,7 @@ document.getElementById("search-form").addEventListener("submit", async (event) 
   const query = event.currentTarget.q.value;
   const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
   const payload = await response.json();
-  searchResultsEl.textContent = JSON.stringify(payload, null, 2);
+  renderSearchResults(query, payload);
 });
 
 editorItemIDEl.addEventListener("change", async () => {
@@ -292,9 +301,13 @@ function renderStats(data) {
 function renderPlaces(items) {
   placeListEl.innerHTML = "";
   for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card selectable-card";
     card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.id} · ${item.name}</h3><div class="meta">${item.summary || ""}\nparent: ${item.parent_id || "-"}\nchildren: ${(item.child_place_ids || []).length}\nresources: ${(item.resource_ids || []).length}</div>`;
+    card.addEventListener("click", () => {
+      inspectRecord("place", item.id).catch(handleError);
+    });
     placeListEl.appendChild(card);
   }
 }
@@ -302,9 +315,13 @@ function renderPlaces(items) {
 function renderResources(items) {
   resourceListEl.innerHTML = "";
   for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card selectable-card";
     card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.id} · ${item.name}</h3><div class="meta">${item.summary || ""}\nplace: ${item.place_id || "-"}</div>`;
+    card.addEventListener("click", () => {
+      inspectRecord("resource", item.id).catch(handleError);
+    });
     resourceListEl.appendChild(card);
   }
 }
@@ -312,9 +329,13 @@ function renderResources(items) {
 function renderResponsibilities(items) {
   responsibilityListEl.innerHTML = "";
   for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card selectable-card";
     card.innerHTML = `<h3>${item.id} · ${item.title}</h3><div class="meta">${item.summary || ""}\nroles: ${(item.linked_role_keys || []).join(", ") || "-"}</div>`;
+    card.addEventListener("click", () => {
+      inspectRecord("responsibility", item.id).catch(handleError);
+    });
     responsibilityListEl.appendChild(card);
   }
 }
@@ -337,7 +358,10 @@ function renderKnowledgeItems(items) {
     card.className = "card selectable-card";
     card.innerHTML = `<div class="kind">${item.kind} · ${item.status}</div><h3>${item.id} · ${item.title}</h3><div class="meta">revision ${item.current_revision} · live v${item.working_version}\n${item.summary || ""}</div>`;
     card.addEventListener("click", () => {
-      loadEditorItem(item.id).catch(handleError);
+      Promise.all([
+        loadEditorItem(item.id),
+        inspectRecord("item", item.id),
+      ]).catch(handleError);
     });
     itemListEl.appendChild(card);
   }
@@ -349,10 +373,175 @@ function renderKnowledgeItems(items) {
 function renderRuns(items) {
   runListEl.innerHTML = "";
   for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card selectable-card";
     card.innerHTML = `<div class="kind">${item.kind} run</div><h3>${item.id} · ${item.item_id}</h3><div class="meta">revision ${item.revision}\noutcome: ${item.outcome || "-"}\nplace: ${item.place_id || "-"}\nresources: ${(item.resource_ids || []).join(", ") || "-"}\n${item.notes || ""}</div>`;
+    card.addEventListener("click", () => {
+      inspectRecord("run", item.id).catch(handleError);
+    });
     runListEl.appendChild(card);
+  }
+}
+
+function renderSearchResults(query, payload) {
+  searchResultsEl.innerHTML = "";
+  searchRawEl.hidden = false;
+  searchRawEl.textContent = JSON.stringify(payload, null, 2);
+  const groups = [
+    ["places", "place"],
+    ["resources", "resource"],
+    ["responsibilities", "responsibility"],
+    ["items", "item"],
+    ["runs", "run"],
+  ];
+  for (const [key, type] of groups) {
+    const items = payload[key] || [];
+    if (items.length === 0) {
+      continue;
+    }
+    const block = document.createElement("div");
+    block.className = "search-group";
+    const heading = document.createElement("h3");
+    heading.textContent = `${key} (${items.length})`;
+    block.appendChild(heading);
+    for (const item of items) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "card selectable-card";
+      card.innerHTML = `<div class="kind">${type}</div><h3>${item.id}</h3><div class="meta">${searchSummary(type, item)}</div>`;
+      card.addEventListener("click", () => {
+        inspectRecord(type, item.id).catch(handleError);
+      });
+      block.appendChild(card);
+    }
+    searchResultsEl.appendChild(block);
+  }
+  if (!searchResultsEl.children.length) {
+    const empty = document.createElement("div");
+    empty.className = "meta";
+    empty.textContent = query ? `No results for "${query}".` : "No results.";
+    searchResultsEl.appendChild(empty);
+  }
+}
+
+function searchSummary(type, item) {
+  switch (type) {
+    case "place":
+      return `${item.name || ""}\n${item.summary || ""}`;
+    case "resource":
+      return `${item.name || ""}\nplace: ${item.place_id || "-"}`;
+    case "responsibility":
+      return `${item.title || ""}\n${item.summary || ""}`;
+    case "item":
+      return `${item.title || ""}\n${item.kind || ""} · ${item.status || ""}`;
+    case "run":
+      return `${item.item_id || ""}\nrevision ${item.revision || 0} · ${item.outcome || "-"}`;
+    default:
+      return "";
+  }
+}
+
+// Intent: Let operators inspect and traverse the current operational graph in
+// the browser without manually copying IDs between separate lists, while
+// keeping the existing local HTTP runtime and record model unchanged. Source:
+// DI-vopuk
+async function inspectRecord(type, id) {
+  detailState.type = type;
+  detailState.id = id;
+  detailMetaEl.textContent = `Loading ${type} ${id}...`;
+  detailActionsEl.innerHTML = "";
+  const record = await getJSON(detailPath(type, id));
+  detailMetaEl.textContent = detailSummary(type, record);
+  detailJSONEl.textContent = JSON.stringify(record, null, 2);
+  renderDetailActions(type, record);
+  if (type === "item") {
+    await loadEditorItem(id);
+  }
+}
+
+function detailPath(type, id) {
+  switch (type) {
+    case "place":
+      return `/api/places/${id}`;
+    case "resource":
+      return `/api/resources/${id}`;
+    case "responsibility":
+      return `/api/responsibilities/${id}`;
+    case "item":
+      return `/api/items/${id}`;
+    case "run":
+      return `/api/runs/${id}`;
+    default:
+      throw new Error(`Unsupported detail type ${type}`);
+  }
+}
+
+function detailSummary(type, record) {
+  switch (type) {
+    case "place":
+      return `${record.id} · ${record.kind} · ${record.name}`;
+    case "resource":
+      return `${record.id} · ${record.kind} · ${record.name}`;
+    case "responsibility":
+      return `${record.id} · responsibility · ${record.title}`;
+    case "item":
+      return `${record.id} · ${record.kind} · ${record.title} · ${record.status}`;
+    case "run":
+      return `${record.id} · ${record.kind} run · ${record.item_id}`;
+    default:
+      return `${type} ${record.id || ""}`;
+  }
+}
+
+function renderDetailActions(type, record) {
+  detailActionsEl.innerHTML = "";
+  const links = [];
+  if (type === "resource" && record.place_id) {
+    links.push(["Open place", "place", record.place_id]);
+  }
+  if (type === "item") {
+    links.push(["Open live draft", "item", record.id]);
+    for (const responsibilityID of record.responsibility_ids || []) {
+      links.push([`Responsibility ${responsibilityID}`, "responsibility", responsibilityID]);
+    }
+  }
+  if (type === "run") {
+    links.push(["Open item", "item", record.item_id]);
+    if (record.place_id) {
+      links.push(["Open place", "place", record.place_id]);
+    }
+    for (const resourceID of record.resource_ids || []) {
+      links.push([`Resource ${resourceID}`, "resource", resourceID]);
+    }
+    for (const responsibilityID of record.responsibility_ids || []) {
+      links.push([`Responsibility ${responsibilityID}`, "responsibility", responsibilityID]);
+    }
+  }
+  if (type === "place") {
+    for (const resourceID of record.resource_ids || []) {
+      links.push([`Resource ${resourceID}`, "resource", resourceID]);
+    }
+    for (const childID of record.child_place_ids || []) {
+      links.push([`Child place ${childID}`, "place", childID]);
+    }
+  }
+  if (type === "responsibility") {
+    for (const itemID of record.linked_item_ids || []) {
+      links.push([`Item ${itemID}`, "item", itemID]);
+    }
+    for (const runID of record.linked_run_ids || []) {
+      links.push([`Run ${runID}`, "run", runID]);
+    }
+  }
+  for (const [label, nextType, nextID] of links) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => {
+      inspectRecord(nextType, nextID).catch(handleError);
+    });
+    detailActionsEl.appendChild(button);
   }
 }
 
@@ -362,7 +551,7 @@ function renderEditorState(state) {
   editorState.status = state.status;
   editorState.currentRevision = state.current_revision;
   editorState.lastRenderedBody = state.body;
-  editorMetaEl.textContent = `${state.title} · status ${state.status} · live v${state.version} · current revision ${state.current_revision}`;
+  editorMetaEl.textContent = `${state.title} · status ${state.status} · live v${state.version} · current revision ${state.current_revision}${editorState.dirty ? " · local edits pending" : ""}`;
   editorParticipantsEl.innerHTML = "";
   for (const participant of state.participants || []) {
     const pill = document.createElement("span");
@@ -395,7 +584,10 @@ async function refresh(selectedItemID = editorState.itemID) {
     selectedItemID = items.items[0].id;
   }
   if (selectedItemID) {
-    await loadEditorItem(selectedItemID);
+    await Promise.all([
+      loadEditorItem(selectedItemID),
+      inspectRecord("item", selectedItemID),
+    ]);
   }
 }
 
@@ -460,6 +652,7 @@ async function flushLivePush() {
       editorState.dirty = false;
       editorBodyEl.value = payload.state.body;
       renderEditorState(payload.state);
+      editorMetaEl.textContent = `${payload.state.title} · status ${payload.state.status} · live v${payload.state.version} · current revision ${payload.state.current_revision} · remote changes replaced your stale base version`;
       showToast("Live draft conflict resolved by reloading the shared body");
       return;
     }
