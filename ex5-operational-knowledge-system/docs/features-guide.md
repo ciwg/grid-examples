@@ -6,6 +6,7 @@ local memory, and treats them as one problem:
 
 - people need the same procedure text
 - people need to know which revision was used
+- people need repeatable inventory counts, audits, and discrepancy history
 - people need evidence of what happened
 - people need approvals and responsibility boundaries
 - people need to find the same history later from either the browser or the CLI
@@ -70,6 +71,18 @@ A run answers:
 That is the main reason the spec’s separate use cases collapse into the same
 core problem. Procedures, training, and maintenance all need an auditable
 "what was done, from which revision, by whom, with what evidence" record.
+
+Inventory-oriented work fits the same pattern when the load-bearing need is:
+
+- which counting or receiving procedure was used
+- which location, bin, or stock area was involved
+- who performed the check
+- what discrepancy or outcome was recorded
+- what evidence and approvals followed
+
+That does **not** make the current foundation a full inventory or MRP system. It
+means inventory audits and related operational history belong to the same
+operational-memory family as procedures, training, and maintenance.
 
 ### Evidence
 
@@ -137,6 +150,7 @@ The current implementation does **not** yet include:
 - websocket awareness or presence
 - relay-to-relay peer exchange
 - signed grid envelopes on the wire
+- ERP-style quantity ledgers, reservations, purchasing, or planning logic
 
 Those are still important, but this first `ex5` pass is deliberately centered on
 the durable operational memory layer first.
@@ -148,6 +162,7 @@ The spec examples can sound different on the surface:
 - procedures handed from one operator to the next
 - training records
 - maintenance history
+- inventory counts and bin audits
 - approvals and reviews
 - search across operational knowledge
 

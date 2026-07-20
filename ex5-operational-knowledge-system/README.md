@@ -5,6 +5,7 @@ The spec examples can look like separate problems:
 - procedures handed from one operator to the next
 - training records and micro-certifications
 - maintenance logs and machine history
+- inventory counts, bin audits, and receiving checks
 - approvals, evidence, and review
 - search across operational knowledge later
 
@@ -13,6 +14,11 @@ They are all the same problem.
 People need shared operational knowledge that stays attached to the actual work:
 which procedure revision existed, who was responsible, what was done, what
 evidence was captured, and what later approvals or follow-up happened.
+
+That includes inventory-shaped work when the real problem is operational memory:
+how a bin was counted, which procedure was followed, who signed off on a
+discrepancy, what evidence was captured, and how a later operator can find that
+history again.
 
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
@@ -63,6 +69,7 @@ What is not yet implemented in this foundation:
 - live collaborative document editing
 - websocket awareness or presence
 - peer-to-peer relay exchange
+- ERP-style inventory quantities, reservations, or planning logic
 
 That omission is intentional in the docs: this README describes the actual
 implemented state, not the longer-term aspiration.
