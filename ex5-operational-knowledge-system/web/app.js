@@ -623,6 +623,9 @@ function renderDetailActions(type, record) {
     for (const responsibilityID of record.responsibility_ids || []) {
       links.push([`Responsibility ${responsibilityID}`, "responsibility", responsibilityID]);
     }
+    for (const run of record.related_runs || []) {
+      links.push([`Run ${run.id}`, "run", run.id]);
+    }
   }
   if (type === "run") {
     links.push(["Open item", "item", record.item_id]);
@@ -689,6 +692,7 @@ function renderDetailReview(type, record) {
   if (type === "item") {
     sections.push(["Revisions", (record.revisions || []).map((revision) => `${revision.number} · ${revision.title} · ${revision.author} · ${revision.created_at}`)]);
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor} · rev ${approval.revision}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
+    sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
   }
   if (type === "run") {
     sections.push(["Evidence", (record.evidence || []).map((evidence) => `${evidence.summary} · ${evidence.actor} · ${evidence.created_at}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`)]);

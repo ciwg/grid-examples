@@ -312,7 +312,7 @@ func (app *App) GetKnowledgeItem(id string) (KnowledgeItem, error) {
 	if !ok {
 		return KnowledgeItem{}, fmt.Errorf("knowledge item %q not found", id)
 	}
-	return cloneKnowledgeItem(item), nil
+	return app.itemWithRelatedRunsLocked(item), nil
 }
 
 // Intent: Keep procedures, training content, and maintenance content as
@@ -1353,9 +1353,25 @@ func cloneKnowledgeItem(in *KnowledgeItem) KnowledgeItem {
 	out.Tags = append([]string(nil), in.Tags...)
 	out.ResponsibilityIDs = append([]string(nil), in.ResponsibilityIDs...)
 	out.Revisions = append([]KnowledgeRevision(nil), in.Revisions...)
+	out.RelatedRuns = append([]RunRecord(nil), in.RelatedRuns...)
 	out.Approvals = append([]Approval(nil), in.Approvals...)
 	out.Links = append([]Link(nil), in.Links...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
+	return out
+}
+
+func (app *App) itemWithRelatedRunsLocked(item *KnowledgeItem) KnowledgeItem {
+	out := cloneKnowledgeItem(item)
+	out.RelatedRuns = []RunRecord{}
+	for _, run := range app.runs {
+		if run.ItemID != item.ID {
+			continue
+		}
+		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
+	}
+	sort.Slice(out.RelatedRuns, func(i, j int) bool {
+		return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID
+	})
 	return out
 }
 

@@ -346,3 +346,29 @@ func TestServerSearchAcceptsStructuredFilters(t *testing.T) {
 		t.Fatalf("place/resource filtered search missing expected records: %s", response.Body.String())
 	}
 }
+
+func TestServerItemDetailIncludesRelatedRuns(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/items/"+item.ID, nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("item detail status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"related_runs"`) || !strings.Contains(response.Body.String(), run.ID) {
+		t.Fatalf("item detail missing related run history: %s", response.Body.String())
+	}
+}

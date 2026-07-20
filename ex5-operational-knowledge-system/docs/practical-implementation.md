@@ -33,6 +33,7 @@ Browser:
 - approves or supersedes the current item
 - inspects records, reads timelines, and follows contextual links between them
 - reviews item revisions plus run evidence/approvals in the record inspector
+- shows related run history from the selected item detail view
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals

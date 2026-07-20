@@ -379,3 +379,34 @@ func TestAppSearchWithStructuredFilters(t *testing.T) {
 		t.Fatalf("unexpected responsibility-linked run result: %+v", respRuns)
 	}
 }
+
+func TestGetKnowledgeItemIncludesRelatedRuns(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	_, err = app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "Normal startup", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record first run: %v", err)
+	}
+	secondRun, err := app.RecordRun("carol", RunKindProcedure, item.ID, 1, "completed", "Second startup", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record second run: %v", err)
+	}
+
+	loaded, err := app.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	if len(loaded.RelatedRuns) != 2 {
+		t.Fatalf("expected related runs on item, got %+v", loaded.RelatedRuns)
+	}
+	if loaded.RelatedRuns[1].ID != secondRun.ID {
+		t.Fatalf("unexpected related run ordering: %+v", loaded.RelatedRuns)
+	}
+}

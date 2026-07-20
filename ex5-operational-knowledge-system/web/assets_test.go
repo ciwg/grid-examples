@@ -40,6 +40,8 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"renderDetailTimeline",
 		"renderDetailReview",
 		"detailStats",
+		"Related runs",
+		"related_runs",
 		"detail-json",
 		"participant_id",
 	}

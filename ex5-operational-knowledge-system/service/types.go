@@ -91,6 +91,7 @@ type KnowledgeItem struct {
 	WorkingVersion    int                 `json:"working_version"`
 	WorkingUpdatedAt  string              `json:"working_updated_at"`
 	Revisions         []KnowledgeRevision `json:"revisions"`
+	RelatedRuns       []RunRecord         `json:"related_runs"`
 	Approvals         []Approval          `json:"approvals"`
 	Links             []Link              `json:"links"`
 	Timeline          []OperationalEvent  `json:"timeline"`

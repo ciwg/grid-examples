@@ -54,6 +54,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - browser search filters by kind, status, place, resource, and responsibility
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
+- item detail drilldown into the runs that used that item
 - CLI inspection and creation commands
 - headless browser smoke coverage for the shipped UI
 

@@ -128,6 +128,7 @@ It supports:
 - viewing summary cards for the selected record instead of only raw JSON
 - reviewing item revisions and approvals directly in the inspector
 - reviewing run evidence and approvals directly in the inspector
+- reviewing the runs that used a selected item directly in the inspector
 
 This does not replace richer future navigation, but it removes the need to
 copy raw IDs manually just to understand the current operational graph.
@@ -233,6 +234,7 @@ Current browser surface:
 - live draft studio for knowledge items
 - record inspector with contextual navigation
 - timeline-first record detail view
+- item history drilldown into related runs
 - record run
 - upload evidence
 - record approval
