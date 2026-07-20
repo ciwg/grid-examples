@@ -102,12 +102,13 @@ The current code is covered at four levels:
 - CLI tests for command argument mapping into the HTTP adapter
 - embedded web asset tests that assert the shipped UI still exposes the
   expected operational workflow sections
+- a headless browser smoke test that loads the real UI against a live test
+  server and checks for rendered operational detail content
 
-The browser UI is still lightweight enough that the most useful regression
-coverage today is:
+The browser UI is still not covered by a deep end-to-end interaction suite, but
+it is no longer limited to static asset checks. The current baseline now
+includes:
 
 - asset-structure checks
-- API-level tests for the data it depends on
-
-That should be read honestly: it is stronger than no browser coverage, but it
-is not yet a full browser automation suite.
+- API-level tests for the data the browser depends on
+- a real headless browser render smoke over the live app shell

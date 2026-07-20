@@ -21,4 +21,4 @@ search/filtering, workflow drilldown, and stronger browser automation.
 - [x] honus.1 Add richer single-record views and timelines for places, resources, responsibilities, items, and runs.
 - [x] honus.2 Expand search and filtering by kind, status, place, resource, and responsibility, with better grouped drilldown.
 - [x] honus.3 Improve run, evidence, and approval review flows so operators can trace revision-to-run history more easily.
-- [ ] honus.4 Strengthen browser automation beyond embedded asset checks to cover real UI workflow behavior.
+- [x] honus.4 Strengthen browser automation beyond embedded asset checks to cover real UI workflow behavior.

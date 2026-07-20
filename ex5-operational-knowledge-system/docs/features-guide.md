@@ -239,6 +239,10 @@ Current browser surface:
 - browse places and resources
 - search
 
+Current browser regression coverage now also includes a headless browser smoke
+test against a live test server, so the shipped UI is checked as a rendered
+page instead of only as embedded asset text.
+
 Current CLI surface:
 
 - dashboard

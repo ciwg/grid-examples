@@ -55,6 +55,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
 - CLI inspection and creation commands
+- headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
 [features guide](docs/features-guide.md).
