@@ -18,7 +18,7 @@ func TestServerNotifiesSyncSubscribersImmediately(t *testing.T) {
 	updates, unsubscribe := server.subscribeSync("demo")
 	defer unsubscribe()
 
-	if _, err := app.PostSync("demo", "browser-a", "", base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "browser"); err != nil {
+	if _, err := app.PostSync("demo", "browser-a", "", base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "browser", "", ""); err != nil {
 		t.Fatalf("post sync: %v", err)
 	}
 

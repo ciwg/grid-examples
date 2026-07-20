@@ -239,6 +239,8 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 			ParticipantID string `json:"participant_id"`
 			RecipientID   string `json:"recipient_id"`
 			MessageBase64 string `json:"message_base64"`
+			TextBase64    string `json:"text_base64"`
+			ReplicaBase64 string `json:"replica_base64"`
 			Embodiment    string `json:"embodiment"`
 		}
 		if err := decodeJSONBody(writer, request, &payload); err != nil {
@@ -253,7 +255,7 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 		// and sidecar clients exchange signed Automerge messages through a stable
 		// endpoint instead of overloading snapshot-oriented routes. Source:
 		// DI-ramuv; DI-lumek
-		record, err := server.app.PostSync(documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment)
+		record, err := server.app.PostSync(documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment, payload.TextBase64, payload.ReplicaBase64)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return

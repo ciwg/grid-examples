@@ -19,7 +19,7 @@ func TestPostSyncAppearsInFeedAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new app a: %v", err)
 	}
-	record, err := appA.PostSync("demo", "browser-a", "browser-b", base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "browser")
+	record, err := appA.PostSync("demo", "browser-a", "browser-b", base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "browser", "", "")
 	if err != nil {
 		t.Fatalf("post sync: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestSyncFeedPagesBoundedHistory(t *testing.T) {
 		t.Fatalf("new app: %v", err)
 	}
 	for index := 0; index < 3; index++ {
-		if _, err := app.PostSync("demo", "browser-a", "", base64.StdEncoding.EncodeToString([]byte{byte(index + 1)}), "browser"); err != nil {
+		if _, err := app.PostSync("demo", "browser-a", "", base64.StdEncoding.EncodeToString([]byte{byte(index + 1)}), "browser", "", ""); err != nil {
 			t.Fatalf("post sync %d: %v", index, err)
 		}
 	}
@@ -72,6 +72,33 @@ func TestSyncFeedPagesBoundedHistory(t *testing.T) {
 	second := app.SyncFeed("demo", first.NextOffset, 2)
 	if len(second.Messages) != 1 {
 		t.Fatalf("second page count mismatch: got %d", len(second.Messages))
+	}
+}
+
+func TestPostSyncStoresLatestSnapshotInState(t *testing.T) {
+	t.Parallel()
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	textBase64 := base64.StdEncoding.EncodeToString([]byte("hello"))
+	replicaBase64 := base64.StdEncoding.EncodeToString([]byte{9, 8, 7, 6})
+	record, err := app.PostSync("demo", "browser-a", "", base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "browser", textBase64, replicaBase64)
+	if err != nil {
+		t.Fatalf("post sync with snapshot: %v", err)
+	}
+	state := app.State("demo")
+	if !state.SnapshotPresent {
+		t.Fatalf("expected snapshot present")
+	}
+	if state.TextBase64 != textBase64 {
+		t.Fatalf("text snapshot mismatch: got %q want %q", state.TextBase64, textBase64)
+	}
+	if state.ReplicaBase64 != replicaBase64 {
+		t.Fatalf("replica snapshot mismatch: got %q want %q", state.ReplicaBase64, replicaBase64)
+	}
+	if state.SnapshotOffset != record.Offset {
+		t.Fatalf("snapshot offset mismatch: got %d want %d", state.SnapshotOffset, record.Offset)
 	}
 }
 

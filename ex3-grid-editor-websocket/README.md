@@ -304,6 +304,12 @@ messages for the current document. Click any listed message to inspect its
 decoded payload plus raw envelope/payload base64 in the `PromiseGrid
 Inspector`. Source: `DI-holoz`; `DI-dogub`.
 
+For the current layout and a fuller explanation of the PromiseGrid Flow and
+PromiseGrid Inspector surfaces, see:
+
+- [Updated UI notes](docs/updated-ui.md)
+- [Feature guide](docs/features-guide.md)
+
 To attach Neovim to the same shared document through relay `7026`:
 
 ```bash

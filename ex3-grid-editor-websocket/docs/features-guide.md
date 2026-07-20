@@ -95,6 +95,11 @@ Features:
 - live message trace
 - clickable message inspection via PromiseGrid Inspector
 
+Layout note:
+- this card now sits at the top of the **left sidebar**
+- it is **not** at the literal top of the whole page, because the page header
+  still sits above the sidebar cards
+
 PromiseGrid enablement:
 - this section is backed by relay-observed signed envelopes, not synthetic UI
   events
@@ -323,6 +328,82 @@ Features:
 PromiseGrid enablement:
 - selected message data comes from relay-observed signed traffic
 - transport section proves the page is using relay websocket transport
+
+Why it exists:
+- it turns the demo from “a collaborative editor that happens to work” into a
+  visibly explainable grid example
+- it gives viewers a concrete answer to:
+  - what actually moved over the relay
+  - which protocol family the message belonged to
+  - which participant authored it
+  - whether the browser is using websocket transport to the relay
+
+What the inspector JSON means:
+
+- `documentID`
+  - the currently open shared document id
+- `browser_transport`
+  - the current browser transport status for the live page
+- `browser_transport.sync`
+  - the transport used for live document sync
+- `browser_transport.awareness`
+  - the transport used for presence/cursor awareness
+- `browser_transport.relay_path`
+  - a boolean marker showing the browser is still going through the relay path
+    rather than using a direct browser-to-browser shortcut
+- `selected_message`
+  - the currently clicked relay-observed PromiseGrid message
+
+Important `selected_message` fields:
+
+- `offset`
+  - the relay log offset where this message was observed
+- `envelope_cid`
+  - the CID of the signed outer envelope
+- `protocol`
+  - the human-readable protocol family, such as `live-awareness`
+- `pcid`
+  - the protocol CID selecting the message meaning
+- `kind`
+  - the message kind inside that protocol family
+- `document_id`
+  - which shared document this message belongs to
+- `participant_id`
+  - which participant emitted the message
+- `author`
+  - the signing author key id used on the envelope
+- `embodiment`
+  - which UI embodiment emitted the message, such as `browser`
+- `lamport`
+  - the Lamport clock value carried by the message
+- `received_at`
+  - when the local relay observed the message
+- `summary`
+  - short human-readable explanation of what happened
+- `envelope_base64`
+  - raw signed envelope bytes encoded as base64
+- `payload_base64`
+  - raw protocol payload bytes encoded as base64
+- `proof_algorithm`
+  - signing algorithm used on the proof
+- `proof_key_id`
+  - key id associated with the proof
+- `decoded_payload`
+  - the decoded protocol payload, shown as fields instead of raw CBOR only
+
+How to read the example awareness payload:
+- `protocol: live-awareness`
+  - this is presence/cursor traffic, not durable text edits
+- `kind: state`
+  - this is a participant state update
+- `cursor` and `head`
+  - the remote selection/cursor positions
+- `typing`
+  - whether the participant was marked as actively typing
+- `display_name`
+  - the peer-facing display label
+- `color`
+  - the peer-facing presence color
 
 ## Feature Reliability Notes
 

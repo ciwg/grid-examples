@@ -36,10 +36,14 @@ type Meta struct {
 }
 
 type RelayState struct {
-	DocumentID   string                `json:"document_id"`
-	NextOffset   uint64                `json:"next_offset"`
-	MessageCount int                   `json:"message_count"`
-	Awareness    []awareness.PeerState `json:"awareness"`
+	DocumentID      string                `json:"document_id"`
+	NextOffset      uint64                `json:"next_offset"`
+	MessageCount    int                   `json:"message_count"`
+	Awareness       []awareness.PeerState `json:"awareness"`
+	TextBase64      string                `json:"text_base64,omitempty"`
+	ReplicaBase64   string                `json:"replica_base64,omitempty"`
+	SnapshotOffset  uint64                `json:"snapshot_offset,omitempty"`
+	SnapshotPresent bool                  `json:"snapshot_present"`
 }
 
 type SyncFeed struct {
@@ -51,6 +55,12 @@ type SyncFeed struct {
 type peerResponse struct {
 	Messages   []string `json:"messages"`
 	NextOffset uint64   `json:"next_offset"`
+}
+
+type DocumentSnapshot struct {
+	TextBase64    string
+	ReplicaBase64 string
+	Offset        uint64
 }
 
 type App struct {
@@ -69,6 +79,7 @@ type App struct {
 	seen               map[string]struct{}
 	presence           map[string]awareness.Index
 	syncFeeds          map[string][]crdt.SyncRecord
+	syncSnapshots      map[string]DocumentSnapshot
 	metadata           map[string]metadata.Record
 	published          map[string][]publish.Record
 	publishByCID       map[string]publish.Record
@@ -123,6 +134,7 @@ func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
 		seen:              map[string]struct{}{},
 		presence:          map[string]awareness.Index{},
 		syncFeeds:         map[string][]crdt.SyncRecord{},
+		syncSnapshots:     map[string]DocumentSnapshot{},
 		metadata:          map[string]metadata.Record{},
 		published:         map[string][]publish.Record{},
 		publishByCID:      map[string]publish.Record{},
@@ -154,9 +166,10 @@ func (app *App) SetLiveChangeHooks(onSyncChanged func(string), onAwarenessChange
 }
 
 // Intent: Keep the relay non-canonical by signing and relaying exact Automerge
-// change bytes while leaving replica ownership in the browser or sidecar.
-// Source: DI-ramuv; DI-lumek; DI-larok
-func (app *App) PostSync(documentID string, participantID string, recipientID string, messageBase64 string, embodiment string) (crdt.SyncRecord, error) {
+// change bytes while letting embodiments optionally publish their latest
+// replica snapshot for faster late-join bootstrap. Source: DI-ramuv; DI-lumek;
+// DI-larok; DI-gafit
+func (app *App) PostSync(documentID string, participantID string, recipientID string, messageBase64 string, embodiment string, textBase64 string, replicaBase64 string) (crdt.SyncRecord, error) {
 	if err := validateDocumentID(documentID); err != nil {
 		return crdt.SyncRecord{}, err
 	}
@@ -168,6 +181,9 @@ func (app *App) PostSync(documentID string, participantID string, recipientID st
 	}
 	if err := validateEmbodiment(embodiment); err != nil {
 		return crdt.SyncRecord{}, err
+	}
+	if textBase64 != "" && replicaBase64 == "" {
+		return crdt.SyncRecord{}, fmt.Errorf("sync snapshot text requires replica bytes")
 	}
 	messageBytes, err := base64.StdEncoding.DecodeString(messageBase64)
 	if err != nil {
@@ -196,6 +212,13 @@ func (app *App) PostSync(documentID string, participantID string, recipientID st
 	record, err := app.ingestEnvelopeLocked(envelopeBytes, nil)
 	if err != nil {
 		return crdt.SyncRecord{}, err
+	}
+	if replicaBase64 != "" {
+		app.syncSnapshots[documentID] = DocumentSnapshot{
+			TextBase64:    textBase64,
+			ReplicaBase64: replicaBase64,
+			Offset:        record.Offset,
+		}
 	}
 	return record, nil
 }
@@ -403,11 +426,16 @@ func (app *App) AwarenessState(documentID string) []awareness.PeerState {
 func (app *App) State(documentID string) RelayState {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	snapshot := app.syncSnapshots[documentID]
 	return RelayState{
-		DocumentID:   documentID,
-		NextOffset:   app.log.NextOffset(),
-		MessageCount: len(app.syncFeeds[documentID]),
-		Awareness:    app.awarenessLocked(documentID),
+		DocumentID:      documentID,
+		NextOffset:      app.log.NextOffset(),
+		MessageCount:    len(app.syncFeeds[documentID]),
+		Awareness:       app.awarenessLocked(documentID),
+		TextBase64:      snapshot.TextBase64,
+		ReplicaBase64:   snapshot.ReplicaBase64,
+		SnapshotOffset:  snapshot.Offset,
+		SnapshotPresent: snapshot.ReplicaBase64 != "",
 	}
 }
 

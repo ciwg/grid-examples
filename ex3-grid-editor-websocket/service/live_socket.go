@@ -18,6 +18,8 @@ type syncSocketRequest struct {
 	ParticipantID string `json:"participant_id"`
 	RecipientID   string `json:"recipient_id"`
 	MessageBase64 string `json:"message_base64"`
+	TextBase64    string `json:"text_base64"`
+	ReplicaBase64 string `json:"replica_base64"`
 	Embodiment    string `json:"embodiment"`
 }
 
@@ -146,7 +148,7 @@ func (server *Server) readSyncSocket(socket *websocketConn, documentID string, e
 			}
 			continue
 		}
-		record, err := server.app.PostSync(documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment)
+		record, err := server.app.PostSync(documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment, payload.TextBase64, payload.ReplicaBase64)
 		if err != nil {
 			if writeErr := socket.WriteJSON(map[string]any{
 				"type":    "error",

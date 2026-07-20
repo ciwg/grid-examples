@@ -120,6 +120,16 @@ local function peer_selection_highlight(color)
   return group
 end
 
+local function set_cursor_extmark(bufnr, namespace, row, col, options)
+  local ok = pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, row, col, options)
+  if ok then
+    return
+  end
+  local fallback = vim.deepcopy(options)
+  fallback.virt_text_pos = 'overlay'
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, row, col, fallback)
+end
+
 local peer_presence_state
 
 local function draw_peers(peers)
@@ -159,7 +169,10 @@ local function draw_peers(peers)
     -- Neovim users can tell who else is present without opening extra UI, and
     -- render remote selections as real highlighted ranges rather than only as
     -- cursor labels. Source: DI-gafit; DI-samuv; DI-favok
-    vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.cursor_ns, row, col, {
+    -- Intent: Fall back to a broadly supported cursor-label position when this
+    -- Neovim build does not support inline virtual text, so peer markers stay
+    -- visible instead of failing silently on older runtimes. Source: DI-gafit
+    set_cursor_extmark(M.state.bufnr, M.state.cursor_ns, row, col, {
       virt_text = {
         { '▏', group },
         { ' ' .. (peer.name or peer.participant_id or 'peer') .. (peer.typing and ' typing' or '') .. ' ', group },
@@ -179,7 +192,7 @@ peer_presence_state = function(peer)
   if observed <= 0 then
     return 'live'
   end
-  local age = os.time(os.date('!*t')) - observed
+  local age = os.time() - observed
   local profile = M.config.presence_profile == 'normal'
     and { live = 60, stale = 5 * 60, offline = 15 * 60 }
     or { live = 5 * 60, stale = 15 * 60, offline = 30 * 60 }
@@ -403,19 +416,47 @@ local function start_sidecar()
     return true
   end
 
-  local stdout_chunks = {}
-  local function flush_stdout()
-    while #stdout_chunks > 0 do
-      local line = table.remove(stdout_chunks, 1)
-      if line ~= '' then
-        local ok, decoded = pcall(vim.json.decode, line)
-        if ok then
-          vim.schedule(function()
-            handle_sidecar_message(decoded)
-          end)
-        end
+  local stdout_tail = ''
+  local function queue_stdout_line(line)
+    if line == '' then
+      return
+    end
+    local ok, decoded = pcall(vim.json.decode, line)
+    if ok then
+      vim.schedule(function()
+        handle_sidecar_message(decoded)
+      end)
+      return
+    end
+    vim.schedule(function()
+      vim.notify('grid-editor dropped malformed sidecar output', vim.log.levels.WARN)
+    end)
+  end
+
+  local function feed_stdout(data)
+    if type(data) ~= 'table' then
+      return
+    end
+    for index, chunk in ipairs(data) do
+      local line = chunk
+      if index == 1 then
+        line = stdout_tail .. line
+      end
+      if index == #data then
+        stdout_tail = line
+      else
+        queue_stdout_line(line)
       end
     end
+  end
+
+  local function flush_stdout_tail()
+    if stdout_tail == '' then
+      return
+    end
+    local line = stdout_tail
+    stdout_tail = ''
+    queue_stdout_line(line)
   end
 
   M.state.job_id = vim.fn.jobstart(sidecar_argv(), {
@@ -423,12 +464,10 @@ local function start_sidecar()
     stdout_buffered = false,
     stderr_buffered = false,
     on_stdout = function(_, data)
-      for _, line in ipairs(data) do
-        if line ~= '' then
-          table.insert(stdout_chunks, line)
-        end
-      end
-      flush_stdout()
+      -- Intent: Reassemble sidecar stdout into complete newline-delimited JSON
+      -- records before decoding, because Neovim job callbacks can split large
+      -- awareness payloads across multiple chunks. Source: DI-gafit
+      feed_stdout(data)
     end,
     on_stderr = function(_, data)
       for _, line in ipairs(data) do
@@ -440,6 +479,7 @@ local function start_sidecar()
       end
     end,
     on_exit = function()
+      flush_stdout_tail()
       M.state.job_id = nil
     end,
   })

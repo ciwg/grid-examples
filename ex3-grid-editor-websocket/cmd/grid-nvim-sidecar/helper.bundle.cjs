@@ -6149,7 +6149,11 @@ var state = {
   awarenessSocket: null,
   relayConnected: false,
   relayTransport: "polling",
-  awarenessTransport: "polling"
+  awarenessTransport: "polling",
+  initialSyncReady: false,
+  startupTransportsReady: false,
+  openedSent: false,
+  queuedLocalText: null
 };
 var rl = readline.createInterface({
   input: process.stdin,
@@ -6228,6 +6232,10 @@ async function openDocument(documentId) {
   state.documentId = documentId;
   state.doc = ensureDocument(null);
   state.offset = 0;
+  state.initialSyncReady = false;
+  state.startupTransportsReady = false;
+  state.openedSent = false;
+  state.queuedLocalText = null;
   if (state.accessToken) {
     const session = await requestJSON("POST", `${basePath()}/session`, {
       participant_id: state.participantId
@@ -6236,9 +6244,11 @@ async function openDocument(documentId) {
     });
     state.capabilities = session.capabilities || {};
   }
+  await hydrateFromSnapshot();
   if (websocketCapable()) {
     await connectSyncSocket();
     await connectAwarenessSocket();
+    state.startupTransportsReady = true;
   } else {
     state.relayTransport = "polling";
     state.awarenessTransport = "polling";
@@ -6251,14 +6261,10 @@ async function openDocument(documentId) {
       pollAwareness().catch((error) => send({ type: "error", message: error.stack || error.message }));
     }, 350);
     await postAwareness(false);
+    state.initialSyncReady = true;
+    state.startupTransportsReady = true;
   }
-  send({
-    type: "opened",
-    doc_id: state.documentId,
-    content: getText(),
-    relay_transport: state.relayTransport,
-    awareness_transport: state.awarenessTransport
-  });
+  completeInitialOpen();
 }
 function closeDocument() {
   if (state.syncTimer) {
@@ -6280,11 +6286,19 @@ function closeDocument() {
   state.documentId = "";
   state.doc = ensureDocument(null);
   state.offset = 0;
+  state.initialSyncReady = false;
+  state.startupTransportsReady = false;
+  state.openedSent = false;
+  state.queuedLocalText = null;
   setRelayConnected(false);
 }
 function applyLocalText(content) {
   const previous = getText();
   if (content === previous) {
+    return;
+  }
+  if (!state.initialSyncReady) {
+    state.queuedLocalText = content;
     return;
   }
   const prefix = commonPrefix(previous, content);
@@ -6299,6 +6313,24 @@ function applyLocalText(content) {
     postChange(change2).catch((error) => send({ type: "error", message: error.stack || error.message }));
   }
 }
+function completeInitialOpen() {
+  if (state.openedSent || !state.documentId || !state.initialSyncReady || !state.startupTransportsReady) {
+    return;
+  }
+  state.openedSent = true;
+  send({
+    type: "opened",
+    doc_id: state.documentId,
+    content: getText(),
+    relay_transport: state.relayTransport,
+    awareness_transport: state.awarenessTransport
+  });
+  if (state.queuedLocalText !== null) {
+    const queued = state.queuedLocalText;
+    state.queuedLocalText = null;
+    applyLocalText(queued);
+  }
+}
 async function pollSync() {
   if (!state.documentId) {
     return;
@@ -6306,15 +6338,7 @@ async function pollSync() {
   while (true) {
     const payload = await getJSON(`${basePath()}/sync?since=${state.offset}&limit=256`);
     setRelayConnected(true);
-    for (const record of payload.messages || []) {
-      if (record.participant_id === state.participantId) {
-        continue;
-      }
-      if (record.recipient_id && record.recipient_id !== state.participantId) {
-        continue;
-      }
-      await receive(record);
-    }
+    await receiveMany(payload.messages || []);
     const nextOffset = payload.next_offset || state.offset;
     if (nextOffset <= state.offset) {
       break;
@@ -6381,12 +6405,16 @@ async function postChange(changeBytes) {
   if (!state.documentId) {
     return;
   }
+  const replicaBase64 = bytesToBase64(save(state.doc));
+  const textBase64 = bytesToBase64(new TextEncoder().encode(getText()));
   if (state.syncSocket && state.syncSocket.readyState === WebSocket.OPEN) {
     state.syncSocket.send(JSON.stringify({
       type: "post-sync",
       participant_id: state.participantId,
       recipient_id: "",
       message_base64: bytesToBase64(changeBytes),
+      text_base64: textBase64,
+      replica_base64: replicaBase64,
       embodiment: "nvim"
     }));
     return;
@@ -6395,6 +6423,8 @@ async function postChange(changeBytes) {
     participant_id: state.participantId,
     recipient_id: "",
     message_base64: bytesToBase64(changeBytes),
+    text_base64: textBase64,
+    replica_base64: replicaBase64,
     embodiment: "nvim"
   });
 }
@@ -6461,17 +6491,53 @@ function requestJSON(method, rawURL, body, extraHeaders = {}) {
 }
 async function receive(record) {
   if (!record.participant_id) {
-    return;
+    return false;
   }
-  const previous = clone(state.doc);
-  const [nextDoc] = applyChanges(previous, [base64ToBytes(record.message_base64)]);
-  if (!equals(previous, nextDoc)) {
+  if (record.participant_id === state.participantId) {
+    return false;
+  }
+  if (record.recipient_id && record.recipient_id !== state.participantId) {
+    return false;
+  }
+  const [nextDoc] = applyChanges(state.doc, [base64ToBytes(record.message_base64)]);
+  const nextText = nextDoc.content?.toString() || "";
+  if (nextText !== getText()) {
     state.doc = ensureDocument(nextDoc);
+    return true;
+  }
+  state.doc = ensureDocument(nextDoc);
+  return false;
+}
+async function receiveMany(records) {
+  let changed = false;
+  for (const record of records) {
+    if (await receive(record)) {
+      changed = true;
+    }
+  }
+  if (changed && state.openedSent) {
     send({
       type: "changed",
       content: getText()
     });
   }
+}
+async function hydrateFromSnapshot() {
+  const snapshot = await getJSON(`${basePath()}/state`);
+  if (!snapshot.replica_base64) {
+    return;
+  }
+  if (!snapshot.text_base64 && Number(snapshot.message_count || 0) > 0) {
+    return;
+  }
+  state.doc = ensureDocument(load2(base64ToBytes(snapshot.replica_base64)));
+  state.offset = Number(snapshot.snapshot_offset || snapshot.next_offset || 0);
+}
+async function handleSyncSocketRecords(records) {
+  if (!Array.isArray(records) || records.length === 0) {
+    return;
+  }
+  await receiveMany(records);
 }
 function basePath() {
   return `${state.relayUrl.replace(/\/$/, "")}/api/local/documents/${encodeURIComponent(state.documentId)}`;
@@ -6482,6 +6548,7 @@ async function connectSyncSocket() {
   state.syncSocket = socket;
   await new Promise((resolve, reject) => {
     let settled = false;
+    let socketWork = Promise.resolve();
     socket.addEventListener("open", () => {
       setRelayConnected(true);
       if (state.capabilities.sync) {
@@ -6492,7 +6559,8 @@ async function connectSyncSocket() {
       }
     });
     socket.addEventListener("message", (event) => {
-      handleSyncSocketMessage(event.data).then(() => {
+      socketWork = socketWork.then(() => handleSyncSocketMessage(event.data));
+      socketWork.then(() => {
         if (!settled) {
           settled = true;
           resolve();
@@ -6530,6 +6598,7 @@ async function connectAwarenessSocket() {
   state.awarenessSocket = socket;
   await new Promise((resolve, reject) => {
     let settled = false;
+    let socketWork = Promise.resolve();
     socket.addEventListener("open", () => {
       if (state.capabilities.awareness) {
         socket.send(JSON.stringify({
@@ -6545,20 +6614,22 @@ async function connectAwarenessSocket() {
       });
     });
     socket.addEventListener("message", (event) => {
-      try {
+      socketWork = socketWork.then(() => {
         handleAwarenessSocketMessage(event.data);
+      });
+      socketWork.then(() => {
         if (!settled) {
           settled = true;
           resolve();
         }
-      } catch (error) {
+      }).catch((error) => {
         if (!settled) {
           settled = true;
           reject(error);
           return;
         }
         send({ type: "error", message: error.stack || error.message });
-      }
+      });
     });
     socket.addEventListener("error", () => {
       const error = new Error("awareness websocket failed");
@@ -6581,15 +6652,7 @@ async function handleSyncSocketMessage(raw) {
   const payload = JSON.parse(raw);
   if (payload.type === "sync-feed") {
     setRelayConnected(true);
-    for (const record of payload.messages || []) {
-      if (record.participant_id === state.participantId) {
-        continue;
-      }
-      if (record.recipient_id && record.recipient_id !== state.participantId) {
-        continue;
-      }
-      await receive(record);
-    }
+    await handleSyncSocketRecords(payload.messages || []);
     const nextOffset = payload.next_offset || state.offset;
     if (nextOffset > state.offset) {
       state.offset = nextOffset;
@@ -6602,6 +6665,8 @@ async function handleSyncSocketMessage(raw) {
     if (nextOffset > state.offset) {
       state.offset = nextOffset;
     }
+    state.initialSyncReady = true;
+    completeInitialOpen();
     return;
   }
   if (payload.type === "sync-posted") {

@@ -31900,12 +31900,16 @@ var AutomergeRelayClient = class {
     }
   }
   async postChange(change2) {
+    const replicaBase64 = bytesToBase64(this.getReplicaBytes());
+    const textBase64 = bytesToBase64(new TextEncoder().encode(this.getText()));
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
         type: "post-sync",
         participant_id: this.participantID,
         recipient_id: "",
         message_base64: bytesToBase64(change2),
+        text_base64: textBase64,
+        replica_base64: replicaBase64,
         embodiment: "browser"
       }));
       return;
@@ -31920,6 +31924,8 @@ var AutomergeRelayClient = class {
         participant_id: this.participantID,
         recipient_id: "",
         message_base64: bytesToBase64(change2),
+        text_base64: textBase64,
+        replica_base64: replicaBase64,
         embodiment: "browser"
       })
     });

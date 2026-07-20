@@ -10,6 +10,14 @@
 
 The screenshot shows the default `paper` theme with the `demo` document open and the page loaded near the top of the layout.
 
+Important note:
+- this screenshot was captured **before** the later sidebar reorder that moved
+  `PromiseGrid Flow` above `Document`
+- the current code now places `PromiseGrid Flow` first in the left sidebar,
+  then `Relay`, then `Document`
+- that means the screenshot is still useful for the overall shell look, but
+  the exact top-to-bottom sidebar order is now slightly out of date
+
 Visible status in the screenshot:
 
 - Header brand: `grid-editor`
@@ -30,7 +38,7 @@ Visible status in the screenshot:
 
 The page is split into two main columns:
 
-1. A left sidebar of stacked cards for document controls, identity, workspace, PromiseGrid flow, metadata, relay details, peers, and review/history.
+1. A left sidebar of stacked cards for PromiseGrid flow, relay details, document controls, identity, workspace, metadata, peers, and review/history.
 2. A right editor shell containing the toolbar, session status, quick-start banner, document tabs, presence badges, editor pane, preview pane, and modal overlays.
 
 The captured screenshot only shows the upper portion of the sidebar. The lower cards still exist on the page but are below the first viewport cut.
@@ -47,7 +55,54 @@ Purpose:
 Visible in screenshot:
 - yes
 
-### 2. Document Card
+### 2. PromiseGrid Flow Card
+
+Purpose:
+- show the live data-flow story for the current document
+- display the transport mode in use
+- show relay-observed message traffic for the current document
+- let the user click a message for decoded inspection
+
+Layout note:
+- this card is now at the top of the left sidebar
+- it is not the top of the whole page, because the page header still sits
+  above the cards
+
+Elements:
+- transport pill
+- flow diagram
+- trace caption
+- `message-trace` list
+
+Flow diagram labels:
+- `Browser`
+- `signed grid message`
+- `Relay`
+- `peer feed`
+- `Peer relay`
+- `websocket fanout`
+- `Other editor`
+
+Visible in screenshot:
+- no, this screenshot predates the sidebar reorder
+
+### 3. Relay Card
+
+Purpose:
+- expose the local relay/author identity and the pCID identifiers used by the demo
+
+Readouts:
+- `Author`
+- `live-document pCID`
+- `live-awareness pCID`
+- `document-metadata pCID`
+- `publish-document pCID`
+- `demo profile` pill
+
+Visible in screenshot:
+- no, below the first viewport cut
+
+### 4. Document Card
 
 Purpose:
 - choose which shared document is open
@@ -84,7 +139,7 @@ Current screenshot values:
 - last edited: `-`
 - last exported: `-`
 
-### 3. You Card
+### 5. You Card
 
 Purpose:
 - define the local participant identity that the browser advertises to the relay and other editors
@@ -106,7 +161,7 @@ Current screenshot values:
 - display name: `Browser User`
 - color picker: blue value corresponding to the current participant color
 
-### 4. Workspace Card
+### 6. Workspace Card
 
 Purpose:
 - show open tabs, recent docs, and templates
@@ -124,33 +179,7 @@ Buttons:
 Visible in screenshot:
 - no, below the first viewport cut
 
-### 5. PromiseGrid Flow Card
-
-Purpose:
-- show the live data-flow story for the current document
-- display the transport mode in use
-- show relay-observed message traffic for the current document
-- let the user click a message for decoded inspection
-
-Elements:
-- transport pill
-- flow diagram
-- trace caption
-- `message-trace` list
-
-Flow diagram labels:
-- `Browser`
-- `signed grid message`
-- `Relay`
-- `peer feed`
-- `Peer relay`
-- `websocket fanout`
-- `Other editor`
-
-Visible in screenshot:
-- no, below the first viewport cut
-
-### 6. Metadata Card
+### 7. Metadata Card
 
 Purpose:
 - edit relay-backed descriptive metadata for the document
@@ -163,22 +192,6 @@ Fields:
 - `Favorite`
 - `Archived`
 - `Save Metadata`
-
-Visible in screenshot:
-- no
-
-### 7. Relay Card
-
-Purpose:
-- expose the local relay/author identity and the pCID identifiers used by the demo
-
-Readouts:
-- `Author`
-- `live-document pCID`
-- `live-awareness pCID`
-- `document-metadata pCID`
-- `publish-document pCID`
-- `demo profile` pill
 
 Visible in screenshot:
 - no
@@ -377,6 +390,62 @@ Contains:
 
 Purpose:
 - show expanded debug/inspection output, including clicked message details
+
+Why it exists:
+- it lets the demo explain a real selected PromiseGrid message instead of
+  asking viewers to trust that “something decentralized” is happening
+- it shows the current browser transport state and the selected relay-observed
+  message in one place
+
+What the inspector payload means:
+- `documentID`
+  - the active shared document
+- `browser_transport`
+  - the transport modes currently used by the browser page
+- `browser_transport.sync`
+  - live document sync transport
+- `browser_transport.awareness`
+  - live presence transport
+- `browser_transport.relay_path`
+  - explicit proof that the browser is going through the relay path
+- `selected_message`
+  - the clicked trace entry from the PromiseGrid Flow panel
+
+Important `selected_message` fields:
+- `offset`
+  - relay log position of the message
+- `envelope_cid`
+  - CID of the signed outer envelope
+- `protocol`
+  - protocol family such as `live-awareness`
+- `pcid`
+  - protocol CID selecting the message semantics
+- `kind`
+  - message kind inside that protocol family
+- `document_id`
+  - document this message belongs to
+- `participant_id`
+  - participant that emitted the message
+- `author`
+  - signing key id
+- `embodiment`
+  - browser or Neovim-style source embodiment
+- `lamport`
+  - Lamport clock value carried on the message
+- `received_at`
+  - local relay receive timestamp
+- `summary`
+  - short human-readable explanation of the message
+- `envelope_base64`
+  - raw signed envelope bytes
+- `payload_base64`
+  - raw payload bytes
+- `proof_algorithm`
+  - signing algorithm
+- `proof_key_id`
+  - proof key id
+- `decoded_payload`
+  - decoded protocol payload fields for human reading
 
 ### 24. Hidden File Import Control
 

@@ -2,11 +2,14 @@ package service_test
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -24,10 +27,7 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen tcp4: %v", err)
-	}
+	listener := listenTCP4OrSkip(t)
 	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
 	server.Listener = listener
 	server.Start()
@@ -113,7 +113,9 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 		"typing": true,
 	})
 	sidecarAwareness := sidecar.WaitForMessage(t, func(message map[string]any) bool {
-		return stringField(t, message, "type") == "awareness" && hasPeer(message, "browser-a", 3)
+		return stringField(t, message, "type") == "awareness" &&
+			hasPeer(message, "browser-a", 3) &&
+			peerFieldEquals(message, "browser-a", "typing", true)
 	})
 	if !hasPeer(sidecarAwareness, "browser-a", 3) {
 		t.Fatalf("browser peer did not appear in sidecar awareness: %#v", sidecarAwareness)
@@ -174,6 +176,146 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 		if line != "2" {
 			t.Fatalf("expected all phase 1 commands to exist, got output %q", string(output))
 		}
+	}
+}
+
+func TestNeovimPluginRendersRemoteDocumentAndPeerMarkers(t *testing.T) {
+	t.Parallel()
+
+	if _, err := exec.LookPath("nvim"); err != nil {
+		t.Skip("nvim not installed")
+	}
+
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	listener := listenTCP4OrSkip(t)
+	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	repoRoot := repoRoot(t)
+	browser := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browser.Close()
+	browser.WaitForType(t, "ready")
+
+	browser.Send(t, map[string]any{
+		"type":           "connect",
+		"relay_url":      server.URL,
+		"participant_id": "browser-a",
+		"doc_id":         "demo",
+		"display_name":   "Browser A",
+		"color":          "#1d6fd6",
+	})
+	browser.WaitForType(t, "opened")
+
+	outputPath := filepath.Join(t.TempDir(), "nvim-observed.json")
+	scriptPath := filepath.Join(t.TempDir(), "nvim-script.lua")
+	script := fmt.Sprintf(`
+vim.opt.swapfile = false
+vim.opt.runtimepath:append(%q)
+require("grid_editor").setup({
+  relay_url = %q,
+  display_name = "Nvim A",
+  color = "#d66f1d",
+})
+vim.cmd("GridEditorOpen demo")
+vim.defer_fn(function()
+  local state = require("grid_editor").state
+  local bufnr = state.bufnr
+  local lines = {}
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+    lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  end
+  local cursor_marks = 0
+  local selection_marks = 0
+  if bufnr and state.cursor_ns then
+    cursor_marks = #vim.api.nvim_buf_get_extmarks(bufnr, state.cursor_ns, 0, -1, {})
+  end
+  if bufnr and state.selection_ns then
+    selection_marks = #vim.api.nvim_buf_get_extmarks(bufnr, state.selection_ns, 0, -1, {})
+  end
+  local payload = {
+    content = table.concat(lines, "\n"),
+    peer_count = #(state.peers or {}),
+    cursor_marks = cursor_marks,
+    selection_marks = selection_marks,
+    peer_name = state.peers and state.peers[1] and state.peers[1].name or "",
+    peer_typing = state.peers and state.peers[1] and state.peers[1].typing or false,
+    peer_last_seen_at = state.peers and state.peers[1] and state.peers[1].last_seen_at or "",
+    peer_anchor = state.peers and state.peers[1] and state.peers[1].anchor or -1,
+  }
+  local encoded = vim.json.encode(payload)
+  vim.fn.writefile({ encoded }, %q)
+  vim.cmd("qall!")
+end, 1400)
+`, filepath.Join(repoRoot, "nvim"), server.URL, outputPath)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
+		t.Fatalf("write nvim script: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-S", scriptPath)
+	command.Dir = repoRoot
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+
+	if err := command.Start(); err != nil {
+		t.Fatalf("start headless nvim: %v", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	browser.Send(t, map[string]any{
+		"type":    "set_text",
+		"content": "hello from browser",
+	})
+	browser.Send(t, map[string]any{
+		"type":   "set_cursor",
+		"anchor": 5,
+		"head":   5,
+		"typing": true,
+	})
+
+	if err := command.Wait(); err != nil {
+		t.Fatalf("headless nvim run failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
+
+	raw, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read nvim observed output: %v", err)
+	}
+	var observed struct {
+		Content        string `json:"content"`
+		PeerCount      int    `json:"peer_count"`
+		CursorMarks    int    `json:"cursor_marks"`
+		SelectionMarks int    `json:"selection_marks"`
+		PeerName       string `json:"peer_name"`
+		PeerTyping     bool   `json:"peer_typing"`
+		PeerLastSeenAt string `json:"peer_last_seen_at"`
+		PeerAnchor     int    `json:"peer_anchor"`
+	}
+	if err := json.Unmarshal(raw, &observed); err != nil {
+		t.Fatalf("decode nvim observed output: %v", err)
+	}
+	if observed.Content != "hello from browser" {
+		t.Fatalf("unexpected nvim content %q", observed.Content)
+	}
+	if observed.PeerCount < 1 {
+		t.Fatalf("expected at least one remote peer, got %d with observed=%+v", observed.PeerCount, observed)
+	}
+	if observed.CursorMarks < 1 {
+		t.Fatalf("expected at least one peer cursor mark, got %d with observed=%+v", observed.CursorMarks, observed)
+	}
+	if observed.PeerName != "Browser A" {
+		t.Fatalf("unexpected peer name %q", observed.PeerName)
+	}
+	if !observed.PeerTyping {
+		t.Fatalf("expected peer typing flag in plugin state")
 	}
 }
 
@@ -308,6 +450,18 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("runtime caller failed")
 	}
 	return filepath.Dir(filepath.Dir(filename))
+}
+
+func listenTCP4OrSkip(t *testing.T) net.Listener {
+	t.Helper()
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		if strings.Contains(err.Error(), "operation not permitted") {
+			t.Skipf("tcp4 listen unavailable in this environment: %v", err)
+		}
+		t.Fatalf("listen tcp4: %v", err)
+	}
+	return listener
 }
 
 func stringField(t *testing.T, message map[string]any, key string) string {

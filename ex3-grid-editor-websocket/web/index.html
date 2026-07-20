@@ -19,6 +19,43 @@
 
         <div class="card" id="promisegrid-flow-card">
           <div class="card-head">
+            <h2>PromiseGrid Flow</h2>
+            <span id="transport-mode" class="pill">browser sync: -</span>
+          </div>
+          <div class="flow-diagram" aria-label="Browser to relay data flow">
+            <div class="flow-node">Browser</div>
+            <div class="flow-arrow">signed grid message</div>
+            <div class="flow-node">Relay</div>
+            <div class="flow-arrow">peer feed</div>
+            <div class="flow-node">Peer relay</div>
+            <div class="flow-arrow">websocket fanout</div>
+            <div class="flow-node">Other editor</div>
+          </div>
+          <p class="tiny muted" id="trace-caption">Live relay-observed PromiseGrid traffic for this document. Click a message for decoded payload and raw CBOR base64.</p>
+          <ul id="message-trace" class="doc-list compact"></ul>
+        </div>
+
+        <div class="card" id="relay-card">
+          <div class="card-head">
+            <h2>Relay</h2>
+            <span class="pill pill-muted" id="profile-pill">demo profile</span>
+          </div>
+          <dl>
+            <dt>Author</dt>
+            <dd id="local-id">loading…</dd>
+            <dt>live-document pCID</dt>
+            <dd id="doc-pcid">loading…</dd>
+            <dt>live-awareness pCID</dt>
+            <dd id="awareness-pcid">loading…</dd>
+            <dt>document-metadata pCID</dt>
+            <dd id="metadata-pcid">loading…</dd>
+            <dt>publish-document pCID</dt>
+            <dd id="publish-pcid">loading…</dd>
+          </dl>
+        </div>
+
+        <div class="card" id="document-card">
+          <div class="card-head">
             <h2>Document</h2>
             <span class="pill" id="peer-count">0 peers</span>
           </div>
@@ -102,24 +139,6 @@
 
         <div class="card">
           <div class="card-head">
-            <h2>PromiseGrid Flow</h2>
-            <span id="transport-mode" class="pill">browser sync: -</span>
-          </div>
-          <div class="flow-diagram" aria-label="Browser to relay data flow">
-            <div class="flow-node">Browser</div>
-            <div class="flow-arrow">signed grid message</div>
-            <div class="flow-node">Relay</div>
-            <div class="flow-arrow">peer feed</div>
-            <div class="flow-node">Peer relay</div>
-            <div class="flow-arrow">websocket fanout</div>
-            <div class="flow-node">Other editor</div>
-          </div>
-          <p class="tiny muted" id="trace-caption">Live relay-observed PromiseGrid traffic for this document. Click a message for decoded payload and raw CBOR base64.</p>
-          <ul id="message-trace" class="doc-list compact"></ul>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
             <h2>Metadata</h2>
             <span class="tiny muted">Relay-backed document labels</span>
           </div>
@@ -142,25 +161,6 @@
           <div class="button-row">
             <button id="save-metadata" type="button">Save Metadata</button>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2>Relay</h2>
-            <span class="pill pill-muted" id="profile-pill">demo profile</span>
-          </div>
-          <dl>
-            <dt>Author</dt>
-            <dd id="local-id">loading…</dd>
-            <dt>live-document pCID</dt>
-            <dd id="doc-pcid">loading…</dd>
-            <dt>live-awareness pCID</dt>
-            <dd id="awareness-pcid">loading…</dd>
-            <dt>document-metadata pCID</dt>
-            <dd id="metadata-pcid">loading…</dd>
-            <dt>publish-document pCID</dt>
-            <dd id="publish-pcid">loading…</dd>
-          </dl>
         </div>
 
         <div class="card">
