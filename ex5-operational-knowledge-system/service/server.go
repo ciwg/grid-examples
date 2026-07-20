@@ -82,8 +82,18 @@ func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.
 	writeJSON(writer, http.StatusOK, server.app.Dashboard())
 }
 
+// Intent: Keep the local search endpoint useful for real operator drilldown by
+// accepting structured filters, not only one free-text query. Source: DI-honus
 func (server *Server) handleSearch(writer http.ResponseWriter, request *http.Request) {
-	writeJSON(writer, http.StatusOK, server.app.Search(request.URL.Query().Get("q")))
+	options := SearchOptions{
+		Query:            request.URL.Query().Get("q"),
+		Kind:             request.URL.Query().Get("kind"),
+		Status:           request.URL.Query().Get("status"),
+		PlaceID:          request.URL.Query().Get("place_id"),
+		ResourceID:       request.URL.Query().Get("resource_id"),
+		ResponsibilityID: request.URL.Query().Get("responsibility_id"),
+	}
+	writeJSON(writer, http.StatusOK, server.app.SearchWithOptions(options))
 }
 
 func (server *Server) handlePlaces(writer http.ResponseWriter, request *http.Request) {

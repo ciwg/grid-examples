@@ -5,6 +5,7 @@ const responsibilityListEl = document.getElementById("responsibility-list");
 const itemListEl = document.getElementById("item-list");
 const runListEl = document.getElementById("run-list");
 const searchResultsEl = document.getElementById("search-results");
+const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
 const toastEl = document.getElementById("toast");
 const detailMetaEl = document.getElementById("detail-meta");
@@ -177,10 +178,10 @@ document.getElementById("evidence-form").addEventListener("submit", async (event
 
 document.getElementById("search-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const query = event.currentTarget.q.value;
-  const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+  const filters = getSearchFilters(event.currentTarget);
+  const response = await fetch(`/api/search?${buildSearchParams(filters).toString()}`);
   const payload = await response.json();
-  renderSearchResults(query, payload);
+  renderSearchResults(filters, payload);
 });
 
 editorItemIDEl.addEventListener("change", async () => {
@@ -384,10 +385,35 @@ function renderRuns(items) {
   }
 }
 
-function renderSearchResults(query, payload) {
+// Intent: Let browser operators combine structured filters with free-text
+// search so they can drill into one slice of the operational graph without
+// manually cross-referencing IDs outside the app. Source: DI-honus
+function getSearchFilters(form) {
+  return {
+    q: form.q.value.trim(),
+    kind: form.kind.value.trim(),
+    status: form.status.value.trim(),
+    place_id: form.place_id.value.trim(),
+    resource_id: form.resource_id.value.trim(),
+    responsibility_id: form.responsibility_id.value.trim(),
+  };
+}
+
+function buildSearchParams(filters) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      params.set(key, value);
+    }
+  }
+  return params;
+}
+
+function renderSearchResults(filters, payload) {
   searchResultsEl.innerHTML = "";
   searchRawEl.hidden = false;
   searchRawEl.textContent = JSON.stringify(payload, null, 2);
+  searchActiveEl.textContent = formatSearchFilters(payload.filters || filters);
   const groups = [
     ["places", "place"],
     ["resources", "resource"],
@@ -420,9 +446,35 @@ function renderSearchResults(query, payload) {
   if (!searchResultsEl.children.length) {
     const empty = document.createElement("div");
     empty.className = "meta";
-    empty.textContent = query ? `No results for "${query}".` : "No results.";
+    empty.textContent = filters.q ? `No results for "${filters.q}".` : "No results.";
     searchResultsEl.appendChild(empty);
   }
+}
+
+function formatSearchFilters(filters) {
+  const labels = [];
+  if (filters.query || filters.q) {
+    labels.push(`query: ${filters.query || filters.q}`);
+  }
+  if (filters.kind) {
+    labels.push(`kind: ${filters.kind}`);
+  }
+  if (filters.status) {
+    labels.push(`status: ${filters.status}`);
+  }
+  if (filters.place_id) {
+    labels.push(`place: ${filters.place_id}`);
+  }
+  if (filters.resource_id) {
+    labels.push(`resource: ${filters.resource_id}`);
+  }
+  if (filters.responsibility_id) {
+    labels.push(`responsibility: ${filters.responsibility_id}`);
+  }
+  if (labels.length === 0) {
+    return "No active search filters.";
+  }
+  return `Active filters: ${labels.join(" · ")}`;
 }
 
 function searchSummary(type, item) {

@@ -613,31 +613,38 @@ func (app *App) AddLink(actor string, fromType string, fromID string, toType str
 }
 
 func (app *App) Search(query string) map[string]any {
+	return app.SearchWithOptions(SearchOptions{Query: query})
+}
+
+// Intent: Let operators narrow the operational graph by structured context
+// such as kind, status, place, resource, and responsibility without forcing
+// them to rely on one free-text query string. Source: DI-honus
+func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	query = strings.ToLower(strings.TrimSpace(query))
+	options = normalizeSearchOptions(options)
 	places := []Place{}
 	resources := []Resource{}
 	resp := []Responsibility{}
 	items := []KnowledgeItem{}
 	runs := []RunRecord{}
 	for _, record := range app.places {
-		if query == "" || strings.Contains(strings.ToLower(record.Name+" "+record.Summary+" "+record.Kind), query) {
+		if matchesPlaceSearch(record, options) {
 			places = append(places, clonePlace(record))
 		}
 	}
 	for _, record := range app.resources {
-		if query == "" || strings.Contains(strings.ToLower(record.Name+" "+record.Summary+" "+record.Kind), query) {
+		if matchesResourceSearch(record, options) {
 			resources = append(resources, cloneResource(record))
 		}
 	}
 	for _, record := range app.responsibilities {
-		if query == "" || strings.Contains(strings.ToLower(record.Title+" "+record.Summary), query) {
+		if matchesResponsibilitySearch(record, options) {
 			resp = append(resp, cloneResponsibility(record))
 		}
 	}
 	for _, record := range app.items {
-		if query == "" || strings.Contains(strings.ToLower(record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status), query) {
+		if matchesItemSearch(record, options) {
 			items = append(items, cloneKnowledgeItem(record))
 		}
 	}
@@ -651,17 +658,106 @@ func (app *App) Search(query string) map[string]any {
 				searchBlob += " " + resource.Name + " " + resource.Summary + " " + resource.Kind
 			}
 		}
-		if query == "" || strings.Contains(strings.ToLower(searchBlob), query) {
+		if matchesRunSearch(record, searchBlob, options) {
 			runs = append(runs, cloneRun(record))
 		}
 	}
+	sort.Slice(places, func(i, j int) bool { return places[i].ID < places[j].ID })
+	sort.Slice(resources, func(i, j int) bool { return resources[i].ID < resources[j].ID })
+	sort.Slice(resp, func(i, j int) bool { return resp[i].ID < resp[j].ID })
+	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	sort.Slice(runs, func(i, j int) bool { return runs[i].ID < runs[j].ID })
 	return map[string]any{
+		"filters": map[string]any{
+			"query":             options.Query,
+			"kind":              options.Kind,
+			"status":            options.Status,
+			"place_id":          options.PlaceID,
+			"resource_id":       options.ResourceID,
+			"responsibility_id": options.ResponsibilityID,
+		},
 		"places":           places,
 		"resources":        resources,
 		"responsibilities": resp,
 		"items":            items,
 		"runs":             runs,
 	}
+}
+
+func normalizeSearchOptions(options SearchOptions) SearchOptions {
+	options.Query = strings.ToLower(strings.TrimSpace(options.Query))
+	options.Kind = strings.ToLower(strings.TrimSpace(options.Kind))
+	options.Status = strings.ToLower(strings.TrimSpace(options.Status))
+	options.PlaceID = strings.TrimSpace(options.PlaceID)
+	options.ResourceID = strings.TrimSpace(options.ResourceID)
+	options.ResponsibilityID = strings.TrimSpace(options.ResponsibilityID)
+	return options
+}
+
+func matchesPlaceSearch(record *Place, options SearchOptions) bool {
+	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
+		return false
+	}
+	if options.PlaceID != "" && record.ID != options.PlaceID {
+		return false
+	}
+	return matchesQuery(record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+}
+
+func matchesResourceSearch(record *Resource, options SearchOptions) bool {
+	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
+		return false
+	}
+	if options.PlaceID != "" && record.PlaceID != options.PlaceID {
+		return false
+	}
+	if options.ResourceID != "" && record.ID != options.ResourceID {
+		return false
+	}
+	return matchesQuery(record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+}
+
+func matchesResponsibilitySearch(record *Responsibility, options SearchOptions) bool {
+	if options.ResponsibilityID != "" && record.ID != options.ResponsibilityID {
+		return false
+	}
+	return matchesQuery(record.Title+" "+record.Summary, options.Query)
+}
+
+func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
+	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
+		return false
+	}
+	if options.Status != "" && strings.ToLower(record.Status) != options.Status {
+		return false
+	}
+	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
+		return false
+	}
+	return matchesQuery(record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status, options.Query)
+}
+
+func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOptions) bool {
+	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
+		return false
+	}
+	if options.PlaceID != "" && record.PlaceID != options.PlaceID {
+		return false
+	}
+	if options.ResourceID != "" && !containsValue(record.ResourceIDs, options.ResourceID) {
+		return false
+	}
+	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
+		return false
+	}
+	return matchesQuery(searchBlob, options.Query)
+}
+
+func matchesQuery(value string, query string) bool {
+	if query == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(value), query)
 }
 
 func (app *App) LiveItemState(itemID string) (LiveItemState, error) {
@@ -1213,6 +1309,15 @@ func appendUnique(values []string, value string) []string {
 		}
 	}
 	return append(values, value)
+}
+
+func containsValue(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func cloneResponsibility(in *Responsibility) Responsibility {

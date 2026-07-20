@@ -307,3 +307,75 @@ func TestAppPersistsDraftsAndRejectsStaleLiveUpdates(t *testing.T) {
 		t.Fatalf("expected persisted draft after reload, got %+v", reloadedItem)
 	}
 }
+
+func TestAppSearchWithStructuredFilters(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	responsibility, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, []string{"parts"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", []string{"inventory"}, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.RecordApproval("boss", "knowledge_item", item.ID, 1, "reviewer", DecisionApproved, "Ready to use"); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	approvedSearch := app.SearchWithOptions(SearchOptions{
+		Kind:   KnowledgeKindInventory,
+		Status: ItemStatusApproved,
+	})
+	items := approvedSearch["items"].([]KnowledgeItem)
+	if len(items) != 1 || items[0].ID != item.ID {
+		t.Fatalf("unexpected approved item filter result: %+v", items)
+	}
+
+	placeSearch := app.SearchWithOptions(SearchOptions{
+		PlaceID: place.ID,
+	})
+	places := placeSearch["places"].([]Place)
+	resources := placeSearch["resources"].([]Resource)
+	runs := placeSearch["runs"].([]RunRecord)
+	if len(places) != 1 || places[0].ID != place.ID {
+		t.Fatalf("unexpected place filter result: %+v", places)
+	}
+	if len(resources) != 1 || resources[0].ID != resource.ID {
+		t.Fatalf("unexpected resource filter result: %+v", resources)
+	}
+	if len(runs) != 1 || runs[0].ID != run.ID {
+		t.Fatalf("unexpected run filter result: %+v", runs)
+	}
+
+	respSearch := app.SearchWithOptions(SearchOptions{
+		ResponsibilityID: responsibility.ID,
+	})
+	responsibilities := respSearch["responsibilities"].([]Responsibility)
+	respItems := respSearch["items"].([]KnowledgeItem)
+	respRuns := respSearch["runs"].([]RunRecord)
+	if len(responsibilities) != 1 || responsibilities[0].ID != responsibility.ID {
+		t.Fatalf("unexpected responsibility filter result: %+v", responsibilities)
+	}
+	if len(respItems) != 1 || respItems[0].ID != item.ID {
+		t.Fatalf("unexpected responsibility-linked item result: %+v", respItems)
+	}
+	if len(respRuns) != 1 || respRuns[0].ID != run.ID {
+		t.Fatalf("unexpected responsibility-linked run result: %+v", respRuns)
+	}
+}

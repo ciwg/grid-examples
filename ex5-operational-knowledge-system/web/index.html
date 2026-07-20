@@ -171,10 +171,42 @@
 
       <section class="panel search-panel">
         <h2>Search</h2>
-        <form id="search-form">
-          <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
-          <button type="submit">Search</button>
+        <form id="search-form" class="search-form">
+          <div class="search-row">
+            <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
+            <button type="submit">Search</button>
+          </div>
+          <div class="search-filters">
+            <label>Kind
+              <select name="kind" id="search-kind">
+                <option value="">any</option>
+                <option value="procedure">procedure</option>
+                <option value="training">training</option>
+                <option value="maintenance">maintenance</option>
+                <option value="inventory_audit">inventory_audit</option>
+                <option value="site">site</option>
+                <option value="room">room</option>
+                <option value="area">area</option>
+                <option value="bin">bin</option>
+                <option value="machine">machine</option>
+                <option value="tool">tool</option>
+                <option value="container">container</option>
+              </select>
+            </label>
+            <label>Status
+              <select name="status" id="search-status">
+                <option value="">any</option>
+                <option value="draft">draft</option>
+                <option value="approved">approved</option>
+                <option value="superseded">superseded</option>
+              </select>
+            </label>
+            <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
+            <label>Resource ID <input name="resource_id" placeholder="RES-0001"></label>
+            <label>Responsibility ID <input name="responsibility_id" placeholder="RESP-0001"></label>
+          </div>
         </form>
+        <div id="search-active" class="meta">No active search filters.</div>
         <div id="search-results" class="search-results"></div>
         <pre id="search-raw" hidden></pre>
       </section>

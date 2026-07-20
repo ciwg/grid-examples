@@ -128,6 +128,24 @@ It supports:
 This does not replace richer future navigation, but it removes the need to
 copy raw IDs manually just to understand the current operational graph.
 
+### Structured search filters
+
+The browser search surface now supports more than plain text.
+
+Operators can combine a free-text query with filters for:
+
+- `kind`
+- `status`
+- `place_id`
+- `resource_id`
+- `responsibility_id`
+
+That makes it easier to ask targeted questions like:
+
+- which approved inventory audits belong to one responsibility
+- which runs and resources belong to one place
+- which records are still in `draft` status
+
 ### Performed runs
 
 Performed runs are the durable anchor for completed work.

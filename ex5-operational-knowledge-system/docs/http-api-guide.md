@@ -44,6 +44,30 @@ Returns the current projected counts for:
 - evidence
 - links
 
+## Search
+
+### `GET /api/search`
+
+Searches across places, resources, responsibilities, items, and runs.
+
+Supported query params:
+
+- `q`
+- `kind`
+- `status`
+- `place_id`
+- `resource_id`
+- `responsibility_id`
+
+The response includes:
+
+- `filters`
+- `places`
+- `resources`
+- `responsibilities`
+- `items`
+- `runs`
+
 ## Places and resources
 
 ### `GET /api/places`

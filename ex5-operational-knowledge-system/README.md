@@ -51,6 +51,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - named-role approvals with local team policy left outside the durable record
 - typed links across responsibilities, items, and runs
 - browser dashboard and forms
+- browser search filters by kind, status, place, resource, and responsibility
 - CLI inspection and creation commands
 
 For the longer feature walkthrough, see

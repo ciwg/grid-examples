@@ -181,6 +181,15 @@ type Dashboard struct {
 	Links            int `json:"links"`
 }
 
+type SearchOptions struct {
+	Query            string `json:"query"`
+	Kind             string `json:"kind"`
+	Status           string `json:"status"`
+	PlaceID          string `json:"place_id"`
+	ResourceID       string `json:"resource_id"`
+	ResponsibilityID string `json:"responsibility_id"`
+}
+
 type LivePresence struct {
 	ParticipantID string `json:"participant_id"`
 	DisplayName   string `json:"display_name"`

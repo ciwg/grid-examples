@@ -291,3 +291,58 @@ func TestServerLiveItemGetAndConflictResponse(t *testing.T) {
 		t.Fatalf("unexpected conflict payload: %s", response.Body.String())
 	}
 }
+
+func TestServerSearchAcceptsStructuredFilters(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := NewServer(app)
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, []string{"parts"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.RecordApproval("boss", "knowledge_item", item.ID, 1, "reviewer", DecisionApproved, "Ready to use"); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/search?kind=inventory_audit&status=approved&responsibility_id="+resp.ID, nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"status":"approved"`) || !strings.Contains(response.Body.String(), item.ID) {
+		t.Fatalf("filtered search missing approved item: %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"responsibility_id":"`+resp.ID+`"`) {
+		t.Fatalf("filtered search missing responsibility filter echo: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/search?place_id="+place.ID+"&resource_id="+resource.ID, nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("place/resource search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), place.ID) || !strings.Contains(response.Body.String(), resource.ID) || !strings.Contains(response.Body.String(), run.ID) {
+		t.Fatalf("place/resource filtered search missing expected records: %s", response.Body.String())
+	}
+}
