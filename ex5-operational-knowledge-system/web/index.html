@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Operational Knowledge System</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <h1>Operational Knowledge System</h1>
+        <p>Collaborative operational knowledge plus durable event-sourced runs, approvals, evidence, and responsibilities.</p>
+      </div>
+      <div class="stats" id="stats"></div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Create Responsibility</h2>
+        <form id="responsibility-form">
+          <label>Actor <input name="actor" value="alice"></label>
+          <label>Title <input name="title" required></label>
+          <label>Summary <textarea name="summary"></textarea></label>
+          <label>Role Keys <input name="role_keys" placeholder="author,approver"></label>
+          <label>Tags <input name="tags" placeholder="ops,startup"></label>
+          <button type="submit">Create Responsibility</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Create Knowledge Item</h2>
+        <form id="item-form">
+          <label>Actor <input name="actor" value="alice"></label>
+          <label>Kind
+            <select name="kind">
+              <option value="procedure">procedure</option>
+              <option value="training">training</option>
+              <option value="maintenance">maintenance</option>
+            </select>
+          </label>
+          <label>Title <input name="title" required></label>
+          <label>Summary <textarea name="summary"></textarea></label>
+          <label>Body <textarea name="body" rows="8"></textarea></label>
+          <label>Tags <input name="tags" placeholder="startup,line-a"></label>
+          <label>Responsibilities <input name="responsibility_ids" placeholder="RESP-0001,RESP-0002"></label>
+          <button type="submit">Create Knowledge Item</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Record Run</h2>
+        <form id="run-form">
+          <label>Actor <input name="actor" value="bob"></label>
+          <label>Kind
+            <select name="kind">
+              <option value="procedure">procedure</option>
+              <option value="training">training</option>
+              <option value="maintenance">maintenance</option>
+            </select>
+          </label>
+          <label>Item ID <input name="item_id" required></label>
+          <label>Revision <input name="revision" type="number" min="1" value="1"></label>
+          <label>Outcome <input name="outcome" placeholder="completed"></label>
+          <label>Machine <input name="machine"></label>
+          <label>Location <input name="location"></label>
+          <label>Responsibilities <input name="responsibility_ids" placeholder="RESP-0001"></label>
+          <label>Notes <textarea name="notes"></textarea></label>
+          <button type="submit">Record Run</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Add Evidence</h2>
+        <form id="evidence-form" enctype="multipart/form-data">
+          <label>Actor <input name="actor" value="bob"></label>
+          <label>Run ID <input name="run_id" required></label>
+          <label>Summary <input name="summary" required></label>
+          <label>Facts JSON <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
+          <label>Attachment <input name="attachment" type="file"></label>
+          <button type="submit">Add Evidence</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Record Approval</h2>
+        <form id="approval-form">
+          <label>Actor <input name="actor" value="boss"></label>
+          <label>Target Type
+            <select name="target_type">
+              <option value="knowledge_item">knowledge_item</option>
+              <option value="run">run</option>
+            </select>
+          </label>
+          <label>Target ID <input name="target_id" required></label>
+          <label>Revision <input name="revision" type="number" min="0" value="0"></label>
+          <label>Role <input name="role" placeholder="reviewer"></label>
+          <label>Decision
+            <select name="decision">
+              <option value="approved">approved</option>
+              <option value="rejected">rejected</option>
+              <option value="noted">noted</option>
+            </select>
+          </label>
+          <label>Notes <textarea name="notes"></textarea></label>
+          <button type="submit">Record Approval</button>
+        </form>
+      </section>
+
+      <section class="panel search-panel">
+        <h2>Search</h2>
+        <form id="search-form">
+          <input name="q" placeholder="Search responsibilities, items, runs">
+          <button type="submit">Search</button>
+        </form>
+        <pre id="search-results"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Responsibilities</h2>
+        <div id="responsibility-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Knowledge Items</h2>
+        <div id="item-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Runs</h2>
+        <div id="run-list"></div>
+      </section>
+    </main>
+
+    <aside class="toast" id="toast" hidden></aside>
+    <script src="/app.js" type="module"></script>
+  </body>
+  </html>
