@@ -46,7 +46,7 @@ func TestServerUploadsEvidenceAttachment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create item: %v", err)
 	}
-	run, err := app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "", "", "", nil)
+	run, err := app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "", "", "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("record run: %v", err)
 	}
@@ -154,5 +154,140 @@ func TestServerWorkflowSearchAndDashboard(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"responsibilities":1`) || !strings.Contains(response.Body.String(), `"training_items":1`) || !strings.Contains(response.Body.String(), `"training_runs":1`) {
 		t.Fatalf("unexpected dashboard body: %s", response.Body.String())
+	}
+}
+
+func TestServerPlacesResourcesAndLiveItems(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := NewServer(app)
+
+	placeBody := bytes.NewBufferString(`{"actor":"alice","kind":"area","name":"Receiving","summary":"Inbound inspection area","tags":["inventory"]}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/places", placeBody)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create place status: %d %s", response.Code, response.Body.String())
+	}
+	var place Place
+	if err := json.Unmarshal(response.Body.Bytes(), &place); err != nil {
+		t.Fatalf("decode place: %v", err)
+	}
+
+	resourceBody := bytes.NewBufferString(`{"actor":"alice","kind":"container","name":"RJ45 Bin","summary":"Bin for connectors","place_id":"` + place.ID + `","tags":["inventory","parts"]}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/resources", resourceBody)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create resource status: %d %s", response.Code, response.Body.String())
+	}
+	var resource Resource
+	if err := json.Unmarshal(response.Body.Bytes(), &resource); err != nil {
+		t.Fatalf("decode resource: %v", err)
+	}
+
+	itemBody := bytes.NewBufferString(`{"actor":"alice","kind":"inventory_audit","title":"Count receiving bin","summary":"Cycle count steps","body":"# Count receiving bin"}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/items", itemBody)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create item status: %d %s", response.Code, response.Body.String())
+	}
+	var item KnowledgeItem
+	if err := json.Unmarshal(response.Body.Bytes(), &item); err != nil {
+		t.Fatalf("decode item: %v", err)
+	}
+
+	liveBody := bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#1d6fd6","cursor":5,"head":5,"typing":true,"base_version":1,"body":"# Count receiving bin\n\nObserved 12 connectors"}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", liveBody)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("live update status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":2`) || !strings.Contains(response.Body.String(), `"participant_id":"browser-a"`) {
+		t.Fatalf("unexpected live update body: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/supersede", bytes.NewBufferString(`{"actor":"boss","notes":"Replaced by audited count procedure"}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("supersede item status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"status":"superseded"`) {
+		t.Fatalf("unexpected supersede body: %s", response.Body.String())
+	}
+
+	runBody := bytes.NewBufferString(`{"actor":"bob","kind":"inventory_audit","item_id":"` + item.ID + `","revision":1,"outcome":"completed","notes":"Counted receiving bin","place_id":"` + place.ID + `","resource_ids":["` + resource.ID + `"]}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/runs", runBody)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create run status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"place_id":"`+place.ID+`"`) || !strings.Contains(response.Body.String(), resource.ID) {
+		t.Fatalf("unexpected run body: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/search?q=receiving", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), place.ID) || !strings.Contains(response.Body.String(), resource.ID) {
+		t.Fatalf("search missing place/resource: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("dashboard status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"inventory_items":1`) {
+		t.Fatalf("dashboard missing inventory count: %s", response.Body.String())
+	}
+}
+
+func TestServerLiveItemGetAndConflictResponse(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Inspect station", "Station checklist", "# Inspect station", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/items/"+item.ID+"/live", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("get live state status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":1`) || !strings.Contains(response.Body.String(), `"body":"# Inspect station"`) {
+		t.Fatalf("unexpected initial live state: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"body":"# Inspect station\n\nChecked bins."}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("first live post status: %d %s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-b","display_name":"Bob","color":"#b75c1c","cursor":2,"head":2,"typing":true,"base_version":1,"body":"# Inspect station\n\nStale body."}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected conflict status, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"conflict":true`) || !strings.Contains(response.Body.String(), `Checked bins.`) {
+		t.Fatalf("unexpected conflict payload: %s", response.Body.String())
 	}
 }

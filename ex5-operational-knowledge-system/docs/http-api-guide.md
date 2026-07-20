@@ -1,0 +1,300 @@
+# ex5 HTTP API guide
+
+This guide documents the local HTTP adapter that the browser and CLI both use.
+
+It is intentionally a local embodiment surface, not the final PromiseGrid wire
+contract. The durable history still lives in the ex5 runtime model and
+protocol-family seams described elsewhere.
+
+## Core shape
+
+The server defaults to:
+
+```text
+http://127.0.0.1:7045
+```
+
+Responses are JSON except:
+
+- `/` -> `index.html`
+- `/app.js` -> browser module
+- `/style.css` -> browser stylesheet
+
+## Metadata and dashboard
+
+### `GET /api/meta`
+
+Returns the supported kinds and lifecycle values, for example:
+
+- `knowledge_kinds`
+- `run_kinds`
+- `approval_decisions`
+- `item_statuses`
+
+### `GET /api/dashboard`
+
+Returns the current projected counts for:
+
+- responsibilities
+- places
+- resources
+- each knowledge-item kind
+- each run kind
+- approvals
+- evidence
+- links
+
+## Places and resources
+
+### `GET /api/places`
+
+Lists all known places.
+
+### `POST /api/places`
+
+Creates a place.
+
+Payload fields:
+
+- `actor`
+- `kind`
+- `name`
+- `summary`
+- `parent_id`
+- `tags`
+
+### `GET /api/places/{id}`
+
+Returns one place with:
+
+- hierarchy context
+- linked resources
+- timeline
+
+### `GET /api/resources`
+
+Lists all known resources.
+
+### `POST /api/resources`
+
+Creates a resource.
+
+Payload fields:
+
+- `actor`
+- `kind`
+- `name`
+- `summary`
+- `place_id`
+- `tags`
+
+### `GET /api/resources/{id}`
+
+Returns one resource and its timeline.
+
+## Responsibilities
+
+### `GET /api/responsibilities`
+
+Lists all responsibilities.
+
+### `POST /api/responsibilities`
+
+Creates a responsibility.
+
+Payload fields:
+
+- `actor`
+- `title`
+- `summary`
+- `role_keys`
+- `tags`
+
+### `GET /api/responsibilities/{id}`
+
+Returns one responsibility with linked items/runs and its timeline.
+
+## Knowledge items
+
+### `GET /api/items`
+
+Lists knowledge items. Optional query:
+
+- `kind`
+
+Supported kinds today:
+
+- `procedure`
+- `training`
+- `maintenance`
+- `inventory_audit`
+
+### `POST /api/items`
+
+Creates a new knowledge item at revision `1`.
+
+Payload fields:
+
+- `actor`
+- `kind`
+- `title`
+- `summary`
+- `body`
+- `tags`
+- `responsibility_ids`
+
+### `GET /api/items/{id}`
+
+Returns one projected knowledge item, including:
+
+- `status`
+- `current_revision`
+- `working_body`
+- `working_version`
+- revision list
+- approvals
+- links
+
+### `POST /api/items/{id}/revisions`
+
+Creates a durable new revision snapshot.
+
+Payload fields:
+
+- `actor`
+- `title`
+- `summary`
+- `body`
+- `tags`
+
+### `POST /api/items/{id}/approvals`
+
+Records an approval against a knowledge item revision.
+
+Payload fields:
+
+- `actor`
+- `revision`
+- `role`
+- `decision`
+- `notes`
+
+If `decision == "approved"`, the item lifecycle moves to `approved`.
+
+### `POST /api/items/{id}/supersede`
+
+Marks a knowledge item as `superseded`.
+
+Payload fields:
+
+- `actor`
+- `notes`
+
+## Live draft endpoints
+
+The live draft surface is browser-oriented. It shares the current working body
+for a knowledge item without turning that live state into a durable revision
+automatically.
+
+### `GET /api/items/{id}/live`
+
+Returns:
+
+- `item_id`
+- `title`
+- `status`
+- `body`
+- `version`
+- `current_revision`
+- `participants`
+
+### `POST /api/items/{id}/live`
+
+Updates participant presence and optionally updates the shared body.
+
+Payload fields:
+
+- `participant_id`
+- `display_name`
+- `color`
+- `cursor`
+- `head`
+- `typing`
+- `base_version`
+- `body`
+
+Behavior:
+
+- presence is refreshed on every call
+- if `body` differs and `base_version` matches the current live version, the
+  working draft is updated
+- if `base_version` is stale, the server returns `409`
+
+Conflict response shape:
+
+- `conflict: true`
+- `state: <current live state>`
+
+## Runs
+
+### `GET /api/runs`
+
+Lists runs. Optional query:
+
+- `kind`
+
+### `POST /api/runs`
+
+Creates a run record.
+
+Payload fields:
+
+- `actor`
+- `kind`
+- `item_id`
+- `revision`
+- `outcome`
+- `notes`
+- `machine`
+- `location`
+- `place_id`
+- `resource_ids`
+- `responsibility_ids`
+
+## Evidence
+
+### `POST /api/runs/{id}/evidence`
+
+Adds evidence to a run using multipart form upload.
+
+Fields:
+
+- `actor`
+- `summary`
+- `facts_json`
+- optional `attachment`
+
+## Run approvals
+
+### `POST /api/runs/{id}/approvals`
+
+Records an approval against a run.
+
+Payload fields:
+
+- `actor`
+- `role`
+- `decision`
+- `notes`
+
+## Search
+
+### `GET /api/search?q=...`
+
+Returns mixed projected results across:
+
+- places
+- resources
+- responsibilities
+- items
+- runs

@@ -34,6 +34,38 @@ func (cli *CLI) run(args []string) (int, error) {
 	switch args[0] {
 	case "dashboard":
 		err = cli.Dashboard()
+	case "places":
+		err = cli.Places()
+	case "new-place":
+		if len(args) < 5 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		parentID := ""
+		if len(args) > 5 {
+			parentID = args[5]
+		}
+		err = cli.NewPlace(args[1], args[2], args[3], args[4], parentID)
+	case "show-place":
+		if len(args) != 2 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		err = cli.Show("/api/places/" + args[1])
+	case "resources":
+		err = cli.Resources()
+	case "new-resource":
+		if len(args) < 5 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		placeID := ""
+		if len(args) > 5 {
+			placeID = args[5]
+		}
+		err = cli.NewResource(args[1], args[2], args[3], args[4], placeID)
+	case "show-resource":
+		if len(args) != 2 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		err = cli.Show("/api/resources/" + args[1])
 	case "responsibilities":
 		err = cli.Responsibilities()
 	case "new-responsibility":
@@ -71,7 +103,16 @@ func (cli *CLI) run(args []string) (int, error) {
 		if convErr != nil {
 			return 1, convErr
 		}
-		err = cli.RecordRun(args[1], args[2], args[3], revision, args[5], strings.Join(args[6:], " "))
+		notes := args[6]
+		placeID := ""
+		resourceIDs := []string{}
+		if len(args) > 7 {
+			placeID = args[7]
+		}
+		if len(args) > 8 {
+			resourceIDs = splitCSV(args[8])
+		}
+		err = cli.RecordRun(args[1], args[2], args[3], revision, args[5], notes, placeID, resourceIDs)
 	case "show-run":
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -86,6 +127,14 @@ func (cli *CLI) run(args []string) (int, error) {
 			return 1, convErr
 		}
 		err = cli.Approve("/api/items/"+args[1]+"/approvals", revision, args[3], args[4], strings.Join(args[5:], " "))
+	case "supersede-item":
+		if len(args) < 3 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		err = cli.post("/api/items/"+args[1]+"/supersede", map[string]any{
+			"actor": args[2],
+			"notes": strings.Join(args[3:], " "),
+		})
 	case "approve-run":
 		if len(args) < 5 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -105,13 +154,15 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES|show-run ID|approve-item ITEM_ID REVISION ROLE DECISION NOTES|approve-run RUN_ID ROLE DECISION NOTES|search QUERY"
+const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ROLE DECISION NOTES|search QUERY"
 
 type CLI struct {
 	ServerURL string
 }
 
 func (cli *CLI) Dashboard() error        { return cli.Show("/api/dashboard") }
+func (cli *CLI) Places() error           { return cli.Show("/api/places") }
+func (cli *CLI) Resources() error        { return cli.Show("/api/resources") }
 func (cli *CLI) Responsibilities() error { return cli.Show("/api/responsibilities") }
 func (cli *CLI) Items(kind string) error {
 	path := "/api/items"
@@ -132,18 +183,40 @@ func (cli *CLI) NewResponsibility(actor string, title string, summary string) er
 	return cli.post("/api/responsibilities", map[string]any{"actor": actor, "title": title, "summary": summary})
 }
 
+func (cli *CLI) NewPlace(actor string, kind string, name string, summary string, parentID string) error {
+	return cli.post("/api/places", map[string]any{
+		"actor":     actor,
+		"kind":      kind,
+		"name":      name,
+		"summary":   summary,
+		"parent_id": parentID,
+	})
+}
+
+func (cli *CLI) NewResource(actor string, kind string, name string, summary string, placeID string) error {
+	return cli.post("/api/resources", map[string]any{
+		"actor":    actor,
+		"kind":     kind,
+		"name":     name,
+		"summary":  summary,
+		"place_id": placeID,
+	})
+}
+
 func (cli *CLI) NewItem(actor string, kind string, title string, summary string, body string) error {
 	return cli.post("/api/items", map[string]any{"actor": actor, "kind": kind, "title": title, "summary": summary, "body": body})
 }
 
-func (cli *CLI) RecordRun(actor string, kind string, itemID string, revision int, outcome string, notes string) error {
+func (cli *CLI) RecordRun(actor string, kind string, itemID string, revision int, outcome string, notes string, placeID string, resourceIDs []string) error {
 	return cli.post("/api/runs", map[string]any{
-		"actor":    actor,
-		"kind":     kind,
-		"item_id":  itemID,
-		"revision": revision,
-		"outcome":  outcome,
-		"notes":    notes,
+		"actor":        actor,
+		"kind":         kind,
+		"item_id":      itemID,
+		"revision":     revision,
+		"outcome":      outcome,
+		"notes":        notes,
+		"place_id":     placeID,
+		"resource_ids": resourceIDs,
 	})
 }
 
@@ -203,4 +276,16 @@ func (cli *CLI) post(path string, payload any) error {
 	}
 	fmt.Println(string(message))
 	return nil
+}
+
+func splitCSV(input string) []string {
+	parts := strings.Split(input, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

@@ -17,6 +17,32 @@
 
     <main class="layout">
       <section class="panel">
+        <h2>Create Place</h2>
+        <form id="place-form">
+          <label>Actor <input name="actor" value="alice"></label>
+          <label>Kind <input name="kind" placeholder="site, room, area, bin" required></label>
+          <label>Name <input name="name" required></label>
+          <label>Summary <textarea name="summary"></textarea></label>
+          <label>Parent Place ID <input name="parent_id" placeholder="PLACE-0001"></label>
+          <label>Tags <input name="tags" placeholder="inventory,receiving"></label>
+          <button type="submit">Create Place</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Create Resource</h2>
+        <form id="resource-form">
+          <label>Actor <input name="actor" value="alice"></label>
+          <label>Kind <input name="kind" placeholder="machine, tool, container" required></label>
+          <label>Name <input name="name" required></label>
+          <label>Summary <textarea name="summary"></textarea></label>
+          <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
+          <label>Tags <input name="tags" placeholder="parts,line-a"></label>
+          <button type="submit">Create Resource</button>
+        </form>
+      </section>
+
+      <section class="panel">
         <h2>Create Responsibility</h2>
         <form id="responsibility-form">
           <label>Actor <input name="actor" value="alice"></label>
@@ -37,6 +63,7 @@
               <option value="procedure">procedure</option>
               <option value="training">training</option>
               <option value="maintenance">maintenance</option>
+              <option value="inventory_audit">inventory_audit</option>
             </select>
           </label>
           <label>Title <input name="title" required></label>
@@ -48,6 +75,38 @@
         </form>
       </section>
 
+      <section class="panel editor-panel">
+        <h2>Live Draft Studio</h2>
+        <div class="editor-toolbar">
+          <label>Knowledge Item
+            <select id="editor-item-id"></select>
+          </label>
+          <label>Actor
+            <input id="editor-actor" value="alice">
+          </label>
+          <label>Participant Name
+            <input id="editor-display-name" value="Browser User">
+          </label>
+          <label>Color
+            <input id="editor-color" value="#0c6d62">
+          </label>
+        </div>
+        <div class="editor-summary">
+          <div id="editor-meta" class="meta">Select a knowledge item to load its live draft.</div>
+          <div id="editor-participants" class="participant-list"></div>
+        </div>
+        <label>Working Body
+          <textarea id="editor-body" rows="14" placeholder="Select an item to edit its working draft"></textarea>
+        </label>
+        <div class="editor-actions">
+          <button id="editor-refresh" type="button">Refresh Live State</button>
+          <button id="editor-snapshot" type="button">Snapshot Revision</button>
+          <button id="editor-approve" type="button">Approve Current Revision</button>
+          <button id="editor-supersede" type="button">Supersede Item</button>
+        </div>
+        <p class="meta">This editor keeps a shared working draft for the selected knowledge item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
+      </section>
+
       <section class="panel">
         <h2>Record Run</h2>
         <form id="run-form">
@@ -57,6 +116,7 @@
               <option value="procedure">procedure</option>
               <option value="training">training</option>
               <option value="maintenance">maintenance</option>
+              <option value="inventory_audit">inventory_audit</option>
             </select>
           </label>
           <label>Item ID <input name="item_id" required></label>
@@ -64,6 +124,8 @@
           <label>Outcome <input name="outcome" placeholder="completed"></label>
           <label>Machine <input name="machine"></label>
           <label>Location <input name="location"></label>
+          <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
+          <label>Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
           <label>Responsibilities <input name="responsibility_ids" placeholder="RESP-0001"></label>
           <label>Notes <textarea name="notes"></textarea></label>
           <button type="submit">Record Run</button>
@@ -110,10 +172,20 @@
       <section class="panel search-panel">
         <h2>Search</h2>
         <form id="search-form">
-          <input name="q" placeholder="Search responsibilities, items, runs">
+          <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
           <button type="submit">Search</button>
         </form>
         <pre id="search-results"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Places</h2>
+        <div id="place-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Resources</h2>
+        <div id="resource-list"></div>
       </section>
 
       <section class="panel">

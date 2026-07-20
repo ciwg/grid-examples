@@ -32,6 +32,10 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/dashboard", server.handleDashboard)
 	mux.HandleFunc("/api/search", server.handleSearch)
+	mux.HandleFunc("/api/places", server.handlePlaces)
+	mux.HandleFunc("/api/places/", server.handlePlace)
+	mux.HandleFunc("/api/resources", server.handleResources)
+	mux.HandleFunc("/api/resources/", server.handleResource)
 	mux.HandleFunc("/api/responsibilities", server.handleResponsibilities)
 	mux.HandleFunc("/api/responsibilities/", server.handleResponsibility)
 	mux.HandleFunc("/api/items", server.handleItems)
@@ -80,6 +84,92 @@ func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.
 
 func (server *Server) handleSearch(writer http.ResponseWriter, request *http.Request) {
 	writeJSON(writer, http.StatusOK, server.app.Search(request.URL.Query().Get("q")))
+}
+
+func (server *Server) handlePlaces(writer http.ResponseWriter, request *http.Request) {
+	switch request.Method {
+	case http.MethodGet:
+		writeJSON(writer, http.StatusOK, map[string]any{"places": server.app.ListPlaces()})
+	case http.MethodPost:
+		request.Body = http.MaxBytesReader(writer, request.Body, 64*1024)
+		var payload struct {
+			Actor    string   `json:"actor"`
+			Kind     string   `json:"kind"`
+			Name     string   `json:"name"`
+			Summary  string   `json:"summary"`
+			ParentID string   `json:"parent_id"`
+			Tags     []string `json:"tags"`
+		}
+		if err := decodeJSONBody(request, &payload); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		place, err := server.app.CreatePlace(payload.Actor, payload.Kind, payload.Name, payload.Summary, payload.ParentID, payload.Tags)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, http.StatusCreated, place)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (server *Server) handlePlace(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := strings.TrimPrefix(request.URL.Path, "/api/places/")
+	place, err := server.app.GetPlace(strings.Trim(id, "/"))
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(writer, http.StatusOK, place)
+}
+
+func (server *Server) handleResources(writer http.ResponseWriter, request *http.Request) {
+	switch request.Method {
+	case http.MethodGet:
+		writeJSON(writer, http.StatusOK, map[string]any{"resources": server.app.ListResources()})
+	case http.MethodPost:
+		request.Body = http.MaxBytesReader(writer, request.Body, 64*1024)
+		var payload struct {
+			Actor   string   `json:"actor"`
+			Kind    string   `json:"kind"`
+			Name    string   `json:"name"`
+			Summary string   `json:"summary"`
+			PlaceID string   `json:"place_id"`
+			Tags    []string `json:"tags"`
+		}
+		if err := decodeJSONBody(request, &payload); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		resource, err := server.app.CreateResource(payload.Actor, payload.Kind, payload.Name, payload.Summary, payload.PlaceID, payload.Tags)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, http.StatusCreated, resource)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (server *Server) handleResource(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := strings.TrimPrefix(request.URL.Path, "/api/resources/")
+	resource, err := server.app.GetResource(strings.Trim(id, "/"))
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(writer, http.StatusOK, resource)
 }
 
 func (server *Server) handleResponsibilities(writer http.ResponseWriter, request *http.Request) {
@@ -185,6 +275,10 @@ func (server *Server) handleItem(writer http.ResponseWriter, request *http.Reque
 		server.handleRevision(writer, request, itemID)
 	case "approvals":
 		server.handleItemApproval(writer, request, itemID)
+	case "supersede":
+		server.handleItemSupersede(writer, request, itemID)
+	case "live":
+		server.handleItemLive(writer, request, itemID)
 	default:
 		http.NotFound(writer, request)
 	}
@@ -244,6 +338,75 @@ func (server *Server) handleItemApproval(writer http.ResponseWriter, request *ht
 	writeJSON(writer, http.StatusOK, item)
 }
 
+func (server *Server) handleItemSupersede(writer http.ResponseWriter, request *http.Request, itemID string) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, 16*1024)
+	var payload struct {
+		Actor string `json:"actor"`
+		Notes string `json:"notes"`
+	}
+	if err := decodeJSONBody(request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	item, err := server.app.SupersedeKnowledgeItem(payload.Actor, itemID, payload.Notes)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, item)
+}
+
+// Intent: Expose the shared working draft and participant presence for a
+// knowledge item through the same local adapter as the rest of the workflow,
+// while keeping durable revisions and approvals separate from live draft
+// traffic. Source: DI-lusov; DI-zoruk
+func (server *Server) handleItemLive(writer http.ResponseWriter, request *http.Request, itemID string) {
+	switch request.Method {
+	case http.MethodGet:
+		state, err := server.app.LiveItemState(itemID)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusNotFound)
+			return
+		}
+		writeJSON(writer, http.StatusOK, state)
+	case http.MethodPost:
+		request.Body = http.MaxBytesReader(writer, request.Body, 256*1024)
+		var payload struct {
+			ParticipantID string `json:"participant_id"`
+			DisplayName   string `json:"display_name"`
+			Color         string `json:"color"`
+			Cursor        int    `json:"cursor"`
+			Head          int    `json:"head"`
+			Typing        bool   `json:"typing"`
+			BaseVersion   int    `json:"base_version"`
+			Body          string `json:"body"`
+		}
+		if err := decodeJSONBody(request, &payload); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		state, conflict, err := server.app.UpdateLiveItem(itemID, payload.ParticipantID, payload.DisplayName, payload.Color, payload.Cursor, payload.Head, payload.Typing, payload.BaseVersion, payload.Body)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if conflict {
+			writeJSON(writer, http.StatusConflict, map[string]any{
+				"conflict": true,
+				"state":    state,
+			})
+			return
+		}
+		writeJSON(writer, http.StatusOK, state)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func (server *Server) handleRuns(writer http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case http.MethodGet:
@@ -262,6 +425,8 @@ func (server *Server) handleRuns(writer http.ResponseWriter, request *http.Reque
 			Revision          int      `json:"revision"`
 			Outcome           string   `json:"outcome"`
 			Notes             string   `json:"notes"`
+			PlaceID           string   `json:"place_id"`
+			ResourceIDs       []string `json:"resource_ids"`
 			Machine           string   `json:"machine"`
 			Location          string   `json:"location"`
 			ResponsibilityIDs []string `json:"responsibility_ids"`
@@ -270,7 +435,7 @@ func (server *Server) handleRuns(writer http.ResponseWriter, request *http.Reque
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		run, err := server.app.RecordRun(payload.Actor, payload.Kind, payload.ItemID, payload.Revision, payload.Outcome, payload.Notes, payload.Machine, payload.Location, payload.ResponsibilityIDs)
+		run, err := server.app.RecordRun(payload.Actor, payload.Kind, payload.ItemID, payload.Revision, payload.Outcome, payload.Notes, payload.Machine, payload.Location, payload.PlaceID, payload.ResourceIDs, payload.ResponsibilityIDs)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return

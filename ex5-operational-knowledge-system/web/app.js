@@ -1,24 +1,84 @@
 const statsEl = document.getElementById("stats");
+const placeListEl = document.getElementById("place-list");
+const resourceListEl = document.getElementById("resource-list");
 const responsibilityListEl = document.getElementById("responsibility-list");
 const itemListEl = document.getElementById("item-list");
 const runListEl = document.getElementById("run-list");
 const searchResultsEl = document.getElementById("search-results");
 const toastEl = document.getElementById("toast");
 
-// Intent: Keep the browser as a first-class embodiment over the same local
-// operational runtime as the CLI, with local form state layered over durable
-// event-backed records served by the HTTP adapter. Source: DI-radok; DI-zuvob
+const editorItemIDEl = document.getElementById("editor-item-id");
+const editorActorEl = document.getElementById("editor-actor");
+const editorDisplayNameEl = document.getElementById("editor-display-name");
+const editorColorEl = document.getElementById("editor-color");
+const editorMetaEl = document.getElementById("editor-meta");
+const editorParticipantsEl = document.getElementById("editor-participants");
+const editorBodyEl = document.getElementById("editor-body");
+const editorRefreshEl = document.getElementById("editor-refresh");
+const editorSnapshotEl = document.getElementById("editor-snapshot");
+const editorApproveEl = document.getElementById("editor-approve");
+const editorSupersedeEl = document.getElementById("editor-supersede");
+
+const participantID = getParticipantID();
+const editorState = {
+  itemID: "",
+  version: 0,
+  title: "",
+  status: "",
+  currentRevision: 0,
+  dirty: false,
+  pushing: false,
+  lastRenderedBody: "",
+  pushTimer: 0,
+  pollTimer: 0,
+};
+
+// Intent: Keep the browser as an equal operational embodiment while making
+// knowledge-item drafting collaborative in the browser without collapsing the
+// durable revision and approval workflow into ephemeral UI state. Source:
+// DI-lusov; DI-zoruk
+document.getElementById("place-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  await postJSON("/api/places", {
+    actor: form.actor.value,
+    kind: form.kind.value,
+    name: form.name.value,
+    summary: form.summary.value,
+    parent_id: form.parent_id.value,
+    tags: splitCSV(form.tags.value),
+  });
+  form.reset();
+  form.actor.value = "alice";
+  await refresh();
+});
+
+document.getElementById("resource-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  await postJSON("/api/resources", {
+    actor: form.actor.value,
+    kind: form.kind.value,
+    name: form.name.value,
+    summary: form.summary.value,
+    place_id: form.place_id.value,
+    tags: splitCSV(form.tags.value),
+  });
+  form.reset();
+  form.actor.value = "alice";
+  await refresh();
+});
+
 document.getElementById("responsibility-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const payload = {
+  await postJSON("/api/responsibilities", {
     actor: form.actor.value,
     title: form.title.value,
     summary: form.summary.value,
     role_keys: splitCSV(form.role_keys.value),
     tags: splitCSV(form.tags.value),
-  };
-  await postJSON("/api/responsibilities", payload);
+  });
   form.reset();
   form.actor.value = "alice";
   await refresh();
@@ -27,7 +87,7 @@ document.getElementById("responsibility-form").addEventListener("submit", async 
 document.getElementById("item-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const payload = {
+  const item = await postJSON("/api/items", {
     actor: form.actor.value,
     kind: form.kind.value,
     title: form.title.value,
@@ -35,18 +95,17 @@ document.getElementById("item-form").addEventListener("submit", async (event) =>
     body: form.body.value,
     tags: splitCSV(form.tags.value),
     responsibility_ids: splitCSV(form.responsibility_ids.value),
-  };
-  await postJSON("/api/items", payload);
+  });
   form.reset();
   form.actor.value = "alice";
   form.kind.value = "procedure";
-  await refresh();
+  await refresh(item.id);
 });
 
 document.getElementById("run-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const payload = {
+  await postJSON("/api/runs", {
     actor: form.actor.value,
     kind: form.kind.value,
     item_id: form.item_id.value,
@@ -55,9 +114,10 @@ document.getElementById("run-form").addEventListener("submit", async (event) => 
     notes: form.notes.value,
     machine: form.machine.value,
     location: form.location.value,
+    place_id: form.place_id.value,
+    resource_ids: splitCSV(form.resource_ids.value),
     responsibility_ids: splitCSV(form.responsibility_ids.value),
-  };
-  await postJSON("/api/runs", payload);
+  });
   form.reset();
   form.actor.value = "bob";
   form.kind.value = "procedure";
@@ -69,21 +129,21 @@ document.getElementById("approval-form").addEventListener("submit", async (event
   event.preventDefault();
   const form = event.currentTarget;
   const targetID = form.target_id.value;
-  const payload = {
+  const targetType = form.target_type.value;
+  const path = targetType === "run" ? `/api/runs/${targetID}/approvals` : `/api/items/${targetID}/approvals`;
+  await postJSON(path, {
     actor: form.actor.value,
     revision: Number(form.revision.value || 0),
     role: form.role.value,
     decision: form.decision.value,
     notes: form.notes.value,
-  };
-  const base = form.target_type.value === "run" ? `/api/runs/${targetID}/approvals` : `/api/items/${targetID}/approvals`;
-  await postJSON(base, payload);
+  });
   form.reset();
   form.actor.value = "boss";
   form.target_type.value = "knowledge_item";
   form.decision.value = "approved";
   form.revision.value = "0";
-  await refresh();
+  await refresh(editorState.itemID);
 });
 
 document.getElementById("evidence-form").addEventListener("submit", async (event) => {
@@ -102,6 +162,7 @@ document.getElementById("evidence-form").addEventListener("submit", async (event
   }
   form.reset();
   form.actor.value = "bob";
+  showToast("Evidence attached");
   await refresh();
 });
 
@@ -111,6 +172,72 @@ document.getElementById("search-form").addEventListener("submit", async (event) 
   const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
   const payload = await response.json();
   searchResultsEl.textContent = JSON.stringify(payload, null, 2);
+});
+
+editorItemIDEl.addEventListener("change", async () => {
+  await loadEditorItem(editorItemIDEl.value);
+});
+
+editorBodyEl.addEventListener("input", () => {
+  editorState.dirty = true;
+  scheduleLivePush();
+});
+
+editorBodyEl.addEventListener("click", scheduleLivePush);
+editorBodyEl.addEventListener("keyup", scheduleLivePush);
+
+editorRefreshEl.addEventListener("click", async () => {
+  if (!editorState.itemID) {
+    return;
+  }
+  await pullLiveState(editorState.itemID, true);
+});
+
+editorSnapshotEl.addEventListener("click", async () => {
+  if (!editorState.itemID) {
+    showToast("Select an item before snapshotting");
+    return;
+  }
+  await flushLivePush();
+  const item = await getJSON(`/api/items/${editorState.itemID}`);
+  const updated = await postJSON(`/api/items/${editorState.itemID}/revisions`, {
+    actor: editorActorEl.value,
+    title: item.title,
+    summary: item.summary,
+    body: editorBodyEl.value,
+    tags: item.tags || [],
+  });
+  showToast(`Snapshot created as revision ${updated.current_revision}`);
+  await refresh(editorState.itemID);
+});
+
+editorApproveEl.addEventListener("click", async () => {
+  if (!editorState.itemID) {
+    showToast("Select an item before approving");
+    return;
+  }
+  await postJSON(`/api/items/${editorState.itemID}/approvals`, {
+    actor: editorActorEl.value,
+    revision: editorState.currentRevision,
+    role: "reviewer",
+    decision: "approved",
+    notes: "Approved from live draft studio",
+  });
+  showToast("Current revision approved");
+  await refresh(editorState.itemID);
+});
+
+editorSupersedeEl.addEventListener("click", async () => {
+  if (!editorState.itemID) {
+    showToast("Select an item before superseding");
+    return;
+  }
+  await postJSON(`/api/items/${editorState.itemID}/supersede`, {
+    actor: editorActorEl.value,
+    notes: "Superseded from live draft studio",
+  });
+  showToast("Item superseded");
+  await refresh(editorState.itemID);
 });
 
 function splitCSV(input) {
@@ -123,20 +250,33 @@ async function postJSON(path, payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text);
+  }
+  showToast(`Saved via ${path}`);
+  return text ? JSON.parse(text) : null;
+}
+
+async function getJSON(path) {
+  const response = await fetch(path);
   if (!response.ok) {
     throw new Error(await response.text());
   }
-  showToast(`Saved via ${path}`);
+  return response.json();
 }
 
 function renderStats(data) {
   statsEl.innerHTML = "";
   const fields = [
+    ["Places", data.places],
+    ["Resources", data.resources],
     ["Responsibilities", data.responsibilities],
     ["Procedures", data.procedures],
     ["Training", data.training_items],
     ["Maintenance", data.maintenance_items],
-    ["Runs", data.procedure_runs + data.training_runs + data.maintenance_runs],
+    ["Inventory", data.inventory_items],
+    ["Runs", data.procedure_runs + data.training_runs + data.maintenance_runs + data.inventory_runs],
     ["Approvals", data.approvals],
     ["Evidence", data.evidence],
     ["Links", data.links],
@@ -146,6 +286,26 @@ function renderStats(data) {
     card.className = "stat";
     card.innerHTML = `<strong>${value}</strong><span>${label}</span>`;
     statsEl.appendChild(card);
+  }
+}
+
+function renderPlaces(items) {
+  placeListEl.innerHTML = "";
+  for (const item of items) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.id} · ${item.name}</h3><div class="meta">${item.summary || ""}\nparent: ${item.parent_id || "-"}\nchildren: ${(item.child_place_ids || []).length}\nresources: ${(item.resource_ids || []).length}</div>`;
+    placeListEl.appendChild(card);
+  }
+}
+
+function renderResources(items) {
+  resourceListEl.innerHTML = "";
+  for (const item of items) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.id} · ${item.name}</h3><div class="meta">${item.summary || ""}\nplace: ${item.place_id || "-"}</div>`;
+    resourceListEl.appendChild(card);
   }
 }
 
@@ -161,11 +321,28 @@ function renderResponsibilities(items) {
 
 function renderKnowledgeItems(items) {
   itemListEl.innerHTML = "";
+  editorItemIDEl.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select a knowledge item";
+  editorItemIDEl.appendChild(placeholder);
   for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.id} · ${item.title}</h3><div class="meta">revision ${item.current_revision}\n${item.summary || ""}</div>`;
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = `${item.id} · ${item.title}`;
+    editorItemIDEl.appendChild(option);
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card selectable-card";
+    card.innerHTML = `<div class="kind">${item.kind} · ${item.status}</div><h3>${item.id} · ${item.title}</h3><div class="meta">revision ${item.current_revision} · live v${item.working_version}\n${item.summary || ""}</div>`;
+    card.addEventListener("click", () => {
+      loadEditorItem(item.id).catch(handleError);
+    });
     itemListEl.appendChild(card);
+  }
+  if (editorState.itemID) {
+    editorItemIDEl.value = editorState.itemID;
   }
 }
 
@@ -174,9 +351,155 @@ function renderRuns(items) {
   for (const item of items) {
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `<div class="kind">${item.kind} run</div><h3>${item.id} · ${item.item_id}</h3><div class="meta">revision ${item.revision}\noutcome: ${item.outcome || "-"}\n${item.notes || ""}</div>`;
+    card.innerHTML = `<div class="kind">${item.kind} run</div><h3>${item.id} · ${item.item_id}</h3><div class="meta">revision ${item.revision}\noutcome: ${item.outcome || "-"}\nplace: ${item.place_id || "-"}\nresources: ${(item.resource_ids || []).join(", ") || "-"}\n${item.notes || ""}</div>`;
     runListEl.appendChild(card);
   }
+}
+
+function renderEditorState(state) {
+  editorState.version = state.version;
+  editorState.title = state.title;
+  editorState.status = state.status;
+  editorState.currentRevision = state.current_revision;
+  editorState.lastRenderedBody = state.body;
+  editorMetaEl.textContent = `${state.title} · status ${state.status} · live v${state.version} · current revision ${state.current_revision}`;
+  editorParticipantsEl.innerHTML = "";
+  for (const participant of state.participants || []) {
+    const pill = document.createElement("span");
+    pill.className = "participant-pill";
+    pill.style.setProperty("--participant-color", participant.color || "#0c6d62");
+    pill.textContent = `${participant.display_name} @ ${participant.cursor}:${participant.head}${participant.typing ? " typing" : ""}`;
+    editorParticipantsEl.appendChild(pill);
+  }
+  if (!editorState.dirty || editorBodyEl.value === "" || editorBodyEl.value === editorState.lastRenderedBody) {
+    editorBodyEl.value = state.body;
+  }
+}
+
+async function refresh(selectedItemID = editorState.itemID) {
+  const [dashboard, places, resources, responsibilities, items, runs] = await Promise.all([
+    getJSON("/api/dashboard"),
+    getJSON("/api/places"),
+    getJSON("/api/resources"),
+    getJSON("/api/responsibilities"),
+    getJSON("/api/items"),
+    getJSON("/api/runs"),
+  ]);
+  renderStats(dashboard);
+  renderPlaces(places.places || []);
+  renderResources(resources.resources || []);
+  renderResponsibilities(responsibilities.responsibilities || []);
+  renderKnowledgeItems(items.items || []);
+  renderRuns(runs.runs || []);
+  if (!selectedItemID && (items.items || []).length > 0) {
+    selectedItemID = items.items[0].id;
+  }
+  if (selectedItemID) {
+    await loadEditorItem(selectedItemID);
+  }
+}
+
+async function loadEditorItem(itemID) {
+  editorState.itemID = itemID;
+  editorItemIDEl.value = itemID;
+  if (!itemID) {
+    editorMetaEl.textContent = "Select a knowledge item to load its live draft.";
+    editorParticipantsEl.innerHTML = "";
+    editorBodyEl.value = "";
+    clearPollLoop();
+    return;
+  }
+  editorState.dirty = false;
+  await pullLiveState(itemID, true);
+  startPollLoop();
+}
+
+async function pullLiveState(itemID, replaceBody) {
+  const state = await getJSON(`/api/items/${itemID}/live`);
+  if (replaceBody) {
+    editorState.dirty = false;
+  }
+  if (replaceBody || !editorState.dirty) {
+    editorBodyEl.value = state.body;
+  }
+  renderEditorState(state);
+}
+
+function scheduleLivePush() {
+  if (!editorState.itemID) {
+    return;
+  }
+  clearTimeout(editorState.pushTimer);
+  editorState.pushTimer = setTimeout(() => {
+    flushLivePush().catch(handleError);
+  }, 300);
+}
+
+async function flushLivePush() {
+  if (!editorState.itemID || editorState.pushing) {
+    return;
+  }
+  editorState.pushing = true;
+  try {
+    const response = await fetch(`/api/items/${editorState.itemID}/live`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantID,
+        display_name: editorDisplayNameEl.value,
+        color: editorColorEl.value,
+        cursor: editorBodyEl.selectionStart || 0,
+        head: editorBodyEl.selectionEnd || 0,
+        typing: true,
+        base_version: editorState.version,
+        body: editorBodyEl.value,
+      }),
+    });
+    if (response.status === 409) {
+      const payload = await response.json();
+      editorState.dirty = false;
+      editorBodyEl.value = payload.state.body;
+      renderEditorState(payload.state);
+      showToast("Live draft conflict resolved by reloading the shared body");
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const state = await response.json();
+    editorState.dirty = false;
+    renderEditorState(state);
+  } finally {
+    editorState.pushing = false;
+  }
+}
+
+function startPollLoop() {
+  clearPollLoop();
+  editorState.pollTimer = setInterval(() => {
+    if (!editorState.itemID || editorState.pushing) {
+      return;
+    }
+    pullLiveState(editorState.itemID, false).catch(handleError);
+  }, 2000);
+}
+
+function clearPollLoop() {
+  if (editorState.pollTimer) {
+    clearInterval(editorState.pollTimer);
+    editorState.pollTimer = 0;
+  }
+}
+
+function getParticipantID() {
+  const storageKey = "oks.participant_id";
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) {
+    return existing;
+  }
+  const created = `browser-${crypto.randomUUID()}`;
+  window.localStorage.setItem(storageKey, created);
+  return created;
 }
 
 function showToast(message) {
@@ -188,20 +511,9 @@ function showToast(message) {
   }, 1800);
 }
 
-async function refresh() {
-  const [dashboard, responsibilities, items, runs] = await Promise.all([
-    fetch("/api/dashboard").then((response) => response.json()),
-    fetch("/api/responsibilities").then((response) => response.json()),
-    fetch("/api/items").then((response) => response.json()),
-    fetch("/api/runs").then((response) => response.json()),
-  ]);
-  renderStats(dashboard);
-  renderResponsibilities(responsibilities.responsibilities || []);
-  renderKnowledgeItems(items.items || []);
-  renderRuns(runs.runs || []);
-}
-
-refresh().catch((error) => {
+function handleError(error) {
   showToast(error.message);
   searchResultsEl.textContent = error.stack || error.message;
-});
+}
+
+refresh().catch(handleError);

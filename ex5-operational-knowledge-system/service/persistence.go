@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Store struct {
 	root      string
 	events    *os.File
 	eventPath string
+	draftPath string
+}
+
+type PersistedDraft struct {
+	Body      string `json:"body"`
+	Version   int    `json:"version"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // Intent: Keep durable operational truth in an ex5-local append-only log plus
@@ -22,6 +30,9 @@ func OpenStore(root string) (*Store, []OperationalEvent, error) {
 		return nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "attachments"), 0o755); err != nil {
+		return nil, nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(root, "drafts"), 0o755); err != nil {
 		return nil, nil, err
 	}
 	eventPath := filepath.Join(root, "events.jsonl")
@@ -38,7 +49,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, error) {
 		eventsFile.Close()
 		return nil, nil, err
 	}
-	return &Store{root: root, events: eventsFile, eventPath: eventPath}, events, nil
+	return &Store{root: root, events: eventsFile, eventPath: eventPath, draftPath: filepath.Join(root, "drafts")}, events, nil
 }
 
 func readEvents(file *os.File) ([]OperationalEvent, error) {
@@ -86,6 +97,44 @@ func (store *Store) SaveAttachment(entityID string, filename string, data []byte
 		return "", 0, err
 	}
 	return target, int64(len(data)), nil
+}
+
+// Intent: Restore the shared browser working bodies on startup without mixing
+// them into the append-only event log, so durable revision history stays
+// explicit while collaborative drafting can resume after a restart. Source:
+// DI-lusov; DI-zoruk
+func (store *Store) LoadDrafts() (map[string]PersistedDraft, error) {
+	entries, err := os.ReadDir(store.draftPath)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]PersistedDraft{}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(store.draftPath, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		var draft PersistedDraft
+		if err := json.Unmarshal(body, &draft); err != nil {
+			return nil, fmt.Errorf("decode draft %s: %w", entry.Name(), err)
+		}
+		out[strings.TrimSuffix(entry.Name(), ".json")] = draft
+	}
+	return out, nil
+}
+
+// Intent: Persist the current shared working body separately from durable
+// revision snapshots so browser collaboration can converge on one draft
+// without rewriting historical revision events. Source: DI-lusov; DI-zoruk
+func (store *Store) SaveDraft(entityID string, draft PersistedDraft) error {
+	body, err := json.Marshal(draft)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(store.draftPath, entityID+".json"), body, 0o644)
 }
 
 func (store *Store) Close() error {

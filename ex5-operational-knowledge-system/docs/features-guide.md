@@ -15,6 +15,11 @@ This foundation solves that shared problem by keeping the durable record in one
 append-only operational history and projecting it into equal browser and CLI
 views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`.
 
+It now also keeps a browser-shared working draft for each knowledge item,
+separate from the durable revision history. That lets operators collaborate on
+the current body text without pretending that live cursor state is itself the
+auditable historical record. Source: `DI-lusov`; `DI-zoruk`.
+
 ## What the current feature set covers
 
 ### Responsibilities
@@ -33,6 +38,35 @@ Current implementation:
 - search responsibility titles and summaries
 - link responsibilities to knowledge items and runs
 
+### Places and resources
+
+Places and resources provide reusable operational context.
+
+Places are generic on purpose. The same model can represent:
+
+- a site
+- a room
+- a receiving area
+- a bench
+- a rack
+- a bin
+
+Resources are the operational things that live in or move through those places:
+
+- machines
+- tools
+- parts containers
+- stock bins
+- fixtures
+
+Current implementation:
+
+- create and list places from browser or CLI
+- create and list resources from browser or CLI
+- nest places by parent ID
+- link resources to a place
+- include place/resource context in run records and search results
+
 ### Knowledge items
 
 Knowledge items are the shared operating documents.
@@ -42,6 +76,7 @@ Current knowledge item kinds:
 - procedures
 - training content
 - maintenance content
+- inventory-audit content
 
 Each item keeps:
 
@@ -55,6 +90,25 @@ Each item keeps:
 This is the current bridge between plain collaborative documents and structured
 workflow state: the text stays readable, but the durable context around it is
 not lost.
+
+### Live draft studio
+
+The browser now includes a live draft studio for knowledge items.
+
+It supports:
+
+- selecting a knowledge item
+- editing the current shared working body
+- seeing current participants
+- refreshing the shared draft state
+- snapshotting the current working body into a durable revision
+- approving or superseding the current item
+
+This is intentionally not described as a full CRDT or websocket editor. The
+current implementation uses the shared local runtime and a live draft endpoint
+with version checks and participant presence. That gives the browser a real
+collaborative drafting surface while keeping the durable revision workflow
+explicit and auditable.
 
 ### Performed runs
 
@@ -79,6 +133,10 @@ Inventory-oriented work fits the same pattern when the load-bearing need is:
 - who performed the check
 - what discrepancy or outcome was recorded
 - what evidence and approvals followed
+
+Current implementation also supports explicit place and resource context on a
+run, so an inventory audit can say not just "a count happened" but "this count
+happened in this receiving area against this bin/container context."
 
 That does **not** make the current foundation a full inventory or MRP system. It
 means inventory audits and related operational history belong to the same
@@ -125,19 +183,26 @@ The browser and CLI are meant to be equal first-class embodiments.
 Current browser surface:
 
 - dashboard
+- create places
+- create resources
 - create responsibility
 - create knowledge item
+- live draft studio for knowledge items
 - record run
 - upload evidence
 - record approval
+- browse places and resources
 - search
 
 Current CLI surface:
 
 - dashboard
+- list and create places
+- list and create resources
 - list and create responsibilities
 - list and create knowledge items
 - list and record runs
+- supersede items
 - approve items and runs
 - search
 - show individual items and runs
@@ -146,8 +211,7 @@ Current CLI surface:
 
 The current implementation does **not** yet include:
 
-- live collaborative editing
-- websocket awareness or presence
+- websocket-based awareness or presence transport
 - relay-to-relay peer exchange
 - signed grid envelopes on the wire
 - ERP-style quantity ledgers, reservations, purchasing, or planning logic

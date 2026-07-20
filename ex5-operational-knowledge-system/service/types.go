@@ -4,12 +4,14 @@ const (
 	KnowledgeKindProcedure   = "procedure"
 	KnowledgeKindTraining    = "training"
 	KnowledgeKindMaintenance = "maintenance"
+	KnowledgeKindInventory   = "inventory_audit"
 )
 
 const (
 	RunKindProcedure   = "procedure"
 	RunKindTraining    = "training"
 	RunKindMaintenance = "maintenance"
+	RunKindInventory   = "inventory_audit"
 )
 
 const (
@@ -18,11 +20,46 @@ const (
 	DecisionNoted    = "noted"
 )
 
+const (
+	ItemStatusDraft      = "draft"
+	ItemStatusApproved   = "approved"
+	ItemStatusSuperseded = "superseded"
+)
+
 type Meta struct {
 	DataRoot          string   `json:"data_root"`
 	KnowledgeKinds    []string `json:"knowledge_kinds"`
 	RunKinds          []string `json:"run_kinds"`
 	ApprovalDecisions []string `json:"approval_decisions"`
+	ItemStatuses      []string `json:"item_statuses"`
+}
+
+type Place struct {
+	ID            string             `json:"id"`
+	Kind          string             `json:"kind"`
+	Name          string             `json:"name"`
+	Summary       string             `json:"summary"`
+	ParentID      string             `json:"parent_id"`
+	Tags          []string           `json:"tags"`
+	CreatedAt     string             `json:"created_at"`
+	UpdatedAt     string             `json:"updated_at"`
+	ChildPlaceIDs []string           `json:"child_place_ids"`
+	ResourceIDs   []string           `json:"resource_ids"`
+	Links         []Link             `json:"links"`
+	Timeline      []OperationalEvent `json:"timeline"`
+}
+
+type Resource struct {
+	ID        string             `json:"id"`
+	Kind      string             `json:"kind"`
+	Name      string             `json:"name"`
+	Summary   string             `json:"summary"`
+	PlaceID   string             `json:"place_id"`
+	Tags      []string           `json:"tags"`
+	CreatedAt string             `json:"created_at"`
+	UpdatedAt string             `json:"updated_at"`
+	Links     []Link             `json:"links"`
+	Timeline  []OperationalEvent `json:"timeline"`
 }
 
 type Responsibility struct {
@@ -42,6 +79,7 @@ type Responsibility struct {
 type KnowledgeItem struct {
 	ID                string              `json:"id"`
 	Kind              string              `json:"kind"`
+	Status            string              `json:"status"`
 	Title             string              `json:"title"`
 	Summary           string              `json:"summary"`
 	Tags              []string            `json:"tags"`
@@ -49,6 +87,9 @@ type KnowledgeItem struct {
 	CreatedAt         string              `json:"created_at"`
 	UpdatedAt         string              `json:"updated_at"`
 	CurrentRevision   int                 `json:"current_revision"`
+	WorkingBody       string              `json:"working_body"`
+	WorkingVersion    int                 `json:"working_version"`
+	WorkingUpdatedAt  string              `json:"working_updated_at"`
 	Revisions         []KnowledgeRevision `json:"revisions"`
 	Approvals         []Approval          `json:"approvals"`
 	Links             []Link              `json:"links"`
@@ -74,6 +115,8 @@ type RunRecord struct {
 	Actor             string             `json:"actor"`
 	Outcome           string             `json:"outcome"`
 	Notes             string             `json:"notes"`
+	PlaceID           string             `json:"place_id"`
+	ResourceIDs       []string           `json:"resource_ids"`
 	Machine           string             `json:"machine"`
 	Location          string             `json:"location"`
 	ResponsibilityIDs []string           `json:"responsibility_ids"`
@@ -123,15 +166,39 @@ type Link struct {
 
 type Dashboard struct {
 	Responsibilities int `json:"responsibilities"`
+	Places           int `json:"places"`
+	Resources        int `json:"resources"`
 	Procedures       int `json:"procedures"`
 	TrainingItems    int `json:"training_items"`
 	MaintenanceItems int `json:"maintenance_items"`
+	InventoryItems   int `json:"inventory_items"`
 	ProcedureRuns    int `json:"procedure_runs"`
 	TrainingRuns     int `json:"training_runs"`
 	MaintenanceRuns  int `json:"maintenance_runs"`
+	InventoryRuns    int `json:"inventory_runs"`
 	Approvals        int `json:"approvals"`
 	Evidence         int `json:"evidence"`
 	Links            int `json:"links"`
+}
+
+type LivePresence struct {
+	ParticipantID string `json:"participant_id"`
+	DisplayName   string `json:"display_name"`
+	Color         string `json:"color"`
+	Cursor        int    `json:"cursor"`
+	Head          int    `json:"head"`
+	Typing        bool   `json:"typing"`
+	LastSeenAt    string `json:"last_seen_at"`
+}
+
+type LiveItemState struct {
+	ItemID          string         `json:"item_id"`
+	Title           string         `json:"title"`
+	Status          string         `json:"status"`
+	Body            string         `json:"body"`
+	Version         int            `json:"version"`
+	CurrentRevision int            `json:"current_revision"`
+	Participants    []LivePresence `json:"participants"`
 }
 
 type OperationalEvent struct {
@@ -141,12 +208,17 @@ type OperationalEvent struct {
 	EntityID          string            `json:"entity_id"`
 	Type              string            `json:"type"`
 	Actor             string            `json:"actor"`
+	Name              string            `json:"name"`
 	Title             string            `json:"title"`
 	Summary           string            `json:"summary"`
 	Body              string            `json:"body"`
 	Kind              string            `json:"kind"`
+	Status            string            `json:"status"`
 	Tags              []string          `json:"tags"`
 	Team              string            `json:"team"`
+	ParentID          string            `json:"parent_id"`
+	PlaceID           string            `json:"place_id"`
+	ResourceIDs       []string          `json:"resource_ids"`
 	ResponsibilityIDs []string          `json:"responsibility_ids"`
 	RoleKeys          []string          `json:"role_keys"`
 	Revision          int               `json:"revision"`

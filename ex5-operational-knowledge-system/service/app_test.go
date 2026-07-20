@@ -35,12 +35,24 @@ func TestAppCreatesResponsibilitiesItemsRunsAndEvidence(t *testing.T) {
 		t.Fatalf("expected revision 2, got %d", item.CurrentRevision)
 	}
 
-	run, err := app.RecordRun("carol", RunKindProcedure, item.ID, 2, "completed", "Line started cleanly", "Machine A", "Bay 1", []string{responsibility.ID})
+	place, err := app.CreatePlace("alice", "line", "Line A", "Primary startup area", "", []string{"startup"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "machine", "Machine A", "Main production machine", place.ID, []string{"line-a"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+
+	run, err := app.RecordRun("carol", RunKindProcedure, item.ID, 2, "completed", "Line started cleanly", "Machine A", "Bay 1", place.ID, []string{resource.ID}, []string{responsibility.ID})
 	if err != nil {
 		t.Fatalf("record run: %v", err)
 	}
 	if run.Revision != 2 {
 		t.Fatalf("expected linked revision 2, got %d", run.Revision)
+	}
+	if run.PlaceID != place.ID || len(run.ResourceIDs) != 1 || run.ResourceIDs[0] != resource.ID {
+		t.Fatalf("unexpected run context: %+v", run)
 	}
 
 	run, err = app.AddEvidence("carol", run.ID, "Photo of startup checklist", map[string]string{"checklist": "passed"}, "checklist.txt", []byte("ok"))
@@ -87,7 +99,7 @@ func TestAppPersistsAndReplaysState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge item: %v", err)
 	}
-	run, err := app.RecordRun("dave", RunKindTraining, item.ID, 1, "passed", "Completed onboarding", "", "", []string{resp.ID})
+	run, err := app.RecordRun("dave", RunKindTraining, item.ID, 1, "passed", "Completed onboarding", "", "", "", nil, []string{resp.ID})
 	if err != nil {
 		t.Fatalf("record run: %v", err)
 	}
@@ -116,6 +128,9 @@ func TestAppPersistsAndReplaysState(t *testing.T) {
 	if len(reloadedRun.Evidence) != 1 {
 		t.Fatalf("expected evidence after reload, got %+v", reloadedRun)
 	}
+	if reloadedItem.WorkingBody != "Intro" || reloadedItem.Status != ItemStatusDraft {
+		t.Fatalf("unexpected item live state after reload: %+v", reloadedItem)
+	}
 }
 
 func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
@@ -132,7 +147,15 @@ func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge item: %v", err)
 	}
-	run, err := app.RecordRun("bob", RunKindMaintenance, item.ID, 1, "completed", "Press startup stayed smooth", "Press 7", "Cell A", []string{responsibility.ID})
+	place, err := app.CreatePlace("alice", "cell", "Cell A", "Press cell", "", []string{"press"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "machine", "Press 7", "Stamping press", place.ID, []string{"press"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindMaintenance, item.ID, 1, "completed", "Press startup stayed smooth", "Press 7", "Cell A", place.ID, []string{resource.ID}, []string{responsibility.ID})
 	if err != nil {
 		t.Fatalf("record run: %v", err)
 	}
@@ -169,6 +192,8 @@ func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	foundResponsibilities := search["responsibilities"].([]Responsibility)
 	foundItems := search["items"].([]KnowledgeItem)
 	foundRuns := search["runs"].([]RunRecord)
+	foundPlaces := search["places"].([]Place)
+	foundResources := search["resources"].([]Resource)
 	if len(foundResponsibilities) != 1 || foundResponsibilities[0].ID != responsibility.ID {
 		t.Fatalf("unexpected responsibility search result: %+v", foundResponsibilities)
 	}
@@ -177,5 +202,108 @@ func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	}
 	if len(foundRuns) != 1 || foundRuns[0].ID != run.ID {
 		t.Fatalf("unexpected run search result: %+v", foundRuns)
+	}
+	if len(foundPlaces) != 1 || foundPlaces[0].ID != place.ID {
+		t.Fatalf("unexpected place search result: %+v", foundPlaces)
+	}
+	if len(foundResources) != 1 || foundResources[0].ID != resource.ID {
+		t.Fatalf("unexpected resource search result: %+v", foundResources)
+	}
+}
+
+func TestAppTracksLiveDraftsStatusesAndSupersedence(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count bins", "Cycle count flow", "# Count bins", []string{"inventory"}, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+
+	state, err := app.LiveItemState(item.ID)
+	if err != nil {
+		t.Fatalf("live item state: %v", err)
+	}
+	if state.Version != 1 || state.Status != ItemStatusDraft || state.Body != "# Count bins" {
+		t.Fatalf("unexpected initial live state: %+v", state)
+	}
+
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-alice", "Alice", "#0c6d62", 4, 4, true, state.Version, "# Count bins\n\nUpdated notes")
+	if err != nil {
+		t.Fatalf("update live item: %v", err)
+	}
+	if conflict {
+		t.Fatalf("did not expect conflict: %+v", state)
+	}
+	if state.Version != 2 || len(state.Participants) != 1 || state.Body != "# Count bins\n\nUpdated notes" {
+		t.Fatalf("unexpected updated live state: %+v", state)
+	}
+
+	if err := app.RecordApproval("boss", "knowledge_item", item.ID, 1, "reviewer", DecisionApproved, "ready for use"); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+	approved, err := app.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get approved item: %v", err)
+	}
+	if approved.Status != ItemStatusApproved {
+		t.Fatalf("expected approved status, got %+v", approved)
+	}
+
+	superseded, err := app.SupersedeKnowledgeItem("boss", item.ID, "Replaced by new count flow")
+	if err != nil {
+		t.Fatalf("supersede item: %v", err)
+	}
+	if superseded.Status != ItemStatusSuperseded {
+		t.Fatalf("expected superseded status, got %+v", superseded)
+	}
+}
+
+func TestAppPersistsDraftsAndRejectsStaleLiveUpdates(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start shift", "Shift startup", "# Start shift", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 3, 3, true, 1, "# Start shift\n\nChecked PPE.")
+	if err != nil {
+		t.Fatalf("first live update: %v", err)
+	}
+	if conflict || state.Version != 2 {
+		t.Fatalf("unexpected first live update result: conflict=%v state=%+v", conflict, state)
+	}
+
+	staleState, conflict, err := app.UpdateLiveItem(item.ID, "browser-b", "Bob", "#654321", 2, 2, true, 1, "# Start shift\n\nStale overwrite.")
+	if err != nil {
+		t.Fatalf("stale live update: %v", err)
+	}
+	if !conflict {
+		t.Fatalf("expected stale update conflict, got state %+v", staleState)
+	}
+	if staleState.Body != "# Start shift\n\nChecked PPE." {
+		t.Fatalf("stale update should not overwrite body: %+v", staleState)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.WorkingBody != "# Start shift\n\nChecked PPE." || reloadedItem.WorkingVersion != 2 {
+		t.Fatalf("expected persisted draft after reload, got %+v", reloadedItem)
 	}
 }
