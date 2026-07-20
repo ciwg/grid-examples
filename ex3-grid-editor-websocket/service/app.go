@@ -217,10 +217,34 @@ func (app *App) PostSync(documentID string, participantID string, recipientID st
 		app.syncSnapshots[documentID] = DocumentSnapshot{
 			TextBase64:    textBase64,
 			ReplicaBase64: replicaBase64,
-			Offset:        record.Offset,
+			Offset:        record.Offset + 1,
 		}
 	}
 	return record, nil
+}
+
+func (app *App) UpdateSyncSnapshot(documentID string, textBase64 string, replicaBase64 string) error {
+	if err := validateDocumentID(documentID); err != nil {
+		return err
+	}
+	if textBase64 == "" {
+		return fmt.Errorf("snapshot text is required")
+	}
+	if replicaBase64 == "" {
+		return fmt.Errorf("snapshot replica bytes are required")
+	}
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	// Intent: Let a caught-up embodiment publish an authoritative relay snapshot
+	// for old histories that predate inline snapshot posts, so later browsers do
+	// not have to replay the full change log before they can render the current
+	// shared document. Source: DI-ramuv; DI-lumek; DI-gafit
+	app.syncSnapshots[documentID] = DocumentSnapshot{
+		TextBase64:    textBase64,
+		ReplicaBase64: replicaBase64,
+		Offset:        app.log.NextOffset(),
+	}
+	return nil
 }
 
 func (app *App) UpdateAwareness(documentID string, participantID string, cursor int, head int, typing bool, displayName string, color string, embodiment string) error {

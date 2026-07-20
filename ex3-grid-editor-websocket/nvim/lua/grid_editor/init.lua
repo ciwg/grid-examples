@@ -53,10 +53,13 @@ M.state = {
   peers = {},
   peer_index = {},
   relay_connected = false,
+  session_ready = false,
   info_bufnr = nil,
   info_winid = nil,
   help_bufnr = nil,
   help_winid = nil,
+  remote_cursors = {},
+  remote_selections = {},
 }
 
 local function join_lines()
@@ -125,12 +128,101 @@ local function set_cursor_extmark(bufnr, namespace, row, col, options)
   if ok then
     return
   end
-  local fallback = vim.deepcopy(options)
-  fallback.virt_text_pos = 'overlay'
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, row, col, fallback)
+  local fallbacks = {
+    function()
+      local fallback = vim.deepcopy(options)
+      fallback.virt_text_pos = 'eol'
+      return fallback
+    end,
+    function()
+      local fallback = vim.deepcopy(options)
+      fallback.virt_text_pos = 'overlay'
+      return fallback
+    end,
+  }
+  for _, build in ipairs(fallbacks) do
+    local fallback = build()
+    if pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, row, col, fallback) then
+      return
+    end
+  end
 end
 
 local peer_presence_state
+local peer_visible_in_buffer
+
+local function char_to_byte_col(line, char_col)
+  if char_col <= 0 then
+    return 0
+  end
+  local text = line or ''
+  if char_col >= vim.fn.strchars(text) then
+    return #text
+  end
+  return #vim.fn.strcharpart(text, 0, char_col)
+end
+
+local function clear_peer_marks(participant_id)
+  if not M.state.cursor_ns then
+    return
+  end
+  if M.state.remote_cursors[participant_id] then
+    pcall(vim.api.nvim_buf_del_extmark, M.state.bufnr, M.state.cursor_ns, M.state.remote_cursors[participant_id])
+    M.state.remote_cursors[participant_id] = nil
+  end
+  if M.state.remote_selections[participant_id] then
+    pcall(vim.api.nvim_buf_del_extmark, M.state.bufnr, M.state.cursor_ns, M.state.remote_selections[participant_id])
+    M.state.remote_selections[participant_id] = nil
+  end
+end
+
+local function render_peer(peer, lines)
+  local participant_id = peer.participant_id or peer.name or 'peer'
+  clear_peer_marks(participant_id)
+
+  local row, char_col = offset_to_pos(lines, peer.anchor or 0)
+  local head_row, head_char_col = offset_to_pos(lines, peer.head or peer.anchor or 0)
+  local line = lines[row + 1] or ''
+  local cursor_byte_col = char_to_byte_col(line, char_col)
+  local head_line = lines[head_row + 1] or ''
+  local head_byte_col = char_to_byte_col(head_line, head_char_col)
+  local group = peer_highlight(peer.color)
+  local selection_group = peer_selection_highlight(peer.color)
+
+  if row ~= head_row or char_col ~= head_char_col then
+    local start_row, start_col = row, cursor_byte_col
+    local end_row, end_col = head_row, head_byte_col
+    if start_row > end_row or (start_row == end_row and start_col > end_col) then
+      start_row, end_row = end_row, start_row
+      start_col, end_col = end_col, start_col
+    end
+    M.state.remote_selections[participant_id] = vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.cursor_ns, start_row, start_col, {
+      end_row = end_row,
+      end_col = end_col,
+      hl_group = selection_group,
+      hl_mode = 'combine',
+      priority = 200,
+    })
+  end
+
+  local cursor_end_col = math.min(cursor_byte_col + 1, #line)
+  -- Intent: Keep the remote cursor itself anchored at the exact document
+  -- position, but move the peer label off the underlying text so the buffer
+  -- remains readable while the cursor owner stays obvious. Source: DI-gafit;
+  -- DI-samuv; DI-favok
+  M.state.remote_cursors[participant_id] = vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.cursor_ns, row, cursor_byte_col, {
+    virt_text = {
+      { '▎ ' .. (peer.name or participant_id or 'peer') .. (peer.typing and ' typing' or '') .. ' ', group },
+    },
+    virt_text_pos = 'eol',
+    hl_group = group,
+    end_col = cursor_end_col,
+    hl_mode = 'combine',
+    priority = 300,
+    sign_text = '▎',
+    sign_hl_group = group,
+  })
+end
 
 local function draw_peers(peers)
   if not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
@@ -139,48 +231,26 @@ local function draw_peers(peers)
   if not M.state.cursor_ns then
     M.state.cursor_ns = vim.api.nvim_create_namespace('grid_editor_peers')
   end
-  if not M.state.selection_ns then
-    M.state.selection_ns = vim.api.nvim_create_namespace('grid_editor_peer_selections')
-  end
-  vim.api.nvim_buf_clear_namespace(M.state.bufnr, M.state.cursor_ns, 0, -1)
-  vim.api.nvim_buf_clear_namespace(M.state.bufnr, M.state.selection_ns, 0, -1)
   local lines = vim.api.nvim_buf_get_lines(M.state.bufnr, 0, -1, false)
+  local visible = {}
   for _, peer in ipairs(peers or {}) do
-    if peer_presence_state(peer) == 'gone' then
+    if not peer_visible_in_buffer(peer) then
       goto continue
     end
-    local row, col = offset_to_pos(lines, peer.anchor or 0)
-    local group = peer_highlight(peer.color)
-    local selection_group = peer_selection_highlight(peer.color)
-    local head_row, head_col = offset_to_pos(lines, peer.head or peer.anchor or 0)
-    local from_row = math.min(row, head_row)
-    local to_row = math.max(row, head_row)
-    local from_col = row <= head_row and col or head_col
-    local to_col = row <= head_row and head_col or col
-    if from_row ~= to_row or from_col ~= to_col then
-      vim.api.nvim_buf_set_extmark(M.state.bufnr, M.state.selection_ns, from_row, from_col, {
-        end_row = to_row,
-        end_col = to_col,
-        hl_group = selection_group,
-        hl_mode = 'combine',
-      })
-    end
-    -- Intent: Make remote awareness visible in-buffer with per-peer colors so
-    -- Neovim users can tell who else is present without opening extra UI, and
-    -- render remote selections as real highlighted ranges rather than only as
-    -- cursor labels. Source: DI-gafit; DI-samuv; DI-favok
-    -- Intent: Fall back to a broadly supported cursor-label position when this
-    -- Neovim build does not support inline virtual text, so peer markers stay
-    -- visible instead of failing silently on older runtimes. Source: DI-gafit
-    set_cursor_extmark(M.state.bufnr, M.state.cursor_ns, row, col, {
-      virt_text = {
-        { '▏', group },
-        { ' ' .. (peer.name or peer.participant_id or 'peer') .. (peer.typing and ' typing' or '') .. ' ', group },
-      },
-      virt_text_pos = 'inline',
-      hl_mode = 'combine',
-    })
+    local participant_id = peer.participant_id or peer.name or 'peer'
+    visible[participant_id] = true
+    render_peer(peer, lines)
     ::continue::
+  end
+  for participant_id, _ in pairs(M.state.remote_cursors) do
+    if not visible[participant_id] then
+      clear_peer_marks(participant_id)
+    end
+  end
+  for participant_id, _ in pairs(M.state.remote_selections) do
+    if not visible[participant_id] then
+      clear_peer_marks(participant_id)
+    end
   end
 end
 
@@ -195,7 +265,7 @@ peer_presence_state = function(peer)
   local age = os.time() - observed
   local profile = M.config.presence_profile == 'normal'
     and { live = 60, stale = 5 * 60, offline = 15 * 60 }
-    or { live = 5 * 60, stale = 15 * 60, offline = 30 * 60 }
+    or { live = 12, stale = 45, offline = 2 * 60 }
   if age <= profile.live then
     return 'live'
   end
@@ -206,6 +276,13 @@ peer_presence_state = function(peer)
     return 'offline'
   end
   return 'gone'
+end
+
+peer_visible_in_buffer = function(peer)
+  -- Intent: Only render currently live peers in-buffer so abandoned demo
+  -- sessions do not drown out the active browser/editor cursors users expect
+  -- to see. The full roster remains available in :GridEditorPeers. Source: DI-gafit
+  return peer_presence_state(peer) == 'live'
 end
 
 local function sidecar_argv()
@@ -372,7 +449,11 @@ local function update_cursor(typing)
 end
 
 local function handle_sidecar_message(message)
-  if message.type == 'opened' or message.type == 'changed' then
+  if message.type == 'opened' then
+    M.state.session_ready = true
+    set_buffer_content(message.content or '')
+    update_cursor(false)
+  elseif message.type == 'changed' then
     set_buffer_content(message.content or '')
   elseif message.type == 'awareness' then
     local next_index = {}
@@ -507,11 +588,13 @@ function M.open(doc_id)
   end
 
   M.state.doc_id = doc_id
+  M.state.session_ready = false
   M.state.bufnr = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(M.state.bufnr, 'grid-editor://' .. doc_id)
   vim.api.nvim_set_current_buf(M.state.bufnr)
   vim.wo.number = M.config.show_line_numbers
   vim.wo.relativenumber = false
+  vim.wo.signcolumn = 'yes:2'
 
   if M.state.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M.state.augroup)
@@ -522,7 +605,7 @@ function M.open(doc_id)
     group = M.state.augroup,
     buffer = M.state.bufnr,
     callback = function()
-      if M.state.suppress then
+      if M.state.suppress or not M.state.session_ready then
         return
       end
       local content = join_lines()
@@ -559,7 +642,6 @@ function M.open(doc_id)
     type = 'open',
     doc_id = doc_id,
   })
-  update_cursor(false)
 end
 
 function M.close()
@@ -573,6 +655,7 @@ function M.close()
     M.state.job_id = nil
   end
   M.state.doc_id = nil
+  M.state.session_ready = false
   M.state.bufnr = nil
   M.state.peers = {}
   M.state.peer_index = {}

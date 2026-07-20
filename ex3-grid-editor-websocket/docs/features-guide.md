@@ -20,6 +20,27 @@ The key distinction is that `ex3` is not claiming every visible UI element is
 already a stable shared protocol. Some features are intentionally local shells
 over a smaller set of relay-backed protocol flows.
 
+## Neovim Embodiment Notes
+
+Current Neovim peer rendering is intentionally split into two visible pieces:
+
+- a colored sign plus highlighted cursor cell at the exact remote position
+- a peer name label rendered at the **end of the same line**
+
+Why this shape exists:
+
+- earlier overlay labels sat directly on top of document text and were hard to
+  read in live demos
+- the current shape keeps the remote location visible without hiding the file
+  contents underneath it
+
+What this means:
+
+- Neovim should show the same document content as the browser
+- browser peers should be visible in Neovim without opening `:GridEditorPeers`
+- the full roster still lives in `:GridEditorPeers`, but the in-buffer marker
+  is optimized for active remote cursor visibility rather than roster display
+
 ## Page Sections And Features
 
 ### Document
@@ -39,6 +60,11 @@ PromiseGrid enablement:
   mint short-lived remote capabilities
 - document title can be saved durably through the separate
   `document-metadata` protocol
+- browser startup now primes from the relay's current document snapshot before
+  websocket catch-up begins, so an old local demo seed cannot impersonate an
+  existing shared doc
+- once a browser catches up to an older pre-snapshot doc, it backfills a relay
+  snapshot so later joiners can start from the current document state
 
 Current persistence shape:
 - title and relay metadata can be relay-backed
@@ -79,6 +105,8 @@ PromiseGrid enablement:
 
 Current persistence shape:
 - local browser registry only
+- local seed content is only applied when a doc has no relay history yet; once
+  the relay has a snapshot or message history, the relay state wins
 
 ### PromiseGrid Flow
 

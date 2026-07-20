@@ -112,6 +112,10 @@ name, color, and cursor position. Keeping them separate makes the example
 closer to real collaborative systems, where document truth and cursor presence
 have different durability and cadence requirements. Source: `DI-tofug`.
 
+The browser startup path now primes from the relay's current snapshot before
+it considers any browser-local demo seed. That keeps old local sample content
+from impersonating an existing shared document during reconnect or late join.
+
 ### 4. The relay is not the editor of record
 
 The Go relay verifies signatures, persists signed bytes, and relays change
@@ -477,6 +481,14 @@ Inside Neovim, the main commands are:
 :GridEditorPeers
 :GridEditorClose
 ```
+
+Current remote-peer rendering in Neovim:
+
+- the shared document text should match the browser
+- active remote peers should show as a colored sign/cursor cell at the exact
+  position
+- the peer name label renders at the **end of that line** instead of on top of
+  the document text, to keep the file readable during live demos
 
 If you want the manual path, load the repo-local plugin yourself:
 

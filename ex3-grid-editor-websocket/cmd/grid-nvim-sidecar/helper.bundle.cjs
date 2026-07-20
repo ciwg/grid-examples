@@ -6145,6 +6145,7 @@ var state = {
   selection: { anchor: 0, head: 0 },
   syncTimer: null,
   awarenessTimer: null,
+  heartbeatTimer: null,
   syncSocket: null,
   awarenessSocket: null,
   relayConnected: false,
@@ -6264,6 +6265,7 @@ async function openDocument(documentId) {
     state.initialSyncReady = true;
     state.startupTransportsReady = true;
   }
+  startAwarenessHeartbeat();
   completeInitialOpen();
 }
 function closeDocument() {
@@ -6274,6 +6276,10 @@ function closeDocument() {
   if (state.awarenessTimer) {
     clearInterval(state.awarenessTimer);
     state.awarenessTimer = null;
+  }
+  if (state.heartbeatTimer) {
+    clearInterval(state.heartbeatTimer);
+    state.heartbeatTimer = null;
   }
   if (state.syncSocket) {
     state.syncSocket.close();
@@ -6400,6 +6406,14 @@ async function postAwareness(typing) {
     color: state.color,
     embodiment: "nvim"
   });
+}
+function startAwarenessHeartbeat() {
+  if (state.heartbeatTimer) {
+    clearInterval(state.heartbeatTimer);
+  }
+  state.heartbeatTimer = setInterval(() => {
+    postAwareness(false).catch((error) => send({ type: "error", message: error.stack || error.message }));
+  }, 5e3);
 }
 async function postChange(changeBytes) {
   if (!state.documentId) {

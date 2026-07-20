@@ -160,6 +160,8 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		writeJSON(writer, http.StatusOK, server.app.Trace(documentID, limit))
 	case "sync":
 		server.handleSync(writer, request, documentID)
+	case "snapshot":
+		server.handleSnapshot(writer, request, documentID)
 	case "session":
 		server.handleSession(writer, request, documentID)
 	case "sync-socket":
@@ -264,6 +266,32 @@ func (server *Server) handleSync(writer http.ResponseWriter, request *http.Reque
 	default:
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (server *Server) handleSnapshot(writer http.ResponseWriter, request *http.Request, documentID string) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxChangeBytesLen*4)
+	var payload struct {
+		ParticipantID string `json:"participant_id"`
+		TextBase64    string `json:"text_base64"`
+		ReplicaBase64 string `json:"replica_base64"`
+	}
+	if err := decodeJSONBody(writer, request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.documentPCID.String()); err != nil {
+		http.Error(writer, err.Error(), http.StatusForbidden)
+		return
+	}
+	if err := server.app.UpdateSyncSnapshot(documentID, payload.TextBase64, payload.ReplicaBase64); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, server.app.State(documentID))
 }
 
 func (server *Server) handleAwareness(writer http.ResponseWriter, request *http.Request, documentID string) {

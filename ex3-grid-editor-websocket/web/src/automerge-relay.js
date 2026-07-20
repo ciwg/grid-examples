@@ -20,6 +20,8 @@ export class AutomergeRelayClient {
     this.pendingChanges = 0;
     this.transport = "polling";
     this.capabilities = options.capabilities || {};
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
   }
 
   on(event, callback) {
@@ -49,14 +51,33 @@ export class AutomergeRelayClient {
     return this.transport;
   }
 
+  primeFromRelayState(state) {
+    if (!state?.snapshot_present || !state.replica_base64) {
+      return false;
+    }
+    // Intent: Bootstrap the browser replica from the relay's current snapshot
+    // before live websocket replay starts so an old local seed or empty startup
+    // buffer cannot masquerade as the shared document. Source: DI-ramuv;
+    // DI-lumek; DI-gafit
+    this.setDoc(Automerge.load(base64ToBytes(state.replica_base64)));
+    if (state.snapshot_offset && state.snapshot_offset > this.offset) {
+      this.offset = state.snapshot_offset;
+    }
+    return true;
+  }
+
   async connect() {
     this.emitStatus("connecting");
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
     if (canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
     this.transport = "polling";
     await this.poll();
+    this.initialSyncReady = true;
+    this.flushQueuedUpdate();
     this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => {
@@ -77,6 +98,8 @@ export class AutomergeRelayClient {
       this.socket = null;
     }
     this.connected = false;
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
     this.emitStatus("disconnected");
   }
 
@@ -85,6 +108,7 @@ export class AutomergeRelayClient {
     const url = toWebSocketURL(this.basePath, "sync-socket", { since: this.offset });
     await new Promise((resolve, reject) => {
       let settled = false;
+      let socketWork = Promise.resolve();
       const socket = new WebSocket(url);
       this.socket = socket;
       socket.addEventListener("open", () => {
@@ -97,7 +121,11 @@ export class AutomergeRelayClient {
         }
       });
       socket.addEventListener("message", (event) => {
-        this.handleSocketMessage(event.data)
+        // Intent: Process websocket sync frames in arrival order so browser
+        // startup cannot mark the replica ready before earlier replay batches
+        // are applied. Source: DI-gafit
+        socketWork = socketWork.then(() => this.handleSocketMessage(event.data));
+        socketWork
           .then(() => {
             if (!settled) {
               settled = true;
@@ -173,6 +201,13 @@ export class AutomergeRelayClient {
   observePeers(_peers) {}
 
   applyLocalUpdate(update) {
+    if (!this.initialSyncReady) {
+      // Intent: Keep browser-side local edits from overwriting relay content
+      // with an empty startup buffer before the initial sync catch-up has
+      // completed. Source: DI-gafit
+      this.queuedUpdate = update;
+      return;
+    }
     const nextDoc = Automerge.change(Automerge.clone(this.doc), (draft) => {
       update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         const deleteCount = toA - fromA;
@@ -196,6 +231,15 @@ export class AutomergeRelayClient {
     }
   }
 
+  flushQueuedUpdate() {
+    if (!this.initialSyncReady || this.queuedUpdate === null) {
+      return;
+    }
+    const update = this.queuedUpdate;
+    this.queuedUpdate = null;
+    this.applyLocalUpdate(update);
+  }
+
   replaceText(text) {
     const previous = this.getText();
     if (text === previous) {
@@ -216,6 +260,24 @@ export class AutomergeRelayClient {
         },
       },
     });
+  }
+
+  async publishSnapshot() {
+    const response = await fetch(`${this.basePath}/snapshot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...bearerHeaders(this.capabilities.sync),
+      },
+      body: JSON.stringify({
+        participant_id: this.participantID,
+        text_base64: bytesToBase64(new TextEncoder().encode(this.getText())),
+        replica_base64: bytesToBase64(this.getReplicaBytes()),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`snapshot POST failed: ${response.status}`);
+    }
   }
 
   async receive(record) {
@@ -300,6 +362,8 @@ export class AutomergeRelayClient {
       if (nextOffset > this.offset) {
         this.offset = nextOffset;
       }
+      this.initialSyncReady = true;
+      this.flushQueuedUpdate();
       this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
       return;
     }

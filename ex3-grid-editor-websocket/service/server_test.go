@@ -109,6 +109,23 @@ func TestServerAllowsLoopbackSyncMutation(t *testing.T) {
 	}
 }
 
+func TestServerStoresLoopbackSnapshot(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/snapshot", bytes.NewBufferString(`{"participant_id":"browser-a","text_base64":"I0xpdmUgRGVtbyBTY3JpcHQ=","replica_base64":"CQgHBg=="}`))
+	request.RemoteAddr = "127.0.0.1:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+	assertBodyContains(t, response.Body.String(), `"snapshot_present":true`)
+	assertBodyContains(t, response.Body.String(), `"text_base64":"I0xpdmUgRGVtbyBTY3JpcHQ="`)
+}
+
 func TestServerIssuesRemoteSessionWithBootstrapToken(t *testing.T) {
 	t.Parallel()
 	server := newTestServerWithOptions(t, service.AppOptions{RemoteAccessToken: "ex3-demo-access"})

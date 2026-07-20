@@ -27305,6 +27305,7 @@ var RelayAwarenessClient = class {
     this.remoteStates = /* @__PURE__ */ new Map();
     this.listeners = /* @__PURE__ */ new Map();
     this.pollTimer = null;
+    this.heartbeatTimer = null;
     this.socket = null;
     this.transport = "polling";
     this.capabilities = options.capabilities || {};
@@ -27342,6 +27343,7 @@ var RelayAwarenessClient = class {
     this.transport = "polling";
     await this.broadcast();
     await this.poll();
+    this.startHeartbeat();
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => this.emit("error", error));
     }, 350);
@@ -27354,6 +27356,10 @@ var RelayAwarenessClient = class {
     if (this.socket) {
       this.socket.close();
       this.socket = null;
+    }
+    if (this.heartbeatTimer !== null) {
+      window.clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
   }
   async connectWebSocket() {
@@ -27406,6 +27412,7 @@ var RelayAwarenessClient = class {
         this.socket = null;
       });
     });
+    this.startHeartbeat();
   }
   async poll() {
     const response = await fetch(`${this.basePath}/awareness`);
@@ -27467,6 +27474,14 @@ var RelayAwarenessClient = class {
     if (!response.ok) {
       throw new Error(`awareness POST failed: ${response.status}`);
     }
+  }
+  startHeartbeat() {
+    if (this.heartbeatTimer !== null) {
+      window.clearInterval(this.heartbeatTimer);
+    }
+    this.heartbeatTimer = window.setInterval(() => {
+      this.broadcast().catch((error) => this.emit("error", error));
+    }, 5e3);
   }
   updateSelection(anchor, head) {
     this.selection = { anchor, head };
@@ -31717,6 +31732,8 @@ var AutomergeRelayClient = class {
     this.pendingChanges = 0;
     this.transport = "polling";
     this.capabilities = options.capabilities || {};
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
   }
   on(event, callback) {
     if (!this.listeners.has(event)) {
@@ -31739,14 +31756,28 @@ var AutomergeRelayClient = class {
   transportMode() {
     return this.transport;
   }
+  primeFromRelayState(state2) {
+    if (!state2?.snapshot_present || !state2.replica_base64) {
+      return false;
+    }
+    this.setDoc(load2(base64ToBytes(state2.replica_base64)));
+    if (state2.snapshot_offset && state2.snapshot_offset > this.offset) {
+      this.offset = state2.snapshot_offset;
+    }
+    return true;
+  }
   async connect() {
     this.emitStatus("connecting");
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
     if (canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
     this.transport = "polling";
     await this.poll();
+    this.initialSyncReady = true;
+    this.flushQueuedUpdate();
     this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => {
@@ -31766,6 +31797,8 @@ var AutomergeRelayClient = class {
       this.socket = null;
     }
     this.connected = false;
+    this.initialSyncReady = false;
+    this.queuedUpdate = null;
     this.emitStatus("disconnected");
   }
   async connectWebSocket() {
@@ -31773,6 +31806,7 @@ var AutomergeRelayClient = class {
     const url = toWebSocketURL(this.basePath, "sync-socket", { since: this.offset });
     await new Promise((resolve, reject) => {
       let settled = false;
+      let socketWork = Promise.resolve();
       const socket = new WebSocket(url);
       this.socket = socket;
       socket.addEventListener("open", () => {
@@ -31785,7 +31819,8 @@ var AutomergeRelayClient = class {
         }
       });
       socket.addEventListener("message", (event) => {
-        this.handleSocketMessage(event.data).then(() => {
+        socketWork = socketWork.then(() => this.handleSocketMessage(event.data));
+        socketWork.then(() => {
           if (!settled) {
             settled = true;
             resolve();
@@ -31851,6 +31886,10 @@ var AutomergeRelayClient = class {
   observePeers(_peers) {
   }
   applyLocalUpdate(update) {
+    if (!this.initialSyncReady) {
+      this.queuedUpdate = update;
+      return;
+    }
     const nextDoc = change(clone(this.doc), (draft) => {
       update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         const deleteCount = toA - fromA;
@@ -31869,6 +31908,14 @@ var AutomergeRelayClient = class {
         this.emit("error", error);
       });
     }
+  }
+  flushQueuedUpdate() {
+    if (!this.initialSyncReady || this.queuedUpdate === null) {
+      return;
+    }
+    const update = this.queuedUpdate;
+    this.queuedUpdate = null;
+    this.applyLocalUpdate(update);
   }
   replaceText(text) {
     const previous = this.getText();
@@ -31890,6 +31937,23 @@ var AutomergeRelayClient = class {
         }
       }
     });
+  }
+  async publishSnapshot() {
+    const response = await fetch(`${this.basePath}/snapshot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...bearerHeaders(this.capabilities.sync)
+      },
+      body: JSON.stringify({
+        participant_id: this.participantID,
+        text_base64: bytesToBase64(new TextEncoder().encode(this.getText())),
+        replica_base64: bytesToBase64(this.getReplicaBytes())
+      })
+    });
+    if (!response.ok) {
+      throw new Error(`snapshot POST failed: ${response.status}`);
+    }
   }
   async receive(record) {
     const previous = clone(this.doc);
@@ -31968,6 +32032,8 @@ var AutomergeRelayClient = class {
       if (nextOffset > this.offset) {
         this.offset = nextOffset;
       }
+      this.initialSyncReady = true;
+      this.flushQueuedUpdate();
       this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
       return;
     }
@@ -32830,6 +32896,26 @@ function traceProtocolClass(protocolName) {
   return "document";
 }
 
+// src/startup.js
+function relayHasAuthoritativeHistory(state2) {
+  if (!state2 || typeof state2 !== "object") {
+    return false;
+  }
+  if (state2.snapshot_present) {
+    return true;
+  }
+  return Number(state2.message_count || 0) > 0;
+}
+function shouldApplySeed(seed, relayText, state2) {
+  if (!seed) {
+    return false;
+  }
+  if (relayHasAuthoritativeHistory(state2)) {
+    return false;
+  }
+  return relayText === "";
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -33073,6 +33159,8 @@ async function bootDocument(documentID) {
   state.editor = editor;
   applyPreferences(state.prefs);
   renderTransportSummary();
+  const relayState = await loadRelayState(basePath);
+  relay.primeFromRelayState(relayState);
   editor.setText(relay.getText());
   contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
   relay.on("document", (text) => {
@@ -33105,10 +33193,13 @@ async function bootDocument(documentID) {
   renderTransportSummary();
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());
-  await refreshState(basePath);
+  applyRelayState(relayState);
   await refreshTrace(documentID);
   await refreshMetadata(documentID);
-  await applySeedIfNeeded(documentID);
+  await applySeedIfNeeded(documentID, relayState);
+  if (!relayState.snapshot_present && state.relay.getText() !== "") {
+    state.relay.publishSnapshot().catch((error) => showToast(`Snapshot publish failed: ${error.message}`));
+  }
   await refreshPublished(documentID);
   await searchMetadataCatalog(false);
   renderPreview();
@@ -33117,12 +33208,9 @@ async function bootDocument(documentID) {
     refreshTrace(documentID).catch((error) => showToast(`PromiseGrid trace failed: ${error.message}`));
   }, 350);
 }
-async function applySeedIfNeeded(documentID) {
+async function applySeedIfNeeded(documentID, relayState) {
   const seed = registry.seedContent(documentID);
-  if (!seed) {
-    return;
-  }
-  if (state.relay.getText() !== "") {
+  if (!shouldApplySeed(seed, state.relay.getText(), relayState)) {
     registry.registerSeedContent(documentID, "");
     return;
   }
@@ -33131,13 +33219,14 @@ async function applySeedIfNeeded(documentID) {
   registry.registerSeedContent(documentID, "");
   registry.touchEdited(documentID);
 }
-async function refreshState(basePath) {
+async function loadRelayState(basePath) {
   const response = await fetch(`${basePath}/state`);
   if (!response.ok) {
-    setStatus("error", `state GET failed: ${response.status}`);
-    return;
+    throw new Error(`state GET failed: ${response.status}`);
   }
-  const payload = await response.json();
+  return await response.json();
+}
+function applyRelayState(payload) {
   revisionEl.textContent = `messages: ${payload.message_count || 0}`;
 }
 async function refreshTrace(documentID) {

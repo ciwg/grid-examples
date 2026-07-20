@@ -11,6 +11,7 @@ import { extractMentions, inferVersionName, summarizeDocument } from "./review.j
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 import { describePaneMode, nextPaneState } from "./panes.js";
 import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
+import { shouldApplySeed } from "./startup.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -277,6 +278,8 @@ async function bootDocument(documentID) {
   state.editor = editor;
   applyPreferences(state.prefs);
   renderTransportSummary();
+  const relayState = await loadRelayState(basePath);
+  relay.primeFromRelayState(relayState);
   editor.setText(relay.getText());
   contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
 
@@ -311,10 +314,17 @@ async function bootDocument(documentID) {
   renderTransportSummary();
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());
-  await refreshState(basePath);
+  applyRelayState(relayState);
   await refreshTrace(documentID);
   await refreshMetadata(documentID);
-  await applySeedIfNeeded(documentID);
+  await applySeedIfNeeded(documentID, relayState);
+  if (!relayState.snapshot_present && state.relay.getText() !== "") {
+    // Intent: Backfill a relay snapshot once a browser has fully caught up so
+    // future late joiners can bootstrap from the current shared document
+    // instead of replaying the entire pre-snapshot change log. Source:
+    // DI-ramuv; DI-lumek; DI-gafit
+    state.relay.publishSnapshot().catch((error) => showToast(`Snapshot publish failed: ${error.message}`));
+  }
   await refreshPublished(documentID);
   await searchMetadataCatalog(false);
   renderPreview();
@@ -324,12 +334,9 @@ async function bootDocument(documentID) {
   }, 350);
 }
 
-async function applySeedIfNeeded(documentID) {
+async function applySeedIfNeeded(documentID, relayState) {
   const seed = registry.seedContent(documentID);
-  if (!seed) {
-    return;
-  }
-  if (state.relay.getText() !== "") {
+  if (!shouldApplySeed(seed, state.relay.getText(), relayState)) {
     registry.registerSeedContent(documentID, "");
     return;
   }
@@ -339,13 +346,15 @@ async function applySeedIfNeeded(documentID) {
   registry.touchEdited(documentID);
 }
 
-async function refreshState(basePath) {
+async function loadRelayState(basePath) {
   const response = await fetch(`${basePath}/state`);
   if (!response.ok) {
-    setStatus("error", `state GET failed: ${response.status}`);
-    return;
+    throw new Error(`state GET failed: ${response.status}`);
   }
-  const payload = await response.json();
+  return await response.json();
+}
+
+function applyRelayState(payload) {
   revisionEl.textContent = `messages: ${payload.message_count || 0}`;
 }
 

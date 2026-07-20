@@ -231,8 +231,21 @@ vim.defer_fn(function()
   end
   local cursor_marks = 0
   local selection_marks = 0
+  local peer_label_text = ""
+  local peer_label_pos = ""
+  local peer_sign_text = ""
   if bufnr and state.cursor_ns then
-    cursor_marks = #vim.api.nvim_buf_get_extmarks(bufnr, state.cursor_ns, 0, -1, {})
+    local marks = vim.api.nvim_buf_get_extmarks(bufnr, state.cursor_ns, 0, -1, { details = true })
+    cursor_marks = #marks
+    if #marks > 0 then
+      local details = marks[1][4] or {}
+      peer_label_pos = details.virt_text_pos or ""
+      peer_sign_text = details.sign_text or ""
+      local virt_text = details.virt_text or {}
+      if #virt_text > 0 and type(virt_text[1]) == "table" then
+        peer_label_text = virt_text[1][1] or ""
+      end
+    end
   end
   if bufnr and state.selection_ns then
     selection_marks = #vim.api.nvim_buf_get_extmarks(bufnr, state.selection_ns, 0, -1, {})
@@ -246,6 +259,9 @@ vim.defer_fn(function()
     peer_typing = state.peers and state.peers[1] and state.peers[1].typing or false,
     peer_last_seen_at = state.peers and state.peers[1] and state.peers[1].last_seen_at or "",
     peer_anchor = state.peers and state.peers[1] and state.peers[1].anchor or -1,
+    peer_label_text = peer_label_text,
+    peer_label_pos = peer_label_pos,
+    peer_sign_text = peer_sign_text,
   }
   local encoded = vim.json.encode(payload)
   vim.fn.writefile({ encoded }, %q)
@@ -298,6 +314,9 @@ end, 1400)
 		PeerTyping     bool   `json:"peer_typing"`
 		PeerLastSeenAt string `json:"peer_last_seen_at"`
 		PeerAnchor     int    `json:"peer_anchor"`
+		PeerLabelText  string `json:"peer_label_text"`
+		PeerLabelPos   string `json:"peer_label_pos"`
+		PeerSignText   string `json:"peer_sign_text"`
 	}
 	if err := json.Unmarshal(raw, &observed); err != nil {
 		t.Fatalf("decode nvim observed output: %v", err)
@@ -316,6 +335,15 @@ end, 1400)
 	}
 	if !observed.PeerTyping {
 		t.Fatalf("expected peer typing flag in plugin state")
+	}
+	if !strings.Contains(observed.PeerLabelText, "Browser A") {
+		t.Fatalf("expected peer label text to mention Browser A, got %+v", observed)
+	}
+	if observed.PeerLabelPos != "eol" {
+		t.Fatalf("expected peer label to render at end of line, got %+v", observed)
+	}
+	if !strings.Contains(observed.PeerSignText, "▎") {
+		t.Fatalf("expected peer sign text, got %+v", observed)
 	}
 }
 

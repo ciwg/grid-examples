@@ -33,6 +33,8 @@ Visible status in the screenshot:
 - Quick start banner is visible
 - One visible peer badge row entry: `Browser User  you`
 - Main editor pane is visually empty in this screenshot
+- Current boot behavior is supposed to hydrate the browser from the relay's
+  snapshot before any local seed content is considered
 
 ## Top-Level Layout
 

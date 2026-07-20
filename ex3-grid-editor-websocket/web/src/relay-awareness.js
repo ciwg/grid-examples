@@ -14,6 +14,7 @@ export class RelayAwarenessClient {
     this.remoteStates = new Map();
     this.listeners = new Map();
     this.pollTimer = null;
+    this.heartbeatTimer = null;
     this.socket = null;
     this.transport = "polling";
     this.capabilities = options.capabilities || {};
@@ -57,6 +58,7 @@ export class RelayAwarenessClient {
     this.transport = "polling";
     await this.broadcast();
     await this.poll();
+    this.startHeartbeat();
     this.pollTimer = window.setInterval(() => {
       this.poll().catch((error) => this.emit("error", error));
     }, 350);
@@ -70,6 +72,10 @@ export class RelayAwarenessClient {
     if (this.socket) {
       this.socket.close();
       this.socket = null;
+    }
+    if (this.heartbeatTimer !== null) {
+      window.clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
   }
 
@@ -123,6 +129,7 @@ export class RelayAwarenessClient {
         this.socket = null;
       });
     });
+    this.startHeartbeat();
   }
 
   async poll() {
@@ -192,6 +199,18 @@ export class RelayAwarenessClient {
       // DI-rabod
       throw new Error(`awareness POST failed: ${response.status}`);
     }
+  }
+
+  startHeartbeat() {
+    if (this.heartbeatTimer !== null) {
+      window.clearInterval(this.heartbeatTimer);
+    }
+    // Intent: Refresh active browser presence periodically so current
+    // collaborators remain visible while abandoned sessions age out quickly.
+    // Source: DI-gafit
+    this.heartbeatTimer = window.setInterval(() => {
+      this.broadcast().catch((error) => this.emit("error", error));
+    }, 5000);
   }
 
   updateSelection(anchor, head) {
