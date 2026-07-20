@@ -372,3 +372,47 @@ func TestServerItemDetailIncludesRelatedRuns(t *testing.T) {
 		t.Fatalf("item detail missing related run history: %s", response.Body.String())
 	}
 }
+
+func TestServerContextDetailIncludesRelatedRuns(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	server := NewServer(app)
+
+	for _, path := range []string{
+		"/api/places/" + place.ID,
+		"/api/resources/" + resource.ID,
+		"/api/responsibilities/" + resp.ID,
+	} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		server.Handler().ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("detail status for %s: %d %s", path, response.Code, response.Body.String())
+		}
+		if !strings.Contains(response.Body.String(), `"related_runs"`) || !strings.Contains(response.Body.String(), run.ID) {
+			t.Fatalf("context detail missing related runs for %s: %s", path, response.Body.String())
+		}
+	}
+}

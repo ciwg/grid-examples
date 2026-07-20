@@ -410,3 +410,55 @@ func TestGetKnowledgeItemIncludesRelatedRuns(t *testing.T) {
 		t.Fatalf("unexpected related run ordering: %+v", loaded.RelatedRuns)
 	}
 }
+
+func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	loadedPlace, err := app.GetPlace(place.ID)
+	if err != nil {
+		t.Fatalf("get place: %v", err)
+	}
+	if len(loadedPlace.RelatedRuns) != 1 || loadedPlace.RelatedRuns[0].ID != run.ID {
+		t.Fatalf("unexpected place related runs: %+v", loadedPlace.RelatedRuns)
+	}
+
+	loadedResource, err := app.GetResource(resource.ID)
+	if err != nil {
+		t.Fatalf("get resource: %v", err)
+	}
+	if len(loadedResource.RelatedRuns) != 1 || loadedResource.RelatedRuns[0].ID != run.ID {
+		t.Fatalf("unexpected resource related runs: %+v", loadedResource.RelatedRuns)
+	}
+
+	loadedResp, err := app.GetResponsibility(resp.ID)
+	if err != nil {
+		t.Fatalf("get responsibility: %v", err)
+	}
+	if len(loadedResp.RelatedRuns) != 1 || loadedResp.RelatedRuns[0].ID != run.ID {
+		t.Fatalf("unexpected responsibility related runs: %+v", loadedResp.RelatedRuns)
+	}
+}

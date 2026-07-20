@@ -129,6 +129,7 @@ It supports:
 - reviewing item revisions and approvals directly in the inspector
 - reviewing run evidence and approvals directly in the inspector
 - reviewing the runs that used a selected item directly in the inspector
+- reviewing related runs from places, resources, and responsibilities directly in the inspector
 
 This does not replace richer future navigation, but it removes the need to
 copy raw IDs manually just to understand the current operational graph.
@@ -235,6 +236,7 @@ Current browser surface:
 - record inspector with contextual navigation
 - timeline-first record detail view
 - item history drilldown into related runs
+- context history drilldown from places, resources, and responsibilities
 - record run
 - upload evidence
 - record approval

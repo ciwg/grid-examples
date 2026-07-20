@@ -577,12 +577,14 @@ function detailStats(type, record) {
         ["Parent", record.parent_id || "-"],
         ["Children", (record.child_place_ids || []).length],
         ["Resources", (record.resource_ids || []).length],
+        ["Runs", (record.related_runs || []).length],
         ["Events", (record.timeline || []).length],
       ];
     case "resource":
       return [
         ["Place", record.place_id || "-"],
         ["Tags", (record.tags || []).length],
+        ["Runs", (record.related_runs || []).length],
         ["Links", (record.links || []).length],
         ["Events", (record.timeline || []).length],
       ];
@@ -591,6 +593,7 @@ function detailStats(type, record) {
         ["Team", record.team || "-"],
         ["Items", (record.linked_item_ids || []).length],
         ["Runs", (record.linked_run_ids || []).length],
+        ["Related runs", (record.related_runs || []).length],
         ["Events", (record.timeline || []).length],
       ];
     case "item":
@@ -617,6 +620,9 @@ function renderDetailActions(type, record) {
   const links = [];
   if (type === "resource" && record.place_id) {
     links.push(["Open place", "place", record.place_id]);
+    for (const run of record.related_runs || []) {
+      links.push([`Run ${run.id}`, "run", run.id]);
+    }
   }
   if (type === "item") {
     links.push(["Open live draft", "item", record.id]);
@@ -645,6 +651,9 @@ function renderDetailActions(type, record) {
     }
     for (const childID of record.child_place_ids || []) {
       links.push([`Child place ${childID}`, "place", childID]);
+    }
+    for (const run of record.related_runs || []) {
+      links.push([`Run ${run.id}`, "run", run.id]);
     }
   }
   if (type === "responsibility") {
@@ -702,6 +711,10 @@ function renderDetailReview(type, record) {
   if (type === "responsibility") {
     sections.push(["Linked items", (record.linked_item_ids || []).map((id) => id)]);
     sections.push(["Linked runs", (record.linked_run_ids || []).map((id) => id)]);
+    sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+  }
+  if (type === "place" || type === "resource") {
+    sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
   }
   for (const [title, entries] of sections) {
     if (!entries.length) {

@@ -136,7 +136,7 @@ func (app *App) GetPlace(id string) (Place, error) {
 	if !ok {
 		return Place{}, fmt.Errorf("place %q not found", id)
 	}
-	return clonePlace(place), nil
+	return app.placeWithRelatedRunsLocked(place), nil
 }
 
 // Intent: Model physical context through generic hierarchical places instead
@@ -197,7 +197,7 @@ func (app *App) GetResource(id string) (Resource, error) {
 	if !ok {
 		return Resource{}, fmt.Errorf("resource %q not found", id)
 	}
-	return cloneResource(resource), nil
+	return app.resourceWithRelatedRunsLocked(resource), nil
 }
 
 // Intent: Keep tracked operational things generic so ex5 can represent
@@ -257,7 +257,7 @@ func (app *App) GetResponsibility(id string) (Responsibility, error) {
 	if !ok {
 		return Responsibility{}, fmt.Errorf("responsibility %q not found", id)
 	}
-	return cloneResponsibility(record), nil
+	return app.responsibilityWithRelatedRunsLocked(record), nil
 }
 
 // Intent: Keep responsibilities as first-class durable records instead of
@@ -1325,6 +1325,7 @@ func cloneResponsibility(in *Responsibility) Responsibility {
 	out.Tags = append([]string(nil), in.Tags...)
 	out.LinkedItemIDs = append([]string(nil), in.LinkedItemIDs...)
 	out.LinkedRunIDs = append([]string(nil), in.LinkedRunIDs...)
+	out.RelatedRuns = append([]RunRecord(nil), in.RelatedRuns...)
 	out.LinkedRoleKeys = append([]string(nil), in.LinkedRoleKeys...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
 	return out
@@ -1335,6 +1336,7 @@ func clonePlace(in *Place) Place {
 	out.Tags = append([]string(nil), in.Tags...)
 	out.ChildPlaceIDs = append([]string(nil), in.ChildPlaceIDs...)
 	out.ResourceIDs = append([]string(nil), in.ResourceIDs...)
+	out.RelatedRuns = append([]RunRecord(nil), in.RelatedRuns...)
 	out.Links = append([]Link(nil), in.Links...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
 	return out
@@ -1343,6 +1345,7 @@ func clonePlace(in *Place) Place {
 func cloneResource(in *Resource) Resource {
 	out := *in
 	out.Tags = append([]string(nil), in.Tags...)
+	out.RelatedRuns = append([]RunRecord(nil), in.RelatedRuns...)
 	out.Links = append([]Link(nil), in.Links...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
 	return out
@@ -1383,5 +1386,44 @@ func cloneRun(in *RunRecord) RunRecord {
 	out.Approvals = append([]Approval(nil), in.Approvals...)
 	out.Links = append([]Link(nil), in.Links...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
+	return out
+}
+
+func (app *App) placeWithRelatedRunsLocked(place *Place) Place {
+	out := clonePlace(place)
+	out.RelatedRuns = []RunRecord{}
+	for _, run := range app.runs {
+		if run.PlaceID != place.ID {
+			continue
+		}
+		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
+	}
+	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
+	return out
+}
+
+func (app *App) resourceWithRelatedRunsLocked(resource *Resource) Resource {
+	out := cloneResource(resource)
+	out.RelatedRuns = []RunRecord{}
+	for _, run := range app.runs {
+		if !containsValue(run.ResourceIDs, resource.ID) {
+			continue
+		}
+		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
+	}
+	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
+	return out
+}
+
+func (app *App) responsibilityWithRelatedRunsLocked(record *Responsibility) Responsibility {
+	out := cloneResponsibility(record)
+	out.RelatedRuns = []RunRecord{}
+	for _, run := range app.runs {
+		if !containsValue(run.ResponsibilityIDs, record.ID) {
+			continue
+		}
+		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
+	}
+	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
 	return out
 }

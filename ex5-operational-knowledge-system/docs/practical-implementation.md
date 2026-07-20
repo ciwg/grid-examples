@@ -34,6 +34,7 @@ Browser:
 - inspects records, reads timelines, and follows contextual links between them
 - reviews item revisions plus run evidence/approvals in the record inspector
 - shows related run history from the selected item detail view
+- shows related run history from place, resource, and responsibility detail views
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals

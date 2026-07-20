@@ -45,21 +45,23 @@ type Place struct {
 	UpdatedAt     string             `json:"updated_at"`
 	ChildPlaceIDs []string           `json:"child_place_ids"`
 	ResourceIDs   []string           `json:"resource_ids"`
+	RelatedRuns   []RunRecord        `json:"related_runs"`
 	Links         []Link             `json:"links"`
 	Timeline      []OperationalEvent `json:"timeline"`
 }
 
 type Resource struct {
-	ID        string             `json:"id"`
-	Kind      string             `json:"kind"`
-	Name      string             `json:"name"`
-	Summary   string             `json:"summary"`
-	PlaceID   string             `json:"place_id"`
-	Tags      []string           `json:"tags"`
-	CreatedAt string             `json:"created_at"`
-	UpdatedAt string             `json:"updated_at"`
-	Links     []Link             `json:"links"`
-	Timeline  []OperationalEvent `json:"timeline"`
+	ID          string             `json:"id"`
+	Kind        string             `json:"kind"`
+	Name        string             `json:"name"`
+	Summary     string             `json:"summary"`
+	PlaceID     string             `json:"place_id"`
+	Tags        []string           `json:"tags"`
+	CreatedAt   string             `json:"created_at"`
+	UpdatedAt   string             `json:"updated_at"`
+	RelatedRuns []RunRecord        `json:"related_runs"`
+	Links       []Link             `json:"links"`
+	Timeline    []OperationalEvent `json:"timeline"`
 }
 
 type Responsibility struct {
@@ -72,6 +74,7 @@ type Responsibility struct {
 	UpdatedAt      string             `json:"updated_at"`
 	LinkedItemIDs  []string           `json:"linked_item_ids"`
 	LinkedRunIDs   []string           `json:"linked_run_ids"`
+	RelatedRuns    []RunRecord        `json:"related_runs"`
 	LinkedRoleKeys []string           `json:"linked_role_keys"`
 	Timeline       []OperationalEvent `json:"timeline"`
 }
