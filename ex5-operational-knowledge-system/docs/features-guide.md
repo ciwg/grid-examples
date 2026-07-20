@@ -124,6 +124,8 @@ It supports:
   - run -> resource
   - responsibility -> linked items and runs
   - place -> child places and resources
+- viewing timeline entries for the selected record
+- viewing summary cards for the selected record instead of only raw JSON
 
 This does not replace richer future navigation, but it removes the need to
 copy raw IDs manually just to understand the current operational graph.
@@ -225,6 +227,7 @@ Current browser surface:
 - create knowledge item
 - live draft studio for knowledge items
 - record inspector with contextual navigation
+- timeline-first record detail view
 - record run
 - upload evidence
 - record approval
@@ -274,10 +277,10 @@ information about real work gets split across text, memory, tools, and time.
 `ex5` is the first runnable example in this repo that treats that as one
 problem and gives it one durable local history.
 
-## Still open
+## Current direction
 
-These product and architecture questions are still open:
+The current product direction is now:
 
-- whether to fully port the `ex3` websocket collaboration model
-- whether collaborative editing is truly core or optional
-- whether `ex5` should eventually include another editor embodiment like Neovim
+- do not port the full `ex3` websocket collaboration model into `ex5`
+- treat collaborative editing as optional rather than core
+- keep a future Neovim embodiment as a desirable follow-on because many real teams operate there

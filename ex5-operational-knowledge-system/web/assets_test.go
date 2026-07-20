@@ -12,6 +12,7 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"Create Resource",
 		"Live Draft Studio",
 		"Record Inspector",
+		"detail-timeline",
 		"search-kind",
 		"search-status",
 		"inventory_audit",
@@ -35,6 +36,8 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"getSearchFilters",
 		"buildSearchParams",
 		"inspectRecord",
+		"renderDetailTimeline",
+		"detailStats",
 		"detail-json",
 		"participant_id",
 	}

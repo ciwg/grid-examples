@@ -214,8 +214,16 @@
       <section class="panel detail-panel">
         <h2>Record Inspector</h2>
         <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
+        <div id="detail-summary" class="detail-summary"></div>
         <div id="detail-actions" class="detail-actions"></div>
-        <pre id="detail-json"></pre>
+        <div class="detail-timeline-wrap">
+          <h3>Timeline</h3>
+          <div id="detail-timeline" class="detail-timeline"></div>
+        </div>
+        <details class="detail-raw">
+          <summary>Raw JSON</summary>
+          <pre id="detail-json"></pre>
+        </details>
       </section>
 
       <section class="panel">

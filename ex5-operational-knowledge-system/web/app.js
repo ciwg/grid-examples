@@ -9,7 +9,9 @@ const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
 const toastEl = document.getElementById("toast");
 const detailMetaEl = document.getElementById("detail-meta");
+const detailSummaryEl = document.getElementById("detail-summary");
 const detailActionsEl = document.getElementById("detail-actions");
+const detailTimelineEl = document.getElementById("detail-timeline");
 const detailJSONEl = document.getElementById("detail-json");
 
 const editorItemIDEl = document.getElementById("editor-item-id");
@@ -502,9 +504,13 @@ async function inspectRecord(type, id) {
   detailState.type = type;
   detailState.id = id;
   detailMetaEl.textContent = `Loading ${type} ${id}...`;
+  detailSummaryEl.innerHTML = "";
   detailActionsEl.innerHTML = "";
+  detailTimelineEl.innerHTML = "";
   const record = await getJSON(detailPath(type, id));
   detailMetaEl.textContent = detailSummary(type, record);
+  renderDetailSummary(type, record);
+  renderDetailTimeline(record.timeline || []);
   detailJSONEl.textContent = JSON.stringify(record, null, 2);
   renderDetailActions(type, record);
   if (type === "item") {
@@ -543,6 +549,63 @@ function detailSummary(type, record) {
       return `${record.id} · ${record.kind} run · ${record.item_id}`;
     default:
       return `${type} ${record.id || ""}`;
+  }
+}
+
+// Intent: Turn the record inspector into a real operational detail view with
+// human-readable summaries and timelines, instead of forcing users to read raw
+// JSON for every place, resource, responsibility, item, or run. Source:
+// DI-honus
+function renderDetailSummary(type, record) {
+  detailSummaryEl.innerHTML = "";
+  const stats = detailStats(type, record);
+  for (const [label, value] of stats) {
+    const card = document.createElement("div");
+    card.className = "detail-stat";
+    card.innerHTML = `<strong>${value}</strong><span>${label}</span>`;
+    detailSummaryEl.appendChild(card);
+  }
+}
+
+function detailStats(type, record) {
+  switch (type) {
+    case "place":
+      return [
+        ["Parent", record.parent_id || "-"],
+        ["Children", (record.child_place_ids || []).length],
+        ["Resources", (record.resource_ids || []).length],
+        ["Events", (record.timeline || []).length],
+      ];
+    case "resource":
+      return [
+        ["Place", record.place_id || "-"],
+        ["Tags", (record.tags || []).length],
+        ["Links", (record.links || []).length],
+        ["Events", (record.timeline || []).length],
+      ];
+    case "responsibility":
+      return [
+        ["Team", record.team || "-"],
+        ["Items", (record.linked_item_ids || []).length],
+        ["Runs", (record.linked_run_ids || []).length],
+        ["Events", (record.timeline || []).length],
+      ];
+    case "item":
+      return [
+        ["Status", record.status || "-"],
+        ["Revision", record.current_revision || 0],
+        ["Approvals", (record.approvals || []).length],
+        ["Events", (record.timeline || []).length],
+      ];
+    case "run":
+      return [
+        ["Outcome", record.outcome || "-"],
+        ["Revision", record.revision || 0],
+        ["Evidence", (record.evidence || []).length],
+        ["Approvals", (record.approvals || []).length],
+      ];
+    default:
+      return [["Events", (record.timeline || []).length]];
   }
 }
 
@@ -595,6 +658,55 @@ function renderDetailActions(type, record) {
     });
     detailActionsEl.appendChild(button);
   }
+}
+
+function renderDetailTimeline(events) {
+  detailTimelineEl.innerHTML = "";
+  if (!events.length) {
+    const empty = document.createElement("div");
+    empty.className = "meta";
+    empty.textContent = "No timeline events recorded yet.";
+    detailTimelineEl.appendChild(empty);
+    return;
+  }
+  for (const event of events) {
+    const card = document.createElement("div");
+    card.className = "timeline-entry";
+    card.innerHTML = `<div class="timeline-head"><span class="kind">${event.type}</span><span class="meta">${event.timestamp || ""}</span></div><div class="timeline-body">${timelineSummary(event)}</div>`;
+    detailTimelineEl.appendChild(card);
+  }
+}
+
+function timelineSummary(event) {
+  const fragments = [];
+  if (event.actor) {
+    fragments.push(`actor: ${event.actor}`);
+  }
+  if (event.title) {
+    fragments.push(`title: ${event.title}`);
+  }
+  if (event.summary) {
+    fragments.push(`summary: ${event.summary}`);
+  }
+  if (event.status) {
+    fragments.push(`status: ${event.status}`);
+  }
+  if (event.revision) {
+    fragments.push(`revision: ${event.revision}`);
+  }
+  if (event.decision) {
+    fragments.push(`decision: ${event.decision}`);
+  }
+  if (event.outcome) {
+    fragments.push(`outcome: ${event.outcome}`);
+  }
+  if (event.relation) {
+    fragments.push(`relation: ${event.relation}`);
+  }
+  if (event.notes) {
+    fragments.push(event.notes);
+  }
+  return fragments.join(" · ") || event.entity_id || "event";
 }
 
 function renderEditorState(state) {

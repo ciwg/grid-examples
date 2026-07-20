@@ -52,6 +52,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - typed links across responsibilities, items, and runs
 - browser dashboard and forms
 - browser search filters by kind, status, place, resource, and responsibility
+- browser record inspector with summary cards and timelines
 - CLI inspection and creation commands
 
 For the longer feature walkthrough, see
@@ -158,8 +159,8 @@ go run ./cmd/oks-cli runs
 - [Knowledge responsibility protocol](protocols/knowledge-responsibility.md)
 - [Knowledge search metadata protocol](protocols/knowledge-search-metadata.md)
 
-## Open items
+## Current direction
 
-- whether to fully port the `ex3` websocket collaboration model
-- whether collaborative editing is truly core or optional
-- whether `ex5` should eventually include another editor embodiment like Neovim
+- keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
+- treat collaborative editing as optional rather than core to the product
+- keep a future Neovim embodiment on the roadmap because it fits real team and customer workflows

@@ -31,7 +31,7 @@ Browser:
 - edits shared live drafts for knowledge items
 - snapshots the current working draft into a new revision
 - approves or supersedes the current item
-- inspects records and follows contextual links between them
+- inspects records, reads timelines, and follows contextual links between them
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals
@@ -86,6 +86,11 @@ The foundation still does not yet include:
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, equal browser/CLI
 operational embodiments, and a browser-only shared draft surface.
+
+The current product direction is to keep that live-draft surface optional,
+rather than making collaborative editing the core of the tool, and to revisit a
+future Neovim embodiment later without porting the full `ex3` websocket stack
+into `ex5` now. Source: `DI-tabiv`.
 
 ## Current verification shape
 
