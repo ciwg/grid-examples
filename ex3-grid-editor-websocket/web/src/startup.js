@@ -21,3 +21,7 @@ export function shouldApplySeed(seed, relayText, state) {
   }
   return relayText === "";
 }
+
+export function shouldRecoverRelayHistory(relayText, state) {
+  return relayHasAuthoritativeHistory(state) && relayText === "";
+}

@@ -88,6 +88,15 @@ export class AutomergeRelayClient {
     }, 250);
   }
 
+  // Intent: Give startup one explicit HTTP replay escape hatch when a browser
+  // still opens with blank text even though the relay already reports shared
+  // history, so private/incognito sessions are not forced to rely on perfect
+  // websocket catch-up on first load. Source: DI-sulor
+  async recoverFromRelayHistory(state) {
+    const startOffset = state?.snapshot_present && state?.snapshot_offset ? state.snapshot_offset : 0;
+    await this.fetchSyncFeed(startOffset);
+  }
+
   disconnect() {
     if (this.pollTimer !== null) {
       window.clearInterval(this.pollTimer);
@@ -163,11 +172,17 @@ export class AutomergeRelayClient {
   }
 
   async poll() {
+    await this.fetchSyncFeed(this.offset);
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+  }
+
+  async fetchSyncFeed(startOffset) {
     // Intent: Drain bounded relay pages until caught up so late joiners do not
     // silently skip older changes when the server applies feed-size limits.
     // Source: DI-rabod
+    let cursor = startOffset;
     while (true) {
-      const response = await fetch(`${this.basePath}/sync?since=${this.offset}&limit=256`);
+      const response = await fetch(`${this.basePath}/sync?since=${cursor}&limit=256`);
       if (!response.ok) {
         throw new Error(`sync GET failed: ${response.status}`);
       }
@@ -186,16 +201,18 @@ export class AutomergeRelayClient {
         }
         await this.receive(record);
       }
-      const nextOffset = payload.next_offset || this.offset;
-      if (nextOffset <= this.offset) {
+      const nextOffset = payload.next_offset || cursor;
+      if (nextOffset <= cursor) {
         break;
       }
-      this.offset = nextOffset;
+      cursor = nextOffset;
       if ((payload.messages || []).length < 256) {
         break;
       }
     }
-    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+    if (cursor > this.offset) {
+      this.offset = cursor;
+    }
   }
 
   observePeers(_peers) {}

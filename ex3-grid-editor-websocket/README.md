@@ -441,7 +441,9 @@ Phase 4 browser exchange surfaces now include:
 - `Find / Replace` names the search tool directly and the overlay explains the
   find/replace/go-to-line flow more plainly.
 - Private/incognito browser startup is hardened against blocked storage and
-  fresh late-join text loss, but the final real private-window manual
+  fresh late-join text loss. If websocket startup still opens blank while the
+  relay reports shared history, the browser now forces one bounded HTTP sync
+  catch-up before staying empty. The final real private-window manual
   verification is still tracked in TODO 016.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.

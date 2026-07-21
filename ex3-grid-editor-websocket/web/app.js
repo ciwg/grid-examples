@@ -31788,6 +31788,14 @@ var AutomergeRelayClient = class {
       });
     }, 250);
   }
+  // Intent: Give startup one explicit HTTP replay escape hatch when a browser
+  // still opens with blank text even though the relay already reports shared
+  // history, so private/incognito sessions are not forced to rely on perfect
+  // websocket catch-up on first load. Source: DI-sulor
+  async recoverFromRelayHistory(state2) {
+    const startOffset = state2?.snapshot_present && state2?.snapshot_offset ? state2.snapshot_offset : 0;
+    await this.fetchSyncFeed(startOffset);
+  }
   disconnect() {
     if (this.pollTimer !== null) {
       window.clearInterval(this.pollTimer);
@@ -31856,8 +31864,13 @@ var AutomergeRelayClient = class {
     this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
   }
   async poll() {
+    await this.fetchSyncFeed(this.offset);
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+  }
+  async fetchSyncFeed(startOffset) {
+    let cursor = startOffset;
     while (true) {
-      const response = await fetch(`${this.basePath}/sync?since=${this.offset}&limit=256`);
+      const response = await fetch(`${this.basePath}/sync?since=${cursor}&limit=256`);
       if (!response.ok) {
         throw new Error(`sync GET failed: ${response.status}`);
       }
@@ -31873,16 +31886,18 @@ var AutomergeRelayClient = class {
         }
         await this.receive(record);
       }
-      const nextOffset = payload.next_offset || this.offset;
-      if (nextOffset <= this.offset) {
+      const nextOffset = payload.next_offset || cursor;
+      if (nextOffset <= cursor) {
         break;
       }
-      this.offset = nextOffset;
+      cursor = nextOffset;
       if ((payload.messages || []).length < 256) {
         break;
       }
     }
-    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+    if (cursor > this.offset) {
+      this.offset = cursor;
+    }
   }
   observePeers(_peers) {
   }
@@ -33007,6 +33022,9 @@ function shouldApplySeed(seed, relayText, state2) {
   }
   return relayText === "";
 }
+function shouldRecoverRelayHistory(relayText, state2) {
+  return relayHasAuthoritativeHistory(state2) && relayText === "";
+}
 
 // src/main.js
 var metaEls = {
@@ -33286,6 +33304,11 @@ async function bootDocument(documentID) {
   });
   await awareness.connect();
   await relay.connect();
+  if (shouldRecoverRelayHistory(relay.getText(), relayState)) {
+    await relay.recoverFromRelayHistory(relayState);
+    editor.setText(relay.getText());
+    contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
+  }
   renderTransportSummary();
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import * as Automerge from "@automerge/automerge";
 
 if (!globalThis.window) {
   globalThis.window = globalThis;
@@ -42,4 +43,53 @@ test("primeFromRelayState hydrates browser replica from relay snapshot", async (
   assert.equal(didPrime, true);
   assert.equal(target.getText(), "# Live Demo Script\n\nShared manual");
   assert.equal(target.offset, 42);
+});
+
+test("recoverFromRelayHistory replays sync feed when startup stayed empty", async () => {
+  const { AutomergeRelayClient } = await import("./automerge-relay.js");
+  const source = new AutomergeRelayClient({
+    basePath: "/api/local/documents/demo",
+    participantID: "browser-source",
+    documentID: "demo",
+    awareness: { on() {} },
+    capabilities: {},
+  });
+  source.postChange = async () => {};
+  source.initialSyncReady = true;
+  source.replaceText("# Live Demo Script\n\nRecovered over HTTP fallback");
+  await Promise.resolve();
+
+  const record = {
+    participant_id: "browser-source",
+    recipient_id: "",
+    envelope_cid: "cid-1",
+    message_base64: Buffer.from(Automerge.getLastLocalChange(source.doc)).toString("base64"),
+  };
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        document_id: "demo",
+        messages: [record],
+        next_offset: 1,
+      };
+    },
+  });
+
+  try {
+    const target = new AutomergeRelayClient({
+      basePath: "/api/local/documents/demo",
+      participantID: "browser-target",
+      documentID: "demo",
+      awareness: { on() {} },
+      capabilities: {},
+    });
+    await target.recoverFromRelayHistory({ snapshot_present: false, message_count: 1 });
+    assert.equal(target.getText(), "# Live Demo Script\n\nRecovered over HTTP fallback");
+    assert.equal(target.offset, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

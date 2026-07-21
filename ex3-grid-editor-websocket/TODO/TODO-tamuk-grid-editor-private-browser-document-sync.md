@@ -20,6 +20,15 @@ Intent: Remove the most plausible browser-session-mode hazards that can make a f
 Constraints: This is a hardening and proof pass; keep the TODO open until the real private/incognito browser flow is manually rechecked.
 Affects: `ex3-grid-editor-websocket/web`, `ex3-grid-editor-websocket/service/interoperability_test.go`, `ex3-grid-editor-websocket/docs`, `ex3-grid-editor-websocket/TODO`
 
+ID: DI-sulor
+Date: 2026-07-20 20:33:44 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Treat an empty browser document after websocket startup as a relay-catch-up failure when the relay already reports authoritative history, and recover by forcing one bounded HTTP sync replay from the authoritative starting offset.
+Intent: Private/incognito sessions can still show peers and other relay metadata while opening with blank text, so the browser needs a second text-recovery path that does not depend on websocket replay succeeding perfectly on first load.
+Constraints: Keep the normal websocket path primary; only invoke the HTTP catch-up when the relay already has history and the browser text is still empty; add regression coverage for the mismatch instead of closing the TODO on theory alone.
+Affects: `ex3-grid-editor-websocket/web/src/automerge-relay.js`, `ex3-grid-editor-websocket/web/src/main.js`, `ex3-grid-editor-websocket/web/src/startup.js`, `ex3-grid-editor-websocket/web/src/*.test.mjs`, `ex3-grid-editor-websocket/docs`, `ex3-grid-editor-websocket/TODO`
+
 Goal: Diagnose and fix the ex3 bug where private/incognito browser sessions can show who is present and other collaboration state while failing to converge on the shared document text.
 
 - [ ] tamuk.1 Reproduce the mismatch with at least one normal browser window and one private/incognito browser window against the same ex3 document and relay.
@@ -32,4 +41,5 @@ Current status:
 - fresh browser sessions now have an explicit late-join regression test for shared text over websocket
 - browser-local registry and preference storage now fall back to in-memory state if local/session storage are blocked
 - the real browser startup path now has direct helper coverage for participant-id and welcome-banner state when browser storage is restricted
+- browser startup now forces one bounded HTTP sync catch-up when websocket startup leaves the editor blank even though the relay reports authoritative history
 - real manual private/incognito browser verification is still pending before TODO 016 can close fully

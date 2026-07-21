@@ -288,6 +288,9 @@ PromiseGrid enablement:
 Private/incognito note:
 - the browser startup path is hardened against blocked storage and late-join
   text loss
+- if websocket startup still leaves the browser empty while the relay reports
+  authoritative document history, the browser forces one bounded HTTP sync
+  catch-up before staying blank
 - a final real private-browser manual verification pass is still tracked
   separately in TODO 016
 

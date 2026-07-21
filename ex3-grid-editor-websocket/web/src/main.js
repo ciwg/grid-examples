@@ -13,7 +13,7 @@ import { describePaneMode, nextPaneState } from "./panes.js";
 import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
 import { dismissWelcome, getOrCreateParticipantID, isWelcomeDismissed } from "./browser-session.js";
 import { presenceState } from "./presence.js";
-import { shouldApplySeed } from "./startup.js";
+import { shouldApplySeed, shouldRecoverRelayHistory } from "./startup.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -317,6 +317,15 @@ async function bootDocument(documentID) {
 
   await awareness.connect();
   await relay.connect();
+  if (shouldRecoverRelayHistory(relay.getText(), relayState)) {
+    // Intent: Recover shared text over the relay's HTTP sync feed when a
+    // browser still opens blank even though the relay reports real history, so
+    // private/incognito sessions do not depend on websocket replay landing
+    // perfectly on first load. Source: DI-sulor
+    await relay.recoverFromRelayHistory(relayState);
+    editor.setText(relay.getText());
+    contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
+  }
   renderTransportSummary();
   renderPeers(awareness.getStates());
   noteRecentParticipants(awareness.getStates());
