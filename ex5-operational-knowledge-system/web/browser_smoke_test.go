@@ -438,7 +438,7 @@ const searchClickTimer = setInterval(() => {
 		writeJSON(writer, `{"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Outer wrap torn"},{"id":"RUN-0002","kind":"inventory_audit","item_id":"INV-0001","revision":1,"outcome":"completed","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Counted receiving bin"}]}`)
 	})
 	mux.HandleFunc("/api/search", func(writer http.ResponseWriter, request *http.Request) {
-		writeJSON(writer, `{"filters":{"query":"","kind":"receiving_check","status":"","outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_id":"","responsibility_id":""},"places":[],"resources":[],"responsibilities":[],"items":[],"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Outer wrap torn"}]}`)
+		writeJSON(writer, `{"filters":{"query":"","kind":"","status":"","outcome":"","place_id":"PLACE-0001","resource_id":"","responsibility_id":"","problem":true},"places":[{"id":"PLACE-0001","kind":"area","name":"Receiving","summary":"Inbound inspection area"}],"resources":[],"responsibilities":[],"items":[],"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Outer wrap torn"},{"id":"RUN-0002","kind":"inventory_audit","item_id":"INV-0001","revision":1,"outcome":"completed","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Counted receiving bin"}]}`)
 	})
 	mux.HandleFunc("/api/items/RECV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"item_id":"RECV-0001","title":"Inspect inbound pallet","status":"approved","body":"# Inspect inbound pallet","version":2,"current_revision":1,"participants":[]}`)
@@ -471,9 +471,10 @@ const searchClickTimer = setInterval(() => {
 	dom := string(output)
 	required := []string{
 		"Search problems here",
-		"outcome: accepted_with_notes",
+		"problems only",
 		"place: PLACE-0001",
 		"RUN-0001",
+		"RUN-0002",
 	}
 	for _, marker := range required {
 		if !strings.Contains(dom, marker) {

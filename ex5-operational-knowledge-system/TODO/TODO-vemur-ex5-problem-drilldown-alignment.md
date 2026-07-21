@@ -18,10 +18,9 @@ problem-review logic that the operator already sees in the dashboard.
 
 ## Tasks
 
-- [ ] vemur.1 Align browser problem drilldowns with the actual grouped problem-review logic instead of hardcoding one receiving outcome.
+- [x] vemur.1 Align browser problem drilldowns with the actual grouped problem-review logic instead of hardcoding one receiving outcome.
 
 ## Status
 
-- open
+- done
 - derived from the 2026-07-21 extensive ex5 review
-

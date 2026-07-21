@@ -65,6 +65,7 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"Search receiving here",
 		"Search counts here",
 		"Search problems here",
+		"problems only",
 		"participant_id",
 	}
 	for _, marker := range required {

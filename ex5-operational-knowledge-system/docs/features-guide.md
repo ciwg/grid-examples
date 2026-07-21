@@ -37,6 +37,8 @@ Current implementation:
 - create responsibilities from browser or CLI
 - search responsibility titles and summaries
 - link responsibilities to knowledge items and runs
+- record approvals from the CLI with the real approver identity instead of a
+  hardcoded placeholder. Source: `DI-tarok`.
 
 ### Places and resources
 
@@ -210,6 +212,10 @@ to answer questions like:
 - show me all receiving history here
 - show me all counts for this bin
 - show me all receiving problems in this area
+
+Those problem drilldowns now use the same receiving/inventory problem logic as
+the grouped hotspot review, rather than filtering only one receiving outcome.
+Source: `DI-vemur`.
 
 ### Performed runs
 

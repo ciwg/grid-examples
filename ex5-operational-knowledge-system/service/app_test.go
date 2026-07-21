@@ -854,3 +854,59 @@ func TestProblemReviewGroupsByPlaceAndResource(t *testing.T) {
 		t.Fatalf("unexpected grouped highlights: %s", highlights)
 	}
 }
+
+func TestAppSearchWithProblemFilterMatchesProblemReviewLogic(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	recvItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create receiving item: %v", err)
+	}
+	recvRun, err := app.RecordRun("bob", RunKindReceiving, recvItem.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record receiving run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", recvRun.ID, "Receiving inspection", map[string]string{"variance": "-2", "condition": "wrap torn"}, "", nil); err != nil {
+		t.Fatalf("add receiving evidence: %v", err)
+	}
+	invItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count", "# Count receiving bin", nil, nil)
+	if err != nil {
+		t.Fatalf("create inventory item: %v", err)
+	}
+	invRun, err := app.RecordRun("bob", RunKindInventory, invItem.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record inventory run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", invRun.ID, "Cycle count", map[string]string{"expected_count": "12", "actual_count": "10", "discrepancy": "-2"}, "", nil); err != nil {
+		t.Fatalf("add inventory evidence: %v", err)
+	}
+	normalRun, err := app.RecordRun("bob", RunKindReceiving, recvItem.ID, 1, "accepted", "Non-problem run", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record normal run: %v", err)
+	}
+
+	search := app.SearchWithOptions(SearchOptions{PlaceID: place.ID, Problem: true})
+	runs := search["runs"].([]RunRecord)
+	if len(runs) != 2 {
+		t.Fatalf("expected only problem runs, got %+v", runs)
+	}
+	if runs[0].ID != recvRun.ID && runs[1].ID != recvRun.ID {
+		t.Fatalf("receiving problem run missing from problem search: %+v", runs)
+	}
+	if runs[0].ID != invRun.ID && runs[1].ID != invRun.ID {
+		t.Fatalf("inventory problem run missing from problem search: %+v", runs)
+	}
+	if runs[0].ID == normalRun.ID || runs[1].ID == normalRun.ID {
+		t.Fatalf("non-problem run leaked into problem search: %+v", runs)
+	}
+}

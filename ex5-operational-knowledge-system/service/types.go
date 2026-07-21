@@ -219,6 +219,7 @@ type SearchOptions struct {
 	PlaceID          string `json:"place_id"`
 	ResourceID       string `json:"resource_id"`
 	ResponsibilityID string `json:"responsibility_id"`
+	Problem          bool   `json:"problem"`
 }
 
 type LivePresence struct {

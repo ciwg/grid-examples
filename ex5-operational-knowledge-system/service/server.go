@@ -91,8 +91,8 @@ func (server *Server) handleProblemReview(writer http.ResponseWriter, request *h
 }
 
 // Intent: Keep the local search endpoint useful for real operator drilldown by
-// accepting structured filters, not only one free-text query. Source:
-// DI-honus; DI-vafuk
+// accepting structured filters, including problem-only review, not only one
+// free-text query. Source: DI-honus; DI-vafuk; DI-vemur
 func (server *Server) handleSearch(writer http.ResponseWriter, request *http.Request) {
 	options := SearchOptions{
 		Query:            request.URL.Query().Get("q"),
@@ -102,6 +102,7 @@ func (server *Server) handleSearch(writer http.ResponseWriter, request *http.Req
 		PlaceID:          request.URL.Query().Get("place_id"),
 		ResourceID:       request.URL.Query().Get("resource_id"),
 		ResponsibilityID: request.URL.Query().Get("responsibility_id"),
+		Problem:          request.URL.Query().Get("problem") == "true",
 	}
 	writeJSON(writer, http.StatusOK, server.app.SearchWithOptions(options))
 }

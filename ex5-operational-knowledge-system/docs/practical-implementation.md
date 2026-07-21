@@ -55,6 +55,7 @@ Browser:
 - shows receiving and inventory fact history directly from place/resource/responsibility context views, instead of only bare related-run summaries
 - filters search by kind, status, outcome, place, resource, and responsibility
 - uses those same structured filters for one-click context drilldowns into receiving/count/problem history
+- uses an explicit shared `problem=true` search filter so browser drilldowns and grouped hotspot review classify problems the same way
 - summarizes repeated receiving and inventory problems by place and resource in a dedicated browser review panel
 - records runs
 - records approvals
@@ -67,7 +68,7 @@ CLI:
 - creates and lists places and resources
 - creates responsibilities and knowledge items
 - records runs
-- records approvals
+- records approvals with explicit actor identity
 - shows individual items and runs
 
 Neovim phase 1:

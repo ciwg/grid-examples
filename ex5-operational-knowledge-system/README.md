@@ -65,6 +65,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - inventory audit review panels for discrepancy/count facts and audit history
 - place/resource/responsibility context review panels that now surface receiving facts and inventory count/discrepancy facts from related runs
 - one-click place/resource/responsibility drilldowns into filtered receiving history, count history, and receiving-problem history
+- one-click place/resource/responsibility problem drilldowns that now use the same classification logic as grouped problem review
 - grouped problem review that highlights repeated receiving and count issues by place and resource
 - CLI inspection and creation commands
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
@@ -183,6 +184,8 @@ go run ./cmd/oks-cli new-item alice receiving_check "Inspect inbound pallet" "Re
 go run ./cmd/oks-cli new-item alice inventory_audit "Count RJ45 bin" "Cycle count for RJ45 connectors" "# Count RJ45 bin"
 go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_notes "Outer wrap torn" PLACE-0001 RES-0001
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
+go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
+go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
 go run ./cmd/oks-cli search startup
 go run ./cmd/oks-cli runs
 ```

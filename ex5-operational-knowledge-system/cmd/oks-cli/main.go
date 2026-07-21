@@ -119,14 +119,14 @@ func (cli *CLI) run(args []string) (int, error) {
 		}
 		err = cli.Show("/api/runs/" + args[1])
 	case "approve-item":
-		if len(args) < 6 {
+		if len(args) < 7 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
 		revision, convErr := strconv.Atoi(args[2])
 		if convErr != nil {
 			return 1, convErr
 		}
-		err = cli.Approve("/api/items/"+args[1]+"/approvals", revision, args[3], args[4], strings.Join(args[5:], " "))
+		err = cli.Approve("/api/items/"+args[1]+"/approvals", args[3], revision, args[4], args[5], strings.Join(args[6:], " "))
 	case "supersede-item":
 		if len(args) < 3 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -136,10 +136,10 @@ func (cli *CLI) run(args []string) (int, error) {
 			"notes": strings.Join(args[3:], " "),
 		})
 	case "approve-run":
-		if len(args) < 5 {
+		if len(args) < 6 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Approve("/api/runs/"+args[1]+"/approvals", 0, args[2], args[3], strings.Join(args[4:], " "))
+		err = cli.Approve("/api/runs/"+args[1]+"/approvals", args[2], 0, args[3], args[4], strings.Join(args[5:], " "))
 	case "search":
 		if len(args) < 2 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -154,7 +154,7 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ROLE DECISION NOTES|search QUERY"
+const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|search QUERY"
 
 type CLI struct {
 	ServerURL string
@@ -220,9 +220,12 @@ func (cli *CLI) RecordRun(actor string, kind string, itemID string, revision int
 	})
 }
 
-func (cli *CLI) Approve(path string, revision int, role string, decision string, notes string) error {
+// Intent: Preserve trustworthy approval history by making the CLI carry the
+// real approver identity through to the shared runtime instead of inventing a
+// placeholder actor. Source: DI-tarok
+func (cli *CLI) Approve(path string, actor string, revision int, role string, decision string, notes string) error {
 	return cli.post(path, map[string]any{
-		"actor":    "boss",
+		"actor":    actor,
 		"revision": revision,
 		"role":     role,
 		"decision": decision,

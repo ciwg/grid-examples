@@ -107,3 +107,90 @@ func TestNewPlaceAndResourceCommandsEmitExpectedPayloads(t *testing.T) {
 		t.Fatalf("unexpected resource payload: %#v", requests[1])
 	}
 }
+
+func TestApproveItemCommandUsesExplicitActor(t *testing.T) {
+	var (
+		received map[string]any
+		path     string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		if err := json.NewDecoder(request.Body).Decode(&received); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"approve-item", "ITEM-0001", "2", "carol", "reviewer", "approved", "ready for use"})
+	if err != nil {
+		t.Fatalf("approve-item command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/items/ITEM-0001/approvals" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	if received["actor"] != "carol" || received["revision"] != float64(2) || received["role"] != "reviewer" || received["decision"] != "approved" {
+		t.Fatalf("unexpected approve-item payload: %#v", received)
+	}
+	if received["notes"] != "ready for use" {
+		t.Fatalf("unexpected approve-item notes: %#v", received["notes"])
+	}
+}
+
+func TestApproveRunCommandUsesExplicitActor(t *testing.T) {
+	var (
+		received map[string]any
+		path     string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		if err := json.NewDecoder(request.Body).Decode(&received); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"approve-run", "RUN-0001", "dave", "approver", "noted", "handoff recorded"})
+	if err != nil {
+		t.Fatalf("approve-run command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/runs/RUN-0001/approvals" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	if received["actor"] != "dave" || received["revision"] != float64(0) || received["role"] != "approver" || received["decision"] != "noted" {
+		t.Fatalf("unexpected approve-run payload: %#v", received)
+	}
+	if received["notes"] != "handoff recorded" {
+		t.Fatalf("unexpected approve-run notes: %#v", received["notes"])
+	}
+}
+
+func TestApproveCommandsRequireExplicitActor(t *testing.T) {
+	cli := &CLI{ServerURL: "http://127.0.0.1:7045"}
+	exitCode, err := cli.run([]string{"approve-item", "ITEM-0001", "1", "reviewer", "approved", "missing actor"})
+	if exitCode != 2 {
+		t.Fatalf("unexpected approve-item exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "usage: oks-cli") {
+		t.Fatalf("unexpected approve-item error: %v", err)
+	}
+
+	exitCode, err = cli.run([]string{"approve-run", "RUN-0001", "approver", "approved", "missing actor"})
+	if exitCode != 2 {
+		t.Fatalf("unexpected approve-run exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "usage: oks-cli") {
+		t.Fatalf("unexpected approve-run error: %v", err)
+	}
+}

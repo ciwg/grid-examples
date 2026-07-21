@@ -698,9 +698,9 @@ func (app *App) Search(query string) map[string]any {
 }
 
 // Intent: Let operators narrow the operational graph by structured context
-// such as kind, status, outcome, place, resource, and responsibility without
-// forcing them to rely on one free-text query string. Source: DI-honus;
-// DI-vafuk
+// such as kind, status, outcome, place, resource, responsibility, and
+// problem-only review state without forcing them to rely on one free-text
+// query string. Source: DI-honus; DI-vafuk; DI-vemur
 func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -758,6 +758,7 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 			"place_id":          options.PlaceID,
 			"resource_id":       options.ResourceID,
 			"responsibility_id": options.ResponsibilityID,
+			"problem":           options.Problem,
 		},
 		"places":           places,
 		"resources":        resources,
@@ -835,6 +836,9 @@ func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOption
 		return false
 	}
 	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
+		return false
+	}
+	if options.Problem && len(problemHighlightsForRun(record)) == 0 {
 		return false
 	}
 	return matchesQuery(searchBlob, options.Query)

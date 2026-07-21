@@ -2,12 +2,13 @@
 
 ## Open / Planned
 
-- [ ] 025 - Align ex5 browser problem drilldowns with review logic - `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`
-- [ ] 026 - Fix ex5 CLI approval identity handling - `TODO/TODO-tarok-ex5-cli-approval-identity.md`
-- [ ] 021 - Fix ex5 review findings across durability, workflow correctness, and embodiment consistency - `TODO/TODO-vurab-ex5-review-followups.md`
+- none
 
 ## Completed
 
+- [x] 025 - Align ex5 browser problem drilldowns with review logic - `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`
+- [x] 021 - Fix ex5 review findings across durability, workflow correctness, and embodiment consistency - `TODO/TODO-vurab-ex5-review-followups.md`
+- [x] 026 - Fix ex5 CLI approval identity handling - `TODO/TODO-tarok-ex5-cli-approval-identity.md`
 - [x] 024 - Fix ex5 typed-link model consistency - `TODO/TODO-luzaf-ex5-link-model-consistency.md`
 - [x] 023 - Fix ex5 approval and live-draft correctness - `TODO/TODO-dazim-ex5-approval-and-live-draft-correctness.md`
 - [x] 022 - Fix ex5 durability and replay safety - `TODO/TODO-busor-ex5-durability-and-replay-safety.md`

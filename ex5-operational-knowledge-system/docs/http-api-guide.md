@@ -114,6 +114,7 @@ Supported query params:
 - `place_id`
 - `resource_id`
 - `responsibility_id`
+- `problem`
 
 The response includes:
 
@@ -131,6 +132,10 @@ structured `kind`, `outcome`, `place_id`, `resource_id`, and
 - show me all receiving runs here
 - show me all counts for this bin
 - show me receiving problems in this area
+
+When `problem=true`, the run slice is filtered by the same receiving/inventory
+problem classification used by `/api/problem-review`, instead of by one
+hardcoded receiving outcome. Source: `DI-vemur`.
 
 ## Places and resources
 
@@ -302,6 +307,10 @@ If `decision == "approved"`, the item lifecycle moves to `approved`.
 That lifecycle change is revision-aware: approving a stale older revision now
 returns `400` instead of silently marking a newer draft as approved. Source:
 `DI-dazim`.
+
+The CLI now requires an explicit `actor` for approval commands instead of
+inventing a placeholder approver name, so durable approval records preserve the
+real identity that invoked the command. Source: `DI-tarok`.
 
 ### `POST /api/items/{id}/supersede`
 

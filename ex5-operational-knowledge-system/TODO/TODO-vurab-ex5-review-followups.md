@@ -22,12 +22,12 @@ features.
 - [x] vurab.1 Track durability and replay fixes under `TODO/TODO-busor-ex5-durability-and-replay-safety.md`.
 - [x] vurab.2 Track approval and live-draft correctness fixes under `TODO/TODO-dazim-ex5-approval-and-live-draft-correctness.md`.
 - [x] vurab.3 Track typed-link consistency fixes under `TODO/TODO-luzaf-ex5-link-model-consistency.md`.
-- [ ] vurab.4 Track browser problem-drilldown alignment under `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`.
-- [ ] vurab.5 Track CLI approval identity fixes under `TODO/TODO-tarok-ex5-cli-approval-identity.md`.
+- [x] vurab.4 Track browser problem-drilldown alignment under `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`.
+- [x] vurab.5 Track CLI approval identity fixes under `TODO/TODO-tarok-ex5-cli-approval-identity.md`.
 
 ## Status
 
-- open
+- done
 - derived from the 2026-07-21 extensive ex5 review
 - focused on correctness and durability, not feature expansion
 - acts as an umbrella over the more specific review-followup TODOs

@@ -18,9 +18,9 @@ approver identity.
 
 ## Tasks
 
-- [ ] tarok.1 Make CLI approval actor identity explicit instead of hardcoding `boss`, and cover the corrected payload shape in tests.
+- [x] tarok.1 Make CLI approval actor identity explicit instead of hardcoding `boss`, and cover the corrected payload shape in tests.
 
 ## Status
 
-- open
+- done
 - derived from the 2026-07-21 extensive ex5 review

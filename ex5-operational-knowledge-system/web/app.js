@@ -182,6 +182,7 @@ document.getElementById("evidence-form").addEventListener("submit", async (event
 
 document.getElementById("search-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  event.currentTarget.dataset.problem = "false";
   const filters = getSearchFilters(event.currentTarget);
   const response = await fetch(`/api/search?${buildSearchParams(filters).toString()}`);
   const payload = await response.json();
@@ -441,12 +442,19 @@ function getSearchFilters(form) {
     place_id: form.place_id.value.trim(),
     resource_id: form.resource_id.value.trim(),
     responsibility_id: form.responsibility_id.value.trim(),
+    problem: form.dataset.problem === "true",
   };
 }
 
 function buildSearchParams(filters) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
+    if (typeof value === "boolean") {
+      if (value) {
+        params.set(key, "true");
+      }
+      continue;
+    }
     if (value) {
       params.set(key, value);
     }
@@ -518,6 +526,9 @@ function formatSearchFilters(filters) {
   }
   if (filters.responsibility_id) {
     labels.push(`responsibility: ${filters.responsibility_id}`);
+  }
+  if (filters.problem) {
+    labels.push("problems only");
   }
   if (labels.length === 0) {
     return "No active search filters.";
@@ -663,7 +674,8 @@ function detailStats(type, record) {
 
 // Intent: Turn context inspection into actionable history drilldown so browser
 // operators can jump directly into receiving/count/problem searches from the
-// record they are already reviewing. Source: DI-vafuk
+// record they are already reviewing, while keeping problem drilldowns aligned
+// with the grouped hotspot logic. Source: DI-vafuk; DI-vemur
 function renderDetailActions(type, record) {
   detailActionsEl.innerHTML = "";
   const links = [];
@@ -671,7 +683,7 @@ function renderDetailActions(type, record) {
     links.push(["Open place", "place", record.place_id]);
     links.push(["Search receiving here", "search", { kind: "receiving_check", resource_id: record.id }]);
     links.push(["Search counts here", "search", { kind: "inventory_audit", resource_id: record.id }]);
-    links.push(["Search problems here", "search", { kind: "receiving_check", resource_id: record.id, outcome: "accepted_with_notes" }]);
+    links.push(["Search problems here", "search", { resource_id: record.id, problem: true }]);
     for (const run of record.related_runs || []) {
       links.push([`Run ${run.id}`, "run", run.id]);
     }
@@ -700,7 +712,7 @@ function renderDetailActions(type, record) {
   if (type === "place") {
     links.push(["Search receiving here", "search", { kind: "receiving_check", place_id: record.id }]);
     links.push(["Search counts here", "search", { kind: "inventory_audit", place_id: record.id }]);
-    links.push(["Search problems here", "search", { kind: "receiving_check", place_id: record.id, outcome: "accepted_with_notes" }]);
+    links.push(["Search problems here", "search", { place_id: record.id, problem: true }]);
     for (const resourceID of record.resource_ids || []) {
       links.push([`Resource ${resourceID}`, "resource", resourceID]);
     }
@@ -714,7 +726,7 @@ function renderDetailActions(type, record) {
   if (type === "responsibility") {
     links.push(["Search receiving runs", "search", { kind: "receiving_check", responsibility_id: record.id }]);
     links.push(["Search inventory counts", "search", { kind: "inventory_audit", responsibility_id: record.id }]);
-    links.push(["Search receiving problems", "search", { kind: "receiving_check", responsibility_id: record.id, outcome: "accepted_with_notes" }]);
+    links.push(["Search receiving problems", "search", { responsibility_id: record.id, problem: true }]);
     for (const itemID of record.linked_item_ids || []) {
       links.push([`Item ${itemID}`, "item", itemID]);
     }
@@ -739,7 +751,8 @@ function renderDetailActions(type, record) {
 
 // Intent: Reuse the structured search form as the single drilldown path so
 // direct inspector actions and manual operator searches stay behaviorally
-// identical. Source: DI-vafuk
+// identical, including problem-only review drilldowns. Source: DI-vafuk;
+// DI-vemur
 async function runSearch(filters) {
   const form = document.getElementById("search-form");
   form.q.value = filters.q || "";
@@ -749,9 +762,11 @@ async function runSearch(filters) {
   form.place_id.value = filters.place_id || "";
   form.resource_id.value = filters.resource_id || "";
   form.responsibility_id.value = filters.responsibility_id || "";
-  const response = await fetch(`/api/search?${buildSearchParams(getSearchFilters(form)).toString()}`);
+  form.dataset.problem = filters.problem ? "true" : "false";
+  const effectiveFilters = getSearchFilters(form);
+  const response = await fetch(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
   const payload = await response.json();
-  renderSearchResults(getSearchFilters(form), payload);
+  renderSearchResults(effectiveFilters, payload);
 }
 
 function renderDetailTimeline(events) {
