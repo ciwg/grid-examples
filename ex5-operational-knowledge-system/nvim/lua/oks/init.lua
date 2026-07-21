@@ -342,6 +342,10 @@ local function evidence_fact_summary(evidence)
   return table.concat(parts, ", ")
 end
 
+local function approval_summary(approval)
+  return string.format("- %s by %s role=%s revision=%d", approval.decision or "-", approval.actor or "-", approval.role or "-", approval.revision or 0)
+end
+
 -- Intent: Let Neovim users inspect the durable item record around the live
 -- draft without leaving the editor or attempting write actions that this phase
 -- does not support yet. Source: DI-lonuk
@@ -451,6 +455,96 @@ local function inspect_item(item_id)
   notify("inspected " .. item_id)
 end
 
+-- Intent: Let Neovim users inspect a specific run's evidence and approval
+-- record directly from the existing run detail projection before any write-side
+-- workflow actions are added to the editor. Source: DI-ravok
+local function run_detail_lines(detail)
+  local lines = {
+    "# " .. (detail.id or "run"),
+    "",
+    "- kind: " .. (detail.kind or "-"),
+    "- item_id: " .. (detail.item_id or "-"),
+    "- item_kind: " .. (detail.item_kind or "-"),
+    "- revision: " .. tostring(detail.revision or 0),
+    "- actor: " .. (detail.actor or "-"),
+    "- outcome: " .. (detail.outcome or "-"),
+    "- place: " .. (detail.place_id or "-"),
+    "- resources: " .. ((detail.resource_ids and #detail.resource_ids > 0) and table.concat(detail.resource_ids, ", ") or "-"),
+  }
+
+  if detail.notes and detail.notes ~= "" then
+    table.insert(lines, "- notes: " .. detail.notes)
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Evidence")
+  if not detail.evidence or #detail.evidence == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, evidence in ipairs(detail.evidence) do
+      table.insert(lines, "- " .. (evidence.summary or "evidence"))
+      local summary = evidence_fact_summary(evidence)
+      if summary ~= "" then
+        table.insert(lines, "  " .. summary)
+      end
+      if evidence.attachment_name and evidence.attachment_name ~= "" then
+        table.insert(lines, "  attachment: " .. evidence.attachment_name)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Approvals")
+  if not detail.approvals or #detail.approvals == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, approval in ipairs(detail.approvals) do
+      table.insert(lines, approval_summary(approval))
+      if approval.notes and approval.notes ~= "" then
+        table.insert(lines, "  " .. approval.notes)
+      end
+    end
+  end
+
+  return lines
+end
+
+-- Intent: Reuse the existing run detail projection for Neovim review so the
+-- editor sees the same run evidence and approvals as the browser and CLI.
+-- Source: DI-ravok
+local function inspect_run(run_id)
+  run_id = vim.trim(run_id or "")
+  if run_id == "" then
+    notify("run id is required", vim.log.levels.WARN)
+    return
+  end
+  local status, body, err = request("GET", "/api/runs/" .. run_id)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("inspect run failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify("inspect run decode failed", vim.log.levels.ERROR)
+    return
+  end
+
+  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
+    vim.api.nvim_set_current_win(inspector.winid)
+  else
+    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-run://" .. run_id)
+  end
+  vim.bo[inspector.bufnr].modifiable = true
+  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-run://" .. run_id)
+  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, run_detail_lines(decoded))
+  vim.bo[inspector.bufnr].modifiable = false
+  notify("inspected run " .. run_id)
+end
+
 function M.info()
   notify(table.concat(session_lines(), "\n"))
 end
@@ -469,6 +563,10 @@ end
 
 function M.inspect(item_id)
   inspect_item(item_id)
+end
+
+function M.inspect_run(run_id)
+  inspect_run(run_id)
 end
 
 function M.close()
@@ -554,6 +652,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksInspect", function(command)
     M.inspect(command.args)
   end, { nargs = "?" })
+  vim.api.nvim_create_user_command("OksInspectRun", function(command)
+    M.inspect_run(command.args)
+  end, { nargs = 1 })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})

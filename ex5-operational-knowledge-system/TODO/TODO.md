@@ -2,6 +2,7 @@
 
 ## Completed
 
+- [x] 019 - Add ex5 Neovim run inspector phase - `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`
 - [x] 018 - Add ex5 Neovim item inspector phase - `TODO/TODO-lonuk-ex5-neovim-item-inspector-phase.md`
 - [x] 017 - Add ex5 Neovim live draft phase 1 - `TODO/TODO-fudok-ex5-neovim-live-draft-phase1.md`
 - [x] 007 - Finish ex5 inventory follow-ons in the operational-memory lane - `TODO/TODO-ranor-ex5-inventory-and-embodiment-followups.md`
@@ -31,4 +32,5 @@
 - `DI-tabiv`: keep the current local HTTP live-draft model; collaborative editing is optional; a future Neovim embodiment is desirable.
 - `DI-fudok`: implement the first Neovim phase as a thin launcher/plugin over the existing live-draft HTTP API, not as a websocket sidecar.
 - `DI-lonuk`: add a read-only Neovim inspector over existing item detail APIs before attempting richer in-editor workflow actions.
+- `DI-ravok`: add a direct read-only Neovim run inspector over the existing run detail API before attempting write-side workflow actions in the editor.
 - `DI-talub`: recent `ex5` feature slices are retroactively documented for decision/path traceability, and every future `ex5` feature slice must start by recording its intended repo paths and runtime path patterns in a local TODO before code changes begin.

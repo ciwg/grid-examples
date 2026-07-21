@@ -30,7 +30,8 @@ phase 1.
 - [x] nuvok.1 Define the scope of a Neovim operational embodiment for `ex5`.
 - [x] nuvok.2 Decide that the embodiment is staged, and implement the first read/write live-draft phase under `TODO/TODO-fudok-ex5-neovim-live-draft-phase1.md`.
 - [x] nuvok.3 Define the first richer post-phase-1 workflow surface as read-only inspector navigation for item metadata, revisions, approvals, and related runs under `TODO/TODO-lonuk-ex5-neovim-item-inspector-phase.md`.
-- [ ] nuvok.4 Define the next richer Neovim workflow surface, such as approvals, run review beyond item-linked summaries, or typed-link browsing.
+- [x] nuvok.4 Define the next richer Neovim workflow surface as direct read-only run inspection under `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`.
+- [ ] nuvok.5 Define the next richer Neovim workflow surface after run inspection, such as typed-link browsing or limited approval actions.
 
 ## Status
 
@@ -39,3 +40,4 @@ phase 1.
 - intentionally separate from inventory TODO `007`
 - phase 1 now exists as a thin live-draft embodiment over the local HTTP runtime
 - item inspection now exists as the first richer follow-on over projected item detail
+- direct run inspection now exists for evidence and approval review over projected run detail

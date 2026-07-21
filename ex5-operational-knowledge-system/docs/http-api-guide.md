@@ -358,6 +358,10 @@ Returns one projected run, including:
 For a `receiving_check` run, the browser uses the evidence facts from this
 response to render the `Receiving review` panel.
 
+The current Neovim run inspector also reuses this response shape for a
+read-only split that shows run context, evidence summaries, and approvals.
+Source: `DI-ravok`.
+
 ## Evidence
 
 ### `POST /api/runs/{id}/evidence`

@@ -123,6 +123,7 @@ It is intentionally narrower than the browser surface:
 - push the current buffer body with `:write` or `:OksPush`
 - inspect the current item/version/participant state with `:OksInfo`
 - inspect projected item metadata, revisions, approvals, and related runs with `:OksInspect`
+- inspect projected run evidence and approvals directly with `:OksInspectRun`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 This phase deliberately reuses the existing live-draft API rather than adding a
@@ -134,6 +135,11 @@ The first richer follow-on stays read-only on purpose. The inspector reads the
 same item detail projection as the browser and CLI, so Neovim users can review
 revision history, approvals, and related runs without pretending the editor
 already supports every workflow action. Source: `DI-lonuk`.
+
+The next richer follow-on keeps the same rule. Direct run inspection reads the
+same run detail projection as the browser and CLI, so Neovim users can review
+evidence facts and run approvals without adding write-side workflow actions to
+the editor yet. Source: `DI-ravok`.
 
 ### Record inspector and contextual navigation
 
@@ -345,10 +351,11 @@ Current Neovim phase 1 surface:
 - push the current working body
 - inspect current live participants and version state
 - inspect projected item detail, revisions, approvals, and related runs
+- inspect projected run detail, evidence, and approvals
 
 This is a live-draft embodiment, not yet a full workflow embodiment. It does
-not currently expose approvals, run creation, or typed-link browsing directly
-inside Neovim.
+not currently expose run creation, typed-link browsing, or write-side approval
+actions directly inside Neovim.
 
 ## What is intentionally not in this first foundation
 

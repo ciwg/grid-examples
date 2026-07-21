@@ -542,6 +542,47 @@ func TestServerRunDetailIncludesEvidenceFacts(t *testing.T) {
 	}
 }
 
+func TestServerRunDetailIncludesApprovalsForNeovimInspector(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Dock receipt", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
+		"supplier":       "Acme Parts",
+		"condition":      "wrap torn",
+		"expected_units": "20",
+		"received_units": "18",
+	}, "", nil); err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if err := app.RecordApproval("lead", "run", run.ID, 1, "reviewer", DecisionNoted, "Investigate damaged wrap"); err != nil {
+		t.Fatalf("record run approval: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/runs/"+run.ID, nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("run detail status: %d %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"evidence"`) || !strings.Contains(body, `"approvals"`) {
+		t.Fatalf("run detail missing review sections: %s", body)
+	}
+	if !strings.Contains(body, `"condition":"wrap torn"`) || !strings.Contains(body, `"decision":"noted"`) || !strings.Contains(body, `"notes":"Investigate damaged wrap"`) {
+		t.Fatalf("run detail missing expected inspector data: %s", body)
+	}
+}
+
 func TestServerSupportsReceivingCheckKinds(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
