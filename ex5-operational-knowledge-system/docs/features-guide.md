@@ -92,6 +92,10 @@ This is the current bridge between plain collaborative documents and structured
 workflow state: the text stays readable, but the durable context around it is
 not lost.
 
+The current durability pass also keeps larger stored knowledge bodies
+replayable after restart, so the size of a legitimate procedure or audit body
+does not quietly make the runtime unreadable later. Source: `DI-busor`.
+
 ### Live draft studio
 
 The browser now includes a live draft studio for knowledge items.
@@ -226,6 +230,10 @@ Inventory-oriented work fits the same pattern when the load-bearing need is:
 Current implementation also supports explicit place and resource context on a
 run, so an inventory audit can say not just "a count happened" but "this count
 happened in this receiving area against this bin/container context."
+
+Evidence attachments are also stored immutably per upload, even if two entries
+reuse the same filename. That preserves historical review instead of letting a
+later upload replace the bytes behind an older record. Source: `DI-busor`.
 
 That does **not** make the current foundation a full inventory or MRP system. It
 means inventory audits and related operational history belong to the same

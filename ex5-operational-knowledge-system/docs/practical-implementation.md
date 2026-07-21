@@ -19,6 +19,17 @@ This is closer to the `ex4` durable workflow pattern than the `ex3`
 collaborative runtime pattern, but it now has a lightweight live-draft layer on
 top for browser collaboration.
 
+The durability rules for that storage are now stricter:
+
+- evidence attachments are written to immutable per-upload paths, even when two
+  uploads reuse the same filename
+- event replay is buffered for large stored item and revision bodies inside the
+  server's current request-size envelope
+
+That keeps old evidence bytes and larger saved knowledge text readable after a
+restart instead of depending on filename uniqueness or the scanner default
+token size. Source: `DI-busor`.
+
 ## Current browser, CLI, and Neovim shape
 
 All current embodiments talk to the same local HTTP surface.

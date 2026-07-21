@@ -50,7 +50,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   - `approved`
   - `superseded`
 - append-only performed run records linked to exact revisions
-- structured evidence with optional attachment upload
+- structured evidence with optional immutable attachment upload
 - named-role approvals with local team policy left outside the durable record
 - typed links across responsibilities, items, and runs
 - browser dashboard and forms
@@ -116,7 +116,12 @@ By default the server stores runtime data under `.operational-knowledge-system/`
 - `drafts/`
   - per-item shared working drafts used by the browser collaboration surface
 - `attachments/`
-  - copied evidence attachments grouped under per-run paths
+  - immutable copied evidence attachments grouped under per-run paths
+
+The runtime now keeps those attachment paths immutable and replays stored large
+item/revision bodies within the current request envelope, so restart does not
+silently invalidate either old evidence bytes or larger saved knowledge text.
+Source: `DI-busor`.
 
 ## What You Need To Run
 

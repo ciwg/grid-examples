@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const maxEventLineBytes = 1 << 20
+
 type Store struct {
 	root      string
 	events    *os.File
@@ -58,6 +60,10 @@ func readEvents(file *os.File) ([]OperationalEvent, error) {
 	}
 	defer file.Seek(0, os.SEEK_END)
 	scanner := bufio.NewScanner(file)
+	// Intent: Replay the full stored event log within the server's current
+	// request-size envelope so durable large revisions do not become
+	// unreadable after restart. Source: DI-busor
+	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
 	events := []OperationalEvent{}
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -87,13 +93,28 @@ func (store *Store) AppendEvent(event OperationalEvent) error {
 	return store.events.Sync()
 }
 
+// Intent: Preserve evidence attachment history by storing each uploaded file at
+// a unique immutable path instead of overwriting earlier evidence bytes when a
+// later upload reuses the same filename. Source: DI-busor
 func (store *Store) SaveAttachment(entityID string, filename string, data []byte) (string, int64, error) {
 	dir := filepath.Join(store.root, "attachments", entityID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", 0, err
 	}
-	target := filepath.Join(dir, filepath.Base(filename))
-	if err := os.WriteFile(target, data, 0o644); err != nil {
+	base := filepath.Base(strings.TrimSpace(filename))
+	if base == "" || base == "." {
+		base = "attachment.bin"
+	}
+	tempFile, err := os.CreateTemp(dir, "evidence-*-"+base)
+	if err != nil {
+		return "", 0, err
+	}
+	target := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		return "", 0, err
+	}
+	if err := tempFile.Close(); err != nil {
 		return "", 0, err
 	}
 	return target, int64(len(data)), nil

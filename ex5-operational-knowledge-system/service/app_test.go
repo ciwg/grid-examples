@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -131,6 +132,101 @@ func TestAppPersistsAndReplaysState(t *testing.T) {
 	}
 	if reloadedItem.WorkingBody != "Intro" || reloadedItem.Status != ItemStatusDraft {
 		t.Fatalf("unexpected item live state after reload: %+v", reloadedItem)
+	}
+}
+
+func TestAppEvidenceAttachmentsStayImmutableAcrossRepeatedFilenames(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "Normal startup", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	run, err = app.AddEvidence("bob", run.ID, "Photo one", map[string]string{"shot": "1"}, "photo.txt", []byte("first-bytes"))
+	if err != nil {
+		t.Fatalf("add first evidence: %v", err)
+	}
+	firstPath := run.Evidence[0].AttachmentPath
+
+	run, err = app.AddEvidence("bob", run.ID, "Photo two", map[string]string{"shot": "2"}, "photo.txt", []byte("second-bytes"))
+	if err != nil {
+		t.Fatalf("add second evidence: %v", err)
+	}
+	if len(run.Evidence) != 2 {
+		t.Fatalf("expected two evidence records, got %+v", run.Evidence)
+	}
+	secondPath := run.Evidence[1].AttachmentPath
+	if firstPath == secondPath {
+		t.Fatalf("expected unique attachment paths, got %q", firstPath)
+	}
+
+	firstBody, err := os.ReadFile(firstPath)
+	if err != nil {
+		t.Fatalf("read first attachment: %v", err)
+	}
+	secondBody, err := os.ReadFile(secondPath)
+	if err != nil {
+		t.Fatalf("read second attachment: %v", err)
+	}
+	if string(firstBody) != "first-bytes" {
+		t.Fatalf("unexpected first attachment body: %q", string(firstBody))
+	}
+	if string(secondBody) != "second-bytes" {
+		t.Fatalf("unexpected second attachment body: %q", string(secondBody))
+	}
+}
+
+func TestAppReplaysLargeKnowledgeBodiesAfterRestart(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	initialBody := strings.Repeat("A", 70*1024)
+	revisionBody := strings.Repeat("B", 80*1024)
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Large procedure", "Large startup flow", initialBody, nil, nil)
+	if err != nil {
+		t.Fatalf("create large item: %v", err)
+	}
+	item, err = app.AddRevision("alice", item.ID, "Large procedure", "Large startup flow revised", revisionBody, nil)
+	if err != nil {
+		t.Fatalf("add large revision: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.CurrentRevision != 2 {
+		t.Fatalf("unexpected current revision after reload: %d", reloadedItem.CurrentRevision)
+	}
+	if reloadedItem.WorkingBody != revisionBody {
+		t.Fatalf("unexpected working body size after reload: got %d want %d", len(reloadedItem.WorkingBody), len(revisionBody))
+	}
+	if len(reloadedItem.Revisions) != 2 {
+		t.Fatalf("unexpected revision count after reload: %d", len(reloadedItem.Revisions))
+	}
+	if reloadedItem.Revisions[0].Body != initialBody {
+		t.Fatalf("initial large body did not replay correctly: got %d want %d", len(reloadedItem.Revisions[0].Body), len(initialBody))
+	}
+	if reloadedItem.Revisions[1].Body != revisionBody {
+		t.Fatalf("revised large body did not replay correctly: got %d want %d", len(reloadedItem.Revisions[1].Body), len(revisionBody))
 	}
 }
 

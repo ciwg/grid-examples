@@ -1,7 +1,16 @@
 # TODO
 
+## Open / Planned
+
+- [ ] 023 - Fix ex5 approval and live-draft correctness - `TODO/TODO-dazim-ex5-approval-and-live-draft-correctness.md`
+- [ ] 024 - Fix ex5 typed-link model consistency - `TODO/TODO-luzaf-ex5-link-model-consistency.md`
+- [ ] 025 - Align ex5 browser problem drilldowns with review logic - `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`
+- [ ] 026 - Fix ex5 CLI approval identity handling - `TODO/TODO-tarok-ex5-cli-approval-identity.md`
+- [ ] 021 - Fix ex5 review findings across durability, workflow correctness, and embodiment consistency - `TODO/TODO-vurab-ex5-review-followups.md`
+
 ## Completed
 
+- [x] 022 - Fix ex5 durability and replay safety - `TODO/TODO-busor-ex5-durability-and-replay-safety.md`
 - [x] 020 - Add ex5 Neovim typed-link browsing phase - `TODO/TODO-zalor-ex5-neovim-typed-link-browsing-phase.md`
 - [x] 019 - Add ex5 Neovim run inspector phase - `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`
 - [x] 018 - Add ex5 Neovim item inspector phase - `TODO/TODO-lonuk-ex5-neovim-item-inspector-phase.md`
@@ -35,4 +44,10 @@
 - `DI-lonuk`: add a read-only Neovim inspector over existing item detail APIs before attempting richer in-editor workflow actions.
 - `DI-ravok`: add a direct read-only Neovim run inspector over the existing run detail API before attempting write-side workflow actions in the editor.
 - `DI-zalor`: add read-only typed-link browsing in Neovim over the existing entity detail APIs before attempting in-editor mutation of links or approvals.
+- `DI-vurab`: track the 2026-07-21 deep ex5 review findings as an explicit fix backlog covering attachment durability, event replay limits, revision-aware approvals, empty-body drafts, link validation, problem drilldown alignment, and CLI approval identity.
+- `DI-busor`: handle durability and replay hazards before adding more workflow surface area.
+- `DI-dazim`: fix revision and empty-draft correctness so approvals and live collaboration cannot silently misstate current state.
+- `DI-luzaf`: make typed links structurally trustworthy and consistent across docs, browser, and Neovim.
+- `DI-vemur`: make browser “problem” drilldowns actually match the grouped review logic they claim to represent.
+- `DI-tarok`: preserve real approver identity in CLI-created approval records.
 - `DI-talub`: recent `ex5` feature slices are retroactively documented for decision/path traceability, and every future `ex5` feature slice must start by recording its intended repo paths and runtime path patterns in a local TODO before code changes begin.
