@@ -32950,6 +32950,25 @@ function traceProtocolClass(protocolName) {
   return "document";
 }
 
+// src/browser-session.js
+var PARTICIPANT_KEY = "grid-editor-participant-id";
+var WELCOME_KEY = "grid-editor-dismissed-welcome";
+function getOrCreateParticipantID(randomUUID2 = crypto.randomUUID.bind(crypto)) {
+  const existing = safeSessionStorage.getItem(PARTICIPANT_KEY);
+  if (existing) {
+    return existing;
+  }
+  const created = `browser-${randomUUID2()}`;
+  safeSessionStorage.setItem(PARTICIPANT_KEY, created);
+  return created;
+}
+function isWelcomeDismissed() {
+  return safeLocalStorage.getItem(WELCOME_KEY) === "true";
+}
+function dismissWelcome() {
+  safeLocalStorage.setItem(WELCOME_KEY, "true");
+}
+
 // src/presence.js
 function presenceState(lastSeenAt, profile) {
   if (!lastSeenAt) {
@@ -34308,7 +34327,7 @@ function registerEvents() {
   document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
-    safeLocalStorage.setItem("grid-editor-dismissed-welcome", "true");
+    dismissWelcome();
     welcomeBannerEl.classList.add("hidden");
   });
   document.getElementById("find-next").addEventListener("click", () => runSearchReplace(false));
@@ -34432,16 +34451,6 @@ function matchesShortcut(event, shortcut) {
 function isTypingTarget(target) {
   return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
-function getOrCreateParticipantID() {
-  const key = "grid-editor-participant-id";
-  const existing = safeSessionStorage.getItem(key);
-  if (existing) {
-    return existing;
-  }
-  const created = `browser-${crypto.randomUUID()}`;
-  safeSessionStorage.setItem(key, created);
-  return created;
-}
 function parseDocumentReference(raw) {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -34524,7 +34533,7 @@ async function readFileAsDataURL(file) {
 registerEvents();
 applyPreferences(state.prefs);
 renderRegistry();
-if (safeLocalStorage.getItem("grid-editor-dismissed-welcome") === "true") {
+if (isWelcomeDismissed()) {
   welcomeBannerEl.classList.add("hidden");
 }
 loadMeta().then(() => bootDocument(state.documentID)).catch((error) => {

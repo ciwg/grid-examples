@@ -285,6 +285,12 @@ PromiseGrid enablement:
   storage if local/session storage are blocked, so private browser sessions do
   not lose core editor startup behavior
 
+Private/incognito note:
+- the browser startup path is hardened against blocked storage and late-join
+  text loss
+- a final real private-browser manual verification pass is still tracked
+  separately in TODO 016
+
 ### Help
 
 Features:

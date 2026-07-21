@@ -440,6 +440,9 @@ Phase 4 browser exchange surfaces now include:
   does not depend on the tiny native color preview line.
 - `Find / Replace` names the search tool directly and the overlay explains the
   find/replace/go-to-line flow more plainly.
+- Private/incognito browser startup is hardened against blocked storage and
+  fresh late-join text loss, but the final real private-window manual
+  verification is still tracked in TODO 016.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL

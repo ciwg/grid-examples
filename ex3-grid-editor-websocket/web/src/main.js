@@ -11,8 +11,8 @@ import { extractMentions, inferVersionName, summarizeDocument } from "./review.j
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 import { describePaneMode, nextPaneState } from "./panes.js";
 import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
+import { dismissWelcome, getOrCreateParticipantID, isWelcomeDismissed } from "./browser-session.js";
 import { presenceState } from "./presence.js";
-import { safeLocalStorage, safeSessionStorage } from "./safe-storage.js";
 import { shouldApplySeed } from "./startup.js";
 
 const metaEls = {
@@ -1480,7 +1480,7 @@ function registerEvents() {
   document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
-    safeLocalStorage.setItem("grid-editor-dismissed-welcome", "true");
+    dismissWelcome();
     welcomeBannerEl.classList.add("hidden");
   });
   document.getElementById("find-next").addEventListener("click", () => runSearchReplace(false));
@@ -1610,17 +1610,6 @@ function isTypingTarget(target) {
   return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
-function getOrCreateParticipantID() {
-  const key = "grid-editor-participant-id";
-  const existing = safeSessionStorage.getItem(key);
-  if (existing) {
-    return existing;
-  }
-  const created = `browser-${crypto.randomUUID()}`;
-  safeSessionStorage.setItem(key, created);
-  return created;
-}
-
 function parseDocumentReference(raw) {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -1718,7 +1707,7 @@ async function readFileAsDataURL(file) {
 registerEvents();
 applyPreferences(state.prefs);
 renderRegistry();
-if (safeLocalStorage.getItem("grid-editor-dismissed-welcome") === "true") {
+if (isWelcomeDismissed()) {
   welcomeBannerEl.classList.add("hidden");
 }
 

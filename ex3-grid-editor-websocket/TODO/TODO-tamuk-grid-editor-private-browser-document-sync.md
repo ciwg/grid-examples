@@ -31,4 +31,5 @@ Goal: Diagnose and fix the ex3 bug where private/incognito browser sessions can 
 Current status:
 - fresh browser sessions now have an explicit late-join regression test for shared text over websocket
 - browser-local registry and preference storage now fall back to in-memory state if local/session storage are blocked
+- the real browser startup path now has direct helper coverage for participant-id and welcome-banner state when browser storage is restricted
 - real manual private/incognito browser verification is still pending before TODO 016 can close fully
