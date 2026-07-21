@@ -29,6 +29,15 @@ Intent: Private/incognito sessions can still show peers and other relay metadata
 Constraints: Keep the normal websocket path primary; only invoke the HTTP catch-up when the relay already has history and the browser text is still empty; add regression coverage for the mismatch instead of closing the TODO on theory alone.
 Affects: `ex3-grid-editor-websocket/web/src/automerge-relay.js`, `ex3-grid-editor-websocket/web/src/main.js`, `ex3-grid-editor-websocket/web/src/startup.js`, `ex3-grid-editor-websocket/web/src/*.test.mjs`, `ex3-grid-editor-websocket/docs`, `ex3-grid-editor-websocket/TODO`
 
+ID: DI-vobek
+Date: 2026-07-21 11:20:06 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: When ex3 startup still has blank text after priming from relay state, distrust the advertised snapshot offset and replay HTTP sync from offset `0` against a fresh empty Automerge base instead of continuing from the snapshot offset.
+Intent: A stale or blank relay snapshot can otherwise cause private/incognito browsers to skip the real shared text forever while still showing presence and other relay metadata, because recovery starts after the history that actually contains the document body.
+Constraints: Keep normal snapshot bootstrap intact for non-empty startup text; only reset to full-history replay when the browser is already in the blank-text recovery path; prove the fix with both client-level regression coverage and a headless browser startup test that injects a poisoned relay state response.
+Affects: `ex3-grid-editor-websocket/web/src/automerge-relay.js`, `ex3-grid-editor-websocket/web/src/automerge-relay.test.mjs`, `ex3-grid-editor-websocket/service/browser_startup_test.go`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/docs/features-guide.md`, `ex3-grid-editor-websocket/TODO`
+
 Goal: Diagnose and fix the ex3 bug where private/incognito browser sessions can show who is present and other collaboration state while failing to converge on the shared document text.
 
 - [ ] tamuk.1 Reproduce the mismatch with at least one normal browser window and one private/incognito browser window against the same ex3 document and relay.
@@ -42,5 +51,6 @@ Current status:
 - browser-local registry and preference storage now fall back to in-memory state if local/session storage are blocked
 - the real browser startup path now has direct helper coverage for participant-id and welcome-banner state when browser storage is restricted
 - browser startup now forces one bounded HTTP sync catch-up when websocket startup leaves the editor blank even though the relay reports authoritative history
+- blank startup recovery now ignores a stale empty snapshot offset and replays from full relay history instead of skipping the real shared text forever
 - headless Chrome now probes the real built app and asserts that a fresh browser late-join renders shared document text in the DOM
 - real manual private/incognito browser verification is still pending before TODO 016 can close fully

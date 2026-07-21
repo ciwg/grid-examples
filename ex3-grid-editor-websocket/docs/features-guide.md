@@ -291,6 +291,9 @@ Private/incognito note:
 - if websocket startup still leaves the browser empty while the relay reports
   authoritative document history, the browser forces one bounded HTTP sync
   catch-up before staying blank
+- if relay state advertises a stale blank snapshot, that HTTP recovery path
+  now restarts from full relay history instead of trusting the bad snapshot
+  offset and staying empty forever
 - a final real private-browser manual verification pass is still tracked
   separately in TODO 016
 

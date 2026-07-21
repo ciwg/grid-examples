@@ -31793,7 +31793,11 @@ var AutomergeRelayClient = class {
   // history, so private/incognito sessions are not forced to rely on perfect
   // websocket catch-up on first load. Source: DI-sulor
   async recoverFromRelayHistory(state2) {
-    const startOffset = state2?.snapshot_present && state2?.snapshot_offset ? state2.snapshot_offset : 0;
+    const startOffset = this.getText() === "" ? 0 : state2?.snapshot_present && state2?.snapshot_offset ? state2.snapshot_offset : 0;
+    if (startOffset === 0) {
+      this.setDoc(ensureDocument(null));
+      this.offset = 0;
+    }
     await this.fetchSyncFeed(startOffset);
   }
   disconnect() {

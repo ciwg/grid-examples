@@ -443,8 +443,10 @@ Phase 4 browser exchange surfaces now include:
 - Private/incognito browser startup is hardened against blocked storage and
   fresh late-join text loss. If websocket startup still opens blank while the
   relay reports shared history, the browser now forces one bounded HTTP sync
-  catch-up before staying empty. The final real private-window manual
-  verification is still tracked in TODO 016.
+  catch-up before staying empty. If the relay state advertises a stale blank
+  snapshot, that recovery path now distrusts the snapshot offset and replays
+  from full history instead of skipping the real shared text forever. The
+  final real private-window manual verification is still tracked in TODO 016.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL

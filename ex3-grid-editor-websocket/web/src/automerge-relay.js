@@ -93,7 +93,14 @@ export class AutomergeRelayClient {
   // history, so private/incognito sessions are not forced to rely on perfect
   // websocket catch-up on first load. Source: DI-sulor
   async recoverFromRelayHistory(state) {
-    const startOffset = state?.snapshot_present && state?.snapshot_offset ? state.snapshot_offset : 0;
+    const startOffset = this.getText() === "" ? 0 : (state?.snapshot_present && state?.snapshot_offset ? state.snapshot_offset : 0);
+    if (startOffset === 0) {
+      // Intent: Treat a blank startup snapshot as untrustworthy for offset
+      // recovery so a stale empty snapshot cannot make private/incognito
+      // browsers skip the real relay history forever. Source: DI-vobek
+      this.setDoc(ensureDocument(null));
+      this.offset = 0;
+    }
     await this.fetchSyncFeed(startOffset);
   }
 
