@@ -225,6 +225,10 @@ For a `receiving_check` item, the browser uses the same response shape to show
 revision history plus receiving-specific related-run history in the record
 inspector.
 
+The current Neovim inspector also reuses this response shape for a read-only
+split that shows status, revisions, approvals, and related runs. Source:
+`DI-lonuk`.
+
 ### `POST /api/items/{id}/revisions`
 
 Creates a durable new revision snapshot.

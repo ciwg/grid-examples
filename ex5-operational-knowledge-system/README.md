@@ -68,6 +68,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - CLI inspection and creation commands
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
+- Neovim item inspector for revisions, approvals, and related runs
 - headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -183,8 +184,16 @@ What it supports now:
 - `:OksRefresh`
 - `:OksPush`
 - `:OksInfo`
+- `:OksInspect`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
+
+The inspector phase adds a read-only split showing:
+
+- item status and summary
+- revision history
+- approvals
+- related run history
 
 Start it against a running server with:
 
@@ -203,6 +212,7 @@ What it does not try to do yet:
 - websocket sync
 - remote cursor rendering
 - durable revision approval/review directly inside Neovim
+- full run creation or typed-link navigation inside Neovim
 
 ## Docs
 

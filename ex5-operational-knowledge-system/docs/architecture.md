@@ -52,6 +52,7 @@ The first-phase Neovim embodiment owns:
 - pushing the current body back through the live-draft API
 - reporting participant presence and typing state through the same local
   endpoint
+- opening a read-only item inspector from the projected item-detail API
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.
@@ -136,9 +137,10 @@ append-only knowledge-item history. This keeps live drafting and auditable
 revisions related but distinct.
 
 In the current Neovim phase, the editor participates by polling and posting to
-`GET/POST /api/items/{id}/live`. That keeps the embodiment aligned with the
-same runtime truth the browser uses instead of creating a second collaboration
-channel. Source: `DI-fudok`.
+`GET/POST /api/items/{id}/live`, and it reads projected item detail from
+`GET /api/items/{id}` for inspection. That keeps the embodiment aligned with
+the same runtime truth the browser uses instead of creating a second
+collaboration channel. Source: `DI-fudok`; `DI-lonuk`.
 
 ## Current implementation note
 

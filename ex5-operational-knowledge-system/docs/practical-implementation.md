@@ -66,6 +66,7 @@ Neovim phase 1:
 - pushes the current body with `:write`
 - sends presence/typing heartbeats through the live-draft HTTP endpoint
 - exposes local status/participant inspection commands
+- opens a read-only projected item inspector for revisions, approvals, and related runs
 
 ## Why the docs mention protocol families
 
@@ -111,8 +112,9 @@ operational embodiments, and a browser-only shared draft surface.
 The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
-websocket stack into `ex5` now. The current first phase is intentionally a
-thin HTTP live-draft client. Source: `DI-tabiv`; `DI-fudok`.
+websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
+live-draft client plus read-only item inspection over projected item detail.
+Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`.
 
 ## Current verification shape
 

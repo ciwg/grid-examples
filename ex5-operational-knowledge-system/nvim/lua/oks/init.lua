@@ -40,6 +40,11 @@ M.state = {
   augroup = nil,
 }
 
+local inspector = {
+  bufnr = nil,
+  winid = nil,
+}
+
 local function notify(message, level)
   vim.notify("oks: " .. message, level or vim.log.levels.INFO)
 end
@@ -88,6 +93,15 @@ local function json_encode(value)
     return vim.json.encode(value)
   end
   return vim.fn.json_encode(value)
+end
+
+local function sorted_keys(values)
+  local out = {}
+  for key, _ in pairs(values or {}) do
+    table.insert(out, key)
+  end
+  table.sort(out)
+  return out
 end
 
 -- Intent: Reuse the existing ex5 live-draft HTTP surface from Neovim instead
@@ -141,6 +155,21 @@ local function apply_live_state(state, force)
     vim.bo[M.state.bufnr].modified = false
     M.state.applying_remote = false
   end
+end
+
+local function open_scratch_buffer(name)
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, name)
+  vim.bo[bufnr].buftype = "nofile"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].modifiable = true
+  vim.bo[bufnr].filetype = "markdown"
+  vim.cmd("botright vsplit")
+  local winid = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(winid, bufnr)
+  vim.api.nvim_win_set_option(winid, "wrap", false)
+  return bufnr, winid
 end
 
 local function refresh_live_state(force)
@@ -292,6 +321,136 @@ local function session_lines()
   return lines
 end
 
+local function append_list(lines, heading, values)
+  table.insert(lines, "")
+  table.insert(lines, "## " .. heading)
+  if not values or #values == 0 then
+    table.insert(lines, "- none")
+    return
+  end
+  for _, value in ipairs(values) do
+    table.insert(lines, "- " .. value)
+  end
+end
+
+local function evidence_fact_summary(evidence)
+  local facts = evidence and evidence.facts or {}
+  local parts = {}
+  for _, key in ipairs(sorted_keys(facts)) do
+    table.insert(parts, key .. "=" .. tostring(facts[key]))
+  end
+  return table.concat(parts, ", ")
+end
+
+-- Intent: Let Neovim users inspect the durable item record around the live
+-- draft without leaving the editor or attempting write actions that this phase
+-- does not support yet. Source: DI-lonuk
+local function item_detail_lines(detail)
+  local lines = {
+    "# " .. (detail.title or M.state.title or M.state.item_id or "knowledge item"),
+    "",
+    "- id: " .. (detail.id or M.state.item_id or "-"),
+    "- kind: " .. (detail.kind or "-"),
+    "- status: " .. (detail.status or "-"),
+    "- current revision: " .. tostring(detail.current_revision or 0),
+    "- working version: " .. tostring(detail.working_version or 0),
+    "- summary: " .. (detail.summary or ""),
+  }
+
+  append_list(lines, "Responsibilities", detail.responsibility_ids or {})
+
+  table.insert(lines, "")
+  table.insert(lines, "## Revisions")
+  if not detail.revisions or #detail.revisions == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, revision in ipairs(detail.revisions) do
+      table.insert(lines, string.format("- r%d %s — %s", revision.number or 0, revision.title or "-", revision.created_at or "-"))
+      if revision.summary and revision.summary ~= "" then
+        table.insert(lines, "  " .. revision.summary)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Approvals")
+  if not detail.approvals or #detail.approvals == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, approval in ipairs(detail.approvals) do
+      table.insert(lines, string.format("- %s by %s role=%s revision=%d", approval.decision or "-", approval.actor or "-", approval.role or "-", approval.revision or 0))
+      if approval.notes and approval.notes ~= "" then
+        table.insert(lines, "  " .. approval.notes)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Related runs")
+  if not detail.related_runs or #detail.related_runs == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, run in ipairs(detail.related_runs) do
+      table.insert(lines, string.format("- %s kind=%s revision=%d outcome=%s", run.id or "-", run.kind or "-", run.revision or 0, run.outcome or "-"))
+      if run.notes and run.notes ~= "" then
+        table.insert(lines, "  notes: " .. run.notes)
+      end
+      if run.place_id and run.place_id ~= "" then
+        table.insert(lines, "  place: " .. run.place_id)
+      end
+      if run.resource_ids and #run.resource_ids > 0 then
+        table.insert(lines, "  resources: " .. table.concat(run.resource_ids, ", "))
+      end
+      if run.evidence and #run.evidence > 0 then
+        for _, evidence in ipairs(run.evidence) do
+          local summary = evidence_fact_summary(evidence)
+          if summary ~= "" then
+            table.insert(lines, "  evidence: " .. summary)
+          end
+        end
+      end
+    end
+  end
+
+  return lines
+end
+
+-- Intent: Reuse the existing item detail projection for Neovim inspection so
+-- the editor sees the same revision, approval, and related-run truth as the
+-- browser and CLI. Source: DI-lonuk
+local function inspect_item(item_id)
+  item_id = vim.trim(item_id or M.state.item_id or "")
+  if item_id == "" then
+    notify("item id is required", vim.log.levels.WARN)
+    return
+  end
+  local status, body, err = request("GET", "/api/items/" .. item_id)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("inspect failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify("inspect decode failed", vim.log.levels.ERROR)
+    return
+  end
+
+  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
+    vim.api.nvim_set_current_win(inspector.winid)
+  else
+    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-inspect://" .. item_id)
+  end
+  vim.bo[inspector.bufnr].modifiable = true
+  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-inspect://" .. item_id)
+  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, item_detail_lines(decoded))
+  vim.bo[inspector.bufnr].modifiable = false
+  notify("inspected " .. item_id)
+end
+
 function M.info()
   notify(table.concat(session_lines(), "\n"))
 end
@@ -306,6 +465,10 @@ end
 
 function M.push()
   push_body()
+end
+
+function M.inspect(item_id)
+  inspect_item(item_id)
 end
 
 function M.close()
@@ -388,6 +551,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksInfo", function()
     M.info()
   end, {})
+  vim.api.nvim_create_user_command("OksInspect", function(command)
+    M.inspect(command.args)
+  end, { nargs = "?" })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})

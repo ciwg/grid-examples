@@ -18,9 +18,13 @@ func TestNeovimPluginIncludesLiveDraftCommands(t *testing.T) {
 		"OksRefresh",
 		"OksPush",
 		"OksInfo",
+		"OksInspect",
 		"OksClose",
 		"/api/items/",
 		"/live",
+		"related_runs",
+		"## Revisions",
+		"## Approvals",
 		"participant_id",
 		"BufWriteCmd",
 	}
