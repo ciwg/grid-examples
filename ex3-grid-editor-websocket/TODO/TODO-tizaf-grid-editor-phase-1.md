@@ -20,12 +20,23 @@ Intent: Make Grid Editor feel good in demos now while leaving a clean seam for f
 Constraints: Preferences remain local in this phase; supported settings include display name, color, theme, line numbers, font size, dyslexia-friendly spacing/font mode, and shortcut overrides where supported.
 Affects: `ex2-grid-editor/web`, `ex2-grid-editor/nvim`, `ex2-grid-editor/docs`, `ex2-grid-editor/README.md`
 
+ID: DI-tilav
+Date: 2026-07-20 20:17:05 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Close the remaining Phase 1 browser polish gaps by separating the private-browser document mismatch into TODO 016, locking the toolbar status widths to stop jitter, and strengthening the browser remote-cursor line rendering so peer color is visibly carried by the cursor bar itself.
+Intent: Finish the lingering Phase 1 demo-surface cleanup honestly without pretending the private/incognito sync issue belongs in the general UX bucket.
+Constraints: Keep the private/incognito bug tracked separately in TODO 016; do not change the underlying relay or awareness protocol semantics while fixing the browser presentation layer.
+Affects: `ex3-grid-editor-websocket/web`, `ex3-grid-editor-websocket/docs`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/TODO`
+
 Goal: Finish the first collaborative-editor UX milestone so browser and Neovim both present clear collaboration, status, and editor controls on top of the existing CRDT relay.
 
 - [x] tizaf.1 Add Phase 1 browser settings, menu, onboarding, and status surfaces.
 - [x] tizaf.2 Add presence aging, peer lifecycle feedback, and clearer collaboration visibility.
 - [x] tizaf.3 Add Neovim core parity improvements for selections, status, and help.
 - [x] tizaf.4 Add tests and docs for the new Phase 1 behavior.
-- [ ] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
-  Current gaps from the manual pass:
-  - Chrome still needs confirmation that remote cursor line color renders correctly instead of a tiny black line.
+- [x] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
+  Resolved or separated:
+  - browser remote cursor rendering now uses the peer color as the cursor bar itself instead of depending on a thin border line
+  - mixed normal/private browser document-sync mismatch remains tracked separately in TODO 016: `TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md`
+  - the toolbar status cluster now uses fixed slot widths so relay message updates do not jitter the header layout

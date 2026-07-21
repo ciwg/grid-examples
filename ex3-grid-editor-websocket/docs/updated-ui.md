@@ -118,6 +118,7 @@ Controls:
 - `Open` button
 - `Title` text box
 - `New Shared Doc`
+  - creates and opens a fresh shared document id immediately
 - `Duplicate`
 - `Paste Link`
 - `Copy Link`
@@ -149,6 +150,7 @@ Purpose:
 Controls:
 - `Display name`
 - `Color`
+- visible color picker button
 - `Settings` button
 
 Readouts:
@@ -240,7 +242,7 @@ Purpose:
 - expose the main editing and demo actions
 
 Buttons visible in the screenshot:
-- `Search`
+- `Find / Replace`
 - `Bold`
 - `Italic`
 - `Underline`

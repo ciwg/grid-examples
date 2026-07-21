@@ -1,7 +1,9 @@
+import { safeLocalStorage } from "./safe-storage.js";
+
 const STORAGE_KEY = "grid-editor-phase2-documents";
 
 export class DocumentRegistry {
-  constructor(storage = window.localStorage) {
+  constructor(storage = safeLocalStorage) {
     this.storage = storage;
     this.state = this.load();
   }

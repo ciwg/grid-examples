@@ -27149,11 +27149,12 @@ function injectCursorStyles() {
     .grid-remote-cursor {
       position: relative;
       display: inline-block;
-      width: 0;
+      width: 2px;
       height: 1.25em;
       margin-left: -1px;
       margin-right: -1px;
-      border-left: 2px solid var(--grid-peer-color, #999999);
+      background: var(--grid-peer-color, #999999);
+      box-shadow: 0 0 0 1px var(--grid-peer-color, #999999);
       pointer-events: none;
       vertical-align: text-bottom;
     }
@@ -32085,6 +32086,59 @@ function commonSuffix(left, right, prefix) {
   return index;
 }
 
+// src/safe-storage.js
+function createMemoryStorage() {
+  const data2 = /* @__PURE__ */ new Map();
+  return {
+    getItem(key) {
+      return data2.has(key) ? data2.get(key) : null;
+    },
+    setItem(key, value) {
+      data2.set(key, String(value));
+    },
+    removeItem(key) {
+      data2.delete(key);
+    }
+  };
+}
+function buildSafeStorage(getStorage) {
+  const memory = createMemoryStorage();
+  return {
+    getItem(key) {
+      try {
+        const storage = getStorage();
+        return storage ? storage.getItem(key) : memory.getItem(key);
+      } catch {
+        return memory.getItem(key);
+      }
+    },
+    setItem(key, value) {
+      try {
+        const storage = getStorage();
+        if (storage) {
+          storage.setItem(key, value);
+          return;
+        }
+      } catch {
+      }
+      memory.setItem(key, value);
+    },
+    removeItem(key) {
+      try {
+        const storage = getStorage();
+        if (storage) {
+          storage.removeItem(key);
+          return;
+        }
+      } catch {
+      }
+      memory.removeItem(key);
+    }
+  };
+}
+var safeLocalStorage = buildSafeStorage(() => window.localStorage);
+var safeSessionStorage = buildSafeStorage(() => window.sessionStorage);
+
 // src/preferences.js
 var STORAGE_KEY = "grid-editor-phase1-preferences";
 var DEFAULT_SHORTCUTS = {
@@ -32106,7 +32160,7 @@ var DEFAULTS = {
   shortcuts: DEFAULT_SHORTCUTS
 };
 var PreferencesStore = class {
-  constructor(storage = window.localStorage) {
+  constructor(storage = safeLocalStorage) {
     this.storage = storage;
     this.value = this.load();
   }
@@ -32165,7 +32219,7 @@ function normalizePreferences(value) {
 // src/documents.js
 var STORAGE_KEY2 = "grid-editor-phase2-documents";
 var DocumentRegistry = class {
-  constructor(storage = window.localStorage) {
+  constructor(storage = safeLocalStorage) {
     this.storage = storage;
     this.state = this.load();
   }
@@ -32896,6 +32950,25 @@ function traceProtocolClass(protocolName) {
   return "document";
 }
 
+// src/presence.js
+function presenceState(lastSeenAt, profile) {
+  if (!lastSeenAt) {
+    return "live";
+  }
+  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
+  const thresholds = profile === "normal" ? { live: 6e4, stale: 5 * 6e4, offline: 15 * 6e4 } : { live: 5 * 6e4, stale: 15 * 6e4, offline: 30 * 6e4 };
+  if (ageMs <= thresholds.live) {
+    return "live";
+  }
+  if (ageMs <= thresholds.stale) {
+    return "stale";
+  }
+  if (ageMs <= thresholds.offline) {
+    return "offline";
+  }
+  return "gone";
+}
+
 // src/startup.js
 function relayHasAuthoritativeHistory(state2) {
   if (!state2 || typeof state2 !== "object") {
@@ -32947,6 +33020,7 @@ var colorInput = document.getElementById("color");
 var colorPreviewSwatchEl = document.getElementById("color-preview-swatch");
 var colorPreviewNameEl = document.getElementById("color-preview-name");
 var colorPreviewValueEl = document.getElementById("color-preview-value");
+var colorPickerButtonEl = document.getElementById("color-picker-button");
 var editorRoot = document.getElementById("editor");
 var editorPaneEl = document.querySelector(".editor-pane");
 var previewPaneEl = document.getElementById("preview-pane");
@@ -33035,7 +33109,8 @@ var state = {
   pendingCommentSelection: null,
   metadata: normalizeMetadataRecord("demo", {}),
   traceEntries: [],
-  tracePollTimer: null
+  tracePollTimer: null,
+  snapshotBackfillPending: false
 };
 participantEl.textContent = state.participantID;
 docIDInput.value = state.documentID;
@@ -33066,6 +33141,7 @@ function renderColorPreview(name2, value) {
   colorPreviewNameEl.style.color = color;
   colorPreviewValueEl.textContent = color;
   colorPreviewValueEl.style.color = color;
+  colorPickerButtonEl?.style.setProperty("--grid-color-preview", color);
 }
 function syncSettingsForm() {
   settingsFields.theme.value = state.prefs.theme;
@@ -33168,6 +33244,7 @@ async function bootDocument(documentID) {
     contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
     updateDerivedTitle(text);
     renderPreview();
+    maybeBackfillSnapshot(relayState);
   });
   relay.on("status", (status) => {
     renderStatus(status);
@@ -33197,9 +33274,7 @@ async function bootDocument(documentID) {
   await refreshTrace(documentID);
   await refreshMetadata(documentID);
   await applySeedIfNeeded(documentID, relayState);
-  if (!relayState.snapshot_present && state.relay.getText() !== "") {
-    state.relay.publishSnapshot().catch((error) => showToast(`Snapshot publish failed: ${error.message}`));
-  }
+  maybeBackfillSnapshot(relayState);
   await refreshPublished(documentID);
   await searchMetadataCatalog(false);
   renderPreview();
@@ -33218,6 +33293,20 @@ async function applySeedIfNeeded(documentID, relayState) {
   state.editor.setText(seed);
   registry.registerSeedContent(documentID, "");
   registry.touchEdited(documentID);
+}
+function maybeBackfillSnapshot(relayState) {
+  if (relayState.snapshot_present || state.relay.getText() === "") {
+    return;
+  }
+  if (state.snapshotBackfillPending) {
+    return;
+  }
+  state.snapshotBackfillPending = true;
+  state.relay.publishSnapshot().then(() => {
+    relayState.snapshot_present = true;
+  }).catch((error) => showToast(`Snapshot publish failed: ${error.message}`)).finally(() => {
+    state.snapshotBackfillPending = false;
+  });
 }
 async function loadRelayState(basePath) {
   const response = await fetch(`${basePath}/state`);
@@ -33818,6 +33907,7 @@ function closeOverlay(element) {
 function createNewDocument() {
   const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
   registry.openTab(nextDoc);
+  showToast(`Created new shared document ${nextDoc}`);
   bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
 }
 function createFromTemplate(template) {
@@ -34152,23 +34242,6 @@ function scheduleTypingStop(awareness) {
     awareness.setTyping(false);
   }, 900);
 }
-function presenceState(lastSeenAt, profile) {
-  if (!lastSeenAt) {
-    return "live";
-  }
-  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
-  const thresholds = profile === "normal" ? { live: 6e4, stale: 5 * 6e4, offline: 15 * 6e4 } : { live: 5 * 6e4, stale: 15 * 6e4, offline: 30 * 6e4 };
-  if (ageMs <= thresholds.live) {
-    return "live";
-  }
-  if (ageMs <= thresholds.stale) {
-    return "stale";
-  }
-  if (ageMs <= thresholds.offline) {
-    return "offline";
-  }
-  return "gone";
-}
 function showToast(message) {
   const toast = document.createElement("div");
   toast.className = "toast";
@@ -34218,6 +34291,13 @@ function registerEvents() {
     "debug-button"
   ].forEach((id2) => preserveEditorSelectionOnMouseDown(document.getElementById(id2)));
   document.getElementById("settings-button").addEventListener("click", openSettings);
+  colorPickerButtonEl?.addEventListener("click", () => {
+    if (typeof colorInput.showPicker === "function") {
+      colorInput.showPicker();
+      return;
+    }
+    colorInput.click();
+  });
   document.getElementById("help-button").addEventListener("click", openHelp);
   document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
   document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
@@ -34228,7 +34308,7 @@ function registerEvents() {
   document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
-    window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
+    safeLocalStorage.setItem("grid-editor-dismissed-welcome", "true");
     welcomeBannerEl.classList.add("hidden");
   });
   document.getElementById("find-next").addEventListener("click", () => runSearchReplace(false));
@@ -34354,12 +34434,12 @@ function isTypingTarget(target) {
 }
 function getOrCreateParticipantID() {
   const key = "grid-editor-participant-id";
-  const existing = window.sessionStorage.getItem(key);
+  const existing = safeSessionStorage.getItem(key);
   if (existing) {
     return existing;
   }
   const created = `browser-${crypto.randomUUID()}`;
-  window.sessionStorage.setItem(key, created);
+  safeSessionStorage.setItem(key, created);
   return created;
 }
 function parseDocumentReference(raw) {
@@ -34444,7 +34524,7 @@ async function readFileAsDataURL(file) {
 registerEvents();
 applyPreferences(state.prefs);
 renderRegistry();
-if (window.localStorage.getItem("grid-editor-dismissed-welcome") === "true") {
+if (safeLocalStorage.getItem("grid-editor-dismissed-welcome") === "true") {
   welcomeBannerEl.classList.add("hidden");
 }
 loadMeta().then(() => bootDocument(state.documentID)).catch((error) => {

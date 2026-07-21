@@ -1,3 +1,5 @@
+import { safeLocalStorage } from "./safe-storage.js";
+
 const STORAGE_KEY = "grid-editor-phase1-preferences";
 
 const DEFAULT_SHORTCUTS = {
@@ -21,7 +23,7 @@ const DEFAULTS = {
 };
 
 export class PreferencesStore {
-  constructor(storage = window.localStorage) {
+  constructor(storage = safeLocalStorage) {
     this.storage = storage;
     this.value = this.load();
   }

@@ -40,8 +40,9 @@ Grid Editor currently demonstrates four feature slices:
 
 - remote cursors and selections
 - peer list, peer count, and presence aging
-- settings, theme, line numbers, and accessibility controls
-- search and quick formatting
+- settings, theme, line numbers, accessibility controls, and a visible color
+  picker button
+- find/replace and quick formatting
 - new/open/paste-link document entry flows
 
 ### Phase 2: document workflow
@@ -167,6 +168,11 @@ Some workflow and review features are still local browser state in this repo:
 - saved versions used by the current publish flow
 - recent participant history and activity feed
 - local preferences
+
+When local or session storage is blocked, the browser now falls back to
+in-memory workflow/session state so fresh or private browser sessions do not
+lose the shared relay-backed document path just because persistence APIs are
+restricted. Source: `DI-ribaf`; `DI-bonuv`.
 
 Relay-backed document metadata now covers:
 
@@ -430,6 +436,10 @@ Phase 4 browser exchange surfaces now include:
 
 - Browser underline stores raw `<u>...</u>` markup and now renders inline in
   the browser editor using normal text color rather than link-like styling.
+- Browser color selection now uses a visible in-app picker button so Chrome
+  does not depend on the tiny native color preview line.
+- `Find / Replace` names the search tool directly and the overlay explains the
+  find/replace/go-to-line flow more plainly.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL

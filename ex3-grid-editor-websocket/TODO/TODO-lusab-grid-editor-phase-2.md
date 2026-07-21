@@ -38,15 +38,24 @@ Intent: Prevent the toolbar from feeling broken when `Split View` is already act
 Constraints: This is a browser Phase 2 workflow behavior fix only; document content, markdown rendering, and export behavior must remain unchanged; the fix should be covered by pure helper tests.
 Affects: `ex2-grid-editor/web/src/main.js`, `ex2-grid-editor/web/src/panes.js`, `ex2-grid-editor/web/src/panes.test.mjs`, `ex2-grid-editor/docs/grid-editor-ui-example.md`
 
+ID: DI-rusok
+Date: 2026-07-20 20:17:05 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Close the remaining Phase 2 browser workflow polish gaps by clarifying the `Find / Replace` label, adding explicit new-document feedback, and keeping the existing `Preview` versus `Split View` split while documenting it clearly.
+Intent: Resolve the remaining manual confusion around search, new-doc creation, and preview/split behavior without changing the underlying relay or workflow model.
+Constraints: Keep the feature scope browser-local; preserve the existing preview and split behavior semantics; update docs and tests in the same pass.
+Affects: `ex3-grid-editor-websocket/web`, `ex3-grid-editor-websocket/docs`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/TODO`
+
 Goal: Make documents easier to create, preview, navigate, export, and demo without changing the core CRDT relay contract.
 
 - [x] lusab.1 Add local document registry, recent docs, title/metadata, and sample/template flows.
 - [x] lusab.2 Add markdown preview, split views, search/replace, go-to-line, and document navigation tools.
 - [x] lusab.3 Add export, share, snapshot, bookmark, and audit-report surfaces.
 - [x] lusab.4 Add tests and docs for the Phase 2 workflow behavior.
-- [ ] lusab.5 Run a manual browser workflow pass for confusing labels and flow polish before closing TODO 007.
-  Current gaps from the manual pass:
-  - `Search` still needs a simpler explanation or flow.
-  - `New Shared Doc` still needs clearer wording or feedback after click.
-  - `Publish Exchange` was hard to discover when it lived under `Export`, so the workflow needs another manual check after the label changes.
-  - `Preview` versus `Split View` needed clearer behavior; `Preview` now means preview-only and `Split View` means side-by-side, but this still needs a fresh manual check.
+- [x] lusab.5 Run a manual browser workflow pass for confusing labels and flow polish before closing TODO 007.
+  Resolved in the follow-up pass:
+  - `Find / Replace` now names the search tool directly and the overlay explains the actions more clearly.
+  - `New Shared Doc` now gives immediate success feedback after creating and opening the new document id.
+  - `Export / Exchange` remains explicitly named and documented as the publish/import surface.
+  - `Preview` remains preview-only while `Split View` remains side-by-side, and the docs now say that plainly.

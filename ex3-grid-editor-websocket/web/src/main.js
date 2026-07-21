@@ -11,6 +11,8 @@ import { extractMentions, inferVersionName, summarizeDocument } from "./review.j
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 import { describePaneMode, nextPaneState } from "./panes.js";
 import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
+import { presenceState } from "./presence.js";
+import { safeLocalStorage, safeSessionStorage } from "./safe-storage.js";
 import { shouldApplySeed } from "./startup.js";
 
 const metaEls = {
@@ -44,6 +46,7 @@ const colorInput = document.getElementById("color");
 const colorPreviewSwatchEl = document.getElementById("color-preview-swatch");
 const colorPreviewNameEl = document.getElementById("color-preview-name");
 const colorPreviewValueEl = document.getElementById("color-preview-value");
+const colorPickerButtonEl = document.getElementById("color-picker-button");
 const editorRoot = document.getElementById("editor");
 const editorPaneEl = document.querySelector(".editor-pane");
 const previewPaneEl = document.getElementById("preview-pane");
@@ -137,6 +140,7 @@ const state = {
   metadata: normalizeMetadataRecord("demo", {}),
   traceEntries: [],
   tracePollTimer: null,
+  snapshotBackfillPending: false,
 };
 
 participantEl.textContent = state.participantID;
@@ -174,6 +178,7 @@ function renderColorPreview(name, value) {
   colorPreviewNameEl.style.color = color;
   colorPreviewValueEl.textContent = color;
   colorPreviewValueEl.style.color = color;
+  colorPickerButtonEl?.style.setProperty("--grid-color-preview", color);
 }
 
 function syncSettingsForm() {
@@ -288,6 +293,7 @@ async function bootDocument(documentID) {
     contentCIDEl.textContent = `local replica: ${relay.getReplicaCID()}`;
     updateDerivedTitle(text);
     renderPreview();
+    maybeBackfillSnapshot(relayState);
   });
   relay.on("status", (status) => {
     renderStatus(status);
@@ -318,13 +324,7 @@ async function bootDocument(documentID) {
   await refreshTrace(documentID);
   await refreshMetadata(documentID);
   await applySeedIfNeeded(documentID, relayState);
-  if (!relayState.snapshot_present && state.relay.getText() !== "") {
-    // Intent: Backfill a relay snapshot once a browser has fully caught up so
-    // future late joiners can bootstrap from the current shared document
-    // instead of replaying the entire pre-snapshot change log. Source:
-    // DI-ramuv; DI-lumek; DI-gafit
-    state.relay.publishSnapshot().catch((error) => showToast(`Snapshot publish failed: ${error.message}`));
-  }
+  maybeBackfillSnapshot(relayState);
   await refreshPublished(documentID);
   await searchMetadataCatalog(false);
   renderPreview();
@@ -344,6 +344,29 @@ async function applySeedIfNeeded(documentID, relayState) {
   state.editor.setText(seed);
   registry.registerSeedContent(documentID, "");
   registry.touchEdited(documentID);
+}
+
+function maybeBackfillSnapshot(relayState) {
+  if (relayState.snapshot_present || state.relay.getText() === "") {
+    return;
+  }
+  if (state.snapshotBackfillPending) {
+    return;
+  }
+  state.snapshotBackfillPending = true;
+  // Intent: Publish a relay snapshot once a late-joining browser has real
+  // document content, even if that content arrives after the initial websocket
+  // ready signal, so fresh/private browser sessions can bootstrap from the
+  // shared text instead of depending on fragile local workflow state.
+  // Source: DI-ribaf
+  state.relay.publishSnapshot()
+    .then(() => {
+      relayState.snapshot_present = true;
+    })
+    .catch((error) => showToast(`Snapshot publish failed: ${error.message}`))
+    .finally(() => {
+      state.snapshotBackfillPending = false;
+    });
 }
 
 async function loadRelayState(basePath) {
@@ -1012,6 +1035,7 @@ function closeOverlay(element) {
 function createNewDocument() {
   const nextDoc = `doc-${crypto.randomUUID().slice(0, 8)}`;
   registry.openTab(nextDoc);
+  showToast(`Created new shared document ${nextDoc}`);
   bootDocument(nextDoc).catch((error) => setStatus("error", error.message));
 }
 
@@ -1389,30 +1413,6 @@ function scheduleTypingStop(awareness) {
   }, 900);
 }
 
-function presenceState(lastSeenAt, profile) {
-  if (!lastSeenAt) {
-    return "live";
-  }
-  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
-  // Intent: Render awareness using the approved demo/normal lifecycle windows
-  // so the main peer list answers "who is here now?" while still giving
-  // demos enough time before a peer is dimmed or removed. Source: DI-mivor;
-  // DI-vasul
-  const thresholds = profile === "normal"
-    ? { live: 60_000, stale: 5 * 60_000, offline: 15 * 60_000 }
-    : { live: 5 * 60_000, stale: 15 * 60_000, offline: 30 * 60_000 };
-  if (ageMs <= thresholds.live) {
-    return "live";
-  }
-  if (ageMs <= thresholds.stale) {
-    return "stale";
-  }
-  if (ageMs <= thresholds.offline) {
-    return "offline";
-  }
-  return "gone";
-}
-
 function showToast(message) {
   const toast = document.createElement("div");
   toast.className = "toast";
@@ -1463,6 +1463,13 @@ function registerEvents() {
     "debug-button",
   ].forEach((id) => preserveEditorSelectionOnMouseDown(document.getElementById(id)));
   document.getElementById("settings-button").addEventListener("click", openSettings);
+  colorPickerButtonEl?.addEventListener("click", () => {
+    if (typeof colorInput.showPicker === "function") {
+      colorInput.showPicker();
+      return;
+    }
+    colorInput.click();
+  });
   document.getElementById("help-button").addEventListener("click", openHelp);
   document.getElementById("settings-close").addEventListener("click", () => closeOverlay(settingsPanel));
   document.getElementById("help-close").addEventListener("click", () => closeOverlay(helpPanel));
@@ -1473,7 +1480,7 @@ function registerEvents() {
   document.getElementById("debug-close").addEventListener("click", () => closeOverlay(debugPanel));
   document.getElementById("welcome-open-settings").addEventListener("click", openSettings);
   document.getElementById("welcome-dismiss").addEventListener("click", () => {
-    window.localStorage.setItem("grid-editor-dismissed-welcome", "true");
+    safeLocalStorage.setItem("grid-editor-dismissed-welcome", "true");
     welcomeBannerEl.classList.add("hidden");
   });
   document.getElementById("find-next").addEventListener("click", () => runSearchReplace(false));
@@ -1605,12 +1612,12 @@ function isTypingTarget(target) {
 
 function getOrCreateParticipantID() {
   const key = "grid-editor-participant-id";
-  const existing = window.sessionStorage.getItem(key);
+  const existing = safeSessionStorage.getItem(key);
   if (existing) {
     return existing;
   }
   const created = `browser-${crypto.randomUUID()}`;
-  window.sessionStorage.setItem(key, created);
+  safeSessionStorage.setItem(key, created);
   return created;
 }
 
@@ -1711,7 +1718,7 @@ async function readFileAsDataURL(file) {
 registerEvents();
 applyPreferences(state.prefs);
 renderRegistry();
-if (window.localStorage.getItem("grid-editor-dismissed-welcome") === "true") {
+if (safeLocalStorage.getItem("grid-editor-dismissed-welcome") === "true") {
   welcomeBannerEl.classList.add("hidden");
 }
 

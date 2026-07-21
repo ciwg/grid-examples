@@ -38,7 +38,7 @@ experience, local CRDT replica, and some workflow/review conveniences. Source:
 - `Title`
   - current document title
 - `New Shared Doc`
-  - creates a fresh document ID
+  - creates a fresh document ID and opens it immediately
 - `Duplicate`
   - makes a new local copy of the current document
 - `Paste Link`
@@ -67,6 +67,8 @@ protocol truth. Source: `DI-dovoz`; `DI-nuvif`.
   - human-facing name shown to peers
 - `Color`
   - presence/cursor color
+- visible color picker button
+  - opens the browser color picker without relying on the tiny native preview
 - `Participant`
   - local browser participant/session ID
 - `Settings`
@@ -158,8 +160,8 @@ This list is for live presence, not long-term history. Source: `DI-mivor`.
 
 ### 9. Editing and workflow buttons
 
-- `Search`
-  - opens find/replace
+- `Find / Replace`
+  - opens find/replace and go-to-line
 - `Bold`
   - wraps selection in `**...**`
 - `Italic`

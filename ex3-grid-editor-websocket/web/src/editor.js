@@ -345,11 +345,12 @@ function injectCursorStyles() {
     .grid-remote-cursor {
       position: relative;
       display: inline-block;
-      width: 0;
+      width: 2px;
       height: 1.25em;
       margin-left: -1px;
       margin-right: -1px;
-      border-left: 2px solid var(--grid-peer-color, #999999);
+      background: var(--grid-peer-color, #999999);
+      box-shadow: 0 0 0 1px var(--grid-peer-color, #999999);
       pointer-events: none;
       vertical-align: text-bottom;
     }

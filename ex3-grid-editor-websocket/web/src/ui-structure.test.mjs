@@ -39,6 +39,7 @@ test("page includes the documented editor and PromiseGrid controls", () => {
     "comment-button",
     "summary-button",
     "debug-button",
+    "color-picker-button",
     "transport-mode",
     "trace-caption",
     "message-trace",
@@ -64,6 +65,12 @@ test("page includes the documented hidden overlays", () => {
   for (const id of overlays) {
     assert.match(indexHTML, new RegExp(`id="${escapeRegExp(id)}"`));
   }
+});
+
+test("page uses the clarified browser workflow labels", () => {
+  assert.match(indexHTML, /Find \/ Replace/);
+  assert.match(indexHTML, /Creates a fresh shared document id and opens it immediately\./);
+  assert.match(indexHTML, /Pick visible color/);
 });
 
 function escapeRegExp(value) {

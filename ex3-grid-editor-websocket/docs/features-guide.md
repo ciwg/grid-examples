@@ -226,7 +226,7 @@ Features:
 - Bold
 - Italic
 - Underline
-- Search
+- Find / Replace
 - Preview
 - Split View
 - Import
@@ -281,6 +281,9 @@ Features:
 PromiseGrid enablement:
 - none required for durability
 - affects how the embodiment presents the same shared relay flows
+- browser-local preferences and workflow state now fall back to in-memory
+  storage if local/session storage are blocked, so private browser sessions do
+  not lose core editor startup behavior
 
 ### Help
 
@@ -298,6 +301,7 @@ Features:
 - case sensitive
 - regex
 - go to line
+- a short helper sentence describing the current workflow
 
 PromiseGrid enablement:
 - local editor operation

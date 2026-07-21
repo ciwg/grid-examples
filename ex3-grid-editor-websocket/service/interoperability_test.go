@@ -144,6 +144,64 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	}
 }
 
+func TestFreshBrowserLateJoinReceivesSharedDocument(t *testing.T) {
+	t.Parallel()
+
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	listener := listenTCP4OrSkip(t)
+	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	repoRoot := repoRoot(t)
+	browserA := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browserA.Close()
+	browserB := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browserB.Close()
+
+	browserA.WaitForType(t, "ready")
+	browserB.WaitForType(t, "ready")
+
+	browserA.Send(t, map[string]any{
+		"type":           "connect",
+		"relay_url":      server.URL,
+		"participant_id": "browser-a",
+		"doc_id":         "demo",
+		"display_name":   "Browser A",
+		"color":          "#1d6fd6",
+	})
+	browserA.WaitForType(t, "opened")
+
+	const shared = "# Shared Manual\n\nLate joiners should see this."
+	browserA.Send(t, map[string]any{
+		"type":    "set_text",
+		"content": shared,
+	})
+	browserA.WaitForMessage(t, func(message map[string]any) bool {
+		return stringField(t, message, "type") == "local_change" && stringField(t, message, "content") == shared
+	})
+
+	browserB.Send(t, map[string]any{
+		"type":           "connect",
+		"relay_url":      server.URL,
+		"participant_id": "browser-b",
+		"doc_id":         "demo",
+		"display_name":   "Browser B",
+		"color":          "#d66f1d",
+	})
+	opened := browserB.WaitForType(t, "opened")
+	if got := stringField(t, opened, "content"); got != shared {
+		t.Fatalf("late-joining browser opened with %q want %q", got, shared)
+	}
+	if got := stringField(t, opened, "relay_transport"); got != "websocket" {
+		t.Fatalf("browser relay transport mismatch: got %q want %q", got, "websocket")
+	}
+}
+
 func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 	t.Parallel()
 

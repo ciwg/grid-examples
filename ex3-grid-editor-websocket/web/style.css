@@ -423,6 +423,15 @@ dd {
 
 .toolbar-status {
   justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) minmax(10rem, auto) minmax(8rem, auto) minmax(15rem, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.status-slot {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .welcome-banner {
@@ -488,6 +497,32 @@ dd {
 .peer-badge.self-badge {
   border: 1px solid rgba(31, 111, 120, 0.35);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.color-picker-button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 111, 120, 0.2);
+  background: rgba(31, 111, 120, 0.08);
+  color: var(--ink);
+}
+
+.color-picker-button:hover {
+  border-color: rgba(31, 111, 120, 0.35);
+}
+
+.color-picker-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.color-picker-button .color-preview-row {
+  width: 100%;
 }
 
 .flow-diagram {
