@@ -6,6 +6,10 @@ It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.
 
+The adapter is served by the same Go 1.24.13 runtime pinned in this module's
+`go.mod`, matching the current patch-level default used across the other
+`grid-examples` modules.
+
 ## Core shape
 
 The server defaults to:
@@ -151,7 +155,13 @@ Supported kinds today:
 - `procedure`
 - `training`
 - `maintenance`
+- `receiving_check`
 - `inventory_audit`
+
+`receiving_check` is the broad inbound inspection and intake workflow kind. It
+is meant for received parts, returned items, tool intake, staged kits, and
+similar receipt/review work that should not be forced into either a plain
+inventory count or a generic procedure label.
 
 ### `POST /api/items`
 
@@ -178,6 +188,10 @@ Returns one projected knowledge item, including:
 - revision list
 - approvals
 - links
+
+For a `receiving_check` item, the browser uses the same response shape to show
+revision history plus receiving-specific related-run history in the record
+inspector.
 
 ### `POST /api/items/{id}/revisions`
 
@@ -267,6 +281,14 @@ Lists runs. Optional query:
 
 - `kind`
 
+Supported run kinds today match the knowledge-item kinds:
+
+- `procedure`
+- `training`
+- `maintenance`
+- `receiving_check`
+- `inventory_audit`
+
 ### `POST /api/runs`
 
 Creates a run record.
@@ -284,6 +306,18 @@ Payload fields:
 - `place_id`
 - `resource_ids`
 - `responsibility_ids`
+
+### `GET /api/runs/{id}`
+
+Returns one projected run, including:
+
+- evidence
+- approvals
+- links
+- timeline
+
+For a `receiving_check` run, the browser uses the evidence facts from this
+response to render the `Receiving review` panel.
 
 ## Evidence
 

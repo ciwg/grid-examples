@@ -23,6 +23,10 @@ top for browser collaboration.
 
 Both embodiments talk to the same local HTTP surface.
 
+The current `ex5` module now pins Go 1.24.13, which matches the other
+`grid-examples` modules and avoids a separate patch-level Go requirement when
+switching between examples.
+
 Browser:
 
 - creates places and resources
@@ -77,8 +81,8 @@ The browser draft studio is intentionally separate from durable history:
 - creating a revision snapshots the working body into append-only history
 
 This means the browser can collaborate on the in-progress text of a procedure,
-training doc, maintenance doc, or inventory audit without confusing that live
-session state with the durable operational record.
+training doc, maintenance doc, receiving check, or inventory audit without
+confusing that live session state with the durable operational record.
 
 ## Honest current limitation
 

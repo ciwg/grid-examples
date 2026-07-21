@@ -25,11 +25,11 @@ to solve that whole problem in one place. It is a durable operational memory
 example with equal browser and CLI surfaces over one local Go runtime.
 
 The current implementation keeps procedures, training content, maintenance
-content, inventory-audit content, responsibilities, places, resources,
-approvals, performed runs, evidence, live working drafts, and typed links as
-append-only operational events plus local draft state projected into query
-views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
-`DI-zoruk`.
+content, receiving-check content, inventory-audit content, responsibilities,
+places, resources, approvals, performed runs, evidence, live working drafts,
+and typed links as append-only operational events plus local draft state
+projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
+`DI-foluk`; `DI-lusov`; `DI-zoruk`; `DI-vemok`.
 
 ## Features
 
@@ -39,6 +39,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
   - procedures
   - training
   - maintenance
+  - receiving checks
   - inventory audits
 - browser-shared live working drafts with participant presence and explicit
   revision snapshots
@@ -108,7 +109,7 @@ By default the server stores runtime data under `.operational-knowledge-system/`
 
 ## What You Need To Run
 
-- Go
+- Go 1.24.13
 - a modern browser for the browser surface
 
 Optional:
@@ -117,6 +118,10 @@ Optional:
 
 You do not need Node, npm, Docker, or Neovim to run the current `ex5`
 foundation.
+
+This now matches the Go version pinned by the other `grid-examples` modules, so
+you should not need a separate patch-level Go toolchain just to switch between
+examples in this repo.
 
 ## Run
 
@@ -146,7 +151,9 @@ go run ./cmd/oks-cli responsibilities
 go run ./cmd/oks-cli new-responsibility alice "Line lead" "Owns startup and approval routing"
 go run ./cmd/oks-cli items
 go run ./cmd/oks-cli new-item alice procedure "Start line A" "Startup procedure" "# Start line A"
+go run ./cmd/oks-cli new-item alice receiving_check "Inspect inbound pallet" "Receiving check for inbound pallet" "# Inspect inbound pallet"
 go run ./cmd/oks-cli new-item alice inventory_audit "Count RJ45 bin" "Cycle count for RJ45 connectors" "# Count RJ45 bin"
+go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_notes "Outer wrap torn" PLACE-0001 RES-0001
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
 go run ./cmd/oks-cli search startup
 go run ./cmd/oks-cli runs
