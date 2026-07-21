@@ -621,8 +621,9 @@ func (app *App) Search(query string) map[string]any {
 }
 
 // Intent: Let operators narrow the operational graph by structured context
-// such as kind, status, place, resource, and responsibility without forcing
-// them to rely on one free-text query string. Source: DI-honus
+// such as kind, status, outcome, place, resource, and responsibility without
+// forcing them to rely on one free-text query string. Source: DI-honus;
+// DI-vafuk
 func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -676,6 +677,7 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 			"query":             options.Query,
 			"kind":              options.Kind,
 			"status":            options.Status,
+			"outcome":           options.Outcome,
 			"place_id":          options.PlaceID,
 			"resource_id":       options.ResourceID,
 			"responsibility_id": options.ResponsibilityID,
@@ -692,6 +694,7 @@ func normalizeSearchOptions(options SearchOptions) SearchOptions {
 	options.Query = strings.ToLower(strings.TrimSpace(options.Query))
 	options.Kind = strings.ToLower(strings.TrimSpace(options.Kind))
 	options.Status = strings.ToLower(strings.TrimSpace(options.Status))
+	options.Outcome = strings.ToLower(strings.TrimSpace(options.Outcome))
 	options.PlaceID = strings.TrimSpace(options.PlaceID)
 	options.ResourceID = strings.TrimSpace(options.ResourceID)
 	options.ResponsibilityID = strings.TrimSpace(options.ResponsibilityID)
@@ -743,6 +746,9 @@ func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
 
 func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOptions) bool {
 	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
+		return false
+	}
+	if options.Outcome != "" && strings.ToLower(record.Outcome) != options.Outcome {
 		return false
 	}
 	if options.PlaceID != "" && record.PlaceID != options.PlaceID {

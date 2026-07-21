@@ -83,12 +83,14 @@ func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.
 }
 
 // Intent: Keep the local search endpoint useful for real operator drilldown by
-// accepting structured filters, not only one free-text query. Source: DI-honus
+// accepting structured filters, not only one free-text query. Source:
+// DI-honus; DI-vafuk
 func (server *Server) handleSearch(writer http.ResponseWriter, request *http.Request) {
 	options := SearchOptions{
 		Query:            request.URL.Query().Get("q"),
 		Kind:             request.URL.Query().Get("kind"),
 		Status:           request.URL.Query().Get("status"),
+		Outcome:          request.URL.Query().Get("outcome"),
 		PlaceID:          request.URL.Query().Get("place_id"),
 		ResourceID:       request.URL.Query().Get("resource_id"),
 		ResponsibilityID: request.URL.Query().Get("responsibility_id"),

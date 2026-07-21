@@ -59,6 +59,7 @@ Supported query params:
 - `q`
 - `kind`
 - `status`
+- `outcome`
 - `place_id`
 - `resource_id`
 - `responsibility_id`
@@ -71,6 +72,14 @@ The response includes:
 - `responsibilities`
 - `items`
 - `runs`
+
+This is also the browser's history-drilldown surface. The record inspector uses
+structured `kind`, `outcome`, `place_id`, `resource_id`, and
+`responsibility_id` filters to answer questions like:
+
+- show me all receiving runs here
+- show me all counts for this bin
+- show me receiving problems in this area
 
 ## Places and resources
 

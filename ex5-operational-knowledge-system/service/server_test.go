@@ -345,6 +345,16 @@ func TestServerSearchAcceptsStructuredFilters(t *testing.T) {
 	if !strings.Contains(response.Body.String(), place.ID) || !strings.Contains(response.Body.String(), resource.ID) || !strings.Contains(response.Body.String(), run.ID) {
 		t.Fatalf("place/resource filtered search missing expected records: %s", response.Body.String())
 	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/search?kind=inventory_audit&outcome=completed&place_id="+place.ID, nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("outcome search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"outcome":"completed"`) || !strings.Contains(response.Body.String(), `"kind":"inventory_audit"`) || !strings.Contains(response.Body.String(), run.ID) {
+		t.Fatalf("outcome-filtered search missing expected run: %s", response.Body.String())
+	}
 }
 
 func TestServerItemDetailIncludesRelatedRuns(t *testing.T) {

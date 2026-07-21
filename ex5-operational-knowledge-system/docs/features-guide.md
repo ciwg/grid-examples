@@ -142,6 +142,7 @@ Operators can combine a free-text query with filters for:
 
 - `kind`
 - `status`
+- `outcome`
 - `place_id`
 - `resource_id`
 - `responsibility_id`
@@ -151,6 +152,15 @@ That makes it easier to ask targeted questions like:
 - which approved inventory audits belong to one responsibility
 - which runs and resources belong to one place
 - which records are still in `draft` status
+- which receiving runs ended with `accepted_with_notes`
+
+The record inspector now also uses those same filters for one-click context
+drilldown from places, resources, and responsibilities. That makes it possible
+to answer questions like:
+
+- show me all receiving history here
+- show me all counts for this bin
+- show me all receiving problems in this area
 
 ### Performed runs
 

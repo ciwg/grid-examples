@@ -2,6 +2,7 @@
 
 ## Completed
 
+- [x] 014 - Add ex5 history drilldown filters - `TODO/TODO-vafuk-ex5-history-drilldown-filters.md`
 - [x] 013 - Add ex5 context review facts - `TODO/TODO-zemok-ex5-context-review-facts.md`
 - [x] 012 - Add ex5 receiving check workflow review - `TODO/TODO-vemok-ex5-receiving-check-review.md`
 - [x] 011 - Repair ex5 decision-first and path-intake records - `TODO/TODO-talub-ex5-compliance-repair-and-feature-intake.md`

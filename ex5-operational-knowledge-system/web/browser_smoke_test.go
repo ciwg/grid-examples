@@ -314,8 +314,14 @@ const placeClickTimer = setInterval(() => {
 	mux.HandleFunc("/api/items/RECV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"item_id":"RECV-0001","title":"Inspect inbound pallet","status":"approved","body":"# Inspect inbound pallet","version":2,"current_revision":1,"participants":[]}`)
 	})
+	mux.HandleFunc("/api/items/RECV-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"RECV-0001","kind":"receiving_check","status":"approved","title":"Inspect inbound pallet","summary":"Receiving check","current_revision":1,"approvals":[],"revisions":[{"number":1,"title":"Inspect inbound pallet","author":"alice","created_at":"2026-07-20T16:59:00Z"}],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z"}],"responsibility_ids":["RESP-0001"],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T16:59:00Z","actor":"alice","title":"Inspect inbound pallet"}]}`)
+	})
 	mux.HandleFunc("/api/items/INV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"item_id":"INV-0001","title":"Count receiving bin","status":"approved","body":"# Count receiving bin","version":2,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/items/INV-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"INV-0001","kind":"inventory_audit","status":"approved","title":"Count receiving bin","summary":"Cycle count","current_revision":1,"approvals":[],"revisions":[{"number":1,"title":"Count receiving bin","author":"alice","created_at":"2026-07-20T16:59:00Z"}],"related_runs":[{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z"}],"responsibility_ids":["RESP-0001"],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T16:59:00Z","actor":"alice","title":"Count receiving bin"}]}`)
 	})
 	mux.HandleFunc("/api/places/PLACE-0001", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"id":"PLACE-0001","kind":"area","name":"Receiving","summary":"Inbound inspection area","parent_id":"","child_place_ids":[],"resource_ids":["RES-0001"],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","evidence":[{"id":"EVID-0001","summary":"Receiving inspection","facts":{"supplier":"Acme Parts","variance":"-2","condition":"wrap torn"},"actor":"bob","created_at":"2026-07-20T17:11:00Z"}]},{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"timeline":[{"type":"place_created","timestamp":"2026-07-20T16:00:00Z","actor":"alice","summary":"Inbound inspection area"}]}`)
@@ -346,6 +352,113 @@ const placeClickTimer = setInterval(() => {
 		"Inventory count history",
 		"expected_count: 12",
 		"discrepancy: -2",
+	}
+	for _, marker := range required {
+		if !strings.Contains(dom, marker) {
+			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
+		}
+	}
+}
+
+func TestHeadlessBrowserSupportsContextHistoryDrilldownFilters(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		MustRead("index.html"),
+		[]byte("</body>"),
+		[]byte(`<script>
+const placeClickTimer = setInterval(() => {
+  const placeButton = document.querySelector("#place-list button");
+  if (!placeButton) {
+    return;
+  }
+  placeButton.click();
+  clearInterval(placeClickTimer);
+}, 200);
+const searchClickTimer = setInterval(() => {
+  const buttons = Array.from(document.querySelectorAll("#detail-actions button"));
+  const target = buttons.find((button) => button.textContent.includes("Search problems here"));
+  if (!target) {
+    return;
+  }
+  target.click();
+  clearInterval(searchClickTimer);
+}, 700);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":1,"places":1,"resources":1,"procedures":0,"training_items":0,"maintenance_items":0,"receiving_items":1,"inventory_items":1,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":1,"inventory_runs":1,"approvals":1,"evidence":2,"links":0}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[{"id":"PLACE-0001","kind":"area","name":"Receiving","summary":"Inbound inspection area","parent_id":"","child_place_ids":[],"resource_ids":["RES-0001"],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","evidence":[{"id":"EVID-0001","summary":"Receiving inspection","facts":{"supplier":"Acme Parts","variance":"-2","condition":"wrap torn"},"actor":"bob","created_at":"2026-07-20T17:11:00Z"}]},{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"timeline":[{"type":"place_created","timestamp":"2026-07-20T16:00:00Z","actor":"alice","summary":"Inbound inspection area"}]}]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[{"id":"RES-0001","kind":"container","name":"RJ45 Bin","summary":"Connector bin","place_id":"PLACE-0001","related_runs":[{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"tags":["parts"],"links":[],"timeline":[{"type":"resource_created","timestamp":"2026-07-20T16:01:00Z","actor":"alice","summary":"Connector bin"}]}]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[{"id":"RESP-0001","title":"Receiving lead","summary":"Owns intake checks","team":"OPS","linked_item_ids":["RECV-0001","INV-0001"],"linked_run_ids":["RUN-0001","RUN-0002"],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","evidence":[{"id":"EVID-0001","summary":"Receiving inspection","facts":{"supplier":"Acme Parts","variance":"-2","condition":"wrap torn"},"actor":"bob","created_at":"2026-07-20T17:11:00Z"}]},{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"linked_role_keys":["reviewer"],"timeline":[{"type":"responsibility_created","timestamp":"2026-07-20T16:02:00Z","actor":"alice","summary":"Owns intake checks"}]}]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[{"id":"RECV-0001","kind":"receiving_check","status":"approved","title":"Inspect inbound pallet","summary":"Receiving check","current_revision":1,"working_version":2},{"id":"INV-0001","kind":"inventory_audit","status":"approved","title":"Count receiving bin","summary":"Cycle count","current_revision":1,"working_version":2}]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Outer wrap torn"},{"id":"RUN-0002","kind":"inventory_audit","item_id":"INV-0001","revision":1,"outcome":"completed","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Counted receiving bin"}]}`)
+	})
+	mux.HandleFunc("/api/search", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"filters":{"query":"","kind":"receiving_check","status":"","outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_id":"","responsibility_id":""},"places":[],"resources":[],"responsibilities":[],"items":[],"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Outer wrap torn"}]}`)
+	})
+	mux.HandleFunc("/api/items/RECV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"item_id":"RECV-0001","title":"Inspect inbound pallet","status":"approved","body":"# Inspect inbound pallet","version":2,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/items/INV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"item_id":"INV-0001","title":"Count receiving bin","status":"approved","body":"# Count receiving bin","version":2,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/places/PLACE-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"PLACE-0001","kind":"area","name":"Receiving","summary":"Inbound inspection area","parent_id":"","child_place_ids":[],"resource_ids":["RES-0001"],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","evidence":[{"id":"EVID-0001","summary":"Receiving inspection","facts":{"supplier":"Acme Parts","variance":"-2","condition":"wrap torn"},"actor":"bob","created_at":"2026-07-20T17:11:00Z"}]},{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"timeline":[{"type":"place_created","timestamp":"2026-07-20T16:00:00Z","actor":"alice","summary":"Inbound inspection area"}]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=5000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	required := []string{
+		"Search problems here",
+		"outcome: accepted_with_notes",
+		"place: PLACE-0001",
+		"RUN-0001",
 	}
 	for _, marker := range required {
 		if !strings.Contains(dom, marker) {

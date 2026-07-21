@@ -16,6 +16,7 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"detail-review",
 		"search-kind",
 		"search-status",
+		"search-outcome",
 		"Runs",
 		"receiving_check",
 		"inventory_audit",
@@ -42,6 +43,7 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"renderDetailTimeline",
 		"renderDetailReview",
 		"detailStats",
+		"runSearch",
 		"Related runs",
 		"related_runs",
 		"Receiving history",
@@ -57,6 +59,9 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"formatEvidenceFacts",
 		"Linked runs",
 		"detail-json",
+		"Search receiving here",
+		"Search counts here",
+		"Search problems here",
 		"participant_id",
 	}
 	for _, marker := range required {

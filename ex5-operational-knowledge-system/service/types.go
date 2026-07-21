@@ -189,10 +189,14 @@ type Dashboard struct {
 	Links            int `json:"links"`
 }
 
+// Intent: Keep one shared search shape for browser forms, drilldown actions,
+// and HTTP query parsing so context history filters stay aligned. Source:
+// DI-vafuk
 type SearchOptions struct {
 	Query            string `json:"query"`
 	Kind             string `json:"kind"`
 	Status           string `json:"status"`
+	Outcome          string `json:"outcome"`
 	PlaceID          string `json:"place_id"`
 	ResourceID       string `json:"resource_id"`
 	ResponsibilityID string `json:"responsibility_id"`

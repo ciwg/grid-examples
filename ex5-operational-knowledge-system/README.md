@@ -53,6 +53,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - typed links across responsibilities, items, and runs
 - browser dashboard and forms
 - browser search filters by kind, status, place, resource, and responsibility
+- browser search filters by kind, status, outcome, place, resource, and responsibility
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
 - item detail drilldown into the runs that used that item
@@ -60,6 +61,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - receiving check review panels for inbound inspection evidence and receiving history
 - inventory audit review panels for discrepancy/count facts and audit history
 - place/resource/responsibility context review panels that now surface receiving facts and inventory count/discrepancy facts from related runs
+- one-click place/resource/responsibility drilldowns into filtered receiving history, count history, and receiving-problem history
 - CLI inspection and creation commands
 - headless browser smoke coverage for the shipped UI
 

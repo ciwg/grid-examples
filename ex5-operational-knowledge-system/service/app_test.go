@@ -378,6 +378,16 @@ func TestAppSearchWithStructuredFilters(t *testing.T) {
 	if len(respRuns) != 1 || respRuns[0].ID != run.ID {
 		t.Fatalf("unexpected responsibility-linked run result: %+v", respRuns)
 	}
+
+	outcomeSearch := app.SearchWithOptions(SearchOptions{
+		Kind:    RunKindInventory,
+		Outcome: "completed",
+		PlaceID: place.ID,
+	})
+	outcomeRuns := outcomeSearch["runs"].([]RunRecord)
+	if len(outcomeRuns) != 1 || outcomeRuns[0].ID != run.ID {
+		t.Fatalf("unexpected outcome-filtered run result: %+v", outcomeRuns)
+	}
 }
 
 func TestGetKnowledgeItemIncludesRelatedRuns(t *testing.T) {
@@ -507,12 +517,12 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 		t.Fatalf("record run: %v", err)
 	}
 	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
-		"supplier":        "Acme Parts",
-		"packing_slip":    "PS-1234",
-		"received_units":  "18",
-		"expected_units":  "20",
-		"variance":        "-2",
-		"condition":       "wrap torn",
+		"supplier":       "Acme Parts",
+		"packing_slip":   "PS-1234",
+		"received_units": "18",
+		"expected_units": "20",
+		"variance":       "-2",
+		"condition":      "wrap torn",
 	}, "", nil)
 	if err != nil {
 		t.Fatalf("add evidence: %v", err)

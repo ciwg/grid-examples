@@ -42,7 +42,8 @@ Browser:
 - shows receiving-check evidence and receiving history in dedicated review sections
 - shows inventory audit discrepancy/count facts and inventory audit history in dedicated review sections
 - shows receiving and inventory fact history directly from place/resource/responsibility context views, instead of only bare related-run summaries
-- filters search by kind, status, place, resource, and responsibility
+- filters search by kind, status, outcome, place, resource, and responsibility
+- uses those same structured filters for one-click context drilldowns into receiving/count/problem history
 - records runs
 - records approvals
 - uploads evidence
