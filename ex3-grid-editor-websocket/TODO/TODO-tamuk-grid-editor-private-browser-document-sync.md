@@ -42,4 +42,5 @@ Current status:
 - browser-local registry and preference storage now fall back to in-memory state if local/session storage are blocked
 - the real browser startup path now has direct helper coverage for participant-id and welcome-banner state when browser storage is restricted
 - browser startup now forces one bounded HTTP sync catch-up when websocket startup leaves the editor blank even though the relay reports authoritative history
+- headless Chrome now probes the real built app and asserts that a fresh browser late-join renders shared document text in the DOM
 - real manual private/incognito browser verification is still pending before TODO 016 can close fully
