@@ -2,6 +2,8 @@
 
 ## Completed
 
+- [x] 011 - Repair ex5 decision-first and path-intake records - `TODO/TODO-talub-ex5-compliance-repair-and-feature-intake.md`
+- [x] 010 - Add ex5 inventory discrepancy review - `TODO/TODO-pojul-ex5-inventory-discrepancy-review.md`
 - [x] 008 - Add ex5 item run history drilldown - `TODO/TODO-hozom-ex5-item-run-history.md`
 - [x] 006 - Expand ex5 workflow search and browser automation - `TODO/TODO-honus-ex5-workflow-search-and-automation.md`
 - [x] 004 - Resolve ex5 open product decisions - `TODO/TODO-solaj-ex5-open-product-decisions.md`
@@ -20,3 +22,4 @@
 ## Locked decisions affecting implementation
 
 - `DI-tabiv`: keep the current local HTTP live-draft model; collaborative editing is optional; a future Neovim embodiment is desirable but not implemented.
+- `DI-talub`: recent `ex5` feature slices are retroactively documented for decision/path traceability, and every future `ex5` feature slice must start by recording its intended repo paths and runtime path patterns in a local TODO before code changes begin.

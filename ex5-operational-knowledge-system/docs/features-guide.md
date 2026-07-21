@@ -184,6 +184,14 @@ That does **not** make the current foundation a full inventory or MRP system. It
 means inventory audits and related operational history belong to the same
 operational-memory family as procedures, training, and maintenance.
 
+The browser inspector now also treats inventory audits as a first-class review
+surface:
+
+- inventory audit items show `Inventory audit history`
+- inventory audit runs show `Inventory discrepancy`
+- place/resource/responsibility detail views show inventory audit history when
+  those runs are part of the surrounding context
+
 ### Evidence
 
 Evidence adds facts and optional copied attachments to a run.
@@ -237,6 +245,7 @@ Current browser surface:
 - timeline-first record detail view
 - item history drilldown into related runs
 - context history drilldown from places, resources, and responsibilities
+- inventory discrepancy/count review for audit runs
 - record run
 - upload evidence
 - record approval

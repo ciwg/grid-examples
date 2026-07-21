@@ -1389,6 +1389,9 @@ func cloneRun(in *RunRecord) RunRecord {
 	return out
 }
 
+// Intent: Let operators inspect operational history from contextual anchors
+// like places, resources, and responsibilities instead of forcing all history
+// lookup to start from the knowledge item alone. Source: DI-julos
 func (app *App) placeWithRelatedRunsLocked(place *Place) Place {
 	out := clonePlace(place)
 	out.RelatedRuns = []RunRecord{}

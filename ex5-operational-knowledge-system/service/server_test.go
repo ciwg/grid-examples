@@ -416,3 +416,37 @@ func TestServerContextDetailIncludesRelatedRuns(t *testing.T) {
 		}
 	}
 }
+
+func TestServerRunDetailIncludesEvidenceFacts(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count flow", "# Count receiving bin", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindInventory, item.ID, 1, "completed", "Counted receiving bin", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Count sheet", map[string]string{
+		"expected_count": "12",
+		"actual_count":   "10",
+		"discrepancy":    "-2",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/runs/"+run.ID, nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("run detail status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"expected_count":"12"`) || !strings.Contains(response.Body.String(), `"actual_count":"10"`) || !strings.Contains(response.Body.String(), `"discrepancy":"-2"`) {
+		t.Fatalf("run detail missing evidence facts: %s", response.Body.String())
+	}
+}

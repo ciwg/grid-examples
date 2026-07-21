@@ -56,6 +56,7 @@ views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`; `DI-foluk`; `DI-lusov`;
 - browser review panels for item revisions, run evidence, and approvals
 - item detail drilldown into the runs that used that item
 - place, resource, and responsibility drilldown into related run history
+- inventory audit review panels for discrepancy/count facts and audit history
 - CLI inspection and creation commands
 - headless browser smoke coverage for the shipped UI
 

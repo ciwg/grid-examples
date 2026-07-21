@@ -35,6 +35,7 @@ Browser:
 - reviews item revisions plus run evidence/approvals in the record inspector
 - shows related run history from the selected item detail view
 - shows related run history from place, resource, and responsibility detail views
+- shows inventory audit discrepancy/count facts and inventory audit history in dedicated review sections
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals

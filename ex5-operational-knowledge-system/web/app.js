@@ -692,9 +692,10 @@ function renderDetailTimeline(events) {
   }
 }
 
-// Intent: Make run/item review practical in the browser by surfacing revision,
-// approval, and evidence history as first-class panels instead of hiding them
-// inside raw record JSON. Source: DI-honus
+// Intent: Make run/item/context review practical in the browser by surfacing
+// revisions, approvals, evidence, and related run history as first-class
+// panels instead of hiding them inside raw record JSON. Source: DI-honus;
+// DI-julos
 function renderDetailReview(type, record) {
   detailReviewEl.innerHTML = "";
   const sections = [];
@@ -702,19 +703,27 @@ function renderDetailReview(type, record) {
     sections.push(["Revisions", (record.revisions || []).map((revision) => `${revision.number} · ${revision.title} · ${revision.author} · ${revision.created_at}`)]);
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor} · rev ${approval.revision}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    if (record.kind === "inventory_audit") {
+      sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
+    }
   }
   if (type === "run") {
     sections.push(["Evidence", (record.evidence || []).map((evidence) => `${evidence.summary} · ${evidence.actor} · ${evidence.created_at}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`)]);
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
     sections.push(["Responsibilities", (record.responsibility_ids || []).map((id) => id)]);
+    if (record.kind === "inventory_audit") {
+      sections.push(["Inventory discrepancy", inventoryEvidenceEntries(record.evidence || [])]);
+    }
   }
   if (type === "responsibility") {
     sections.push(["Linked items", (record.linked_item_ids || []).map((id) => id)]);
     sections.push(["Linked runs", (record.linked_run_ids || []).map((id) => id)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
   }
   if (type === "place" || type === "resource") {
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
   }
   for (const [title, entries] of sections) {
     if (!entries.length) {
@@ -736,6 +745,32 @@ function renderDetailReview(type, record) {
     panel.appendChild(list);
     detailReviewEl.appendChild(panel);
   }
+}
+
+// Intent: Make inventory audit runs easier to review than generic evidence
+// blobs by surfacing discrepancy/count facts and audit history as named review
+// sections in the browser inspector. Source: DI-pojul
+function inventoryEvidenceEntries(evidenceList) {
+  const entries = [];
+  for (const evidence of evidenceList) {
+    const facts = formatEvidenceFacts(evidence.facts || {});
+    entries.push(`${evidence.summary} · ${facts}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`);
+  }
+  return entries;
+}
+
+function inventoryAuditEntries(runs) {
+  return runs
+    .filter((run) => run.kind === "inventory_audit")
+    .map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`);
+}
+
+function formatEvidenceFacts(facts) {
+  const keys = Object.keys(facts).sort();
+  if (keys.length === 0) {
+    return "no facts";
+  }
+  return keys.map((key) => `${key}: ${facts[key]}`).join(" · ");
 }
 
 function timelineSummary(event) {
