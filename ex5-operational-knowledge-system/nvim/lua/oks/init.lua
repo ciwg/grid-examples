@@ -219,6 +219,7 @@ local function push_presence(typing)
     head = cursor,
     typing = typing,
     base_version = M.state.version,
+    update_body = false,
     body = "",
   })
   if err or status ~= 200 then
@@ -247,6 +248,7 @@ local function push_body()
     head = cursor,
     typing = false,
     base_version = M.state.version,
+    update_body = true,
     body = current_body(),
   })
   if err then

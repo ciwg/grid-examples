@@ -2,7 +2,6 @@
 
 ## Open / Planned
 
-- [ ] 023 - Fix ex5 approval and live-draft correctness - `TODO/TODO-dazim-ex5-approval-and-live-draft-correctness.md`
 - [ ] 024 - Fix ex5 typed-link model consistency - `TODO/TODO-luzaf-ex5-link-model-consistency.md`
 - [ ] 025 - Align ex5 browser problem drilldowns with review logic - `TODO/TODO-vemur-ex5-problem-drilldown-alignment.md`
 - [ ] 026 - Fix ex5 CLI approval identity handling - `TODO/TODO-tarok-ex5-cli-approval-identity.md`
@@ -10,6 +9,7 @@
 
 ## Completed
 
+- [x] 023 - Fix ex5 approval and live-draft correctness - `TODO/TODO-dazim-ex5-approval-and-live-draft-correctness.md`
 - [x] 022 - Fix ex5 durability and replay safety - `TODO/TODO-busor-ex5-durability-and-replay-safety.md`
 - [x] 020 - Add ex5 Neovim typed-link browsing phase - `TODO/TODO-zalor-ex5-neovim-typed-link-browsing-phase.md`
 - [x] 019 - Add ex5 Neovim run inspector phase - `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`

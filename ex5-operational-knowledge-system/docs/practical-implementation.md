@@ -110,6 +110,12 @@ in-progress text of a procedure, training doc, maintenance doc, receiving
 check, or inventory audit without confusing that live session state with the
 durable operational record.
 
+The live HTTP surface now also distinguishes presence-only posts from real body
+writes. Browser and Neovim clients set `update_body=true` when they intend to
+change the shared draft, including clearing it to empty text, and use
+`update_body=false` for presence heartbeats that should not advance the live
+version. Source: `DI-dazim`.
+
 ## Honest current limitation
 
 The foundation still does not yet include:

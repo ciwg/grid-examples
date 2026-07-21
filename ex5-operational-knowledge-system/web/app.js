@@ -1043,6 +1043,7 @@ async function flushLivePush() {
         head: editorBodyEl.selectionEnd || 0,
         typing: true,
         base_version: editorState.version,
+        update_body: true,
         body: editorBodyEl.value,
       }),
     });

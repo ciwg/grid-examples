@@ -200,7 +200,7 @@ func TestServerPlacesResourcesAndLiveItems(t *testing.T) {
 		t.Fatalf("decode item: %v", err)
 	}
 
-	liveBody := bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#1d6fd6","cursor":5,"head":5,"typing":true,"base_version":1,"body":"# Count receiving bin\n\nObserved 12 connectors"}`)
+	liveBody := bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#1d6fd6","cursor":5,"head":5,"typing":true,"base_version":1,"update_body":true,"body":"# Count receiving bin\n\nObserved 12 connectors"}`)
 	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", liveBody)
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -274,14 +274,14 @@ func TestServerLiveItemGetAndConflictResponse(t *testing.T) {
 		t.Fatalf("unexpected initial live state: %s", response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"body":"# Inspect station\n\nChecked bins."}`))
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"update_body":true,"body":"# Inspect station\n\nChecked bins."}`))
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("first live post status: %d %s", response.Code, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-b","display_name":"Bob","color":"#b75c1c","cursor":2,"head":2,"typing":true,"base_version":1,"body":"# Inspect station\n\nStale body."}`))
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-b","display_name":"Bob","color":"#b75c1c","cursor":2,"head":2,"typing":true,"base_version":1,"update_body":true,"body":"# Inspect station\n\nStale body."}`))
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusConflict {
@@ -303,14 +303,14 @@ func TestServerLiveItemPresenceOnlyUpdateKeepsBodyAndVersion(t *testing.T) {
 	}
 	server := NewServer(app)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"body":"# Inspect station\n\nChecked bins."}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"update_body":true,"body":"# Inspect station\n\nChecked bins."}`))
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("initial live body post status: %d %s", response.Code, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"oks-nvim-host-1234","display_name":"Neovim","color":"#d66f1d","cursor":6,"head":6,"typing":false,"base_version":2,"body":""}`))
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"oks-nvim-host-1234","display_name":"Neovim","color":"#d66f1d","cursor":6,"head":6,"typing":false,"base_version":2,"update_body":false,"body":""}`))
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -334,6 +334,82 @@ func TestServerLiveItemPresenceOnlyUpdateKeepsBodyAndVersion(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"version":2`) || !strings.Contains(response.Body.String(), `Checked bins.`) || !strings.Contains(response.Body.String(), `"participant_id":"oks-nvim-host-1234"`) {
 		t.Fatalf("unexpected live state after presence-only post: %s", response.Body.String())
+	}
+}
+
+func TestServerLiveItemClearBodyPersistsEmptyDraft(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Inspect station", "Station checklist", "# Inspect station", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"update_body":true,"body":"# Inspect station\n\nChecked bins."}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("initial live body post status: %d %s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":0,"head":0,"typing":false,"base_version":2,"update_body":true,"body":""}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("clear-body post status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":3`) || !strings.Contains(response.Body.String(), `"body":""`) {
+		t.Fatalf("unexpected clear-body payload: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/items/"+item.ID+"/live", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("get live state after clear-body status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":3`) || !strings.Contains(response.Body.String(), `"body":""`) {
+		t.Fatalf("unexpected live state after clear-body post: %s", response.Body.String())
+	}
+}
+
+func TestServerRejectsStaleKnowledgeItemApproval(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Inspect station", "Station checklist", "# Inspect station", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	item, err = app.AddRevision("alice", item.ID, "Inspect station", "Station checklist revised", "# Inspect station\n\nRevision 2", nil)
+	if err != nil {
+		t.Fatalf("add revision: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/approvals", bytes.NewBufferString(`{"actor":"boss","revision":1,"role":"reviewer","decision":"approved","notes":"stale approval"}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected stale approval rejection, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "stale revision") {
+		t.Fatalf("unexpected stale approval response: %s", response.Body.String())
+	}
+
+	loaded, err := app.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	if loaded.Status != ItemStatusDraft {
+		t.Fatalf("stale approval should not change item status: %+v", loaded)
+	}
+	if len(loaded.Approvals) != 0 {
+		t.Fatalf("stale approval should not append approval record: %+v", loaded.Approvals)
 	}
 }
 

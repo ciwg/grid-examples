@@ -92,6 +92,10 @@ This is the current bridge between plain collaborative documents and structured
 workflow state: the text stays readable, but the durable context around it is
 not lost.
 
+The approval path is now revision-aware. Approving a knowledge item only moves
+it to `approved` when the approval targets the current revision, so an old
+review cannot silently bless a newer draft. Source: `DI-dazim`.
+
 The current durability pass also keeps larger stored knowledge bodies
 replayable after restart, so the size of a legitimate procedure or audit body
 does not quietly make the runtime unreadable later. Source: `DI-busor`.
@@ -114,6 +118,10 @@ current implementation uses the shared local runtime and a live draft endpoint
 with version checks and participant presence. That gives the browser a real
 collaborative drafting surface while keeping the durable revision workflow
 explicit and auditable.
+
+That live endpoint now also lets clients intentionally clear a shared draft to
+empty text while still keeping Neovim presence heartbeats body-neutral. Source:
+`DI-dazim`.
 
 ### Neovim live draft phase 1
 

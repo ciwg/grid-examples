@@ -257,6 +257,9 @@ Payload fields:
 - `notes`
 
 If `decision == "approved"`, the item lifecycle moves to `approved`.
+That lifecycle change is revision-aware: approving a stale older revision now
+returns `400` instead of silently marking a newer draft as approved. Source:
+`DI-dazim`.
 
 ### `POST /api/items/{id}/supersede`
 
@@ -299,16 +302,20 @@ Payload fields:
 - `head`
 - `typing`
 - `base_version`
+- `update_body`
 - `body`
 
 Behavior:
 
 - presence is refreshed on every call
-- if `body` differs and `base_version` matches the current live version, the
-  working draft is updated
-- if `body` is empty, the call still refreshes participant presence and returns
-  the current shared state without advancing the version
-- if `base_version` is stale, the server returns `409`
+- if `update_body == true` and `base_version` matches the current live version,
+  the working draft body is updated
+- if `update_body == true`, an empty `body` is treated as an intentional clear
+  and advances the live version
+- if `update_body == false`, the call is presence-only and does not change the
+  shared body or version
+- if `update_body == true` and `base_version` is stale, the server returns
+  `409`
 
 Conflict response shape:
 

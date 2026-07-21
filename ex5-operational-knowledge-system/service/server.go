@@ -403,13 +403,14 @@ func (server *Server) handleItemLive(writer http.ResponseWriter, request *http.R
 			Head          int    `json:"head"`
 			Typing        bool   `json:"typing"`
 			BaseVersion   int    `json:"base_version"`
+			UpdateBody    bool   `json:"update_body"`
 			Body          string `json:"body"`
 		}
 		if err := decodeJSONBody(request, &payload); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		state, conflict, err := server.app.UpdateLiveItem(itemID, payload.ParticipantID, payload.DisplayName, payload.Color, payload.Cursor, payload.Head, payload.Typing, payload.BaseVersion, payload.Body)
+		state, conflict, err := server.app.UpdateLiveItem(itemID, payload.ParticipantID, payload.DisplayName, payload.Color, payload.Cursor, payload.Head, payload.Typing, payload.BaseVersion, payload.UpdateBody, payload.Body)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return

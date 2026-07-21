@@ -600,10 +600,22 @@ func (app *App) RecordApproval(actor string, targetType string, targetID string,
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	var item *KnowledgeItem
 	switch targetType {
 	case "knowledge_item":
-		if _, ok := app.items[targetID]; !ok {
+		var ok bool
+		item, ok = app.items[targetID]
+		if !ok {
 			return fmt.Errorf("knowledge item %q not found", targetID)
+		}
+		if revision <= 0 || revision > len(item.Revisions) {
+			return fmt.Errorf("revision %d not found for %s", revision, targetID)
+		}
+		// Intent: Only let a knowledge-item approval move lifecycle state when it
+		// approves the currently active revision, so an old approval cannot mark a
+		// newer draft as approved by accident. Source: DI-dazim
+		if decision == DecisionApproved && revision != item.CurrentRevision {
+			return fmt.Errorf("cannot approve stale revision %d for current revision %d", revision, item.CurrentRevision)
 		}
 	case "run":
 		if _, ok := app.runs[targetID]; !ok {
@@ -836,7 +848,7 @@ func (app *App) LiveItemState(itemID string) (LiveItemState, error) {
 // Intent: Keep collaborative item drafting available in the browser while
 // preserving a separate durable revision workflow for approvals and historical
 // reproduction. Source: DI-lusov; DI-zoruk
-func (app *App) UpdateLiveItem(itemID string, participantID string, displayName string, color string, cursor int, head int, typing bool, baseVersion int, body string) (LiveItemState, bool, error) {
+func (app *App) UpdateLiveItem(itemID string, participantID string, displayName string, color string, cursor int, head int, typing bool, baseVersion int, updateBody bool, body string) (LiveItemState, bool, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	item, ok := app.items[itemID]
@@ -858,7 +870,10 @@ func (app *App) UpdateLiveItem(itemID string, participantID string, displayName 
 		LastSeenAt:    now,
 	}
 	body = normalizeBody(body)
-	if body != "" && body != item.WorkingBody {
+	// Intent: Distinguish presence-only posts from deliberate body writes so the
+	// shared draft can legitimately become empty without breaking Neovim/browser
+	// presence heartbeats. Source: DI-dazim
+	if updateBody && body != item.WorkingBody {
 		if baseVersion != item.WorkingVersion {
 			app.cleanupPresenceLocked(itemID)
 			return app.liveStateLocked(item), true, nil

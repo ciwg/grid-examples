@@ -123,6 +123,15 @@ item/revision bodies within the current request envelope, so restart does not
 silently invalidate either old evidence bytes or larger saved knowledge text.
 Source: `DI-busor`.
 
+The workflow-correctness pass also tightened two behavior edges:
+
+- a knowledge item only moves to `approved` when the approval targets its
+  current revision
+- a live draft can now be intentionally cleared to empty text without
+  confusing that edit with a presence-only heartbeat
+
+Source: `DI-dazim`.
+
 ## What You Need To Run
 
 - Go 1.24.13

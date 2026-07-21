@@ -327,7 +327,7 @@ func TestAppTracksLiveDraftsStatusesAndSupersedence(t *testing.T) {
 		t.Fatalf("unexpected initial live state: %+v", state)
 	}
 
-	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-alice", "Alice", "#0c6d62", 4, 4, true, state.Version, "# Count bins\n\nUpdated notes")
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-alice", "Alice", "#0c6d62", 4, 4, true, state.Version, true, "# Count bins\n\nUpdated notes")
 	if err != nil {
 		t.Fatalf("update live item: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestAppPersistsDraftsAndRejectsStaleLiveUpdates(t *testing.T) {
 		t.Fatalf("create item: %v", err)
 	}
 
-	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 3, 3, true, 1, "# Start shift\n\nChecked PPE.")
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 3, 3, true, 1, true, "# Start shift\n\nChecked PPE.")
 	if err != nil {
 		t.Fatalf("first live update: %v", err)
 	}
@@ -378,7 +378,7 @@ func TestAppPersistsDraftsAndRejectsStaleLiveUpdates(t *testing.T) {
 		t.Fatalf("unexpected first live update result: conflict=%v state=%+v", conflict, state)
 	}
 
-	staleState, conflict, err := app.UpdateLiveItem(item.ID, "browser-b", "Bob", "#654321", 2, 2, true, 1, "# Start shift\n\nStale overwrite.")
+	staleState, conflict, err := app.UpdateLiveItem(item.ID, "browser-b", "Bob", "#654321", 2, 2, true, 1, true, "# Start shift\n\nStale overwrite.")
 	if err != nil {
 		t.Fatalf("stale live update: %v", err)
 	}
@@ -402,6 +402,86 @@ func TestAppPersistsDraftsAndRejectsStaleLiveUpdates(t *testing.T) {
 	}
 	if reloadedItem.WorkingBody != "# Start shift\n\nChecked PPE." || reloadedItem.WorkingVersion != 2 {
 		t.Fatalf("expected persisted draft after reload, got %+v", reloadedItem)
+	}
+}
+
+func TestAppRejectsStaleRevisionApprovalForKnowledgeItems(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start shift", "Shift startup", "# Start shift", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	item, err = app.AddRevision("alice", item.ID, "Start shift", "Shift startup revised", "# Start shift\n\nRevision 2", nil)
+	if err != nil {
+		t.Fatalf("add revision: %v", err)
+	}
+	err = app.RecordApproval("boss", "knowledge_item", item.ID, 1, "reviewer", DecisionApproved, "stale approval")
+	if err == nil {
+		t.Fatalf("expected stale revision approval to fail")
+	}
+	if !strings.Contains(err.Error(), "stale revision") {
+		t.Fatalf("unexpected stale approval error: %v", err)
+	}
+
+	loaded, err := app.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	if loaded.Status != ItemStatusDraft {
+		t.Fatalf("stale approval should not change status: %+v", loaded)
+	}
+	if len(loaded.Approvals) != 0 {
+		t.Fatalf("stale approval should not append approval record: %+v", loaded.Approvals)
+	}
+}
+
+func TestAppAllowsClearingLiveDraftBody(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start shift", "Shift startup", "# Start shift", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 3, 3, true, 1, true, "# Start shift\n\nChecked PPE.")
+	if err != nil {
+		t.Fatalf("first live update: %v", err)
+	}
+	if conflict || state.Version != 2 {
+		t.Fatalf("unexpected first live update result: conflict=%v state=%+v", conflict, state)
+	}
+
+	state, conflict, err = app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 0, 0, true, 2, true, "")
+	if err != nil {
+		t.Fatalf("clear live body: %v", err)
+	}
+	if conflict {
+		t.Fatalf("did not expect clear-body conflict: %+v", state)
+	}
+	if state.Version != 3 || state.Body != "" {
+		t.Fatalf("expected cleared live body at version 3, got %+v", state)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.WorkingBody != "" || reloadedItem.WorkingVersion != 3 {
+		t.Fatalf("expected cleared live draft after reload, got %+v", reloadedItem)
 	}
 }
 
