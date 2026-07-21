@@ -437,6 +437,14 @@ func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("record run: %v", err)
 	}
+	run, err = app.AddEvidence("bob", run.ID, "Cycle count", map[string]string{
+		"expected_count": "12",
+		"actual_count":   "10",
+		"discrepancy":    "-2",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
 
 	loadedPlace, err := app.GetPlace(place.ID)
 	if err != nil {
@@ -444,6 +452,9 @@ func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
 	}
 	if len(loadedPlace.RelatedRuns) != 1 || loadedPlace.RelatedRuns[0].ID != run.ID {
 		t.Fatalf("unexpected place related runs: %+v", loadedPlace.RelatedRuns)
+	}
+	if len(loadedPlace.RelatedRuns[0].Evidence) != 1 || loadedPlace.RelatedRuns[0].Evidence[0].Facts["discrepancy"] != "-2" {
+		t.Fatalf("expected place related run evidence facts, got %+v", loadedPlace.RelatedRuns[0])
 	}
 
 	loadedResource, err := app.GetResource(resource.ID)
@@ -453,6 +464,9 @@ func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
 	if len(loadedResource.RelatedRuns) != 1 || loadedResource.RelatedRuns[0].ID != run.ID {
 		t.Fatalf("unexpected resource related runs: %+v", loadedResource.RelatedRuns)
 	}
+	if len(loadedResource.RelatedRuns[0].Evidence) != 1 || loadedResource.RelatedRuns[0].Evidence[0].Facts["actual_count"] != "10" {
+		t.Fatalf("expected resource related run evidence facts, got %+v", loadedResource.RelatedRuns[0])
+	}
 
 	loadedResp, err := app.GetResponsibility(resp.ID)
 	if err != nil {
@@ -460,6 +474,9 @@ func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
 	}
 	if len(loadedResp.RelatedRuns) != 1 || loadedResp.RelatedRuns[0].ID != run.ID {
 		t.Fatalf("unexpected responsibility related runs: %+v", loadedResp.RelatedRuns)
+	}
+	if len(loadedResp.RelatedRuns[0].Evidence) != 1 || loadedResp.RelatedRuns[0].Evidence[0].Facts["expected_count"] != "12" {
+		t.Fatalf("expected responsibility related run evidence facts, got %+v", loadedResp.RelatedRuns[0])
 	}
 }
 

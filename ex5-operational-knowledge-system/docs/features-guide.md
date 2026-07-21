@@ -200,10 +200,17 @@ surface:
 The browser inspector now also treats inventory audits as a first-class review
 surface:
 
-- inventory audit items show `Inventory audit history`
+- inventory audit items show `Inventory count history`
 - inventory audit runs show `Inventory discrepancy`
 - place/resource/responsibility detail views show inventory audit history when
   those runs are part of the surrounding context
+
+Context anchors now go one step further for both receiving and inventory work:
+
+- place/resource/responsibility detail views show receiving fact history from
+  related runs, not just bare run ids
+- place/resource/responsibility detail views show inventory count/discrepancy
+  fact history from related runs, not just bare run ids
 
 ### Evidence
 
@@ -260,6 +267,8 @@ Current browser surface:
 - context history drilldown from places, resources, and responsibilities
 - receiving review for inbound inspection runs
 - inventory discrepancy/count review for audit runs
+- context review facts for receiving and inventory history from places,
+  resources, and responsibilities
 - record run
 - upload evidence
 - record approval

@@ -41,6 +41,7 @@ Browser:
 - shows related run history from place, resource, and responsibility detail views
 - shows receiving-check evidence and receiving history in dedicated review sections
 - shows inventory audit discrepancy/count facts and inventory audit history in dedicated review sections
+- shows receiving and inventory fact history directly from place/resource/responsibility context views, instead of only bare related-run summaries
 - filters search by kind, status, place, resource, and responsibility
 - records runs
 - records approvals

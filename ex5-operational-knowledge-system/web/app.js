@@ -696,7 +696,7 @@ function renderDetailTimeline(events) {
 // Intent: Make run, item, and context review practical in the browser by
 // surfacing revisions, approvals, evidence, and related run history as
 // first-class panels instead of hiding them inside raw record JSON. Source:
-// DI-honus; DI-julos; DI-vemok
+// DI-honus; DI-julos; DI-vemok; DI-zemok
 function renderDetailReview(type, record) {
   detailReviewEl.innerHTML = "";
   const sections = [];
@@ -705,10 +705,10 @@ function renderDetailReview(type, record) {
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor} · rev ${approval.revision}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
     if (record.kind === "receiving_check") {
-      sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
+      sections.push(["Receiving history", receivingContextEntries(record.related_runs || [])]);
     }
     if (record.kind === "inventory_audit") {
-      sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
+      sections.push(["Inventory count history", inventoryContextEntries(record.related_runs || [])]);
     }
   }
   if (type === "run") {
@@ -726,13 +726,13 @@ function renderDetailReview(type, record) {
     sections.push(["Linked items", (record.linked_item_ids || []).map((id) => id)]);
     sections.push(["Linked runs", (record.linked_run_ids || []).map((id) => id)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
-    sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
-    sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
+    sections.push(["Receiving context review", receivingContextEntries(record.related_runs || [])]);
+    sections.push(["Inventory count history", inventoryContextEntries(record.related_runs || [])]);
   }
   if (type === "place" || type === "resource") {
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
-    sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
-    sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
+    sections.push(["Receiving context review", receivingContextEntries(record.related_runs || [])]);
+    sections.push(["Inventory count history", inventoryContextEntries(record.related_runs || [])]);
   }
   for (const [title, entries] of sections) {
     if (!entries.length) {
@@ -774,6 +774,24 @@ function inventoryAuditEntries(runs) {
     .map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`);
 }
 
+// Intent: Make inventory history useful from context anchors like places,
+// resources, and responsibilities by showing run-level count/discrepancy facts
+// instead of only bare related-run ids. Source: DI-zemok
+function inventoryContextEntries(runs) {
+  const entries = [];
+  for (const run of runs.filter((value) => value.kind === "inventory_audit")) {
+    const evidence = inventoryEvidenceEntries(run.evidence || []);
+    if (!evidence.length) {
+      entries.push(`${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at} · no evidence facts`);
+      continue;
+    }
+    for (const detail of evidence) {
+      entries.push(`${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${detail}`);
+    }
+  }
+  return entries;
+}
+
 function formatEvidenceFacts(facts) {
   const keys = Object.keys(facts).sort();
   if (keys.length === 0) {
@@ -798,6 +816,21 @@ function receivingRunEntries(runs) {
   return runs
     .filter((run) => run.kind === "receiving_check")
     .map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`);
+}
+
+function receivingContextEntries(runs) {
+  const entries = [];
+  for (const run of runs.filter((value) => value.kind === "receiving_check")) {
+    const evidence = receivingEvidenceEntries(run.evidence || []);
+    if (!evidence.length) {
+      entries.push(`${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at} · no evidence facts`);
+      continue;
+    }
+    for (const detail of evidence) {
+      entries.push(`${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${detail}`);
+    }
+  }
+  return entries;
 }
 
 function timelineSummary(event) {

@@ -59,6 +59,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - place, resource, and responsibility drilldown into related run history
 - receiving check review panels for inbound inspection evidence and receiving history
 - inventory audit review panels for discrepancy/count facts and audit history
+- place/resource/responsibility context review panels that now surface receiving facts and inventory count/discrepancy facts from related runs
 - CLI inspection and creation commands
 - headless browser smoke coverage for the shipped UI
 
