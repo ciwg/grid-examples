@@ -292,6 +292,51 @@ func TestServerLiveItemGetAndConflictResponse(t *testing.T) {
 	}
 }
 
+func TestServerLiveItemPresenceOnlyUpdateKeepsBodyAndVersion(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Inspect station", "Station checklist", "# Inspect station", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"browser-a","display_name":"Alice","color":"#0c6d62","cursor":4,"head":4,"typing":true,"base_version":1,"body":"# Inspect station\n\nChecked bins."}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("initial live body post status: %d %s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/items/"+item.ID+"/live", bytes.NewBufferString(`{"participant_id":"oks-nvim-host-1234","display_name":"Neovim","color":"#d66f1d","cursor":6,"head":6,"typing":false,"base_version":2,"body":""}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("presence-only live post status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":2`) {
+		t.Fatalf("presence-only post should not advance version: %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `Checked bins.`) {
+		t.Fatalf("presence-only post should keep shared body: %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"participant_id":"oks-nvim-host-1234"`) || !strings.Contains(response.Body.String(), `"display_name":"Neovim"`) {
+		t.Fatalf("presence-only post missing nvim participant: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/items/"+item.ID+"/live", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("get live state after presence-only post status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"version":2`) || !strings.Contains(response.Body.String(), `Checked bins.`) || !strings.Contains(response.Body.String(), `"participant_id":"oks-nvim-host-1234"`) {
+		t.Fatalf("unexpected live state after presence-only post: %s", response.Body.String())
+	}
+}
+
 func TestServerSearchAcceptsStructuredFilters(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
@@ -545,5 +590,57 @@ func TestServerReceivingRunDetailIncludesEvidenceFacts(t *testing.T) {
 	body := response.Body.String()
 	if !strings.Contains(body, `"supplier":"Acme Parts"`) || !strings.Contains(body, `"packing_slip":"PS-1234"`) || !strings.Contains(body, `"variance":"-2"`) {
 		t.Fatalf("receiving run detail missing evidence facts: %s", body)
+	}
+}
+
+func TestServerProblemReviewGroupsHotspots(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	recvItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create receiving item: %v", err)
+	}
+	recvRun, err := app.RecordRun("bob", RunKindReceiving, recvItem.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record receiving run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", recvRun.ID, "Receiving inspection", map[string]string{"variance": "-2", "condition": "wrap torn"}, "", nil); err != nil {
+		t.Fatalf("add receiving evidence: %v", err)
+	}
+	invItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count", "# Count receiving bin", nil, nil)
+	if err != nil {
+		t.Fatalf("create inventory item: %v", err)
+	}
+	invRun, err := app.RecordRun("bob", RunKindInventory, invItem.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record inventory run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", invRun.ID, "Cycle count", map[string]string{"expected_count": "12", "actual_count": "10", "discrepancy": "-2"}, "", nil); err != nil {
+		t.Fatalf("add inventory evidence: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/problem-review", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("problem review status: %d %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"problem_runs":2`) || !strings.Contains(body, place.ID) || !strings.Contains(body, resource.ID) {
+		t.Fatalf("problem review missing grouped hotspots: %s", body)
+	}
+	if !strings.Contains(body, `"outcome: accepted_with_notes"`) || !strings.Contains(body, `"discrepancy: -2"`) {
+		t.Fatalf("problem review missing expected highlights: %s", body)
 	}
 }

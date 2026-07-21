@@ -122,6 +122,58 @@ func (app *App) Dashboard() Dashboard {
 	return out
 }
 
+// Intent: Give operators one grouped view of repeated receiving and count
+// problems so they can spot hotspots by place and resource without rebuilding
+// the pattern from individual runs. Source: DI-pogul
+func (app *App) ProblemReview() ProblemReview {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+
+	placeGroups := map[string]*ProblemReviewGroup{}
+	resourceGroups := map[string]*ProblemReviewGroup{}
+	out := ProblemReview{}
+	for _, run := range app.runs {
+		highlights := problemHighlightsForRun(run)
+		if len(highlights) == 0 {
+			continue
+		}
+		out.ProblemRuns++
+		if place, ok := app.places[run.PlaceID]; ok {
+			group := placeGroups[place.ID]
+			if group == nil {
+				group = &ProblemReviewGroup{
+					GroupType: "place",
+					GroupID:   place.ID,
+					Kind:      place.Kind,
+					Name:      place.Name,
+				}
+				placeGroups[place.ID] = group
+			}
+			addProblemRunToGroup(group, run, highlights)
+		}
+		for _, resourceID := range run.ResourceIDs {
+			resource, ok := app.resources[resourceID]
+			if !ok {
+				continue
+			}
+			group := resourceGroups[resource.ID]
+			if group == nil {
+				group = &ProblemReviewGroup{
+					GroupType: "resource",
+					GroupID:   resource.ID,
+					Kind:      resource.Kind,
+					Name:      resource.Name,
+				}
+				resourceGroups[resource.ID] = group
+			}
+			addProblemRunToGroup(group, run, highlights)
+		}
+	}
+	out.PlaceGroups = flattenProblemGroups(placeGroups)
+	out.ResourceGroups = flattenProblemGroups(resourceGroups)
+	return out
+}
+
 func (app *App) ListPlaces() []Place {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -1314,6 +1366,116 @@ func cloneFacts(in map[string]string) map[string]string {
 		out[key] = value
 	}
 	return out
+}
+
+func flattenProblemGroups(groups map[string]*ProblemReviewGroup) []ProblemReviewGroup {
+	out := make([]ProblemReviewGroup, 0, len(groups))
+	for _, group := range groups {
+		sort.Slice(group.Runs, func(i, j int) bool { return group.Runs[i].ID < group.Runs[j].ID })
+		sort.Strings(group.HighlightExamples)
+		out = append(out, *group)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ProblemCount == out[j].ProblemCount {
+			return out[i].GroupID < out[j].GroupID
+		}
+		return out[i].ProblemCount > out[j].ProblemCount
+	})
+	return out
+}
+
+func addProblemRunToGroup(group *ProblemReviewGroup, run *RunRecord, highlights []string) {
+	group.ProblemCount++
+	switch run.Kind {
+	case RunKindReceiving:
+		group.ReceivingProblems++
+	case RunKindInventory:
+		group.InventoryProblems++
+	}
+	group.Runs = append(group.Runs, cloneRun(run))
+	for _, highlight := range highlights {
+		group.HighlightExamples = appendUnique(group.HighlightExamples, highlight)
+	}
+	if len(group.HighlightExamples) > 6 {
+		group.HighlightExamples = group.HighlightExamples[:6]
+	}
+}
+
+func problemHighlightsForRun(run *RunRecord) []string {
+	if run.Kind != RunKindReceiving && run.Kind != RunKindInventory {
+		return nil
+	}
+	highlights := []string{}
+	if problemOutcome(run.Outcome) {
+		highlights = append(highlights, "outcome: "+run.Outcome)
+	}
+	for _, evidence := range run.Evidence {
+		highlights = append(highlights, problemHighlightsFromFacts(evidence.Facts)...)
+	}
+	if len(highlights) == 0 {
+		return nil
+	}
+	sort.Strings(highlights)
+	return normalizeStrings(highlights)
+}
+
+func problemOutcome(outcome string) bool {
+	outcome = strings.ToLower(strings.TrimSpace(outcome))
+	switch outcome {
+	case "", "completed", "accepted", "approved", "ok", "passed", "done":
+		return false
+	default:
+		return true
+	}
+}
+
+func problemHighlightsFromFacts(facts map[string]string) []string {
+	highlights := []string{}
+	expectedCount := strings.TrimSpace(facts["expected_count"])
+	actualCount := strings.TrimSpace(facts["actual_count"])
+	if expectedCount != "" && actualCount != "" && expectedCount != actualCount {
+		highlights = append(highlights, "count mismatch: "+expectedCount+" -> "+actualCount)
+	}
+	keys := make([]string, 0, len(facts))
+	for key := range facts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := strings.TrimSpace(facts[key])
+		lowerKey := strings.ToLower(strings.TrimSpace(key))
+		switch lowerKey {
+		case "variance", "discrepancy", "delta":
+			if isNonZeroFact(value) {
+				highlights = append(highlights, lowerKey+": "+value)
+			}
+		case "condition":
+			if isProblemCondition(value) {
+				highlights = append(highlights, lowerKey+": "+value)
+			}
+		}
+	}
+	return highlights
+}
+
+func isNonZeroFact(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "", "0", "0.0", "+0", "-0", "none", "no", "false":
+		return false
+	default:
+		return true
+	}
+}
+
+func isProblemCondition(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "", "ok", "good", "acceptable", "intact", "clean", "none":
+		return false
+	default:
+		return true
+	}
 }
 
 func appendUnique(values []string, value string) []string {

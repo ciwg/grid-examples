@@ -189,6 +189,24 @@ type Dashboard struct {
 	Links            int `json:"links"`
 }
 
+type ProblemReview struct {
+	ProblemRuns    int                  `json:"problem_runs"`
+	PlaceGroups    []ProblemReviewGroup `json:"place_groups"`
+	ResourceGroups []ProblemReviewGroup `json:"resource_groups"`
+}
+
+type ProblemReviewGroup struct {
+	GroupType         string      `json:"group_type"`
+	GroupID           string      `json:"group_id"`
+	Kind              string      `json:"kind"`
+	Name              string      `json:"name"`
+	ProblemCount      int         `json:"problem_count"`
+	ReceivingProblems int         `json:"receiving_problems"`
+	InventoryProblems int         `json:"inventory_problems"`
+	HighlightExamples []string    `json:"highlights"`
+	Runs              []RunRecord `json:"runs"`
+}
+
 // Intent: Keep one shared search shape for browser forms, drilldown actions,
 // and HTTP query parsing so context history filters stay aligned. Source:
 // DI-vafuk

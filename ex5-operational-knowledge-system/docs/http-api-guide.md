@@ -1,6 +1,7 @@
 # ex5 HTTP API guide
 
-This guide documents the local HTTP adapter that the browser and CLI both use.
+This guide documents the local HTTP adapter that the browser, CLI, and
+first-phase Neovim embodiment all use.
 
 It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
@@ -47,6 +48,28 @@ Returns the current projected counts for:
 - approvals
 - evidence
 - links
+
+### `GET /api/problem-review`
+
+Returns grouped receiving/count problem hotspots for the browser review panel.
+
+The response includes:
+
+- `problem_runs`
+- `place_groups`
+- `resource_groups`
+
+Each group includes:
+
+- `group_type`
+- `group_id`
+- `kind`
+- `name`
+- `problem_count`
+- `receiving_problems`
+- `inventory_problems`
+- `highlights`
+- `runs`
 
 ## Search
 
@@ -239,9 +262,10 @@ Payload fields:
 
 ## Live draft endpoints
 
-The live draft surface is browser-oriented. It shares the current working body
-for a knowledge item without turning that live state into a durable revision
-automatically.
+The live draft surface is browser-oriented, but it is also reused directly by
+the first Neovim phase. It shares the current working body for a knowledge item
+without turning that live state into a durable revision automatically. Source:
+`DI-fudok`.
 
 ### `GET /api/items/{id}/live`
 
@@ -275,6 +299,8 @@ Behavior:
 - presence is refreshed on every call
 - if `body` differs and `base_version` matches the current live version, the
   working draft is updated
+- if `body` is empty, the call still refreshes participant presence and returns
+  the current shared state without advancing the version
 - if `base_version` is stale, the server returns `409`
 
 Conflict response shape:

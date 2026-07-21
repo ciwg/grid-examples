@@ -4,6 +4,7 @@ const resourceListEl = document.getElementById("resource-list");
 const responsibilityListEl = document.getElementById("responsibility-list");
 const itemListEl = document.getElementById("item-list");
 const runListEl = document.getElementById("run-list");
+const problemReviewEl = document.getElementById("problem-review");
 const searchResultsEl = document.getElementById("search-results");
 const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
@@ -386,6 +387,45 @@ function renderRuns(items) {
       inspectRecord("run", item.id).catch(handleError);
     });
     runListEl.appendChild(card);
+  }
+}
+
+// Intent: Surface repeated receiving and count problems as grouped hotspots so
+// operators can see where issues cluster before drilling into one record at a
+// time. Source: DI-pogul
+function renderProblemReview(summary) {
+  problemReviewEl.innerHTML = "";
+  const groups = [
+    ["Places with repeated problems", "place", summary.place_groups || []],
+    ["Resources with repeated problems", "resource", summary.resource_groups || []],
+  ];
+  for (const [title, targetType, items] of groups) {
+    if (!items.length) {
+      continue;
+    }
+    const block = document.createElement("div");
+    block.className = "search-group";
+    const heading = document.createElement("h3");
+    heading.textContent = `${title} (${items.length})`;
+    block.appendChild(heading);
+    for (const item of items) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "card selectable-card";
+      const highlights = (item.highlights || []).slice(0, 3).join(" · ") || "no highlights";
+      card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.group_id} · ${item.name}</h3><div class="meta">${item.problem_count} problems\nreceiving: ${item.receiving_problems} · inventory: ${item.inventory_problems}\n${highlights}</div>`;
+      card.addEventListener("click", () => {
+        inspectRecord(targetType, item.group_id).catch(handleError);
+      });
+      block.appendChild(card);
+    }
+    problemReviewEl.appendChild(block);
+  }
+  if (!problemReviewEl.children.length) {
+    const empty = document.createElement("div");
+    empty.className = "meta";
+    empty.textContent = "No repeated receiving or count problems recorded yet.";
+    problemReviewEl.appendChild(empty);
   }
 }
 
@@ -923,8 +963,9 @@ function renderEditorState(state) {
 }
 
 async function refresh(selectedItemID = editorState.itemID) {
-  const [dashboard, places, resources, responsibilities, items, runs] = await Promise.all([
+  const [dashboard, problemReview, places, resources, responsibilities, items, runs] = await Promise.all([
     getJSON("/api/dashboard"),
+    getJSON("/api/problem-review"),
     getJSON("/api/places"),
     getJSON("/api/resources"),
     getJSON("/api/responsibilities"),
@@ -932,6 +973,7 @@ async function refresh(selectedItemID = editorState.itemID) {
     getJSON("/api/runs"),
   ]);
   renderStats(dashboard);
+  renderProblemReview(problemReview);
   renderPlaces(places.places || []);
   renderResources(resources.resources || []);
   renderResponsibilities(responsibilities.responsibilities || []);

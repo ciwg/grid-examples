@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -eu
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+item_id="${1:-${OKS_ITEM_ID:-}}"
+
+if [ -z "${item_id}" ]; then
+  echo "usage: oks-nvim ITEM_ID" >&2
+  exit 1
+fi
+
+# Intent: Keep the first ex5 Neovim entry path on the existing local HTTP
+# runtime instead of inventing a separate transport just for the editor
+# embodiment. Source: DI-fudok
+export OKS_BASE_URL="${OKS_BASE_URL:-http://127.0.0.1:7045}"
+export OKS_DISPLAY_NAME="${OKS_DISPLAY_NAME:-Neovim User}"
+export OKS_COLOR="${OKS_COLOR:-#d66f1d}"
+
+exec nvim \
+  --cmd "set runtimepath+=${repo_root}/nvim" \
+  "+OksOpen ${item_id}"

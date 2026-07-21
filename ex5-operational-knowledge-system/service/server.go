@@ -31,6 +31,7 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/style.css", server.handleStyleCSS)
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/dashboard", server.handleDashboard)
+	mux.HandleFunc("/api/problem-review", server.handleProblemReview)
 	mux.HandleFunc("/api/search", server.handleSearch)
 	mux.HandleFunc("/api/places", server.handlePlaces)
 	mux.HandleFunc("/api/places/", server.handlePlace)
@@ -80,6 +81,13 @@ func (server *Server) handleMeta(writer http.ResponseWriter, request *http.Reque
 
 func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.Request) {
 	writeJSON(writer, http.StatusOK, server.app.Dashboard())
+}
+
+// Intent: Expose grouped receiving/count problem hotspots through the same
+// local HTTP surface so browser operators can review repeated issues without
+// reconstructing them by hand. Source: DI-pogul
+func (server *Server) handleProblemReview(writer http.ResponseWriter, request *http.Request) {
+	writeJSON(writer, http.StatusOK, server.app.ProblemReview())
 }
 
 // Intent: Keep the local search endpoint useful for real operator drilldown by

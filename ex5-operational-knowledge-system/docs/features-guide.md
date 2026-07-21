@@ -76,6 +76,7 @@ Current knowledge item kinds:
 - procedures
 - training content
 - maintenance content
+- receiving-check content
 - inventory-audit content
 
 Each item keeps:
@@ -109,6 +110,24 @@ current implementation uses the shared local runtime and a live draft endpoint
 with version checks and participant presence. That gives the browser a real
 collaborative drafting surface while keeping the durable revision workflow
 explicit and auditable.
+
+### Neovim live draft phase 1
+
+`ex5` now also has a first-phase Neovim embodiment for knowledge-item live
+drafts.
+
+It is intentionally narrower than the browser surface:
+
+- open one item into an `acwrite` buffer
+- refresh the shared live draft from the runtime
+- push the current buffer body with `:write` or `:OksPush`
+- inspect the current item/version/participant state with `:OksInfo`
+- publish presence and typing heartbeats over the same local HTTP live endpoint
+
+This phase deliberately reuses the existing live-draft API rather than adding a
+separate websocket sidecar or remote-cursor renderer. The point is to give
+Neovim-heavy teams a real operational embodiment now without reopening the
+larger transport decision. Source: `DI-tabiv`; `DI-fudok`.
 
 ### Record inspector and contextual navigation
 
@@ -222,6 +241,17 @@ Context anchors now go one step further for both receiving and inventory work:
 - place/resource/responsibility detail views show inventory count/discrepancy
   fact history from related runs, not just bare run ids
 
+The browser now also includes a grouped `Problem Review` surface:
+
+- repeated receiving and inventory problems are summarized by place
+- repeated receiving and inventory problems are summarized by resource
+- operators can see hotspot counts before drilling into any single run
+- each hotspot card links back into the existing inspector flow
+
+This keeps the feature in the operational-memory lane. It does not turn `ex5`
+into a quantity ledger or planning engine. It just makes repeated receiving and
+count problems visible without forcing the user to rebuild them from raw runs.
+
 ### Evidence
 
 Evidence adds facts and optional copied attachments to a run.
@@ -302,6 +332,17 @@ Current CLI surface:
 - search
 - show individual items and runs
 
+Current Neovim phase 1 surface:
+
+- open a live draft by item ID
+- refresh from the runtime
+- push the current working body
+- inspect current live participants and version state
+
+This is a live-draft embodiment, not yet a full workflow embodiment. It does
+not currently expose approvals, run creation, or typed-link browsing directly
+inside Neovim.
+
 ## What is intentionally not in this first foundation
 
 The current implementation does **not** yet include:
@@ -338,4 +379,4 @@ The current product direction is now:
 
 - do not port the full `ex3` websocket collaboration model into `ex5`
 - treat collaborative editing as optional rather than core
-- keep a future Neovim embodiment as a desirable follow-on because many real teams operate there
+- keep a richer future Neovim embodiment as a desirable follow-on because many real teams operate there

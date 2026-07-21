@@ -2,6 +2,9 @@
 
 ## Completed
 
+- [x] 017 - Add ex5 Neovim live draft phase 1 - `TODO/TODO-fudok-ex5-neovim-live-draft-phase1.md`
+- [x] 007 - Finish ex5 inventory follow-ons in the operational-memory lane - `TODO/TODO-ranor-ex5-inventory-and-embodiment-followups.md`
+- [x] 015 - Add ex5 grouped problem review - `TODO/TODO-pogul-ex5-grouped-problem-review.md`
 - [x] 014 - Add ex5 history drilldown filters - `TODO/TODO-vafuk-ex5-history-drilldown-filters.md`
 - [x] 013 - Add ex5 context review facts - `TODO/TODO-zemok-ex5-context-review-facts.md`
 - [x] 012 - Add ex5 receiving check workflow review - `TODO/TODO-vemok-ex5-receiving-check-review.md`
@@ -19,10 +22,11 @@
 
 - [ ] 005 - Port ex5 to websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
   Deferred by `DI-tabiv`: do not port the full `ex3` websocket model into `ex5` in the current phase.
-- [ ] 007 - Plan ex5 inventory and alternate embodiment follow-ons - `TODO/TODO-ranor-ex5-inventory-and-embodiment-followups.md`
-  Future-facing by `DI-ranor`; includes deeper inventory work and later Neovim embodiment follow-ons.
+- [ ] 016 - Plan ex5 Neovim embodiment follow-on beyond phase 1 - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
+  Deferred by `DI-tabiv`, `DI-nuvok`, and `DI-fudok`: a thin Neovim live-draft phase now exists, but richer Neovim workflow work remains a separate follow-on project rather than part of inventory TODO `007`.
 
 ## Locked decisions affecting implementation
 
-- `DI-tabiv`: keep the current local HTTP live-draft model; collaborative editing is optional; a future Neovim embodiment is desirable but not implemented.
+- `DI-tabiv`: keep the current local HTTP live-draft model; collaborative editing is optional; a future Neovim embodiment is desirable.
+- `DI-fudok`: implement the first Neovim phase as a thin launcher/plugin over the existing live-draft HTTP API, not as a websocket sidecar.
 - `DI-talub`: recent `ex5` feature slices are retroactively documented for decision/path traceability, and every future `ex5` feature slice must start by recording its intended repo paths and runtime path patterns in a local TODO before code changes begin.

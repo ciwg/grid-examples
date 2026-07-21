@@ -19,9 +19,9 @@ This is closer to the `ex4` durable workflow pattern than the `ex3`
 collaborative runtime pattern, but it now has a lightweight live-draft layer on
 top for browser collaboration.
 
-## Current browser and CLI shape
+## Current browser, CLI, and Neovim shape
 
-Both embodiments talk to the same local HTTP surface.
+All current embodiments talk to the same local HTTP surface.
 
 The current `ex5` module now pins Go 1.24.13, which matches the other
 `grid-examples` modules and avoids a separate patch-level Go requirement when
@@ -44,6 +44,7 @@ Browser:
 - shows receiving and inventory fact history directly from place/resource/responsibility context views, instead of only bare related-run summaries
 - filters search by kind, status, outcome, place, resource, and responsibility
 - uses those same structured filters for one-click context drilldowns into receiving/count/problem history
+- summarizes repeated receiving and inventory problems by place and resource in a dedicated browser review panel
 - records runs
 - records approvals
 - uploads evidence
@@ -57,6 +58,14 @@ CLI:
 - records runs
 - records approvals
 - shows individual items and runs
+
+Neovim phase 1:
+
+- opens a knowledge item live draft by item ID
+- polls the same live-draft HTTP endpoint for refresh
+- pushes the current body with `:write`
+- sends presence/typing heartbeats through the live-draft HTTP endpoint
+- exposes local status/participant inspection commands
 
 ## Why the docs mention protocol families
 
@@ -82,9 +91,10 @@ The browser draft studio is intentionally separate from durable history:
 - a live version number guards against blind overwrite
 - creating a revision snapshots the working body into append-only history
 
-This means the browser can collaborate on the in-progress text of a procedure,
-training doc, maintenance doc, receiving check, or inventory audit without
-confusing that live session state with the durable operational record.
+This means the browser and first-phase Neovim embodiment can collaborate on the
+in-progress text of a procedure, training doc, maintenance doc, receiving
+check, or inventory audit without confusing that live session state with the
+durable operational record.
 
 ## Honest current limitation
 
@@ -100,8 +110,9 @@ operational embodiments, and a browser-only shared draft surface.
 
 The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
-future Neovim embodiment later without porting the full `ex3` websocket stack
-into `ex5` now. Source: `DI-tabiv`.
+future richer Neovim embodiment later without porting the full `ex3`
+websocket stack into `ex5` now. The current first phase is intentionally a
+thin HTTP live-draft client. Source: `DI-tabiv`; `DI-fudok`.
 
 ## Current verification shape
 
@@ -110,6 +121,7 @@ The current code is covered at four levels:
 - app/service tests for projection, search, lifecycle, and live draft behavior
 - HTTP server tests for routes, conflict handling, and mixed workflow flows
 - CLI tests for command argument mapping into the HTTP adapter
+- Neovim asset tests for the shipped launcher and command surface
 - embedded web asset tests that assert the shipped UI still exposes the
   expected operational workflow sections
 - a headless browser smoke test that loads the real UI against a live test

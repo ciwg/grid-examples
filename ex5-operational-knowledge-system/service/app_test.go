@@ -2,6 +2,7 @@ package service
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -552,5 +553,71 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 	}
 	if len(runs) != 1 || runs[0].ID != run.ID {
 		t.Fatalf("unexpected receiving run search result: %+v", runs)
+	}
+}
+
+func TestProblemReviewGroupsByPlaceAndResource(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, []string{"parts"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	recvItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create receiving item: %v", err)
+	}
+	recvRun, err := app.RecordRun("bob", RunKindReceiving, recvItem.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record receiving run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", recvRun.ID, "Receiving inspection", map[string]string{
+		"supplier":  "Acme Parts",
+		"variance":  "-2",
+		"condition": "wrap torn",
+	}, "", nil); err != nil {
+		t.Fatalf("add receiving evidence: %v", err)
+	}
+	invItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindInventory, "Count receiving bin", "Cycle count", "# Count receiving bin", nil, nil)
+	if err != nil {
+		t.Fatalf("create inventory item: %v", err)
+	}
+	invRun, err := app.RecordRun("bob", RunKindInventory, invItem.ID, 1, "completed", "Counted receiving bin", "", "", place.ID, []string{resource.ID}, nil)
+	if err != nil {
+		t.Fatalf("record inventory run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", invRun.ID, "Cycle count", map[string]string{
+		"expected_count": "12",
+		"actual_count":   "10",
+		"discrepancy":    "-2",
+	}, "", nil); err != nil {
+		t.Fatalf("add inventory evidence: %v", err)
+	}
+
+	review := app.ProblemReview()
+	if review.ProblemRuns != 2 {
+		t.Fatalf("unexpected problem run count: %+v", review)
+	}
+	if len(review.PlaceGroups) != 1 || review.PlaceGroups[0].GroupID != place.ID {
+		t.Fatalf("unexpected place problem groups: %+v", review.PlaceGroups)
+	}
+	if review.PlaceGroups[0].ProblemCount != 2 || review.PlaceGroups[0].ReceivingProblems != 1 || review.PlaceGroups[0].InventoryProblems != 1 {
+		t.Fatalf("unexpected place group counts: %+v", review.PlaceGroups[0])
+	}
+	if len(review.ResourceGroups) != 1 || review.ResourceGroups[0].GroupID != resource.ID {
+		t.Fatalf("unexpected resource problem groups: %+v", review.ResourceGroups)
+	}
+	if review.ResourceGroups[0].ProblemCount != 2 {
+		t.Fatalf("unexpected resource group counts: %+v", review.ResourceGroups[0])
+	}
+	highlights := strings.Join(review.PlaceGroups[0].HighlightExamples, " | ")
+	if !strings.Contains(highlights, "outcome: accepted_with_notes") || !strings.Contains(highlights, "discrepancy: -2") {
+		t.Fatalf("unexpected grouped highlights: %s", highlights)
 	}
 }

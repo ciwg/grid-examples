@@ -22,7 +22,9 @@ history again.
 
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
-example with equal browser and CLI surfaces over one local Go runtime.
+example with equal browser and CLI surfaces over one local Go runtime, plus a
+first-phase Neovim live-draft embodiment for teams that work there. Source:
+`DI-fudok`.
 
 The current implementation keeps procedures, training content, maintenance
 content, receiving-check content, inventory-audit content, responsibilities,
@@ -62,7 +64,10 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - inventory audit review panels for discrepancy/count facts and audit history
 - place/resource/responsibility context review panels that now surface receiving facts and inventory count/discrepancy facts from related runs
 - one-click place/resource/responsibility drilldowns into filtered receiving history, count history, and receiving-problem history
+- grouped problem review that highlights repeated receiving and count issues by place and resource
 - CLI inspection and creation commands
+- first-phase Neovim live-draft commands for opening, refreshing, inspecting,
+  and pushing a knowledge item draft through the same local runtime
 - headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -119,8 +124,10 @@ Optional:
 
 - a shell for CLI use
 
-You do not need Node, npm, Docker, or Neovim to run the current `ex5`
-foundation.
+You do not need Node, npm, or Docker to run the current `ex5` foundation.
+
+Neovim is optional. If you want the first-phase Neovim embodiment, you need a
+local `nvim` binary in addition to the Go runtime.
 
 This now matches the Go version pinned by the other `grid-examples` modules, so
 you should not need a separate patch-level Go toolchain just to switch between
@@ -162,6 +169,41 @@ go run ./cmd/oks-cli search startup
 go run ./cmd/oks-cli runs
 ```
 
+## Neovim
+
+The first Neovim phase is intentionally thin.
+
+It reuses the same `GET/POST /api/items/{id}/live` surface as the browser live
+draft studio instead of inventing a separate transport or porting the full
+`ex3` websocket stack into `ex5`. Source: `DI-tabiv`; `DI-fudok`.
+
+What it supports now:
+
+- `:OksOpen ITEM_ID`
+- `:OksRefresh`
+- `:OksPush`
+- `:OksInfo`
+- `:OksClose`
+- `:write` pushes the current buffer body through the live-draft API
+
+Start it against a running server with:
+
+```bash
+./scripts/oks-nvim ITEM-0001
+```
+
+Optional environment variables:
+
+- `OKS_BASE_URL`
+- `OKS_DISPLAY_NAME`
+- `OKS_COLOR`
+
+What it does not try to do yet:
+
+- websocket sync
+- remote cursor rendering
+- durable revision approval/review directly inside Neovim
+
 ## Docs
 
 - [Architecture notes](docs/architecture.md)
@@ -179,4 +221,4 @@ go run ./cmd/oks-cli runs
 
 - keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
 - treat collaborative editing as optional rather than core to the product
-- keep a future Neovim embodiment on the roadmap because it fits real team and customer workflows
+- keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
