@@ -508,6 +508,60 @@ func TestServerContextDetailIncludesRelatedRuns(t *testing.T) {
 	}
 }
 
+func TestServerContextDetailIncludesLinksForNeovimEntityInspector(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Dock receipt", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if err := app.AddLink("alice", "place", place.ID, "resource", resource.ID, "stores", "Receiving area stores the connector bin"); err != nil {
+		t.Fatalf("add place link: %v", err)
+	}
+	if err := app.AddLink("alice", "resource", resource.ID, "run", run.ID, "used_in", "Connector bin was counted during the run"); err != nil {
+		t.Fatalf("add resource link: %v", err)
+	}
+	server := NewServer(app)
+
+	for _, path := range []string{
+		"/api/places/" + place.ID,
+		"/api/resources/" + resource.ID,
+		"/api/responsibilities/" + resp.ID,
+	} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		server.Handler().ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("detail status for %s: %d %s", path, response.Code, response.Body.String())
+		}
+		body := response.Body.String()
+		if path != "/api/responsibilities/"+resp.ID && !strings.Contains(body, `"links"`) {
+			t.Fatalf("context detail missing links for %s: %s", path, body)
+		}
+		if path == "/api/responsibilities/"+resp.ID && !strings.Contains(body, `"linked_item_ids"`) {
+			t.Fatalf("responsibility detail missing linked item ids for %s: %s", path, body)
+		}
+	}
+}
+
 func TestServerRunDetailIncludesEvidenceFacts(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

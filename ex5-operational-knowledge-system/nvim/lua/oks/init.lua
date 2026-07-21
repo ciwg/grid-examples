@@ -346,6 +346,25 @@ local function approval_summary(approval)
   return string.format("- %s by %s role=%s revision=%d", approval.decision or "-", approval.actor or "-", approval.role or "-", approval.revision or 0)
 end
 
+local function link_summary(link)
+  return string.format("- %s:%s -> %s:%s relation=%s", link.from_type or "-", link.from_id or "-", link.to_type or "-", link.to_id or "-", link.relation or "-")
+end
+
+local function append_links(lines, links)
+  table.insert(lines, "")
+  table.insert(lines, "## Links")
+  if not links or #links == 0 then
+    table.insert(lines, "- none")
+    return
+  end
+  for _, link in ipairs(links) do
+    table.insert(lines, link_summary(link))
+    if link.notes and link.notes ~= "" then
+      table.insert(lines, "  " .. link.notes)
+    end
+  end
+end
+
 -- Intent: Let Neovim users inspect the durable item record around the live
 -- draft without leaving the editor or attempting write actions that this phase
 -- does not support yet. Source: DI-lonuk
@@ -415,6 +434,8 @@ local function item_detail_lines(detail)
       end
     end
   end
+
+  append_links(lines, detail.links)
 
   return lines
 end
@@ -506,7 +527,89 @@ local function run_detail_lines(detail)
     end
   end
 
+  append_links(lines, detail.links)
+
   return lines
+end
+
+local function generic_entity_lines(entity_type, detail)
+  if entity_type == "place" then
+    local lines = {
+      "# " .. (detail.name or detail.id or "place"),
+      "",
+      "- id: " .. (detail.id or "-"),
+      "- kind: " .. (detail.kind or "-"),
+      "- summary: " .. (detail.summary or ""),
+      "- parent_id: " .. (detail.parent_id or "-"),
+    }
+    append_list(lines, "Child places", detail.child_place_ids or {})
+    append_list(lines, "Resources", detail.resource_ids or {})
+    if detail.related_runs then
+      table.insert(lines, "")
+      table.insert(lines, "## Related runs")
+      if #detail.related_runs == 0 then
+        table.insert(lines, "- none")
+      else
+        for _, run in ipairs(detail.related_runs) do
+          table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+        end
+      end
+    end
+    append_links(lines, detail.links)
+    return lines
+  end
+  if entity_type == "resource" then
+    local lines = {
+      "# " .. (detail.name or detail.id or "resource"),
+      "",
+      "- id: " .. (detail.id or "-"),
+      "- kind: " .. (detail.kind or "-"),
+      "- summary: " .. (detail.summary or ""),
+      "- place_id: " .. (detail.place_id or "-"),
+    }
+    if detail.related_runs then
+      table.insert(lines, "")
+      table.insert(lines, "## Related runs")
+      if #detail.related_runs == 0 then
+        table.insert(lines, "- none")
+      else
+        for _, run in ipairs(detail.related_runs) do
+          table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+        end
+      end
+    end
+    append_links(lines, detail.links)
+    return lines
+  end
+  if entity_type == "responsibility" then
+    local lines = {
+      "# " .. (detail.title or detail.id or "responsibility"),
+      "",
+      "- id: " .. (detail.id or "-"),
+      "- summary: " .. (detail.summary or ""),
+      "- team: " .. (detail.team or "-"),
+    }
+    append_list(lines, "Linked items", detail.linked_item_ids or {})
+    append_list(lines, "Linked runs", detail.linked_run_ids or {})
+    append_list(lines, "Roles", detail.linked_role_keys or {})
+    if detail.related_runs then
+      table.insert(lines, "")
+      table.insert(lines, "## Related runs")
+      if #detail.related_runs == 0 then
+        table.insert(lines, "- none")
+      else
+        for _, run in ipairs(detail.related_runs) do
+          table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+        end
+      end
+    end
+    return lines
+  end
+  return {
+    "# " .. (detail.id or entity_type),
+    "",
+    "unsupported entity type: " .. entity_type,
+  }
 end
 
 -- Intent: Reuse the existing run detail projection for Neovim review so the
@@ -545,6 +648,78 @@ local function inspect_run(run_id)
   notify("inspected run " .. run_id)
 end
 
+local function inspect_buffer(name, lines)
+  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
+    vim.api.nvim_set_current_win(inspector.winid)
+  else
+    inspector.bufnr, inspector.winid = open_scratch_buffer(name)
+  end
+  vim.bo[inspector.bufnr].modifiable = true
+  vim.api.nvim_buf_set_name(inspector.bufnr, name)
+  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, lines)
+  vim.bo[inspector.bufnr].modifiable = false
+end
+
+-- Intent: Let Neovim users browse linked operational entities through the same
+-- projected detail APIs as the browser and CLI, without adding mutation
+-- actions to the editor yet. Source: DI-zalor
+local function inspect_entity(entity_type, entity_id)
+  entity_type = vim.trim(entity_type or "")
+  entity_id = vim.trim(entity_id or "")
+  if entity_type == "" or entity_id == "" then
+    notify("entity type and id are required", vim.log.levels.WARN)
+    return
+  end
+
+  local path
+  local name_prefix
+  if entity_type == "item" then
+    path = "/api/items/" .. entity_id
+    name_prefix = "oks-inspect://"
+  elseif entity_type == "run" then
+    path = "/api/runs/" .. entity_id
+    name_prefix = "oks-run://"
+  elseif entity_type == "place" then
+    path = "/api/places/" .. entity_id
+    name_prefix = "oks-place://"
+  elseif entity_type == "resource" then
+    path = "/api/resources/" .. entity_id
+    name_prefix = "oks-resource://"
+  elseif entity_type == "responsibility" then
+    path = "/api/responsibilities/" .. entity_id
+    name_prefix = "oks-responsibility://"
+  else
+    notify("unsupported entity type: " .. entity_type, vim.log.levels.WARN)
+    return
+  end
+
+  local status, body, err = request("GET", path)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("inspect entity failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify("inspect entity decode failed", vim.log.levels.ERROR)
+    return
+  end
+
+  local lines
+  if entity_type == "item" then
+    lines = item_detail_lines(decoded)
+  elseif entity_type == "run" then
+    lines = run_detail_lines(decoded)
+  else
+    lines = generic_entity_lines(entity_type, decoded)
+  end
+  inspect_buffer(name_prefix .. entity_id, lines)
+  notify("inspected " .. entity_type .. " " .. entity_id)
+end
+
 function M.info()
   notify(table.concat(session_lines(), "\n"))
 end
@@ -567,6 +742,10 @@ end
 
 function M.inspect_run(run_id)
   inspect_run(run_id)
+end
+
+function M.inspect_entity(entity_type, entity_id)
+  inspect_entity(entity_type, entity_id)
 end
 
 function M.close()
@@ -655,6 +834,10 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksInspectRun", function(command)
     M.inspect_run(command.args)
   end, { nargs = 1 })
+  vim.api.nvim_create_user_command("OksInspectEntity", function(command)
+    local args = vim.split(vim.trim(command.args), "%s+", { trimempty = true })
+    M.inspect_entity(args[1], args[2])
+  end, { nargs = "+" })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})

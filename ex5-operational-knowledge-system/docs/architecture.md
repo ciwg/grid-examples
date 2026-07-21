@@ -54,6 +54,8 @@ The first-phase Neovim embodiment owns:
   endpoint
 - opening a read-only item inspector from the projected item-detail API
 - opening a read-only run inspector from the projected run-detail API
+- opening a generic read-only entity inspector for linked places, resources,
+  responsibilities, items, and runs
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.
@@ -141,8 +143,10 @@ In the current Neovim phase, the editor participates by polling and posting to
 `GET/POST /api/items/{id}/live`, and it reads projected detail from
 `GET /api/items/{id}` plus `GET /api/runs/{id}` for inspection. That keeps the
 embodiment aligned with the same runtime truth the browser uses instead of
-creating a second collaboration channel. Source: `DI-fudok`; `DI-lonuk`;
-`DI-ravok`.
+creating a second collaboration channel. Linked-entity browsing extends that
+same rule to `GET /api/places/{id}`, `GET /api/resources/{id}`, and
+`GET /api/responsibilities/{id}`. Source: `DI-fudok`; `DI-lonuk`;
+`DI-ravok`; `DI-zalor`.
 
 ## Current implementation note
 

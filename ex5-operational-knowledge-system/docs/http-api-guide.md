@@ -229,6 +229,9 @@ The current Neovim inspector also reuses this response shape for a read-only
 split that shows status, revisions, approvals, and related runs. Source:
 `DI-lonuk`.
 
+That same inspector now also reads the `links` array for typed-link browsing.
+Source: `DI-zalor`.
+
 ### `POST /api/items/{id}/revisions`
 
 Creates a durable new revision snapshot.
@@ -361,6 +364,23 @@ response to render the `Receiving review` panel.
 The current Neovim run inspector also reuses this response shape for a
 read-only split that shows run context, evidence summaries, and approvals.
 Source: `DI-ravok`.
+
+It also reads the run `links` array for typed-link browsing. Source: `DI-zalor`.
+
+### `GET /api/places/{id}`
+
+The current Neovim entity inspector reuses this response shape for read-only
+place browsing. Source: `DI-zalor`.
+
+### `GET /api/resources/{id}`
+
+The current Neovim entity inspector reuses this response shape for read-only
+resource browsing. Source: `DI-zalor`.
+
+### `GET /api/responsibilities/{id}`
+
+The current Neovim entity inspector reuses this response shape for read-only
+responsibility browsing. Source: `DI-zalor`.
 
 ## Evidence
 

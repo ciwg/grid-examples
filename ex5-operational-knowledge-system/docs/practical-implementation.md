@@ -68,6 +68,7 @@ Neovim phase 1:
 - exposes local status/participant inspection commands
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
+- opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
 
 ## Why the docs mention protocol families
 
@@ -114,8 +115,8 @@ The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
 websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
-live-draft client plus read-only item/run inspection over projected detail.
-Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`.
+live-draft client plus read-only item/run/entity inspection over projected
+detail. Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`.
 
 ## Current verification shape
 

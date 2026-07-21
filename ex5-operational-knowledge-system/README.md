@@ -70,6 +70,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
 - Neovim run inspector for direct evidence and approval review
+- Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
 - headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -187,6 +188,7 @@ What it supports now:
 - `:OksInfo`
 - `:OksInspect`
 - `:OksInspectRun`
+- `:OksInspectEntity TYPE ID`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
 
@@ -202,6 +204,12 @@ The run inspector adds a read-only split showing:
 - run outcome and context
 - evidence fact summaries
 - run approvals
+
+The typed-link phase adds:
+
+- link sections inside item and run inspectors
+- generic read-only inspection of linked `place`, `resource`, `responsibility`,
+  `item`, and `run` records
 
 Start it against a running server with:
 
@@ -220,7 +228,7 @@ What it does not try to do yet:
 - websocket sync
 - remote cursor rendering
 - durable revision approval/review directly inside Neovim
-- full run creation, typed-link navigation, or write-side approval actions inside Neovim
+- full run creation or write-side approval actions inside Neovim
 
 ## Docs
 

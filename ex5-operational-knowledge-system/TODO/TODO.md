@@ -2,6 +2,7 @@
 
 ## Completed
 
+- [x] 020 - Add ex5 Neovim typed-link browsing phase - `TODO/TODO-zalor-ex5-neovim-typed-link-browsing-phase.md`
 - [x] 019 - Add ex5 Neovim run inspector phase - `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`
 - [x] 018 - Add ex5 Neovim item inspector phase - `TODO/TODO-lonuk-ex5-neovim-item-inspector-phase.md`
 - [x] 017 - Add ex5 Neovim live draft phase 1 - `TODO/TODO-fudok-ex5-neovim-live-draft-phase1.md`
@@ -33,4 +34,5 @@
 - `DI-fudok`: implement the first Neovim phase as a thin launcher/plugin over the existing live-draft HTTP API, not as a websocket sidecar.
 - `DI-lonuk`: add a read-only Neovim inspector over existing item detail APIs before attempting richer in-editor workflow actions.
 - `DI-ravok`: add a direct read-only Neovim run inspector over the existing run detail API before attempting write-side workflow actions in the editor.
+- `DI-zalor`: add read-only typed-link browsing in Neovim over the existing entity detail APIs before attempting in-editor mutation of links or approvals.
 - `DI-talub`: recent `ex5` feature slices are retroactively documented for decision/path traceability, and every future `ex5` feature slice must start by recording its intended repo paths and runtime path patterns in a local TODO before code changes begin.
