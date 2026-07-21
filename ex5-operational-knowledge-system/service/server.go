@@ -536,6 +536,13 @@ func (server *Server) handleEvidence(writer http.ResponseWriter, request *http.R
 			http.Error(writer, fmt.Sprintf("close attachment: %v", closeErr), http.StatusBadRequest)
 			return
 		}
+		// Intent: Reject evidence uploads that exceed the documented attachment
+		// limit instead of silently accepting truncated overflow bytes. Source:
+		// DI-navos
+		if len(body) > maxEvidenceAttachmentBytes {
+			http.Error(writer, fmt.Sprintf("attachment exceeds %d bytes", maxEvidenceAttachmentBytes), http.StatusBadRequest)
+			return
+		}
 		attachmentBody = body
 	}
 	run, err := server.app.AddEvidence(actor, runID, summary, facts, attachmentName, attachmentBody)

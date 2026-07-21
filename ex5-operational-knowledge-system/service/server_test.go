@@ -91,6 +91,60 @@ func TestServerUploadsEvidenceAttachment(t *testing.T) {
 	}
 }
 
+func TestServerRejectsOversizedEvidenceAttachment(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	server := NewServer(app)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("actor", "bob"); err != nil {
+		t.Fatalf("actor field: %v", err)
+	}
+	if err := writer.WriteField("summary", "oversized photo"); err != nil {
+		t.Fatalf("summary field: %v", err)
+	}
+	part, err := writer.CreateFormFile("attachment", "too-large.bin")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write(bytes.Repeat([]byte("a"), maxEvidenceAttachmentBytes+1)); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/runs/"+run.ID+"/evidence", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "attachment exceeds") {
+		t.Fatalf("unexpected error body: %s", response.Body.String())
+	}
+
+	runAfter, err := app.GetRun(run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if len(runAfter.Evidence) != 0 {
+		t.Fatalf("oversized attachment should not create evidence: %+v", runAfter.Evidence)
+	}
+}
+
 func TestServerWorkflowSearchAndDashboard(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

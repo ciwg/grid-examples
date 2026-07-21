@@ -1100,14 +1100,71 @@ function clearPollLoop() {
   }
 }
 
+function createMemoryStorage() {
+  const data = new Map();
+  return {
+    getItem(key) {
+      return data.has(key) ? data.get(key) : null;
+    },
+    setItem(key, value) {
+      data.set(key, String(value));
+    },
+    removeItem(key) {
+      data.delete(key);
+    },
+  };
+}
+
+// Intent: Keep ex5 browser startup alive in private or policy-restricted
+// environments where localStorage access or UUID helpers may fail, so the live
+// draft embodiment still boots and can participate with an ephemeral identity.
+// Source: DI-mitob
+function safeParticipantStorage() {
+  const memory = createMemoryStorage();
+  return {
+    getItem(key) {
+      try {
+        return window.localStorage ? window.localStorage.getItem(key) : memory.getItem(key);
+      } catch {
+        return memory.getItem(key);
+      }
+    },
+    setItem(key, value) {
+      try {
+        if (window.localStorage) {
+          window.localStorage.setItem(key, value);
+          return;
+        }
+      } catch {
+        // Intent: Fall back to in-memory participant identity when browser
+        // storage is blocked so the UI still starts and joins the shared draft.
+        // Source: DI-mitob
+      }
+      memory.setItem(key, value);
+    },
+  };
+}
+
+function fallbackParticipantSuffix() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createParticipantID() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return `browser-${window.crypto.randomUUID()}`;
+  }
+  return `browser-${fallbackParticipantSuffix()}`;
+}
+
 function getParticipantID() {
   const storageKey = "oks.participant_id";
-  const existing = window.localStorage.getItem(storageKey);
+  const storage = safeParticipantStorage();
+  const existing = storage.getItem(storageKey);
   if (existing) {
     return existing;
   }
-  const created = `browser-${crypto.randomUUID()}`;
-  window.localStorage.setItem(storageKey, created);
+  const created = createParticipantID();
+  storage.setItem(storageKey, created);
   return created;
 }
 

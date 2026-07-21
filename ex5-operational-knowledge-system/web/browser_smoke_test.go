@@ -91,6 +91,112 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	}
 }
 
+func TestHeadlessBrowserSurvivesRestrictedParticipantIdentityStartup(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		MustRead("index.html"),
+		[]byte(`<script src="/app.js" type="module"></script>`),
+		[]byte(`<script>
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  get() {
+    throw new Error("storage blocked");
+  },
+});
+if (window.crypto) {
+  try {
+    Object.defineProperty(window.crypto, "randomUUID", {
+      configurable: true,
+      value: undefined,
+    });
+  } catch (error) {
+    window.__random_uuid_patch_error = String(error);
+  }
+}
+</script>
+<script src="/app.js" type="module"></script>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":0,"places":0,"resources":0,"procedures":1,"training_items":0,"maintenance_items":0,"receiving_items":0,"inventory_items":0,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":0,"inventory_runs":0,"approvals":0,"evidence":0,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":0,"place_groups":[],"resource_groups":[]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"working_version":1}]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001/live", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":1,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"approvals":[],"revisions":[{"number":1,"title":"Startup checklist","author":"alice","created_at":"2026-07-20T15:59:00Z"}],"responsibility_ids":[],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T15:59:00Z","actor":"alice","title":"Startup checklist"}]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=4000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	required := []string{
+		"Operational Knowledge System",
+		"Startup checklist",
+		"Live Draft Studio",
+	}
+	for _, marker := range required {
+		if !strings.Contains(dom, marker) {
+			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
+		}
+	}
+	if strings.Contains(dom, "storage blocked") && strings.Contains(dom, "Error: storage blocked") {
+		t.Fatalf("restricted-storage startup leaked blocking error into DOM\n%s", dom)
+	}
+}
+
 func TestHeadlessBrowserRendersInventoryAuditHistory(t *testing.T) {
 	chromePath, err := exec.LookPath("google-chrome")
 	if err != nil {

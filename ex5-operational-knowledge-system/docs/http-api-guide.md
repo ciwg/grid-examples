@@ -453,6 +453,10 @@ Fields:
 - `facts_json`
 - optional `attachment`
 
+Attachment uploads are limited to 8 MiB. Larger files are rejected with a
+`400 Bad Request` response instead of being truncated into durable evidence.
+Source: `DI-navos`.
+
 ## Run approvals
 
 ### `POST /api/runs/{id}/approvals`

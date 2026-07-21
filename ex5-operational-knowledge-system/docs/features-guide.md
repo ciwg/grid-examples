@@ -141,6 +141,10 @@ It is intentionally narrower than the browser surface:
 - inspect linked entities directly with `:OksInspectEntity TYPE ID`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
+Cursor and presence reporting now stay anchored to the live-draft window
+instead of whichever split is currently focused, so opening inspectors does not
+distort shared cursor offsets. Source: `DI-pazud`.
+
 This phase deliberately reuses the existing live-draft API rather than adding a
 separate websocket sidecar or remote-cursor renderer. The point is to give
 Neovim-heavy teams a real operational embodiment now without reopening the
@@ -216,6 +220,11 @@ to answer questions like:
 Those problem drilldowns now use the same receiving/inventory problem logic as
 the grouped hotspot review, rather than filtering only one receiving outcome.
 Source: `DI-vemur`.
+
+The browser startup path is also hardened for restrictive/private environments.
+If `localStorage` access is blocked or `crypto.randomUUID()` is unavailable,
+the UI falls back to an in-memory participant identity instead of failing to
+boot the live-draft surface. Source: `DI-mitob`.
 
 ### Performed runs
 
@@ -302,6 +311,10 @@ Current implementation supports:
 - optional copied file attachments
 - browser upload flow
 - durable attachment path under the local runtime root
+
+Attachment uploads are enforced at the HTTP boundary: files larger than 8 MiB
+are rejected instead of being partially accepted as evidence. Source:
+`DI-navos`.
 
 ### Approvals
 

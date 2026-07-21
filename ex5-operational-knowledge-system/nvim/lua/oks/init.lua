@@ -29,6 +29,7 @@ M.config = {
 M.state = {
   item_id = nil,
   bufnr = nil,
+  winid = nil,
   title = "",
   status = "",
   version = 0,
@@ -63,11 +64,33 @@ local function current_body()
   return table.concat(vim.api.nvim_buf_get_lines(M.state.bufnr, 0, -1, false), "\n")
 end
 
+-- Intent: Keep Neovim presence and push offsets tied to the actual live-draft
+-- window instead of whichever split happens to be focused after inspectors open.
+-- Source: DI-pazud
+local function live_draft_winid()
+  if M.state.winid and vim.api.nvim_win_is_valid(M.state.winid) then
+    if vim.api.nvim_win_get_buf(M.state.winid) == M.state.bufnr then
+      return M.state.winid
+    end
+  end
+  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(winid) == M.state.bufnr then
+      M.state.winid = winid
+      return winid
+    end
+  end
+  return nil
+end
+
 local function current_cursor_offset()
   if not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
     return 0
   end
-  local cursor = vim.api.nvim_win_get_cursor(0)
+  local winid = live_draft_winid()
+  if not winid then
+    return 0
+  end
+  local cursor = vim.api.nvim_win_get_cursor(winid)
   local row = cursor[1]
   local col = cursor[2]
   local total = 0
@@ -758,6 +781,7 @@ function M.close()
     M.state.augroup = nil
   end
   M.state.item_id = nil
+  M.state.winid = nil
   M.state.participants = {}
 end
 
@@ -772,6 +796,7 @@ function M.open(item_id)
   M.state.bufnr = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(M.state.bufnr, "oks://" .. item_id)
   vim.api.nvim_set_current_buf(M.state.bufnr)
+  M.state.winid = vim.api.nvim_get_current_win()
   vim.bo[M.state.bufnr].buftype = "acwrite"
   vim.bo[M.state.bufnr].swapfile = false
   vim.bo[M.state.bufnr].filetype = "markdown"

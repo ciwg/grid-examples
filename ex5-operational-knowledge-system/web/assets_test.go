@@ -67,6 +67,10 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"Search problems here",
 		"problems only",
 		"participant_id",
+		"safeParticipantStorage",
+		"createMemoryStorage",
+		"createParticipantID",
+		"randomUUID",
 	}
 	for _, marker := range required {
 		if !strings.Contains(app, marker) {

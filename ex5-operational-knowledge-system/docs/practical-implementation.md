@@ -57,6 +57,7 @@ Browser:
 - uses those same structured filters for one-click context drilldowns into receiving/count/problem history
 - uses an explicit shared `problem=true` search filter so browser drilldowns and grouped hotspot review classify problems the same way
 - summarizes repeated receiving and inventory problems by place and resource in a dedicated browser review panel
+- falls back to ephemeral in-memory participant identity when browser storage or UUID helpers are restricted, so the live-draft UI still boots in private/policy-limited contexts
 - records runs
 - records approvals
 - uploads evidence
@@ -81,6 +82,10 @@ Neovim phase 1:
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
 - opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
+
+The plugin now tracks the live-draft window explicitly so Neovim presence and
+body pushes continue to report cursor/head against the draft buffer even after
+the user moves focus into a read-only inspector split. Source: `DI-pazud`.
 
 ## Why the docs mention protocol families
 

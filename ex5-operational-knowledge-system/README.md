@@ -45,12 +45,14 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   - inventory audits
 - browser-shared live working drafts with participant presence and explicit
   revision snapshots
+- browser startup falls back to ephemeral in-memory participant identity when
+  storage or UUID helpers are restricted
 - compact item lifecycle:
   - `draft`
   - `approved`
   - `superseded`
 - append-only performed run records linked to exact revisions
-- structured evidence with optional immutable attachment upload
+- structured evidence with optional immutable attachment upload up to 8 MiB
 - named-role approvals with local team policy left outside the durable record
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
@@ -209,6 +211,10 @@ What it supports now:
 - `:OksInspectEntity TYPE ID`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
+
+The Neovim embodiment now keeps cursor and presence offsets tied to the actual
+live-draft window even after opening read-only inspector splits. Source:
+`DI-pazud`.
 
 The inspector phase adds a read-only split showing:
 

@@ -36,6 +36,9 @@ func TestNeovimPluginIncludesLiveDraftCommands(t *testing.T) {
 		"## Evidence",
 		"participant_id",
 		"BufWriteCmd",
+		"live_draft_winid",
+		"nvim_list_wins",
+		"nvim_win_get_buf",
 	}
 	text := string(body)
 	for _, marker := range required {
