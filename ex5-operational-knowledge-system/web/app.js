@@ -638,6 +638,7 @@ function detailStats(type, record) {
         ["Team", record.team || "-"],
         ["Items", (record.linked_item_ids || []).length],
         ["Runs", (record.linked_run_ids || []).length],
+        ["Links", (record.links || []).length],
         ["Related runs", (record.related_runs || []).length],
         ["Events", (record.timeline || []).length],
       ];

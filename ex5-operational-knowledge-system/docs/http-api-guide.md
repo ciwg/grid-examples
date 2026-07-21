@@ -71,6 +71,34 @@ Each group includes:
 - `highlights`
 - `runs`
 
+## Typed links
+
+### `POST /api/links`
+
+Creates one typed link between two projected records.
+
+Payload fields:
+
+- `actor`
+- `from_type`
+- `from_id`
+- `to_type`
+- `to_id`
+- `relation`
+- `notes`
+
+Supported endpoint types today:
+
+- `place`
+- `resource`
+- `responsibility`
+- `knowledge_item`
+- `run`
+
+The write is now validated on both ends. Unsupported endpoint types or missing
+record IDs return `400` instead of entering the append-only history as dangling
+graph edges. Source: `DI-luzaf`.
+
 ## Search
 
 ### `GET /api/search`
@@ -231,6 +259,20 @@ split that shows status, revisions, approvals, and related runs. Source:
 
 That same inspector now also reads the `links` array for typed-link browsing.
 Source: `DI-zalor`.
+
+### `GET /api/responsibilities/{id}`
+
+Returns one projected responsibility, including:
+
+- `linked_item_ids`
+- `linked_run_ids`
+- `related_runs`
+- `links`
+- `timeline`
+
+That `links` array now uses the same projection shape as place, resource, item,
+and run detail, so browser and Neovim inspectors see the same typed-link graph
+for responsibility records too. Source: `DI-luzaf`.
 
 ### `POST /api/items/{id}/revisions`
 

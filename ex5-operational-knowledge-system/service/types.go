@@ -78,6 +78,7 @@ type Responsibility struct {
 	LinkedRunIDs   []string           `json:"linked_run_ids"`
 	RelatedRuns    []RunRecord        `json:"related_runs"`
 	LinkedRoleKeys []string           `json:"linked_role_keys"`
+	Links          []Link             `json:"links"`
 	Timeline       []OperationalEvent `json:"timeline"`
 }
 

@@ -80,7 +80,9 @@ places: machines, tools, containers, bins, parts, or fixtures.
 ### Responsibilities
 
 Responsibilities are first-class records with their own IDs, summaries, role
-keys, and timelines. They are not embedded only inside procedure metadata.
+keys, timelines, and typed-link projections. They are not embedded only inside
+procedure metadata, and they now expose the same `links` surface as the other
+projected entity types. Source: `DI-luzaf`.
 
 ### Knowledge items
 

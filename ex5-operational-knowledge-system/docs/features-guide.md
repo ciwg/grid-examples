@@ -317,11 +317,17 @@ knowledge items and runs, rather than forcing operators to inspect raw JSON.
 
 ### Typed links
 
-Typed links connect responsibilities, knowledge items, and runs.
+Typed links connect responsibilities, knowledge items, runs, places, and
+resources.
 
 This is how the app begins to behave like one operational knowledge system
 instead of separate record silos. Links let users move through related context
 instead of reconstructing the story manually from separate tools.
+
+The link write path is now stricter too. A typed link must name a supported
+endpoint type and an existing record ID, and responsibility detail now projects
+its own `links` array the same way place, resource, item, and run detail
+already do. Source: `DI-luzaf`.
 
 ### Equal embodiments
 

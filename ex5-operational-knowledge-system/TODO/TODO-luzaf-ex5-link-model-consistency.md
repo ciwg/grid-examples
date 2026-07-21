@@ -18,11 +18,10 @@ responsibility record behaves consistently with the documented graph model.
 
 ## Tasks
 
-- [ ] luzaf.1 Validate typed-link endpoints and types on write instead of accepting dangling or mistyped graph edges.
-- [ ] luzaf.2 Make responsibility link behavior consistent with the documented typed-link model across service, browser, Neovim, and docs.
+- [x] luzaf.1 Validate typed-link endpoints and types on write instead of accepting dangling or mistyped graph edges.
+- [x] luzaf.2 Make responsibility link behavior consistent with the documented typed-link model across service, browser, Neovim, and docs.
 
 ## Status
 
-- open
+- done
 - derived from the 2026-07-21 extensive ex5 review
-

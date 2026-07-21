@@ -273,6 +273,9 @@ func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	if len(updatedResponsibility.LinkedRunIDs) != 1 || updatedResponsibility.LinkedRunIDs[0] != run.ID {
 		t.Fatalf("unexpected linked run ids: %+v", updatedResponsibility.LinkedRunIDs)
 	}
+	if len(updatedResponsibility.Links) != 0 {
+		t.Fatalf("did not expect implicit responsibility links from run linkage: %+v", updatedResponsibility.Links)
+	}
 
 	updatedRun, err := app.GetRun(run.ID)
 	if err != nil {
@@ -305,6 +308,60 @@ func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	}
 	if len(foundResources) != 1 || foundResources[0].ID != resource.ID {
 		t.Fatalf("unexpected resource search result: %+v", foundResources)
+	}
+}
+
+func TestAppValidatesTypedLinkEndpointsAndProjectsResponsibilityLinks(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Dock receipt", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	if err := app.AddLink("alice", "responsibility", resp.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns dock receipt"); err != nil {
+		t.Fatalf("add responsibility->item link: %v", err)
+	}
+	if err := app.AddLink("alice", "responsibility", resp.ID, "run", run.ID, "reviews", "Receiving lead reviews the receiving run"); err != nil {
+		t.Fatalf("add responsibility->run link: %v", err)
+	}
+
+	loadedResp, err := app.GetResponsibility(resp.ID)
+	if err != nil {
+		t.Fatalf("get responsibility: %v", err)
+	}
+	if len(loadedResp.Links) != 2 {
+		t.Fatalf("expected projected responsibility links, got %+v", loadedResp.Links)
+	}
+	if loadedResp.Links[0].FromType != "responsibility" || loadedResp.Links[1].FromType != "responsibility" {
+		t.Fatalf("unexpected responsibility link projection: %+v", loadedResp.Links)
+	}
+
+	err = app.AddLink("alice", "responsibility", "RESP-9999", "knowledge_item", item.ID, "owns", "bad endpoint")
+	if err == nil {
+		t.Fatalf("expected dangling responsibility link to fail")
+	}
+	if !strings.Contains(err.Error(), "from endpoint invalid") {
+		t.Fatalf("unexpected dangling endpoint error: %v", err)
+	}
+
+	err = app.AddLink("alice", "item", item.ID, "run", run.ID, "uses", "bad type")
+	if err == nil {
+		t.Fatalf("expected unsupported endpoint type to fail")
+	}
+	if !strings.Contains(err.Error(), "unsupported link endpoint type") {
+		t.Fatalf("unexpected unsupported type error: %v", err)
 	}
 }
 

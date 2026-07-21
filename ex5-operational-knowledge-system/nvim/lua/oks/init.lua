@@ -605,6 +605,7 @@ local function generic_entity_lines(entity_type, detail)
         end
       end
     end
+    append_links(lines, detail.links)
     return lines
   end
   return {

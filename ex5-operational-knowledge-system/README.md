@@ -53,6 +53,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - structured evidence with optional immutable attachment upload
 - named-role approvals with local team policy left outside the durable record
 - typed links across responsibilities, items, and runs
+- validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms
 - browser search filters by kind, status, place, resource, and responsibility
 - browser search filters by kind, status, outcome, place, resource, and responsibility

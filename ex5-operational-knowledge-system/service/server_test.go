@@ -612,6 +612,9 @@ func TestServerContextDetailIncludesLinksForNeovimEntityInspector(t *testing.T) 
 	if err := app.AddLink("alice", "place", place.ID, "resource", resource.ID, "stores", "Receiving area stores the connector bin"); err != nil {
 		t.Fatalf("add place link: %v", err)
 	}
+	if err := app.AddLink("alice", "responsibility", resp.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns the dock receipt item"); err != nil {
+		t.Fatalf("add responsibility link: %v", err)
+	}
 	if err := app.AddLink("alice", "resource", resource.ID, "run", run.ID, "used_in", "Connector bin was counted during the run"); err != nil {
 		t.Fatalf("add resource link: %v", err)
 	}
@@ -629,12 +632,48 @@ func TestServerContextDetailIncludesLinksForNeovimEntityInspector(t *testing.T) 
 			t.Fatalf("detail status for %s: %d %s", path, response.Code, response.Body.String())
 		}
 		body := response.Body.String()
-		if path != "/api/responsibilities/"+resp.ID && !strings.Contains(body, `"links"`) {
+		if !strings.Contains(body, `"links"`) {
 			t.Fatalf("context detail missing links for %s: %s", path, body)
 		}
-		if path == "/api/responsibilities/"+resp.ID && !strings.Contains(body, `"linked_item_ids"`) {
+		if path == "/api/responsibilities/"+resp.ID && (!strings.Contains(body, `"linked_item_ids"`) || !strings.Contains(body, `"relation":"owns"`)) {
 			t.Fatalf("responsibility detail missing linked item ids for %s: %s", path, body)
 		}
+	}
+}
+
+func TestServerRejectsInvalidTypedLinkEndpoints(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Dock receipt", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/links", bytes.NewBufferString(`{"actor":"alice","from_type":"responsibility","from_id":"RESP-9999","to_type":"knowledge_item","to_id":"`+item.ID+`","relation":"owns","notes":"bad endpoint"}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected dangling endpoint rejection, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "from endpoint invalid") {
+		t.Fatalf("unexpected dangling endpoint response: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/links", bytes.NewBufferString(`{"actor":"alice","from_type":"item","from_id":"`+item.ID+`","to_type":"responsibility","to_id":"`+resp.ID+`","relation":"owns","notes":"bad type"}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected unsupported type rejection, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "unsupported link endpoint type") {
+		t.Fatalf("unexpected unsupported type response: %s", response.Body.String())
 	}
 }
 

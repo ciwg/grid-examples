@@ -665,15 +665,28 @@ func (app *App) AddLink(actor string, fromType string, fromID string, toType str
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	fromType = strings.TrimSpace(strings.ToLower(fromType))
+	fromID = strings.TrimSpace(fromID)
+	toType = strings.TrimSpace(strings.ToLower(toType))
+	toID = strings.TrimSpace(toID)
+	// Intent: Keep the typed-link graph trustworthy by rejecting dangling or
+	// mistyped endpoints before they enter the append-only history. Source:
+	// DI-luzaf
+	if err := app.validateLinkEndpointLocked(fromType, fromID); err != nil {
+		return fmt.Errorf("from endpoint invalid: %w", err)
+	}
+	if err := app.validateLinkEndpointLocked(toType, toID); err != nil {
+		return fmt.Errorf("to endpoint invalid: %w", err)
+	}
 	event := OperationalEvent{
 		EntityType: "link",
 		EntityID:   app.nextIDLocked("LINK"),
 		Type:       "link_added",
 		Actor:      actor,
-		FromType:   strings.TrimSpace(fromType),
-		FromID:     strings.TrimSpace(fromID),
-		ToType:     strings.TrimSpace(toType),
-		ToID:       strings.TrimSpace(toID),
+		FromType:   fromType,
+		FromID:     fromID,
+		ToType:     toType,
+		ToID:       toID,
 		Relation:   strings.TrimSpace(relation),
 		Notes:      strings.TrimSpace(notes),
 	}
@@ -1118,54 +1131,8 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 }
 
 func (app *App) attachLinkLocked(link Link, event OperationalEvent) {
-	if responsibility, ok := app.responsibilities[link.FromID]; ok {
-		responsibility.UpdatedAt = event.Timestamp
-		responsibility.Timeline = append(responsibility.Timeline, event)
-	}
-	if responsibility, ok := app.responsibilities[link.ToID]; ok {
-		responsibility.UpdatedAt = event.Timestamp
-		responsibility.Timeline = append(responsibility.Timeline, event)
-	}
-	if place, ok := app.places[link.FromID]; ok {
-		place.Links = append(place.Links, link)
-		place.UpdatedAt = event.Timestamp
-		place.Timeline = append(place.Timeline, event)
-	}
-	if place, ok := app.places[link.ToID]; ok {
-		place.Links = append(place.Links, link)
-		place.UpdatedAt = event.Timestamp
-		place.Timeline = append(place.Timeline, event)
-	}
-	if resource, ok := app.resources[link.FromID]; ok {
-		resource.Links = append(resource.Links, link)
-		resource.UpdatedAt = event.Timestamp
-		resource.Timeline = append(resource.Timeline, event)
-	}
-	if resource, ok := app.resources[link.ToID]; ok {
-		resource.Links = append(resource.Links, link)
-		resource.UpdatedAt = event.Timestamp
-		resource.Timeline = append(resource.Timeline, event)
-	}
-	if item, ok := app.items[link.FromID]; ok {
-		item.Links = append(item.Links, link)
-		item.UpdatedAt = event.Timestamp
-		item.Timeline = append(item.Timeline, event)
-	}
-	if item, ok := app.items[link.ToID]; ok {
-		item.Links = append(item.Links, link)
-		item.UpdatedAt = event.Timestamp
-		item.Timeline = append(item.Timeline, event)
-	}
-	if run, ok := app.runs[link.FromID]; ok {
-		run.Links = append(run.Links, link)
-		run.UpdatedAt = event.Timestamp
-		run.Timeline = append(run.Timeline, event)
-	}
-	if run, ok := app.runs[link.ToID]; ok {
-		run.Links = append(run.Links, link)
-		run.UpdatedAt = event.Timestamp
-		run.Timeline = append(run.Timeline, event)
-	}
+	app.attachLinkEndpointLocked(link.FromType, link.FromID, link, event)
+	app.attachLinkEndpointLocked(link.ToType, link.ToID, link, event)
 }
 
 func (app *App) validateResponsibilitiesLocked(ids []string) error {
@@ -1186,6 +1153,69 @@ func (app *App) validatePlaceLocked(id string) error {
 		return fmt.Errorf("place %q not found", id)
 	}
 	return nil
+}
+
+func (app *App) validateLinkEndpointLocked(entityType string, entityID string) error {
+	switch entityType {
+	case "place":
+		if _, ok := app.places[entityID]; !ok {
+			return fmt.Errorf("place %q not found", entityID)
+		}
+	case "resource":
+		if _, ok := app.resources[entityID]; !ok {
+			return fmt.Errorf("resource %q not found", entityID)
+		}
+	case "responsibility":
+		if _, ok := app.responsibilities[entityID]; !ok {
+			return fmt.Errorf("responsibility %q not found", entityID)
+		}
+	case "knowledge_item":
+		if _, ok := app.items[entityID]; !ok {
+			return fmt.Errorf("knowledge item %q not found", entityID)
+		}
+	case "run":
+		if _, ok := app.runs[entityID]; !ok {
+			return fmt.Errorf("run %q not found", entityID)
+		}
+	default:
+		return fmt.Errorf("unsupported link endpoint type %q", entityType)
+	}
+	return nil
+}
+
+func (app *App) attachLinkEndpointLocked(entityType string, entityID string, link Link, event OperationalEvent) {
+	switch entityType {
+	case "responsibility":
+		if responsibility, ok := app.responsibilities[entityID]; ok {
+			responsibility.Links = append(responsibility.Links, link)
+			responsibility.UpdatedAt = event.Timestamp
+			responsibility.Timeline = append(responsibility.Timeline, event)
+		}
+	case "place":
+		if place, ok := app.places[entityID]; ok {
+			place.Links = append(place.Links, link)
+			place.UpdatedAt = event.Timestamp
+			place.Timeline = append(place.Timeline, event)
+		}
+	case "resource":
+		if resource, ok := app.resources[entityID]; ok {
+			resource.Links = append(resource.Links, link)
+			resource.UpdatedAt = event.Timestamp
+			resource.Timeline = append(resource.Timeline, event)
+		}
+	case "knowledge_item":
+		if item, ok := app.items[entityID]; ok {
+			item.Links = append(item.Links, link)
+			item.UpdatedAt = event.Timestamp
+			item.Timeline = append(item.Timeline, event)
+		}
+	case "run":
+		if run, ok := app.runs[entityID]; ok {
+			run.Links = append(run.Links, link)
+			run.UpdatedAt = event.Timestamp
+			run.Timeline = append(run.Timeline, event)
+		}
+	}
 }
 
 func (app *App) validateResourcesLocked(ids []string) error {
@@ -1518,6 +1548,7 @@ func cloneResponsibility(in *Responsibility) Responsibility {
 	out.LinkedRunIDs = append([]string(nil), in.LinkedRunIDs...)
 	out.RelatedRuns = append([]RunRecord(nil), in.RelatedRuns...)
 	out.LinkedRoleKeys = append([]string(nil), in.LinkedRoleKeys...)
+	out.Links = append([]Link(nil), in.Links...)
 	out.Timeline = append([]OperationalEvent(nil), in.Timeline...)
 	return out
 }

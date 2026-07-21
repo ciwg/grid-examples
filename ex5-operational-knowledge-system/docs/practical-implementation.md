@@ -96,6 +96,11 @@ The current Go code does not yet emit signed grid envelopes for those families,
 but the seams are intentionally visible in the data model so the example can
 move there without a total rewrite.
 
+The typed-link path is also now stricter at write time. The runtime validates
+both endpoint types and endpoint IDs before appending a link event, and
+responsibility records now project their `links` array alongside the older
+linked-item and linked-run convenience fields. Source: `DI-luzaf`.
+
 ## Live draft behavior
 
 The browser draft studio is intentionally separate from durable history:
