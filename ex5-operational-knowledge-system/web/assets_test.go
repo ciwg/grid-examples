@@ -17,6 +17,7 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"search-kind",
 		"search-status",
 		"Runs",
+		"receiving_check",
 		"inventory_audit",
 		"Record Run",
 	}
@@ -43,6 +44,10 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"detailStats",
 		"Related runs",
 		"related_runs",
+		"Receiving history",
+		"Receiving review",
+		"receivingRunEntries",
+		"receivingEvidenceEntries",
 		"Inventory audit history",
 		"Inventory discrepancy",
 		"inventoryAuditEntries",

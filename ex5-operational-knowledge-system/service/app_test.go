@@ -462,3 +462,68 @@ func TestContextRecordsIncludeRelatedRuns(t *testing.T) {
 		t.Fatalf("unexpected responsibility related runs: %+v", loadedResp.RelatedRuns)
 	}
 }
+
+func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	responsibility, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "dock", "Dock A", "Inbound receiving dock", "", []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "Intake pallet", "Pallet staged for receipt", place.ID, []string{"inbound"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check for inbound pallet", "# Inspect inbound pallet", []string{"receiving"}, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
+		"supplier":        "Acme Parts",
+		"packing_slip":    "PS-1234",
+		"received_units":  "18",
+		"expected_units":  "20",
+		"variance":        "-2",
+		"condition":       "wrap torn",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+
+	meta := app.Meta()
+	if got := meta.KnowledgeKinds[3]; got != KnowledgeKindReceiving {
+		t.Fatalf("expected receiving kind in meta, got %+v", meta.KnowledgeKinds)
+	}
+	if got := meta.RunKinds[3]; got != RunKindReceiving {
+		t.Fatalf("expected receiving run kind in meta, got %+v", meta.RunKinds)
+	}
+
+	dashboard := app.Dashboard()
+	if dashboard.ReceivingItems != 1 || dashboard.ReceivingRuns != 1 {
+		t.Fatalf("unexpected receiving dashboard counts: %+v", dashboard)
+	}
+	if len(run.Evidence) != 1 {
+		t.Fatalf("expected receiving evidence, got %+v", run)
+	}
+
+	search := app.SearchWithOptions(SearchOptions{Kind: KnowledgeKindReceiving, PlaceID: place.ID})
+	items := search["items"].([]KnowledgeItem)
+	runs := search["runs"].([]RunRecord)
+	if len(items) != 1 || items[0].ID != item.ID {
+		t.Fatalf("unexpected receiving item search result: %+v", items)
+	}
+	if len(runs) != 1 || runs[0].ID != run.ID {
+		t.Fatalf("unexpected receiving run search result: %+v", runs)
+	}
+}

@@ -73,8 +73,8 @@ func NewApp(dataRoot string) (*App, error) {
 func (app *App) Meta() Meta {
 	return Meta{
 		DataRoot:          app.dataRoot,
-		KnowledgeKinds:    []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindInventory},
-		RunKinds:          []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindInventory},
+		KnowledgeKinds:    []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
+		RunKinds:          []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
 		ApprovalDecisions: []string{DecisionApproved, DecisionRejected, DecisionNoted},
 		ItemStatuses:      []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
 	}
@@ -98,6 +98,8 @@ func (app *App) Dashboard() Dashboard {
 			out.TrainingItems++
 		case KnowledgeKindMaintenance:
 			out.MaintenanceItems++
+		case KnowledgeKindReceiving:
+			out.ReceivingItems++
 		case KnowledgeKindInventory:
 			out.InventoryItems++
 		}
@@ -110,6 +112,8 @@ func (app *App) Dashboard() Dashboard {
 			out.TrainingRuns++
 		case RunKindMaintenance:
 			out.MaintenanceRuns++
+		case RunKindReceiving:
+			out.ReceivingRuns++
 		case RunKindInventory:
 			out.InventoryRuns++
 		}
@@ -315,10 +319,10 @@ func (app *App) GetKnowledgeItem(id string) (KnowledgeItem, error) {
 	return app.itemWithRelatedRunsLocked(item), nil
 }
 
-// Intent: Keep procedures, training content, and maintenance content as
-// hybrid knowledge items with structured metadata plus revisioned shared text,
-// so operational records and collaborative knowledge can coexist in one tool.
-// Source: DI-kovup
+// Intent: Keep procedures, training, maintenance, receiving, and inventory
+// work as hybrid knowledge items with structured metadata plus revisioned
+// shared text, so operational records and collaborative knowledge can coexist
+// in one tool. Source: DI-kovup; DI-vemok
 func (app *App) CreateKnowledgeItem(actor string, kind string, title string, summary string, body string, tags []string, responsibilityIDs []string) (KnowledgeItem, error) {
 	if err := validateKnowledgeKind(kind); err != nil {
 		return KnowledgeItem{}, err
@@ -436,9 +440,9 @@ func (app *App) GetRun(id string) (RunRecord, error) {
 }
 
 // Intent: Use performed runs as the durable anchor for completed work so every
-// procedure/training/maintenance execution can point back to the exact
-// revision, evidence, and responsibilities involved. Source: DI-kovup;
-// DI-zuvob
+// procedure, training, maintenance, receiving, and inventory execution can
+// point back to the exact revision, evidence, and responsibilities involved.
+// Source: DI-kovup; DI-zuvob; DI-vemok
 func (app *App) RecordRun(actor string, kind string, itemID string, revision int, outcome string, notes string, machine string, location string, placeID string, resourceIDs []string, responsibilityIDs []string) (RunRecord, error) {
 	if err := validateRunKind(kind); err != nil {
 		return RunRecord{}, err
@@ -1128,6 +1132,8 @@ func kindPrefix(kind string) string {
 		return "TRAIN"
 	case KnowledgeKindMaintenance:
 		return "MAINT"
+	case KnowledgeKindReceiving:
+		return "RECV"
 	case KnowledgeKindInventory:
 		return "INV"
 	default:
@@ -1143,6 +1149,8 @@ func itemKindForRun(runKind string) string {
 		return KnowledgeKindTraining
 	case RunKindMaintenance:
 		return KnowledgeKindMaintenance
+	case RunKindReceiving:
+		return KnowledgeKindReceiving
 	case RunKindInventory:
 		return KnowledgeKindInventory
 	default:
@@ -1230,7 +1238,7 @@ func normalizeBody(body string) string {
 
 func validateKnowledgeKind(kind string) error {
 	switch kind {
-	case KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindInventory:
+	case KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory:
 		return nil
 	default:
 		return fmt.Errorf("unsupported knowledge kind %q", kind)
@@ -1239,7 +1247,7 @@ func validateKnowledgeKind(kind string) error {
 
 func validateRunKind(kind string) error {
 	switch kind {
-	case RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindInventory:
+	case RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory:
 		return nil
 	default:
 		return fmt.Errorf("unsupported run kind %q", kind)

@@ -184,6 +184,19 @@ That does **not** make the current foundation a full inventory or MRP system. It
 means inventory audits and related operational history belong to the same
 operational-memory family as procedures, training, and maintenance.
 
+Receiving and inbound inspection fit that same family too. `receiving_check`
+lets the system represent intake work like inbound parts receipts, returned
+items, tool intake, and staged kit inspections without pretending every
+receiving event is only an inventory count.
+
+The browser inspector now also treats receiving checks as a first-class review
+surface:
+
+- receiving check items show `Receiving history`
+- receiving check runs show `Receiving review`
+- place/resource/responsibility detail views show receiving history when those
+  runs are part of the surrounding context
+
 The browser inspector now also treats inventory audits as a first-class review
 surface:
 
@@ -245,6 +258,7 @@ Current browser surface:
 - timeline-first record detail view
 - item history drilldown into related runs
 - context history drilldown from places, resources, and responsibilities
+- receiving review for inbound inspection runs
 - inventory discrepancy/count review for audit runs
 - record run
 - upload evidence

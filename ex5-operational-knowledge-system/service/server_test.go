@@ -450,3 +450,90 @@ func TestServerRunDetailIncludesEvidenceFacts(t *testing.T) {
 		t.Fatalf("run detail missing evidence facts: %s", response.Body.String())
 	}
 }
+
+func TestServerSupportsReceivingCheckKinds(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := NewServer(app)
+
+	itemBody := bytes.NewBufferString(`{"actor":"alice","kind":"receiving_check","title":"Inspect inbound pallet","summary":"Dock receipt","body":"# Inspect inbound pallet"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/items", itemBody)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create receiving item status: %d %s", response.Code, response.Body.String())
+	}
+	var item KnowledgeItem
+	if err := json.Unmarshal(response.Body.Bytes(), &item); err != nil {
+		t.Fatalf("decode receiving item: %v", err)
+	}
+	if item.Kind != KnowledgeKindReceiving {
+		t.Fatalf("unexpected receiving item: %+v", item)
+	}
+
+	runBody := bytes.NewBufferString(`{"actor":"bob","kind":"receiving_check","item_id":"` + item.ID + `","revision":1,"outcome":"accepted_with_notes","notes":"Outer wrap torn"}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/runs", runBody)
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create receiving run status: %d %s", response.Code, response.Body.String())
+	}
+	var run RunRecord
+	if err := json.Unmarshal(response.Body.Bytes(), &run); err != nil {
+		t.Fatalf("decode receiving run: %v", err)
+	}
+	if run.Kind != RunKindReceiving {
+		t.Fatalf("unexpected receiving run: %+v", run)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("dashboard status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"receiving_items":1`) || !strings.Contains(response.Body.String(), `"receiving_runs":1`) {
+		t.Fatalf("dashboard missing receiving counts: %s", response.Body.String())
+	}
+}
+
+func TestServerReceivingRunDetailIncludesEvidenceFacts(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Dock receipt", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
+		"supplier":       "Acme Parts",
+		"packing_slip":   "PS-1234",
+		"received_units": "18",
+		"expected_units": "20",
+		"variance":       "-2",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/runs/"+run.ID, nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("run detail status: %d %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"supplier":"Acme Parts"`) || !strings.Contains(body, `"packing_slip":"PS-1234"`) || !strings.Contains(body, `"variance":"-2"`) {
+		t.Fatalf("receiving run detail missing evidence facts: %s", body)
+	}
+}

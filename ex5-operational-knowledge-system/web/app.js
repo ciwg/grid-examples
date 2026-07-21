@@ -288,8 +288,9 @@ function renderStats(data) {
     ["Procedures", data.procedures],
     ["Training", data.training_items],
     ["Maintenance", data.maintenance_items],
+    ["Receiving", data.receiving_items],
     ["Inventory", data.inventory_items],
-    ["Runs", data.procedure_runs + data.training_runs + data.maintenance_runs + data.inventory_runs],
+    ["Runs", data.procedure_runs + data.training_runs + data.maintenance_runs + data.receiving_runs + data.inventory_runs],
     ["Approvals", data.approvals],
     ["Evidence", data.evidence],
     ["Links", data.links],
@@ -692,10 +693,10 @@ function renderDetailTimeline(events) {
   }
 }
 
-// Intent: Make run/item/context review practical in the browser by surfacing
-// revisions, approvals, evidence, and related run history as first-class
-// panels instead of hiding them inside raw record JSON. Source: DI-honus;
-// DI-julos
+// Intent: Make run, item, and context review practical in the browser by
+// surfacing revisions, approvals, evidence, and related run history as
+// first-class panels instead of hiding them inside raw record JSON. Source:
+// DI-honus; DI-julos; DI-vemok
 function renderDetailReview(type, record) {
   detailReviewEl.innerHTML = "";
   const sections = [];
@@ -703,6 +704,9 @@ function renderDetailReview(type, record) {
     sections.push(["Revisions", (record.revisions || []).map((revision) => `${revision.number} · ${revision.title} · ${revision.author} · ${revision.created_at}`)]);
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor} · rev ${approval.revision}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    if (record.kind === "receiving_check") {
+      sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
+    }
     if (record.kind === "inventory_audit") {
       sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
     }
@@ -711,6 +715,9 @@ function renderDetailReview(type, record) {
     sections.push(["Evidence", (record.evidence || []).map((evidence) => `${evidence.summary} · ${evidence.actor} · ${evidence.created_at}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`)]);
     sections.push(["Approvals", (record.approvals || []).map((approval) => `${approval.decision} · ${approval.role} · ${approval.actor}${approval.notes ? ` · ${approval.notes}` : ""}`)]);
     sections.push(["Responsibilities", (record.responsibility_ids || []).map((id) => id)]);
+    if (record.kind === "receiving_check") {
+      sections.push(["Receiving review", receivingEvidenceEntries(record.evidence || [])]);
+    }
     if (record.kind === "inventory_audit") {
       sections.push(["Inventory discrepancy", inventoryEvidenceEntries(record.evidence || [])]);
     }
@@ -719,10 +726,12 @@ function renderDetailReview(type, record) {
     sections.push(["Linked items", (record.linked_item_ids || []).map((id) => id)]);
     sections.push(["Linked runs", (record.linked_run_ids || []).map((id) => id)]);
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
     sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
   }
   if (type === "place" || type === "resource") {
     sections.push(["Related runs", (record.related_runs || []).map((run) => `${run.id} · ${run.kind} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`)]);
+    sections.push(["Receiving history", receivingRunEntries(record.related_runs || [])]);
     sections.push(["Inventory audit history", inventoryAuditEntries(record.related_runs || [])]);
   }
   for (const [title, entries] of sections) {
@@ -771,6 +780,24 @@ function formatEvidenceFacts(facts) {
     return "no facts";
   }
   return keys.map((key) => `${key}: ${facts[key]}`).join(" · ");
+}
+
+// Intent: Make receiving and inbound inspection work readable as its own
+// operational flow, not just as generic evidence text or an inventory-only
+// special case. Source: DI-vemok
+function receivingEvidenceEntries(evidenceList) {
+  const entries = [];
+  for (const evidence of evidenceList) {
+    const facts = formatEvidenceFacts(evidence.facts || {});
+    entries.push(`${evidence.summary} · ${facts}${evidence.attachment_name ? ` · attachment ${evidence.attachment_name}` : ""}`);
+  }
+  return entries;
+}
+
+function receivingRunEntries(runs) {
+  return runs
+    .filter((run) => run.kind === "receiving_check")
+    .map((run) => `${run.id} · rev ${run.revision} · ${run.outcome || "-"} · ${run.created_at}`);
 }
 
 function timelineSummary(event) {

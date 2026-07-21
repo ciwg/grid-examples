@@ -4,6 +4,7 @@ const (
 	KnowledgeKindProcedure   = "procedure"
 	KnowledgeKindTraining    = "training"
 	KnowledgeKindMaintenance = "maintenance"
+	KnowledgeKindReceiving   = "receiving_check"
 	KnowledgeKindInventory   = "inventory_audit"
 )
 
@@ -11,6 +12,7 @@ const (
 	RunKindProcedure   = "procedure"
 	RunKindTraining    = "training"
 	RunKindMaintenance = "maintenance"
+	RunKindReceiving   = "receiving_check"
 	RunKindInventory   = "inventory_audit"
 )
 
@@ -175,10 +177,12 @@ type Dashboard struct {
 	Procedures       int `json:"procedures"`
 	TrainingItems    int `json:"training_items"`
 	MaintenanceItems int `json:"maintenance_items"`
+	ReceivingItems   int `json:"receiving_items"`
 	InventoryItems   int `json:"inventory_items"`
 	ProcedureRuns    int `json:"procedure_runs"`
 	TrainingRuns     int `json:"training_runs"`
 	MaintenanceRuns  int `json:"maintenance_runs"`
+	ReceivingRuns    int `json:"receiving_runs"`
 	InventoryRuns    int `json:"inventory_runs"`
 	Approvals        int `json:"approvals"`
 	Evidence         int `json:"evidence"`
