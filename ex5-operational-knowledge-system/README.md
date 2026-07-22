@@ -461,7 +461,7 @@ What it does not try to do yet:
 - [Knowledge evidence protocol](protocols/knowledge-evidence.md)
 - [Knowledge link protocol](protocols/knowledge-link.md)
 - [Knowledge responsibility protocol](protocols/knowledge-responsibility.md)
-- [Knowledge search metadata protocol](protocols/knowledge-search-metadata.md)
+- [Knowledge search metadata note](protocols/knowledge-search-metadata.md)
 
 ## Current direction
 

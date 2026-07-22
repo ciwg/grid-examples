@@ -1,10 +1,10 @@
 # TODO
 
 ## Open / Planned
-- [ ] 099 - Freeze and claim the sixth ex5 PromiseGrid protocol family for search metadata - `TODO/TODO-lomuk-ex5-sixth-frozen-protocol-family.md`
 - [ ] 100 - Decide and stage relay-visible ex5 PromiseGrid peer exchange - `TODO/TODO-fativ-ex5-relay-visible-peer-exchange.md`
 - [ ] 101 - Decide and stage CAS-backed envelope storage for ex5 PromiseGrid families - `TODO/TODO-nobek-ex5-cas-envelope-storage.md`
 - [ ] 102 - Decide when ex5 embodiments should move beyond the local HTTP adapter contract - `TODO/TODO-zidor-ex5-embodiment-contract-tightening.md`
+- [x] 099 - Resolve ex5 search metadata as derived projection state, not a sixth durable family - `TODO/TODO-lomuk-ex5-sixth-frozen-protocol-family.md`
 - [x] 098 - Freeze and claim the fifth ex5 PromiseGrid protocol family for responsibilities - `TODO/TODO-sarib-ex5-fifth-frozen-protocol-family.md`
 - [x] 097 - Freeze and claim the fourth ex5 PromiseGrid protocol family for typed links - `TODO/TODO-votek-ex5-fourth-frozen-protocol-family.md`
 - [x] 096 - Freeze and claim the third ex5 PromiseGrid protocol family - `TODO/TODO-kavup-ex5-third-frozen-protocol-family.md`

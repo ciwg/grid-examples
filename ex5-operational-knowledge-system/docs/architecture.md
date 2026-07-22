@@ -26,8 +26,10 @@ shipped runtime already uses append-only events and shared embodiments, and it
 now implements five runtime-selected frozen `pCID` documents with signed grid
 envelopes for `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
 `knowledge-link`, and `knowledge-responsibility`. It still does not yet
-implement that full wire-level layer for the remaining ex5 families. Source:
-`DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`.
+implement the relay-visible peer-exchange and CAS-backed storage layers, and
+search metadata remains derived projection state instead of a sixth durable
+family. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`;
+`DI-sarib`; `DI-fusok`.
 
 The runtime owns:
 

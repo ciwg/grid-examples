@@ -204,10 +204,13 @@ The implementation already organizes the model around protocol-family seams:
 - `knowledge-search-metadata`
 
 The current Go code now emits and verifies signed grid envelopes for the
-`knowledge-item` family, and it now freezes that one family's runtime behavior
-by the shipped `knowledge-item` `pCID`. The other named families still remain
-on the bridge layer, and the local HTTP adapter is still not the full
-PromiseGrid peer contract. Source: `DI-sobek`; `DI-mibor`.
+`knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
+`knowledge-link`, and `knowledge-responsibility` families, and it freezes
+those five families' runtime behavior by their shipped `pCID`s.
+`knowledge-search-metadata` remains derived projection state rather than a
+sixth signed family, and the local HTTP adapter is still not the full
+PromiseGrid peer contract. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`;
+`DI-kavup`; `DI-votek`; `DI-sarib`; `DI-fusok`.
 
 For the explicit statement of current shipped promises versus future
 PromiseGrid-facing work, see

@@ -59,7 +59,6 @@ Today it ships:
 Today it does **not** yet ship:
 
 - relay-visible peer exchange
-- frozen runtime behavior for search-metadata families
 - relay transport or CAS-backed envelope storage as part of the ex5
   operational workflow
 
@@ -98,8 +97,10 @@ Source: `DI-sobek`; `DI-mibor`.
 `knowledge-link`, and `knowledge-responsibility` now select runtime behavior
 through their computed `pCID`s, and the runtime signs and verifies durable
 artifacts for all five families. The other named ex5 families remain
-documented framing and staged migration targets for now. Source: `DI-mibor`;
-`DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`; `DI-sarib`.
+documented framing and staged migration targets for now. Search metadata
+remains derived projection state instead of a separate durable family. Source:
+`DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`; `DI-sarib`;
+`DI-fusok`.
 
 ## What the shipped implementation does not yet promise
 
@@ -120,6 +121,8 @@ Done now:
 - `knowledge-evidence` is frozen as the third ex5 family
 - `knowledge-link` is frozen as the fourth ex5 family
 - `knowledge-responsibility` is frozen as the fifth ex5 family
+- search metadata remains derived projection state over those families, not a
+  sixth signed family
 - the runtime computes all five `pCID`s from the exact shipped spec bytes
 - the runtime signs and verifies durable knowledge-item create/revision/status
   artifacts
@@ -134,8 +137,8 @@ Done now:
 
 Remaining:
 
-- freeze and claim `knowledge-search-metadata`
 - decide and implement any later relay-visible exchange layer
+- decide and implement any CAS-backed envelope storage layer
 
 ## Current implementation claim
 
@@ -158,8 +161,7 @@ The current ex5 implementation claims live in
 
 ## Follow-on work
 
-The next staged PromiseGrid work is the dedicated `knowledge-search-metadata`
-boundary TE after the grouped `knowledge-link` and
-`knowledge-responsibility` slice, not reopening the already settled “should we
-begin the real wire slice at all?” question. Source: `DI-votek`; `DI-sarib`;
-`DI-lomuk`.
+The next staged PromiseGrid work is no longer a sixth durable
+`knowledge-search-metadata` family. Search metadata is settled as derived
+projection state, so the next work is the peer/storage layer backlog that
+follows the frozen operational families. Source: `DI-fusok`.
