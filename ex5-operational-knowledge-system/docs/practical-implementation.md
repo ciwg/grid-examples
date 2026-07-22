@@ -142,6 +142,12 @@ run back into related item, place, resource, and responsibility context so
 queue-driven review can keep walking the same projected model instead of
 stopping at one record. Source: `DI-vunep`.
 
+The next Neovim refinement applies the same idea inside the older inspectors:
+whenever item, place, resource, or responsibility detail lists related runs,
+the editor now emits direct `:OksInspectRun` hints so the user can keep walking
+projected review context without leaving the current embodiment. Source:
+`DI-josav`.
+
 The matching CLI queue pass follows the same rule too. It keeps
 `problem-review` on the existing grouped hotspot route and keeps
 `pending-review` on the existing shared search projections, but renders both as

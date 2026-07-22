@@ -307,6 +307,7 @@ The inspector phase adds a read-only split showing:
 - revision history
 - approvals
 - related run history
+- direct `:OksInspectRun` hints from related runs
 
 The run inspector adds a read-only split showing:
 
@@ -319,6 +320,7 @@ The typed-link phase adds:
 - link sections inside item and run inspectors
 - generic read-only inspection of linked `place`, `resource`, `responsibility`,
   `item`, and `run` records
+- direct `:OksInspectRun` hints inside place/resource/responsibility related-run sections
 
 Neovim also supports read-only search and browse over the shared
 `/api/search` projection:

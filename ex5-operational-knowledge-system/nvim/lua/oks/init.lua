@@ -734,8 +734,12 @@ local function item_detail_lines(detail)
   if not detail.related_runs or #detail.related_runs == 0 then
     table.insert(lines, "- none")
   else
+    -- Intent: Make older item inspectors as actionable as the newer search and
+    -- pending views by emitting direct run-inspection handoffs inline with the
+    -- projected related-run summaries. Source: DI-josav
     for _, run in ipairs(detail.related_runs) do
       table.insert(lines, string.format("- %s kind=%s revision=%d outcome=%s", run.id or "-", run.kind or "-", run.revision or 0, run.outcome or "-"))
+      table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
       if run.notes and run.notes ~= "" then
         table.insert(lines, "  notes: " .. run.notes)
       end
@@ -887,8 +891,12 @@ local function generic_entity_lines(entity_type, detail)
       if #detail.related_runs == 0 then
         table.insert(lines, "- none")
       else
+        -- Intent: Keep entity inspectors consistent with terminal queue and
+        -- run-inspector navigation by giving every related-run summary a
+        -- direct :OksInspectRun handoff. Source: DI-josav
         for _, run in ipairs(detail.related_runs) do
           table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+          table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
         end
       end
     end
@@ -910,8 +918,12 @@ local function generic_entity_lines(entity_type, detail)
       if #detail.related_runs == 0 then
         table.insert(lines, "- none")
       else
+        -- Intent: Keep entity inspectors consistent with terminal queue and
+        -- run-inspector navigation by giving every related-run summary a
+        -- direct :OksInspectRun handoff. Source: DI-josav
         for _, run in ipairs(detail.related_runs) do
           table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+          table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
         end
       end
     end
@@ -935,8 +947,12 @@ local function generic_entity_lines(entity_type, detail)
       if #detail.related_runs == 0 then
         table.insert(lines, "- none")
       else
+        -- Intent: Keep entity inspectors consistent with terminal queue and
+        -- run-inspector navigation by giving every related-run summary a
+        -- direct :OksInspectRun handoff. Source: DI-josav
         for _, run in ipairs(detail.related_runs) do
           table.insert(lines, string.format("- %s kind=%s outcome=%s", run.id or "-", run.kind or "-", run.outcome or "-"))
+          table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
         end
       end
     end

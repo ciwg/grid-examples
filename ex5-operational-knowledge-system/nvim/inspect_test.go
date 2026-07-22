@@ -63,6 +63,9 @@ end
 if not string.find(body, "## Related runs", 1, true) then
   error("missing related runs section")
 end
+if not string.find(body, "inspect: :OksInspectRun RUN-0001", 1, true) then
+  error("missing related run inspect hint")
+end
 if not string.find(body, "resources: RES-0001", 1, true) then
   error("missing related run resource summary")
 end
@@ -221,6 +224,9 @@ if not string.find(body, "# Receiving lead", 1, true) then
 end
 if not string.find(body, "## Related runs", 1, true) then
   error("missing responsibility related runs section")
+end
+if not string.find(body, "inspect: :OksInspectRun RUN-0001", 1, true) then
+  error("missing responsibility related run inspect hint")
 end
 if not string.find(body, "## Links", 1, true) then
   error("missing responsibility links section")

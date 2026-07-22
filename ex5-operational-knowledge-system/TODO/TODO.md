@@ -2,6 +2,7 @@
 
 ## Open / Planned
 
+- [x] 058 - Add ex5 Neovim related-run handoff hints across inspectors - `TODO/TODO-josav-ex5-neovim-related-run-handoffs.md`
 - [x] 056 - Add real behavior tests for ex5 Neovim inspect commands - `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
 - [x] 055 - Bring ex5 architecture docs up to current terminal surface - `TODO/TODO-bafek-ex5-architecture-terminal-drift.md`
 - [x] 054 - Add better terminal run-context handoffs in ex5 CLI and Neovim - `TODO/TODO-vunep-ex5-run-context-handoffs.md`

@@ -232,6 +232,7 @@ Neovim behavior today:
 
 - live draft editing for one knowledge item
 - read-only item/run/entity inspection
+- direct `:OksInspectRun` handoffs from any related-run section inside those inspectors
 - grouped search and browse over the operational graph
 - grouped pending-review browsing for draft items and review-worthy runs
 - strict pending-review contract checks so omitted run `approvals` fields stop the queue instead of inventing fake review work
