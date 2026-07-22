@@ -94,8 +94,6 @@ What that means in practice:
 
 What is still not shipped in that layer:
 
-- dedicated remote relay deployment beyond the current local-adapter exchange
-  layer
 - direct non-HTTP embodiment contracts
 
 Those are now future-scope choices rather than missing pieces inside the

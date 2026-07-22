@@ -3,6 +3,9 @@
 This guide documents the local HTTP adapter that the browser, CLI, and
 first-phase Neovim embodiment all use.
 
+The dedicated remote relay service is documented separately in
+[Relay API Guide](./relay-api-guide.md).
+
 It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.

@@ -102,6 +102,14 @@ Live drafting now prefers websocket carriage under that same adapter for the
 browser and first-phase Neovim embodiment. Source: `DI-fudok`; `DI-ravum`;
 `DI-sobek`; `DI-bavuk`; `DI-noruv`.
 
+### 1a. One dedicated remote relay surface
+
+`ex5` now also ships a separate `operational-relay` binary whose only job is
+to persist and serve origin-aware relay-feed history plus CID-addressed blobs
+under `/relay/v1`. It does not replace the local embodiment adapter, and it
+does not become the main application runtime. Source: `DI-rovik`;
+`DI-tasov`; `DI-nulav`.
+
 ### 2. Append-only durable operational history
 
 The runtime keeps durable operational history as append-only events and then

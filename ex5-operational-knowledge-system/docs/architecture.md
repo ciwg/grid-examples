@@ -44,6 +44,12 @@ exchange names required blob CIDs and fetches the raw bytes through separate
 blob routes. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`;
 `DI-pivul`; `DI-pazek`.
 
+That transport layer now also has a dedicated remote deployment: the separate
+`operational-relay` binary persists origin-aware relay-feed history plus
+CID-addressed blobs under `/relay/v1/*` without rehosting the browser/CLI
+adapter as the network relay contract. Source: `DI-rovik`; `DI-tasov`;
+`DI-nulav`.
+
 That peer layer is no longer empty-runtime-only. The runtime now tracks
 `origin_peer_id` plus `origin_sequence` for compatibility events and signed
 family records, accepts unseen peer history into non-empty runtimes, and

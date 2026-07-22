@@ -243,6 +243,12 @@ to be staged separately into CAS before import. Source: `DI-guzab`;
 `DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`;
 `DI-pivul`; `DI-pazek`.
 
+That same relay-feed model now ships remotely too: `cmd/operational-relay`
+stores the relay history durably under `.operational-relay/`, serves only
+`/relay/v1/feed/*`, `/relay/v1/blobs/{cid}`, and `/relay/v1/meta`, and
+requires referenced blobs to be staged before evidence-bearing publish
+succeeds. Source: `DI-rovik`; `DI-tasov`; `DI-nulav`.
+
 That later storage decision is now also staged: the first CAS pass dual-writes
 signed family envelopes and copied evidence blobs into content-addressed
 storage while keeping the current family logs and attachment tree during

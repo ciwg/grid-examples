@@ -1,11 +1,11 @@
 # TODO
 
 ## Open / Planned
-- [ ] 116 - Define dedicated remote relay deployment beyond the current ex5 local-adapter exchange layer - `TODO/TODO-ravel-ex5-remote-relay-deployment.md`
 - [ ] 117 - Define direct non-HTTP embodiment contracts for ex5 - `TODO/TODO-tisuk-ex5-non-http-embodiment-contracts.md`
 
 ## Completed
 
+- [x] 116 - Define dedicated remote relay deployment beyond the current ex5 local-adapter exchange layer - `TODO/TODO-ravel-ex5-remote-relay-deployment.md`
 - [x] 115 - Extend ex5 from local-adapter peer exchange into richer relay-network behavior - `TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`
 - [x] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
 - [x] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`

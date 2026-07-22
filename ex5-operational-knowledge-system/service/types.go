@@ -56,6 +56,16 @@ type Meta struct {
 	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
 }
 
+type RelayMeta struct {
+	DataRoot                   string   `json:"data_root"`
+	ServiceName                string   `json:"service_name"`
+	RoutePrefix                string   `json:"route_prefix"`
+	RelayFeedFormat            string   `json:"relay_feed_format"`
+	RelayFeedFamilies          []string `json:"relay_feed_families"`
+	RelayBlobTransferEnabled   bool     `json:"relay_blob_transfer_enabled"`
+	PublishRequiresStagedBlobs bool     `json:"publish_requires_staged_blobs"`
+}
+
 type RelayFeedRequest struct {
 	KnownOrigins map[string]uint64 `json:"known_origins,omitempty"`
 }
@@ -97,6 +107,19 @@ type RelayFeedImportResult struct {
 	ImportedResponsibilities     int                       `json:"imported_responsibilities"`
 	MissingBlobCIDs              []string                  `json:"missing_blob_cids,omitempty"`
 	UnresolvedReferences         []PeerExchangeImportIssue `json:"unresolved_references"`
+}
+
+type RelayPublishResult struct {
+	PublishedEvents               int      `json:"published_events"`
+	PublishedKnowledgeItems       int      `json:"published_knowledge_items"`
+	PublishedKnowledgeApprovals   int      `json:"published_knowledge_approvals"`
+	PublishedKnowledgeEvidence    int      `json:"published_knowledge_evidence"`
+	PublishedOperationalRuns      int      `json:"published_operational_runs"`
+	PublishedOperationalPlaces    int      `json:"published_operational_places"`
+	PublishedOperationalResources int      `json:"published_operational_resources"`
+	PublishedKnowledgeLinks       int      `json:"published_knowledge_links"`
+	PublishedResponsibilities     int      `json:"published_responsibilities"`
+	MissingBlobCIDs               []string `json:"missing_blob_cids,omitempty"`
 }
 
 type PeerExchangeBundle struct {

@@ -167,14 +167,15 @@ What the current runtime actually implements today:
   create-envelope CID durable identity
 - incremental relay-feed exchange over the local adapter with separate CID
   blob transfer for ongoing evidence carriage
+- dedicated remote relay deployment through the separate `operational-relay`
+  binary, with durable `/relay/v1/feed/*` plus `/relay/v1/blobs/{cid}` routes
 - CAS-authoritative replay/export for the eight frozen family envelopes
 - inline CID-keyed evidence blob carriage only in the bootstrap peer-exchange
   bundle path
 
 What is not yet implemented in the shipped runtime:
 
-- dedicated remote relay deployment beyond the current local-adapter exchange
-  layer
+- direct non-HTTP embodiment contracts
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
@@ -494,4 +495,4 @@ What it does not try to do yet:
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, create-envelope-CID durable IDs plus preserved short aliases, bootstrap inline evidence blobs, and incremental relay-feed plus CID blob transfer
 - dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests
 - expose peer-exchange, CAS, shared-draft, websocket-live-transport, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing the broader transport family
-- treat direct non-HTTP embodiment contracts and deferred product follow-on work as the remaining PromiseGrid-adjacent backlog
+- ship a dedicated `operational-relay` remote deployment alongside the local adapter while treating direct non-HTTP embodiment contracts and deferred product follow-on work as the remaining PromiseGrid-adjacent backlog
