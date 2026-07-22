@@ -137,8 +137,12 @@ Done now:
 
 Remaining:
 
-- decide and implement any later relay-visible exchange layer
-- decide and implement any CAS-backed envelope storage layer
+- implement the first relay-visible exchange layer for the four
+  attachment-free families
+- implement additive CAS-backed storage for signed envelopes and copied
+  evidence blobs
+- tighten embodiment/runtime language only after those peer/storage layers are
+  implemented
 
 ## Current implementation claim
 
@@ -164,4 +168,10 @@ The current ex5 implementation claims live in
 The next staged PromiseGrid work is no longer a sixth durable
 `knowledge-search-metadata` family. Search metadata is settled as derived
 projection state, so the next work is the peer/storage layer backlog that
-follows the frozen operational families. Source: `DI-fusok`.
+follows the frozen operational families. The first relay-visible slice is now
+staged for the four attachment-free families, while peer-visible evidence waits
+for the later storage/carriage decision. CAS is now also staged as an additive
+sidecar for signed envelopes and copied evidence blobs rather than a log
+replacement rewrite, and embodiment tightening is staged after those runtime
+layers are implemented rather than before. Source: `DI-fusok`; `DI-guzab`;
+`DI-ribek`; `DI-vabek`.

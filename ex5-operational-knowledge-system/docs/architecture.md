@@ -31,6 +31,21 @@ search metadata remains derived projection state instead of a sixth durable
 family. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`;
 `DI-sarib`; `DI-fusok`.
 
+The first staged relay-visible exchange slice is now defined more narrowly than
+the full local runtime: `knowledge-item`, `knowledge-approval`,
+`knowledge-link`, and `knowledge-responsibility` are the first peer-visible
+families, while peer-visible `knowledge-evidence` waits on the later
+storage/blob-carriage decision. Source: `DI-guzab`.
+
+That later storage step is also now staged: CAS enters first as an additive
+sidecar for signed envelopes and copied evidence blobs, while the current
+family logs and copied attachment paths remain during migration. Source:
+`DI-ribek`.
+
+The embodiment contract stays adapter-first until those peer/storage layers are
+implemented. Browser, CLI, and Neovim are not yet restated as direct-runtime
+peers before that milestone. Source: `DI-vabek`.
+
 The runtime owns:
 
 - append-only event persistence

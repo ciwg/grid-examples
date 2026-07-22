@@ -216,6 +216,22 @@ For the explicit statement of current shipped promises versus future
 PromiseGrid-facing work, see
 [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
 
+The next staged PromiseGrid boundary is now also explicit: the first
+relay-visible exchange slice is attachment-free and carries
+`knowledge-item`, `knowledge-approval`, `knowledge-link`, and
+`knowledge-responsibility`. Peer-visible `knowledge-evidence` remains deferred
+until the later storage/carriage decision because the current evidence family
+still points at local copied attachment paths. Source: `DI-guzab`.
+
+That later storage decision is now also staged: the first CAS pass dual-writes
+signed family envelopes and copied evidence blobs into content-addressed
+storage while keeping the current family logs and attachment tree during
+migration. Source: `DI-ribek`.
+
+Embodiment wording does not tighten in the same phase. Browser, CLI, and
+Neovim remain described through the current local HTTP adapter until those
+peer/storage layers are implemented, not merely planned. Source: `DI-vabek`.
+
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and
 responsibility records now project their `links` array alongside the older
