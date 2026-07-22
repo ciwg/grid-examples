@@ -4,8 +4,8 @@
 - [x] 077 - Make ex5 browser operation flows more context-driven - `TODO/TODO-mitav-ex5-browser-context-driven-operations.md`
 - [x] 076 - Clarify the ex5 browser primary action flow - `TODO/TODO-sorik-ex5-browser-primary-flow.md`
 - [x] 075 - Shift ex5 browser controls toward clearer task language - `TODO/TODO-vazut-ex5-browser-task-language.md`
-- [ ] 074 - Strengthen ex5 browser mode separation - `TODO/TODO-bavum-ex5-browser-mode-separation.md`
-- [ ] 073 - Polish the ex5 browser authoring surface - `TODO/TODO-rofek-ex5-browser-authoring-polish.md`
+- [x] 074 - Strengthen ex5 browser mode separation - `TODO/TODO-bavum-ex5-browser-mode-separation.md`
+- [x] 073 - Polish the ex5 browser authoring surface - `TODO/TODO-rofek-ex5-browser-authoring-polish.md`
 - [x] 063 - Clean up ex5 high-level terminal doc surface drift - `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
 - [x] 062 - Add direct headless coverage for ex5 Neovim Ex commands - `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`
 - [x] 061 - Fix ex5 Neovim `:OksSearch` command arity and documented syntax mismatch - `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`

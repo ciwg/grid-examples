@@ -79,8 +79,10 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	required := []string{
 		"Operational Knowledge System",
 		"Review",
+		"mode-review",
 		"Primary Flow",
 		"Author",
+		"Authoring Status",
 		"Operate",
 		"Create",
 		"Browse Collections",
@@ -90,6 +92,7 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 		"Record run for this item",
 		"Continue draft",
 		"Approve this item",
+		"Focus Writing",
 		"Capture Review Decision",
 		"Log Work Performed",
 		"Revisions",

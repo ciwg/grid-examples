@@ -18,7 +18,6 @@ surface.
 
 ## Tasks
 
-- [ ] rofek.1 Review the current browser draft studio for sustained authoring friction.
-- [ ] rofek.2 Define the smallest layout and interaction improvements that help authoring without changing the underlying model.
-- [ ] rofek.3 Update the browser and docs to reflect the improved authoring surface.
-
+- [x] rofek.1 Review the current browser draft studio for sustained authoring friction.
+- [x] rofek.2 Define the smallest layout and interaction improvements that help authoring without changing the underlying model.
+- [x] rofek.3 Update the browser and docs to reflect the improved authoring surface.

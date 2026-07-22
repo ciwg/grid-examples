@@ -100,6 +100,11 @@ The browser now also makes its primary flow explicit here:
 That guidance is surfaced directly in the `Primary Flow` panel and reinforced
 again inside the inspector’s `Next Step` area. Source: `DI-sorik`.
 
+The browser now also uses a sticky mode rail so Review, Author, Operate,
+Create, and Browse feel like explicit working modes instead of one undifferentiated
+long page. It does not hide any capability; it changes emphasis and navigation.
+Source: `DI-bavum`.
+
 ## Create Place
 
 ### What it does
@@ -251,6 +256,10 @@ This authoring zone now sits below the main review workspace so drafting stays
 easy to reach without displacing problem triage and inspection. Source:
 `DI-lafor`.
 
+The authoring surface now also includes a dedicated status sidecar, live draft
+metrics, and a `Focus Writing` action so sustained drafting feels more like a
+real authoring mode than an administrative panel. Source: `DI-rofek`.
+
 ### Fields And Controls
 
 - `Knowledge Item`
@@ -266,6 +275,11 @@ easy to reach without displacing problem triage and inspection. Source:
 - `Working Body`
   - the shared draft text body
   - important because this is the collaborative editing surface
+- `Focus Writing`
+  - scrolls and focuses the draft body while keeping Author mode visually
+    active
+  - important because it makes sustained drafting feel separate from review and
+    operations
 
 ### Buttons
 
@@ -288,6 +302,12 @@ easy to reach without displacing problem triage and inspection. Source:
   - shows title, status, live version, and current durable revision
 - participant list
   - shows who is present, their cursor/head, and typing state
+- authoring status cards
+  - show live version, current revision, word count, paragraph count,
+    participant count, and status
+  - important because they make the draft feel trackable while you write
+- author flow sidecar
+  - keeps the snapshot/approve/supersede sequence visible next to the editor
 
 ## Record Run
 
@@ -570,7 +590,7 @@ Each card is also a navigation entry into the Record Inspector.
 The browser is easiest to use when you think of it as one workflow:
 
 1. start in Review to see problem hotspots, search results, and the current inspected record
-2. move into Author when you need to revise the current knowledge item
+2. use the mode rail to switch cleanly into Author when you need to revise the current knowledge item
 3. use Operate to record runs, evidence, and approvals with the current context prefilled when possible
 4. use Create when you need new places, resources, responsibilities, or items
 5. use Browse Collections when you want broad inventory browsing instead of targeted review

@@ -159,7 +159,10 @@ Use the browser when you want:
 - a review-first workspace that keeps triage and inspection ahead of setup forms
 - a primary-flow layer that points you toward hotspots, draft review, and the
   most likely next action for the current record
+- a mode rail that lets you stay in Review, Author, Operate, Create, or Browse
+  intentionally while keeping the browser single-page
 - shared live browser drafting
+- live draft metrics, writing focus, and a dedicated authoring sidecar
 - contextual review panels
 - grouped hotspot review
 - direct jump actions from the current record into run recording, evidence

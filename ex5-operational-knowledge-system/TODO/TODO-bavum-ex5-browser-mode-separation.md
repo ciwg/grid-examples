@@ -18,7 +18,6 @@ multi-purpose surface.
 
 ## Tasks
 
-- [ ] bavum.1 Review the current section transitions and interaction boundaries.
-- [ ] bavum.2 Define stronger mode-specific affordances for Review, Author, Operate, Create, and Browse.
-- [ ] bavum.3 Implement the smallest browser changes that make the modes feel behaviorally distinct.
-
+- [x] bavum.1 Review the current section transitions and interaction boundaries.
+- [x] bavum.2 Define stronger mode-specific affordances for Review, Author, Operate, Create, and Browse.
+- [x] bavum.3 Implement the smallest browser changes that make the modes feel behaviorally distinct.

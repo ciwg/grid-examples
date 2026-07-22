@@ -13,6 +13,11 @@ const searchClearEl = document.getElementById("search-clear");
 const focusProblemsEl = document.getElementById("focus-problems");
 const focusSearchEl = document.getElementById("focus-search");
 const focusDraftsEl = document.getElementById("focus-drafts");
+const modeReviewEl = document.getElementById("mode-review");
+const modeAuthorEl = document.getElementById("mode-author");
+const modeOperateEl = document.getElementById("mode-operate");
+const modeCreateEl = document.getElementById("mode-create");
+const modeBrowseEl = document.getElementById("mode-browse");
 const toastEl = document.getElementById("toast");
 const workspaceStatusEl = document.getElementById("workspace-status");
 const detailMetaEl = document.getElementById("detail-meta");
@@ -29,12 +34,16 @@ const editorDisplayNameEl = document.getElementById("editor-display-name");
 const editorColorEl = document.getElementById("editor-color");
 const editorMetaEl = document.getElementById("editor-meta");
 const editorParticipantsEl = document.getElementById("editor-participants");
+const editorStatusCardsEl = document.getElementById("editor-status-cards");
 const editorBodyEl = document.getElementById("editor-body");
+const editorFocusWritingEl = document.getElementById("editor-focus-writing");
 const editorRefreshEl = document.getElementById("editor-refresh");
 const editorSnapshotEl = document.getElementById("editor-snapshot");
 const editorApproveEl = document.getElementById("editor-approve");
 const editorSupersedeEl = document.getElementById("editor-supersede");
 const approvalFormEl = document.getElementById("approval-form");
+const createDetailsEl = document.getElementById("create-details");
+const browseDetailsEl = document.getElementById("browse-details");
 const resourcePlaceSelectEl = document.getElementById("resource-place-select");
 const itemResponsibilitySelectEl = document.getElementById("item-responsibility-select");
 const runItemSelectEl = document.getElementById("run-item-select");
@@ -53,6 +62,7 @@ const editorState = {
   title: "",
   status: "",
   currentRevision: 0,
+  participantCount: 0,
   dirty: false,
   pushing: false,
   lastRenderedBody: "",
@@ -74,11 +84,49 @@ const catalogState = {
   runs: [],
 };
 
+const workspaceEls = Array.from(document.querySelectorAll(".workspace[data-mode]"));
+const modeButtons = {
+  review: modeReviewEl,
+  author: modeAuthorEl,
+  operate: modeOperateEl,
+  create: modeCreateEl,
+  browse: modeBrowseEl,
+};
+
 function runHandled(action, context) {
   return (...args) => {
     clearWorkspaceStatus();
     Promise.resolve(action(...args)).catch((error) => handleError(error, context));
   };
+}
+
+// Intent: Keep the single-page browser readable as distinct workflow modes by
+// letting operators explicitly activate Review, Author, Operate, Create, or
+// Browse without hiding any shipped surface. Source: DI-bavum
+function setActiveMode(mode) {
+  for (const workspace of workspaceEls) {
+    const active = workspace.dataset.mode === mode;
+    workspace.classList.toggle("is-active", active);
+    workspace.classList.toggle("is-muted", !active);
+  }
+  for (const [key, button] of Object.entries(modeButtons)) {
+    button.classList.toggle("is-active", key === mode);
+  }
+}
+
+function focusMode(mode) {
+  const workspace = document.getElementById(`workspace-${mode}`);
+  if (!workspace) {
+    return;
+  }
+  if (mode === "create") {
+    createDetailsEl.open = true;
+  }
+  if (mode === "browse") {
+    browseDetailsEl.open = true;
+  }
+  setActiveMode(mode);
+  workspace.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // Intent: Keep the browser as an equal operational embodiment while making
@@ -236,6 +284,26 @@ searchClearEl.addEventListener("click", () => {
   clearSearch();
 });
 
+modeReviewEl.addEventListener("click", () => {
+  focusMode("review");
+});
+
+modeAuthorEl.addEventListener("click", () => {
+  focusMode("author");
+});
+
+modeOperateEl.addEventListener("click", () => {
+  focusMode("operate");
+});
+
+modeCreateEl.addEventListener("click", () => {
+  focusMode("create");
+});
+
+modeBrowseEl.addEventListener("click", () => {
+  focusMode("browse");
+});
+
 focusProblemsEl.addEventListener("click", () => {
   problemReviewEl.scrollIntoView({ behavior: "smooth", block: "start" });
   setWorkspaceStatus("Review hotspots first when you need the fastest path into repeated receiving or count problems.", "info");
@@ -251,10 +319,18 @@ focusSearchEl.addEventListener("click", () => {
 });
 
 focusDraftsEl.addEventListener("click", runHandled(async () => {
+  setActiveMode("review");
   await runSearch({ status: "draft" });
   searchResultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
   setWorkspaceStatus("Draft items are loaded. Open one record, then use the inspector to draft, approve, or record work from that item.", "info");
 }, "Primary Flow"));
+
+editorFocusWritingEl.addEventListener("click", () => {
+  setActiveMode("author");
+  editorBodyEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  editorBodyEl.focus({ preventScroll: true });
+  setWorkspaceStatus("Writing focus is active. Stay in one draft, then snapshot when the change is coherent.", "info");
+});
 
 editorItemIDEl.addEventListener("change", runHandled(async () => {
   await loadEditorItem(editorItemIDEl.value);
@@ -262,6 +338,12 @@ editorItemIDEl.addEventListener("change", runHandled(async () => {
 
 editorBodyEl.addEventListener("input", () => {
   editorState.dirty = true;
+  renderEditorStatusCards({
+    version: editorState.version,
+    current_revision: editorState.currentRevision,
+    participants: new Array(editorState.participantCount),
+    status: editorState.status,
+  }, editorBodyEl.value);
   scheduleLivePush();
 });
 
@@ -608,6 +690,7 @@ function syncApprovalDefaults() {
 // instead of re-deriving the same context from blank generic forms. Source:
 // DI-mitav
 function focusOperateForm(formEl, message, focusSelector = "textarea, input, select") {
+  setActiveMode("operate");
   formEl.scrollIntoView({ behavior: "smooth", block: "start" });
   const target = formEl.querySelector(focusSelector);
   if (target) {
@@ -910,6 +993,7 @@ function searchSummary(type, item) {
 // keeping the existing local HTTP runtime and record model unchanged. Source:
 // DI-vopuk
 async function inspectRecord(type, id) {
+  setActiveMode("review");
   detailState.type = type;
   detailState.id = id;
   detailState.record = null;
@@ -1434,8 +1518,10 @@ function renderEditorState(state) {
   editorState.title = state.title;
   editorState.status = state.status;
   editorState.currentRevision = state.current_revision;
+  editorState.participantCount = (state.participants || []).length;
   editorState.lastRenderedBody = state.body;
   editorMetaEl.textContent = `${state.title} · status ${state.status} · live v${state.version} · current revision ${state.current_revision}${editorState.dirty ? " · local edits pending" : ""}`;
+  renderEditorStatusCards(state, editorBodyEl.value || state.body);
   editorParticipantsEl.innerHTML = "";
   for (const participant of state.participants || []) {
     const pill = document.createElement("span");
@@ -1446,6 +1532,29 @@ function renderEditorState(state) {
   }
   if (!editorState.dirty || editorBodyEl.value === "" || editorBodyEl.value === editorState.lastRenderedBody) {
     editorBodyEl.value = state.body;
+  }
+}
+
+// Intent: Make browser authoring feel like sustained drafting work instead of
+// only an administrative form by surfacing live draft health, scale, and
+// collaboration state beside the editor. Source: DI-rofek
+function renderEditorStatusCards(state, body) {
+  editorStatusCardsEl.innerHTML = "";
+  const words = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const paragraphs = body.trim() ? body.trim().split(/\n\s*\n/).length : 0;
+  const cards = [
+    ["Live Version", `v${state.version}`],
+    ["Current Revision", String(state.current_revision)],
+    ["Words", String(words)],
+    ["Paragraphs", String(paragraphs)],
+    ["Participants", String((state.participants || []).length)],
+    ["Status", state.status || "-"],
+  ];
+  for (const [label, value] of cards) {
+    const card = document.createElement("div");
+    card.className = "author-stat";
+    card.innerHTML = `<strong>${value}</strong><span>${label}</span>`;
+    editorStatusCardsEl.appendChild(card);
   }
 }
 
@@ -1480,11 +1589,13 @@ async function refresh(selectedItemID = editorState.itemID) {
 }
 
 async function loadEditorItem(itemID) {
+  setActiveMode("author");
   editorState.itemID = itemID;
   editorItemIDEl.value = itemID;
   if (!itemID) {
     editorMetaEl.textContent = "Select a draft item to load its live draft.";
     editorParticipantsEl.innerHTML = "";
+    editorStatusCardsEl.innerHTML = "";
     editorBodyEl.value = "";
     clearPollLoop();
     return;
@@ -1656,4 +1767,5 @@ function handleError(error, context = "Browser") {
 }
 
 clearSearch();
+setActiveMode("review");
 refresh().catch(handleError);

@@ -20,8 +20,15 @@
 
     <main class="layout">
       <div id="workspace-status" class="workspace-status" hidden></div>
+      <nav class="mode-rail" aria-label="Workspace modes">
+        <button id="mode-review" class="mode-pill" type="button">Review</button>
+        <button id="mode-author" class="mode-pill" type="button">Author</button>
+        <button id="mode-operate" class="mode-pill" type="button">Operate</button>
+        <button id="mode-create" class="mode-pill" type="button">Create</button>
+        <button id="mode-browse" class="mode-pill" type="button">Browse</button>
+      </nav>
 
-      <section class="workspace workspace-review">
+      <section class="workspace workspace-review" id="workspace-review" data-mode="review">
         <div class="workspace-head">
           <div>
             <h2>Review</h2>
@@ -113,47 +120,62 @@
         </div>
       </section>
 
-      <section class="workspace workspace-author">
+      <section class="workspace workspace-author" id="workspace-author" data-mode="author">
         <div class="workspace-head">
           <div>
             <h2>Author</h2>
             <p class="meta">Collaborate on the working draft, then cut a durable snapshot when the text is ready for review.</p>
           </div>
         </div>
-        <section class="panel editor-panel">
-          <h3>Live Draft Studio</h3>
-          <div class="editor-toolbar">
-            <label>Draft Item
-              <select id="editor-item-id"></select>
+        <div class="workspace-grid author-grid">
+          <section class="panel editor-panel">
+            <h3>Live Draft Studio</h3>
+            <div class="editor-toolbar">
+              <label>Draft Item
+                <select id="editor-item-id"></select>
+              </label>
+              <label>Actor
+                <input id="editor-actor" value="alice">
+              </label>
+              <label>Participant Name
+                <input id="editor-display-name" value="Browser User">
+              </label>
+              <label>Color
+                <input id="editor-color" value="#0c6d62">
+              </label>
+            </div>
+            <div class="editor-summary">
+              <div id="editor-meta" class="meta">Select a draft item to load its live draft.</div>
+              <div id="editor-participants" class="participant-list"></div>
+            </div>
+            <label>Working Body
+              <textarea id="editor-body" rows="18" placeholder="Select an item to edit its working draft"></textarea>
             </label>
-            <label>Actor
-              <input id="editor-actor" value="alice">
-            </label>
-            <label>Participant Name
-              <input id="editor-display-name" value="Browser User">
-            </label>
-            <label>Color
-              <input id="editor-color" value="#0c6d62">
-            </label>
-          </div>
-          <div class="editor-summary">
-            <div id="editor-meta" class="meta">Select a draft item to load its live draft.</div>
-            <div id="editor-participants" class="participant-list"></div>
-          </div>
-          <label>Working Body
-            <textarea id="editor-body" rows="14" placeholder="Select an item to edit its working draft"></textarea>
-          </label>
-          <div class="editor-actions">
-            <button id="editor-refresh" type="button">Refresh Live State</button>
-            <button id="editor-snapshot" type="button">Snapshot Revision</button>
-            <button id="editor-approve" type="button">Approve Current Revision</button>
-            <button id="editor-supersede" type="button">Supersede Item</button>
-          </div>
-          <p class="meta">This editor keeps a shared working draft for the selected item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
-        </section>
+            <div class="editor-actions">
+              <button id="editor-focus-writing" type="button" class="button-secondary">Focus Writing</button>
+              <button id="editor-refresh" type="button">Refresh Live State</button>
+              <button id="editor-snapshot" type="button">Snapshot Revision</button>
+              <button id="editor-approve" type="button">Approve Current Revision</button>
+              <button id="editor-supersede" type="button">Supersede Item</button>
+            </div>
+            <p class="meta">This editor keeps a shared working draft for the selected item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
+          </section>
+          <aside class="panel author-sidecar">
+            <h3>Authoring Status</h3>
+            <div id="editor-status-cards" class="authoring-stats"></div>
+            <div class="authoring-guide">
+              <h4>Author Flow</h4>
+              <ul>
+                <li>Open one draft item and stay with it until the change is coherent.</li>
+                <li>Use the live draft for iteration, then cut a snapshot when the text is reviewable.</li>
+                <li>Approve or supersede only after the durable revision says what you mean.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
       </section>
 
-      <section class="workspace workspace-operate">
+      <section class="workspace workspace-operate" id="workspace-operate" data-mode="operate">
         <div class="workspace-head">
           <div>
             <h2>Operate</h2>
@@ -245,8 +267,8 @@
         </div>
       </section>
 
-      <section class="workspace workspace-create">
-        <details class="workspace-collapsible">
+      <section class="workspace workspace-create" id="workspace-create" data-mode="create">
+        <details id="create-details" class="workspace-collapsible">
           <summary>Create</summary>
           <p class="meta">Lower-frequency setup surfaces stay in the browser, but they are collapsed by default so review and operational work stay primary.</p>
           <div class="workspace-grid create-grid">
@@ -319,8 +341,8 @@
         </details>
       </section>
 
-      <section class="workspace workspace-browse">
-        <details class="workspace-collapsible">
+      <section class="workspace workspace-browse" id="workspace-browse" data-mode="browse">
+        <details id="browse-details" class="workspace-collapsible">
           <summary>Browse Collections</summary>
           <p class="meta">All list views remain available for broad inventory browsing and direct record inspection.</p>
           <div class="workspace-grid browse-grid">
