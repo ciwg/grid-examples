@@ -1,6 +1,10 @@
 # TODO
 
 ## Open / Planned
+- [x] 088 - Align ex5 browser search behavior and wording with the shipped search contract - `TODO/TODO-ralek-ex5-browser-search-contract-honesty.md`
+- [x] 089 - Reduce ex5 browser Review-to-Author leakage and duplicate live-draft loading - `TODO/TODO-suvor-ex5-browser-review-author-mode-leakage.md`
+- [x] 090 - Add stronger ex5 browser success-path integration coverage - `TODO/TODO-fanok-ex5-browser-success-path-coverage.md`
+- [x] 091 - Reduce remaining ex5 browser clutter in advanced search and operate surfaces - `TODO/TODO-zovuk-ex5-browser-advanced-surface-clutter.md`
 - [x] 083 - Reduce ex5 browser simultaneous surface clutter - `TODO/TODO-rabok-ex5-browser-surface-clutter-reduction.md`
 - [x] 084 - Strengthen ex5 browser mode separation into clearer working states - `TODO/TODO-lutav-ex5-browser-clearer-working-states.md`
 - [x] 085 - Make ex5 browser review the unmistakable home path - `TODO/TODO-javik-ex5-browser-review-home-path.md`

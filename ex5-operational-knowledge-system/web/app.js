@@ -12,6 +12,9 @@ const searchRawEl = document.getElementById("search-raw");
 const searchDebugEl = document.getElementById("search-debug");
 const searchClearEl = document.getElementById("search-clear");
 const searchAdvancedEl = document.getElementById("search-advanced");
+const searchPlaceSelectEl = document.getElementById("search-place-select");
+const searchResourceSelectEl = document.getElementById("search-resource-select");
+const searchResponsibilitySelectEl = document.getElementById("search-responsibility-select");
 const reviewLaneDraftsEl = document.getElementById("review-lane-drafts");
 const reviewLaneHotspotsEl = document.getElementById("review-lane-hotspots");
 const reviewLaneSearchEl = document.getElementById("review-lane-search");
@@ -413,9 +416,15 @@ modeReviewEl.addEventListener("click", () => {
   focusMode("review");
 });
 
-modeAuthorEl.addEventListener("click", () => {
+// Intent: Keep Review-mode inspection calm by only loading the live draft when
+// the operator explicitly enters Author and there is a current item context to
+// carry forward. Source: DI-suvor
+modeAuthorEl.addEventListener("click", runHandled(async () => {
   focusMode("author");
-});
+  if (!editorState.itemID && detailState.type === "item" && detailState.record) {
+    await loadEditorItem(detailState.record.id, { activateMode: false });
+  }
+}, "Author"));
 
 modeOperateEl.addEventListener("click", () => {
   focusMode("operate");
@@ -820,6 +829,9 @@ function renderRuns(items) {
 // current lists, while preserving manual override fields for every workflow.
 // Source: DI-lafor
 function refreshActionCatalog() {
+  renderSelect(searchPlaceSelectEl, catalogState.places, "Any place", (place) => `${place.id} · ${place.name}`);
+  renderSelect(searchResourceSelectEl, catalogState.resources, "Any tool or resource", (resource) => `${resource.id} · ${resource.name}`);
+  renderSelect(searchResponsibilitySelectEl, catalogState.responsibilities, "Any owning role", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
   renderSelect(resourcePlaceSelectEl, catalogState.places, "Select a place", (place) => `${place.id} · ${place.name}`);
   renderSelect(itemResponsibilitySelectEl, catalogState.responsibilities, "Optional owner or review role", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
   renderSelect(runItemSelectEl, catalogState.items, "Select a procedure or checklist", (item) => `${item.id} · ${item.title}`);
@@ -1090,9 +1102,9 @@ function getSearchFilters(form) {
     kind: form.kind.value.trim(),
     status: form.status.value.trim(),
     outcome: form.outcome.value.trim(),
-    place_id: form.place_id.value.trim(),
-    resource_id: form.resource_id.value.trim(),
-    responsibility_id: form.responsibility_id.value.trim(),
+    place_id: firstPresent(form.place_id.value, form.place_id_select.value),
+    resource_id: firstPresent(form.resource_id.value, form.resource_id_select.value),
+    responsibility_id: firstPresent(form.responsibility_id.value, form.responsibility_id_select.value),
     problem: form.dataset.problem === "true",
   };
 }
@@ -1323,9 +1335,6 @@ async function inspectRecord(type, id, options = {}) {
   renderDetailActions(type, record);
   applyContextDefaults(type, record);
   renderOperateContext();
-  if (type === "item") {
-    await loadEditorItem(id, { activateMode: false });
-  }
 }
 
 function detailPath(type, id) {
@@ -1588,9 +1597,9 @@ async function runSearch(filters) {
   form.kind.value = filters.kind || "";
   form.status.value = filters.status || "";
   form.outcome.value = filters.outcome || "";
-  form.place_id.value = filters.place_id || "";
-  form.resource_id.value = filters.resource_id || "";
-  form.responsibility_id.value = filters.responsibility_id || "";
+  syncSearchSelectAndOverride(searchPlaceSelectEl, form.place_id, filters.place_id || "");
+  syncSearchSelectAndOverride(searchResourceSelectEl, form.resource_id, filters.resource_id || "");
+  syncSearchSelectAndOverride(searchResponsibilitySelectEl, form.responsibility_id, filters.responsibility_id || "");
   form.dataset.problem = filters.problem ? "true" : "false";
   searchAdvancedEl.open = hasAdvancedSearchFilters(filters);
   const effectiveFilters = getSearchFilters(form);
@@ -1607,6 +1616,15 @@ function clearSearch() {
   const form = document.getElementById("search-form");
   form.reset();
   form.dataset.problem = "false";
+  if (searchPlaceSelectEl) {
+    searchPlaceSelectEl.value = "";
+  }
+  if (searchResourceSelectEl) {
+    searchResourceSelectEl.value = "";
+  }
+  if (searchResponsibilitySelectEl) {
+    searchResponsibilitySelectEl.value = "";
+  }
   searchAdvancedEl.open = false;
   searchResultsEl.innerHTML = "";
   searchActiveEl.textContent = "No active search filters.";
@@ -1894,11 +1912,15 @@ async function refresh(selectedItemID = editorState.itemID) {
     const drafts = (items.items || []).filter((item) => item.status === "draft");
     selectedItemID = (drafts[0] || items.items[0]).id;
   }
+  const tasks = [];
   if (selectedItemID) {
-    await Promise.all([
-      loadEditorItem(selectedItemID, { activateMode: false }),
-      inspectRecord("item", selectedItemID, { activateMode: false }),
-    ]);
+    tasks.push(inspectRecord("item", selectedItemID, { activateMode: false }));
+  }
+  if (editorState.itemID) {
+    tasks.push(loadEditorItem(editorState.itemID, { activateMode: false }));
+  }
+  if (tasks.length) {
+    await Promise.all(tasks);
   }
   clearWorkspaceStatus();
 }
@@ -2077,6 +2099,24 @@ function showToast(message) {
   showToast.timer = setTimeout(() => {
     toastEl.hidden = true;
   }, 1800);
+}
+
+// Intent: Prefer the calmer helper-select path for advanced search filters
+// while preserving exact manual ID entry whenever the chosen value is not in
+// the current catalog. Source: DI-zovuk; DI-ralek
+function syncSearchSelectAndOverride(selectEl, inputEl, value) {
+  const normalized = (value || "").trim();
+  if (!selectEl || !inputEl) {
+    return;
+  }
+  const match = Array.from(selectEl.options).some((option) => option.value === normalized);
+  if (match) {
+    selectEl.value = normalized;
+    inputEl.value = "";
+    return;
+  }
+  selectEl.value = "";
+  inputEl.value = normalized;
 }
 
 function handleError(error, context = "Browser") {

@@ -705,28 +705,29 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	options = normalizeSearchOptions(options)
+	problemContext := app.problemSearchContextLocked(options)
 	places := []Place{}
 	resources := []Resource{}
 	resp := []Responsibility{}
 	items := []KnowledgeItem{}
 	runs := []RunRecord{}
 	for _, record := range app.places {
-		if matchesPlaceSearch(record, options) {
+		if matchesPlaceSearch(record, options) && problemContext.allowsPlace(record.ID) {
 			places = append(places, clonePlace(record))
 		}
 	}
 	for _, record := range app.resources {
-		if matchesResourceSearch(record, options) {
+		if matchesResourceSearch(record, options) && problemContext.allowsResource(record.ID) {
 			resources = append(resources, cloneResource(record))
 		}
 	}
 	for _, record := range app.responsibilities {
-		if matchesResponsibilitySearch(record, options) {
+		if matchesResponsibilitySearch(record, options) && problemContext.allowsResponsibility(record.ID) {
 			resp = append(resp, cloneResponsibility(record))
 		}
 	}
 	for _, record := range app.items {
-		if matchesItemSearch(record, options) {
+		if matchesItemSearch(record, options) && problemContext.allowsItem(record.ID) {
 			items = append(items, cloneKnowledgeItem(record))
 		}
 	}
@@ -771,6 +772,75 @@ func normalizeSearchOptions(options SearchOptions) SearchOptions {
 	return options
 }
 
+type problemSearchContext struct {
+	enabled           bool
+	placeIDs          map[string]bool
+	resourceIDs       map[string]bool
+	responsibilityIDs map[string]bool
+	itemIDs           map[string]bool
+}
+
+func (context problemSearchContext) allowsPlace(id string) bool {
+	if !context.enabled {
+		return true
+	}
+	return context.placeIDs[id]
+}
+
+func (context problemSearchContext) allowsResource(id string) bool {
+	if !context.enabled {
+		return true
+	}
+	return context.resourceIDs[id]
+}
+
+func (context problemSearchContext) allowsResponsibility(id string) bool {
+	if !context.enabled {
+		return true
+	}
+	return context.responsibilityIDs[id]
+}
+
+func (context problemSearchContext) allowsItem(id string) bool {
+	if !context.enabled {
+		return true
+	}
+	return context.itemIDs[id]
+}
+
+// Intent: Keep `problem=true` search honest across all result groups by only
+// returning places, resources, responsibilities, and items that are actually
+// connected to problem runs after the same structured run filters are applied.
+// Source: DI-ralek
+func (app *App) problemSearchContextLocked(options SearchOptions) problemSearchContext {
+	if !options.Problem {
+		return problemSearchContext{}
+	}
+	context := problemSearchContext{
+		enabled:           true,
+		placeIDs:          map[string]bool{},
+		resourceIDs:       map[string]bool{},
+		responsibilityIDs: map[string]bool{},
+		itemIDs:           map[string]bool{},
+	}
+	for _, run := range app.runs {
+		if !problemRunMatchesOptions(run, options) {
+			continue
+		}
+		if run.PlaceID != "" {
+			context.placeIDs[run.PlaceID] = true
+		}
+		context.itemIDs[run.ItemID] = true
+		for _, resourceID := range run.ResourceIDs {
+			context.resourceIDs[resourceID] = true
+		}
+		for _, responsibilityID := range run.ResponsibilityIDs {
+			context.responsibilityIDs[responsibilityID] = true
+		}
+	}
+	return context
+}
+
 func matchesPlaceSearch(record *Place, options SearchOptions) bool {
 	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
 		return false
@@ -778,7 +848,7 @@ func matchesPlaceSearch(record *Place, options SearchOptions) bool {
 	if options.PlaceID != "" && record.ID != options.PlaceID {
 		return false
 	}
-	return matchesQuery(record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+	return matchesQuery(record.ID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
 }
 
 func matchesResourceSearch(record *Resource, options SearchOptions) bool {
@@ -791,14 +861,14 @@ func matchesResourceSearch(record *Resource, options SearchOptions) bool {
 	if options.ResourceID != "" && record.ID != options.ResourceID {
 		return false
 	}
-	return matchesQuery(record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+	return matchesQuery(record.ID+" "+record.PlaceID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
 }
 
 func matchesResponsibilitySearch(record *Responsibility, options SearchOptions) bool {
 	if options.ResponsibilityID != "" && record.ID != options.ResponsibilityID {
 		return false
 	}
-	return matchesQuery(record.Title+" "+record.Summary, options.Query)
+	return matchesQuery(record.ID+" "+record.Title+" "+record.Summary+" "+strings.Join(record.LinkedRoleKeys, " "), options.Query)
 }
 
 func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
@@ -811,10 +881,20 @@ func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
 	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
 		return false
 	}
-	return matchesQuery(record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status, options.Query)
+	return matchesQuery(record.ID+" "+record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status+" "+strings.Join(record.ResponsibilityIDs, " "), options.Query)
 }
 
 func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOptions) bool {
+	if !matchesRunContextFilters(record, options) {
+		return false
+	}
+	if options.Problem && len(problemHighlightsForRun(record)) == 0 {
+		return false
+	}
+	return matchesQuery(searchBlob, options.Query)
+}
+
+func matchesRunContextFilters(record *RunRecord, options SearchOptions) bool {
 	if options.Kind != "" && strings.ToLower(record.Kind) != options.Kind {
 		return false
 	}
@@ -830,10 +910,14 @@ func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOption
 	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
 		return false
 	}
-	if options.Problem && len(problemHighlightsForRun(record)) == 0 {
+	return true
+}
+
+func problemRunMatchesOptions(run *RunRecord, options SearchOptions) bool {
+	if len(problemHighlightsForRun(run)) == 0 {
 		return false
 	}
-	return matchesQuery(searchBlob, options.Query)
+	return matchesRunContextFilters(run, options)
 }
 
 // Intent: Keep ex5 free-text search aligned with the operational-memory story
@@ -841,13 +925,13 @@ func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOption
 // basic run fields. Source: DI-farun
 func runSearchBlob(record *RunRecord, places map[string]*Place, resources map[string]*Resource) string {
 	var parts []string
-	parts = append(parts, record.Outcome, record.Notes, record.Machine, record.Location)
+	parts = append(parts, record.ID, record.ItemID, record.PlaceID, record.Outcome, record.Notes, record.Machine, record.Location, strings.Join(record.ResourceIDs, " "), strings.Join(record.ResponsibilityIDs, " "))
 	if place, ok := places[record.PlaceID]; ok {
-		parts = append(parts, place.Name, place.Summary, place.Kind)
+		parts = append(parts, place.ID, place.Name, place.Summary, place.Kind)
 	}
 	for _, resourceID := range record.ResourceIDs {
 		if resource, ok := resources[resourceID]; ok {
-			parts = append(parts, resource.Name, resource.Summary, resource.Kind)
+			parts = append(parts, resource.ID, resource.Name, resource.Summary, resource.Kind)
 		}
 	}
 	for _, evidence := range record.Evidence {

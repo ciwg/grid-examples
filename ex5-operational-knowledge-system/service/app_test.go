@@ -948,3 +948,149 @@ func TestAppSearchWithProblemFilterMatchesProblemReviewLogic(t *testing.T) {
 		t.Fatalf("non-problem run leaked into problem search: %+v", runs)
 	}
 }
+
+func TestAppSearchIndexesRecordIDsAcrossAllRecordTypes(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		query    string
+		key      string
+		expected string
+	}{
+		{name: "place id", query: place.ID, key: "places", expected: place.ID},
+		{name: "resource id", query: resource.ID, key: "resources", expected: resource.ID},
+		{name: "responsibility id", query: resp.ID, key: "responsibilities", expected: resp.ID},
+		{name: "item id", query: item.ID, key: "items", expected: item.ID},
+		{name: "run id", query: run.ID, key: "runs", expected: run.ID},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			search := app.SearchWithOptions(SearchOptions{Query: tc.query})
+			switch tc.key {
+			case "places":
+				results := search["places"].([]Place)
+				if len(results) != 1 || results[0].ID != tc.expected {
+					t.Fatalf("unexpected place search results: %+v", results)
+				}
+			case "resources":
+				results := search["resources"].([]Resource)
+				if len(results) != 1 || results[0].ID != tc.expected {
+					t.Fatalf("unexpected resource search results: %+v", results)
+				}
+			case "responsibilities":
+				results := search["responsibilities"].([]Responsibility)
+				if len(results) != 1 || results[0].ID != tc.expected {
+					t.Fatalf("unexpected responsibility search results: %+v", results)
+				}
+			case "items":
+				results := search["items"].([]KnowledgeItem)
+				if len(results) != 1 || results[0].ID != tc.expected {
+					t.Fatalf("unexpected item search results: %+v", results)
+				}
+			case "runs":
+				results := search["runs"].([]RunRecord)
+				if len(results) != 1 || results[0].ID != tc.expected {
+					t.Fatalf("unexpected run search results: %+v", results)
+				}
+			}
+		})
+	}
+}
+
+func TestAppProblemSearchFiltersNonRunGroupsToProblemContext(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	problemResp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create problem responsibility: %v", err)
+	}
+	normalResp, err := app.CreateResponsibility("alice", "Shipping lead", "Owns outbound checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create normal responsibility: %v", err)
+	}
+	problemPlace, err := app.CreatePlace("alice", "area", "Receiving", "Inbound inspection area", "", nil)
+	if err != nil {
+		t.Fatalf("create problem place: %v", err)
+	}
+	normalPlace, err := app.CreatePlace("alice", "area", "Shipping", "Outbound staging", "", nil)
+	if err != nil {
+		t.Fatalf("create normal place: %v", err)
+	}
+	problemResource, err := app.CreateResource("alice", "container", "RJ45 Bin", "Connector bin", problemPlace.ID, nil)
+	if err != nil {
+		t.Fatalf("create problem resource: %v", err)
+	}
+	normalResource, err := app.CreateResource("alice", "container", "Outbound tote", "Shipping tote", normalPlace.ID, nil)
+	if err != nil {
+		t.Fatalf("create normal resource: %v", err)
+	}
+	problemItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{problemResp.ID})
+	if err != nil {
+		t.Fatalf("create problem item: %v", err)
+	}
+	normalItem, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Stage outbound carton", "Shipping checklist", "# Stage outbound carton", nil, []string{normalResp.ID})
+	if err != nil {
+		t.Fatalf("create normal item: %v", err)
+	}
+	problemRun, err := app.RecordRun("bob", RunKindReceiving, problemItem.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", problemPlace.ID, []string{problemResource.ID}, []string{problemResp.ID})
+	if err != nil {
+		t.Fatalf("record problem run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", problemRun.ID, "Receiving inspection", map[string]string{"condition": "wrap torn"}, "", nil); err != nil {
+		t.Fatalf("add problem evidence: %v", err)
+	}
+	if _, err := app.RecordRun("bob", RunKindProcedure, normalItem.ID, 1, "completed", "Shipped carton", "", "", normalPlace.ID, []string{normalResource.ID}, []string{normalResp.ID}); err != nil {
+		t.Fatalf("record normal run: %v", err)
+	}
+
+	search := app.SearchWithOptions(SearchOptions{Problem: true})
+	places := search["places"].([]Place)
+	resources := search["resources"].([]Resource)
+	responsibilities := search["responsibilities"].([]Responsibility)
+	items := search["items"].([]KnowledgeItem)
+	runs := search["runs"].([]RunRecord)
+
+	if len(places) != 1 || places[0].ID != problemPlace.ID {
+		t.Fatalf("unexpected problem places: %+v", places)
+	}
+	if len(resources) != 1 || resources[0].ID != problemResource.ID {
+		t.Fatalf("unexpected problem resources: %+v", resources)
+	}
+	if len(responsibilities) != 1 || responsibilities[0].ID != problemResp.ID {
+		t.Fatalf("unexpected problem responsibilities: %+v", responsibilities)
+	}
+	if len(items) != 1 || items[0].ID != problemItem.ID {
+		t.Fatalf("unexpected problem items: %+v", items)
+	}
+	if len(runs) != 1 || runs[0].ID != problemRun.ID {
+		t.Fatalf("unexpected problem runs: %+v", runs)
+	}
+}

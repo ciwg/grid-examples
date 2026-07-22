@@ -336,6 +336,11 @@ of a permanently visible support sidecar. That makes the writing surface more
 dominant and quieter without removing any lifecycle controls. Source:
 `DI-rofek`; `DI-tavul`; `DI-farok`.
 
+Review no longer preloads the live draft just because you inspected an item.
+That handoff is now explicit: stay in Review when you only need history or
+approval context, then switch into Author when you are ready to work on the
+shared draft itself. Source: `DI-suvor`.
+
 ![Author workspace](./browser-ui-shots/author.png)
 
 ### Fields And Controls
@@ -429,6 +434,11 @@ smaller action choices: `Log work`, `Attach evidence`, and `Review record`.
 That keeps the main operate surface lighter while preserving the full generic
 forms underneath. Source: `DI-zumor`.
 
+The remaining schema-heavy escape hatches are now grouped a second level down.
+Helper selects stay visible first, while manual item/place/resource/role ID
+overrides remain reachable behind nested disclosure when the default context is
+not enough. Source: `DI-zovuk`.
+
 ![Operate workspace](./browser-ui-shots/operate.png)
 
 ### Fields
@@ -453,6 +463,10 @@ forms underneath. Source: `DI-zumor`.
     when they are needed
   - important because it keeps the main action path task-driven while
     preserving the original schema-level escape hatches
+- `Manual ID overrides and extra linked IDs`
+  - nested inside the advanced context disclosure
+  - important because it preserves direct item/place/resource/role ID entry
+    without keeping those lower-frequency controls in the main visual path
 
 ## Add Evidence
 
@@ -573,6 +587,13 @@ The search area now starts with task-first presets for draft review, receiving
 problems, inventory counts, and broad run discovery. Advanced filters remain
 available behind disclosure when you need exact faceting. Source: `DI-rovak`.
 
+Known-record search is now literal about record IDs too. If you already know a
+place, resource, responsibility, item, or run ID, the shared search contract
+matches those IDs directly instead of relying only on human-readable text.
+Problem-focused search also keeps context groups honest by only showing places,
+resources, responsibilities, and items that are tied to matching problem runs.
+Source: `DI-ralek`.
+
 ### Fields
 
 - main search box
@@ -585,6 +606,14 @@ available behind disclosure when you need exact faceting. Source: `DI-rovak`.
     resource`, and `Owned by role` fields
   - important because they preserve the original search power while making the
     default discovery path more humane
+- helper selects for `Where`, `With tool / resource`, and `Owned by role`
+  - let you pick known records before falling back to raw IDs
+  - important because they reduce clutter and ID memorization during common
+    search work
+- `Manual ID filters`
+  - nested inside the advanced filter disclosure
+  - important because they keep exact raw place/resource/responsibility ID
+    filtering available without making it the first thing you see
 
 ### Supporting Areas
 

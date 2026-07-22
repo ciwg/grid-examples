@@ -173,10 +173,14 @@ Use the browser when you want:
 - live draft metrics, writing focus, and quieter authoring support that stays
   behind disclosure until needed
 - a calmer writing environment with collaboration settings hidden until needed
+- an explicit Review-to-Author handoff so item inspection stays calm until you
+  intentionally switch into Author
 - contextual review panels
 - grouped hotspot review
 - task-first search presets for drafts, receiving problems, inventory counts,
   and broad run discovery
+- direct record-ID search for known places, resources, responsibilities, items,
+  and runs
 - direct jump actions from the current record into run recording, evidence
   capture, and approvals
 - an operate-from-current-record panel that keeps the main action path anchored

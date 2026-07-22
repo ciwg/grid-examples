@@ -100,7 +100,7 @@
               </div>
               <form id="search-form" class="search-form">
                 <div class="search-row">
-                  <input name="q" placeholder="Search by record name, checklist title, run ID, location, or role">
+                  <input name="q" placeholder="Search by record ID, record name, checklist title, run ID, location, or role">
                   <button type="submit">Search</button>
                   <button id="search-clear" type="button" class="button-secondary">Clear</button>
                 </div>
@@ -133,10 +133,24 @@
                       </select>
                     </label>
                     <label>Result <input name="outcome" id="search-outcome" placeholder="completed"></label>
-                    <label>Where <input name="place_id" placeholder="PLACE-0001"></label>
-                    <label>With tool / resource <input name="resource_id" placeholder="RES-0001"></label>
-                    <label>Owned by role <input name="responsibility_id" placeholder="RESP-0001"></label>
+                    <label>Where
+                      <select id="search-place-select" name="place_id_select"></select>
+                    </label>
+                    <label>With tool / resource
+                      <select id="search-resource-select" name="resource_id_select"></select>
+                    </label>
+                    <label>Owned by role
+                      <select id="search-responsibility-select" name="responsibility_id_select"></select>
+                    </label>
                   </div>
+                  <details class="advanced-operate-disclosure">
+                    <summary>Manual ID filters</summary>
+                    <div class="advanced-operate-fields">
+                      <label>Manual place ID override <input name="place_id" placeholder="PLACE-0001"></label>
+                      <label>Manual resource ID override <input name="resource_id" placeholder="RES-0001"></label>
+                      <label>Manual responsibility ID override <input name="responsibility_id" placeholder="RESP-0001"></label>
+                    </div>
+                  </details>
                 </details>
               </form>
               <div id="search-active" class="meta">No active search filters.</div>
@@ -273,22 +287,27 @@
               <details class="advanced-operate-disclosure">
                 <summary>Advanced context and manual overrides</summary>
                 <div class="advanced-operate-fields">
-                  <label>Manual item ID override <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
                   <label>Machine <input name="machine"></label>
                   <label>Location <input name="location"></label>
                   <label>Main place
                     <select id="run-place-select" name="place_id_select"></select>
                   </label>
-                  <label>Manual place ID override <input name="place_id" placeholder="PLACE-0001"></label>
                   <label>Main tool / resource
                     <select id="run-resource-select" name="resource_id_select"></select>
                   </label>
-                  <label>Other resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
                   <label>Owning role
                     <select id="run-responsibility-select" name="responsibility_id_select"></select>
                   </label>
-                  <label>Other role IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
                 </div>
+                <details class="advanced-operate-disclosure">
+                  <summary>Manual ID overrides and extra linked IDs</summary>
+                  <div class="advanced-operate-fields">
+                    <label>Manual item ID override <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
+                    <label>Manual place ID override <input name="place_id" placeholder="PLACE-0001"></label>
+                    <label>Other resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
+                    <label>Other role IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
+                  </div>
+                </details>
               </details>
               <button type="submit">Save Run</button>
               </form>

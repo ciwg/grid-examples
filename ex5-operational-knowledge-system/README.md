@@ -58,7 +58,9 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms
 - browser search filters by kind, status, outcome, place, resource, and responsibility
+- browser search now reaches record IDs directly across places, resources, responsibilities, items, and runs
 - browser free-text search now reaches run evidence facts and approval notes
+- browser problem-focused search now constrains context groups to records that are actually tied to matching problem runs
 - browser request failures stay inside the UI through the shared error path
 - browser now defaults to a review-first workspace instead of a flat wall of equally weighted forms
 - browser review queue that switches between draft queue, problem hotspots, and known-record search
@@ -79,12 +81,14 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - a richer browser authoring surface with live draft metrics, writing focus, and quieter support disclosures around the editor
 - browser operate-from-context guidance that launches work, evidence, and review from the current record instead of making operators start from blank forms
 - task-first browser search presets for draft review, receiving problems, inventory counts, and broad run discovery, while keeping advanced filters available
+- browser search and operate advanced panels now prefer helper selects and keep manual ID overrides behind a second disclosure
 - stronger browser mode behavior that compresses inactive workspaces instead of leaving every surface equally expanded
 - a calmer browser writing environment with collaboration settings moved behind disclosure and the writing surface visually prioritized
 - a draft-first browser review queue that now serves as the clearest home path before operators branch into hotspots or known-record search
 - one active browser review lane at a time so draft review, hotspots, and known-record search do not all compete at once
 - staged browser operate flows that start from action choice buttons before revealing the heavier transaction form
 - quieter browser authoring that keeps lifecycle and writing-context support behind disclosure until needed
+- review-mode item inspection no longer silently loads the live draft until the operator explicitly enters Author mode
 - CLI inspection and creation commands
 - CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment
@@ -103,7 +107,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim item approval action over the existing item approval API
 - Neovim run approval action over the existing run approval API
 - Neovim item supersede action over the existing item supersede API
-- stub-backed headless browser smoke coverage for the shipped UI
+- stub-backed headless browser smoke coverage for the shipped UI, including explicit Author handoff, record-ID search, context-driven run logging, and durable browser snapshots
 
 For the longer feature walkthrough, see
 [features guide](docs/features-guide.md).
