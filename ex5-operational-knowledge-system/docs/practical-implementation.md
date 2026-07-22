@@ -234,10 +234,14 @@ relay-visible exchange slice carries `knowledge-item`, `knowledge-approval`,
 `knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`,
 `operational-run`, `operational-place`, and `operational-resource`. The
 shipped importer accepts origin-aware unseen history for those families into
-non-empty runtimes, carries inline CID-keyed evidence blobs, and treats the
-create-envelope CID as the durable peer-visible entity ID while preserving the
-older short ID only as an alias. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`;
-`DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`.
+non-empty runtimes, treats the create-envelope CID as the durable
+peer-visible entity ID while preserving the older short ID only as an alias,
+and now splits bootstrap bundle carriage from ongoing relay-feed carriage.
+Bootstrap exchange still carries inline CID-keyed evidence blobs, while
+ongoing relay-feed exchange names required blob CIDs and expects those blobs
+to be staged separately into CAS before import. Source: `DI-guzab`;
+`DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`;
+`DI-pivul`; `DI-pazek`.
 
 That later storage decision is now also staged: the first CAS pass dual-writes
 signed family envelopes and copied evidence blobs into content-addressed

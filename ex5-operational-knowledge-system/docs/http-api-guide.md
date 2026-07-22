@@ -45,6 +45,9 @@ The response now includes, for example:
 - `item_statuses`
 - `peer_exchange_format`
 - `peer_exchange_families`
+- `relay_feed_format`
+- `relay_feed_families`
+- `relay_blob_transfer_enabled`
 - `cas_objects_enabled`
 - `cas_attachment_blobs_enabled`
 - `cas_draft_bodies_enabled`
@@ -97,6 +100,68 @@ The shipped importer accepts unseen origin-aware history into non-empty
 runtimes, dedupes by `(origin_peer_id, origin_sequence)`, and preserves the
 current local HTTP adapter as the embodiment surface for that exchange.
 Source: `DI-rumek`; `DI-ruzok`; `DI-bavuk`.
+
+## Relay feed
+
+### `POST /api/relay/feed/export`
+
+Exports an incremental relay batch over the same local HTTP adapter.
+
+The request body includes:
+
+- `known_origins`
+
+`known_origins` is a per-peer cursor map. Each key is an `origin_peer_id`, and
+each value is the highest `origin_sequence` the caller already has for that
+peer. The server replies only with signed family records and compatibility
+events whose origin tuples are newer than those cursors. Source: `DI-pazek`.
+
+The response includes:
+
+- `format`
+- `exported_at`
+- `exporting_peer_id`
+- family `pCID` fields for the eight shipped peer-visible families
+- `events`
+- whole-family signed record arrays for just the unseen origin tuples
+- `required_blob_cids`
+
+Unlike `/api/peer-exchange/export`, this route does not inline blob bytes.
+Evidence blobs are named only by CID here so the relay feed stays
+record-oriented and blob transfer stays explicitly content-addressed. Source:
+`DI-pazek`.
+
+### `POST /api/relay/feed/import`
+
+Imports one incremental relay batch into the current runtime.
+
+The response includes:
+
+- `imported_events`
+- per-family import counts
+- `missing_blob_cids`
+- `unresolved_references`
+
+If the batch references evidence blobs whose CIDs are not already present in
+local CAS, the route returns `409` plus `missing_blob_cids` and does not apply
+the feed. Clients must stage those blobs first through `/api/relay/blobs/{cid}`
+and then retry the feed import. Source: `DI-pazek`.
+
+### `GET /api/relay/blobs/{cid}`
+
+Returns one raw CAS object by CID as `application/octet-stream`.
+
+This is the blob side of the relay split. It is intentionally separate from
+the signed record feed so relay clients can fetch only the missing objects they
+actually need. Source: `DI-pazek`.
+
+### `PUT /api/relay/blobs/{cid}`
+
+Stores one raw CAS object by CID.
+
+The request body is the object bytes. The runtime verifies that the uploaded
+bytes hash to the CID named in the route before storing them. Source:
+`DI-pazek`.
 
 ### `GET /api/dashboard`
 

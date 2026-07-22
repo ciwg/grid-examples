@@ -2,7 +2,7 @@
 
 This note records the current shipped relay-visible peer exchange slice in
 `ex5`. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`;
-`DI-rumek`; `DI-loruk`; `DI-pivul`.
+`DI-rumek`; `DI-loruk`; `DI-pivul`; `DI-pazek`.
 
 ## First relay-visible slice
 
@@ -19,11 +19,16 @@ runtime surface. It now carries these signed families:
 - `knowledge-responsibility`
 
 Those eight families are already signed and replay-verified. The shipped
-exchange exports and imports the whole family logs plus their compatibility
-events over the current local HTTP adapter. Evidence blobs are included inline
-by CID so another host can actually resolve imported evidence. Source:
-`DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`;
-`DI-pivul`.
+exchange now has two layers over the current local HTTP adapter:
+
+- whole-family bundle export/import for compatibility and bootstrap
+- incremental relay-feed export/import over origin-aware signed records
+
+The bootstrap bundle still carries inline evidence blobs by CID, but the
+incremental relay feed names required evidence blobs only by CID and leaves the
+raw blob transfer to separate relay blob routes. Source: `DI-guzab`;
+`DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-pivul`;
+`DI-pazek`.
 
 ## Still outside the current peer-visible slice
 
@@ -50,21 +55,22 @@ peers. Source: `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`.
 
 ## Staged runtime/storage shape
 
-The first staged relay-visible work should:
+The shipped staged relay-visible work now:
 
-- expose signed envelope export/import boundaries for the current portable
+- exposes signed envelope export/import boundaries for the current portable
   families
-- keep current local family logs and compatibility event logs during the first
-  exchange pass
-- carry evidence blobs inline by CID during the bootstrap phase
-- avoid tightening browser, CLI, or Neovim beyond the current local HTTP
+- keeps current local family logs and compatibility event logs during the
+  relay pass
+- keeps inline evidence blobs only in the bootstrap bundle path
+- exposes incremental relay feed plus separate CID blob transfer routes
+- avoids tightening browser, CLI, or Neovim beyond the current local HTTP
   adapter in the same slice
 
-Source: `DI-guzab`.
+Source: `DI-guzab`; `DI-pazek`.
 
 ## Follow-on backlog
 
 - stronger CAS-backed read/replay authority for exchanged artifacts outside the
   frozen families
 
-Source: `DI-guzab`; `DI-tivor`; `DI-rumek`; `DI-pivul`.
+Source: `DI-guzab`; `DI-tivor`; `DI-rumek`; `DI-pivul`; `DI-pazek`.

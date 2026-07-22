@@ -26,21 +26,23 @@ shipped runtime already uses append-only events and shared embodiments, and it
 now implements eight runtime-selected frozen `pCID` documents with signed grid
 envelopes for `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
 `knowledge-link`, `knowledge-responsibility`, `operational-run`,
-`operational-place`, and `operational-resource`. It now also ships the first
-relay-visible bootstrap peer-exchange slice plus
+`operational-place`, and `operational-resource`. It now also ships a
+relay-visible bootstrap-and-incremental exchange slice plus
 additive CAS sidecar storage, while search metadata remains derived projection
 state instead of a separate durable family. Source: `DI-sobek`; `DI-mibor`;
 `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-fusok`;
-`DI-voruk`; `DI-lavuz`; `DI-tivor`; `DI-faruv`.
+`DI-voruk`; `DI-lavuz`; `DI-tivor`; `DI-faruv`; `DI-pazek`.
 
 The first staged relay-visible exchange slice is now defined more narrowly than
 the full local runtime, but it is no longer attachment-free: `knowledge-item`,
 `knowledge-approval`, `knowledge-evidence`, `knowledge-link`,
 `knowledge-responsibility`, `operational-run`, `operational-place`, and
-`operational-resource` now ship through bootstrap export/import over the
-current local HTTP adapter. Evidence blobs ride inline in that bootstrap
-bundle by CID. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`;
-`DI-pivul`.
+`operational-resource` now ship through bootstrap export/import plus
+incremental relay-feed exchange over the current local HTTP adapter. Evidence
+blobs ride inline only in the bootstrap bundle by CID; ongoing relay-feed
+exchange names required blob CIDs and fetches the raw bytes through separate
+blob routes. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`;
+`DI-pivul`; `DI-pazek`.
 
 That peer layer is no longer empty-runtime-only. The runtime now tracks
 `origin_peer_id` plus `origin_sequence` for compatibility events and signed

@@ -60,11 +60,17 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if meta.PeerExchangeFormat != peerExchangeBundleFormat {
 		t.Fatalf("unexpected peer exchange format in meta: %+v", meta)
 	}
+	if meta.RelayFeedFormat != relayFeedFormat {
+		t.Fatalf("unexpected relay feed format in meta: %+v", meta)
+	}
 	if meta.OperationalRunPCID == "" {
 		t.Fatalf("expected operational-run pCID in meta: %+v", meta)
 	}
 	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled || !meta.CASDraftBodiesEnabled {
 		t.Fatalf("expected CAS capability flags in meta: %+v", meta)
+	}
+	if !meta.RelayBlobTransferEnabled {
+		t.Fatalf("expected relay blob transfer capability metadata in meta: %+v", meta)
 	}
 	if !meta.LiveDraftWebSocketEnabled || meta.LiveDraftPreferredTransport != "websocket" {
 		t.Fatalf("expected websocket live-draft capability metadata in meta: %+v", meta)
@@ -617,6 +623,120 @@ func TestServerExportsAndImportsPeerExchangeBundle(t *testing.T) {
 	}
 	if len(result.UnresolvedReferences) != 0 {
 		t.Fatalf("expected no unresolved references after run-family bootstrap import, got %+v", result.UnresolvedReferences)
+	}
+}
+
+func TestServerExportsIncrementalRelayFeed(t *testing.T) {
+	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	item, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := sourceApp.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if _, err := sourceApp.AddEvidence("carol", run.ID, "photo", map[string]string{"result": "ok"}, "evidence.txt", []byte("photo")); err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	server := NewServer(sourceApp)
+
+	requestBody := bytes.NewBufferString(`{"known_origins":{"` + sourceApp.localPeerID + `":2}}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/relay/feed/export", requestBody)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected relay feed export status: %d %s", response.Code, response.Body.String())
+	}
+	var batch RelayFeedBatch
+	if err := json.Unmarshal(response.Body.Bytes(), &batch); err != nil {
+		t.Fatalf("decode relay feed: %v", err)
+	}
+	if batch.Format != relayFeedFormat {
+		t.Fatalf("unexpected relay feed format %q", batch.Format)
+	}
+	if len(batch.Events) != 1 || batch.Events[0].Type != "evidence_added" {
+		t.Fatalf("expected only incremental evidence event in relay feed, got %+v", batch.Events)
+	}
+	if len(batch.KnowledgeEvidenceRecords) != 1 || len(batch.KnowledgeItemRecords) != 0 || len(batch.OperationalRunRecords) != 0 {
+		t.Fatalf("unexpected relay feed record distribution: %+v", batch)
+	}
+	if len(batch.RequiredBlobCIDs) != 1 || strings.TrimSpace(batch.RequiredBlobCIDs[0]) == "" {
+		t.Fatalf("expected required blob cid in relay feed, got %+v", batch.RequiredBlobCIDs)
+	}
+}
+
+func TestServerRelayFeedImportRequiresBlobStaging(t *testing.T) {
+	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	item, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := sourceApp.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if _, err := sourceApp.AddEvidence("carol", run.ID, "photo", map[string]string{"result": "ok"}, "evidence.txt", []byte("photo")); err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	sourceServer := NewServer(sourceApp)
+	exportRequest := httptest.NewRequest(http.MethodPost, "/api/relay/feed/export", bytes.NewBufferString(`{"known_origins":{}}`))
+	exportResponse := httptest.NewRecorder()
+	sourceServer.Handler().ServeHTTP(exportResponse, exportRequest)
+	if exportResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected relay feed export status: %d %s", exportResponse.Code, exportResponse.Body.String())
+	}
+	var batch RelayFeedBatch
+	if err := json.Unmarshal(exportResponse.Body.Bytes(), &batch); err != nil {
+		t.Fatalf("decode relay feed: %v", err)
+	}
+
+	targetApp, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	targetServer := NewServer(targetApp)
+	body, err := json.Marshal(batch)
+	if err != nil {
+		t.Fatalf("encode relay feed: %v", err)
+	}
+	importRequest := httptest.NewRequest(http.MethodPost, "/api/relay/feed/import", bytes.NewReader(body))
+	importResponse := httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(importResponse, importRequest)
+	if importResponse.Code != http.StatusConflict {
+		t.Fatalf("expected missing blob conflict, got %d %s", importResponse.Code, importResponse.Body.String())
+	}
+	if !strings.Contains(importResponse.Body.String(), batch.RequiredBlobCIDs[0]) {
+		t.Fatalf("expected missing blob cid in response: %s", importResponse.Body.String())
+	}
+
+	blobRequest := httptest.NewRequest(http.MethodGet, "/api/relay/blobs/"+batch.RequiredBlobCIDs[0], nil)
+	blobResponse := httptest.NewRecorder()
+	sourceServer.Handler().ServeHTTP(blobResponse, blobRequest)
+	if blobResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected relay blob get status: %d %s", blobResponse.Code, blobResponse.Body.String())
+	}
+	putRequest := httptest.NewRequest(http.MethodPut, "/api/relay/blobs/"+batch.RequiredBlobCIDs[0], bytes.NewReader(blobResponse.Body.Bytes()))
+	putResponse := httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(putResponse, putRequest)
+	if putResponse.Code != http.StatusCreated {
+		t.Fatalf("unexpected relay blob put status: %d %s", putResponse.Code, putResponse.Body.String())
+	}
+
+	importRequest = httptest.NewRequest(http.MethodPost, "/api/relay/feed/import", bytes.NewReader(body))
+	importResponse = httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(importResponse, importRequest)
+	if importResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected relay feed import status after blob staging: %d %s", importResponse.Code, importResponse.Body.String())
+	}
+	if !strings.Contains(importResponse.Body.String(), `"imported_knowledge_evidence":1`) {
+		t.Fatalf("unexpected relay feed import response: %s", importResponse.Body.String())
 	}
 }
 

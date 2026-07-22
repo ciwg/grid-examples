@@ -45,12 +45,58 @@ type Meta struct {
 	OperationalResourcePCID     string   `json:"operational_resource_pcid"`
 	PeerExchangeFormat          string   `json:"peer_exchange_format"`
 	PeerExchangeFamilies        []string `json:"peer_exchange_families"`
+	RelayFeedFormat             string   `json:"relay_feed_format"`
+	RelayFeedFamilies           []string `json:"relay_feed_families"`
 	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
 	CASAttachmentBlobsEnabled   bool     `json:"cas_attachment_blobs_enabled"`
 	CASDraftBodiesEnabled       bool     `json:"cas_draft_bodies_enabled"`
+	RelayBlobTransferEnabled    bool     `json:"relay_blob_transfer_enabled"`
 	LiveDraftWebSocketEnabled   bool     `json:"live_draft_websocket_enabled"`
 	LiveDraftPreferredTransport string   `json:"live_draft_preferred_transport"`
 	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
+}
+
+type RelayFeedRequest struct {
+	KnownOrigins map[string]uint64 `json:"known_origins,omitempty"`
+}
+
+type RelayFeedBatch struct {
+	Format                         string                                `json:"format"`
+	ExportedAt                     string                                `json:"exported_at"`
+	Implementation                 string                                `json:"implementation"`
+	ExportingPeerID                string                                `json:"exporting_peer_id"`
+	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
+	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
+	KnowledgeEvidencePCID          string                                `json:"knowledge_evidence_pcid"`
+	KnowledgeLinkPCID              string                                `json:"knowledge_link_pcid"`
+	KnowledgeResponsibilityPCID    string                                `json:"knowledge_responsibility_pcid"`
+	OperationalRunPCID             string                                `json:"operational_run_pcid"`
+	OperationalPlacePCID           string                                `json:"operational_place_pcid"`
+	OperationalResourcePCID        string                                `json:"operational_resource_pcid"`
+	Events                         []OperationalEvent                    `json:"events"`
+	KnowledgeItemRecords           []SignedKnowledgeItemRecord           `json:"knowledge_item_records"`
+	KnowledgeApprovalRecords       []SignedKnowledgeApprovalRecord       `json:"knowledge_approval_records"`
+	KnowledgeEvidenceRecords       []SignedKnowledgeEvidenceRecord       `json:"knowledge_evidence_records"`
+	OperationalRunRecords          []SignedOperationalRunRecord          `json:"operational_run_records"`
+	OperationalPlaceRecords        []SignedOperationalPlaceRecord        `json:"operational_place_records"`
+	OperationalResourceRecords     []SignedOperationalResourceRecord     `json:"operational_resource_records"`
+	KnowledgeLinkRecords           []SignedKnowledgeLinkRecord           `json:"knowledge_link_records"`
+	KnowledgeResponsibilityRecords []SignedKnowledgeResponsibilityRecord `json:"knowledge_responsibility_records"`
+	RequiredBlobCIDs               []string                              `json:"required_blob_cids,omitempty"`
+}
+
+type RelayFeedImportResult struct {
+	ImportedEvents               int                       `json:"imported_events"`
+	ImportedKnowledgeItems       int                       `json:"imported_knowledge_items"`
+	ImportedKnowledgeApprovals   int                       `json:"imported_knowledge_approvals"`
+	ImportedKnowledgeEvidence    int                       `json:"imported_knowledge_evidence"`
+	ImportedOperationalRuns      int                       `json:"imported_operational_runs"`
+	ImportedOperationalPlaces    int                       `json:"imported_operational_places"`
+	ImportedOperationalResources int                       `json:"imported_operational_resources"`
+	ImportedKnowledgeLinks       int                       `json:"imported_knowledge_links"`
+	ImportedResponsibilities     int                       `json:"imported_responsibilities"`
+	MissingBlobCIDs              []string                  `json:"missing_blob_cids,omitempty"`
+	UnresolvedReferences         []PeerExchangeImportIssue `json:"unresolved_references"`
 }
 
 type PeerExchangeBundle struct {

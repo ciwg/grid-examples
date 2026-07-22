@@ -1,10 +1,11 @@
 # TODO
 
 ## Open / Planned
-- none currently
+- none
 
 ## Completed
 
+- [x] 115 - Extend ex5 from local-adapter peer exchange into richer relay-network behavior - `TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`
 - [x] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
 - [x] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
 - [x] 114 - Correct downstream ex5 PromiseGrid summary doc drift - `TODO/TODO-tasuk-ex5-downstream-promisegrid-doc-drift.md`

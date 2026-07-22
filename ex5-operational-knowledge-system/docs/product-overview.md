@@ -89,12 +89,13 @@ What that means in practice:
 - protocol-family and `pCID` language are part of the shipped PromiseGrid
   framing for ex5
 - signed grid envelopes, frozen `pCID`-selected runtime behavior, origin-aware
-  peer exchange, inline evidence blob carriage, and CAS-backed draft-body
-  reload are now shipped runtime behavior
+  peer exchange, incremental relay feed plus CID-addressed blob transfer, and
+  CAS-backed draft-body reload are now shipped runtime behavior
 
 What is still not shipped in that layer:
 
-- richer relay-network behavior beyond the current local-adapter exchange layer
+- dedicated remote relay deployment beyond the current local-adapter exchange
+  layer
 - direct non-HTTP embodiment contracts
 
 For the technical claims list, see

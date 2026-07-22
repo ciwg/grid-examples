@@ -63,8 +63,8 @@ Today it ships:
 - additive CAS-backed sidecar storage for copied evidence blobs by blob CID
 - authoritative CAS-backed replay/export envelope bytes for the eight frozen
   families, with one-time manifest backfill for older runtimes
-- runtime capability metadata exposing the shipped peer-exchange format and CAS
-  support through `Meta`
+- runtime capability metadata exposing the shipped peer-exchange format,
+  relay-feed format, blob-transfer support, and CAS support through `Meta`
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
 - startup verification of the signed knowledge-approval envelope log against
@@ -163,6 +163,10 @@ Done now:
 - the runtime now also imports origin-aware unseen peer history for those
   families into non-empty runtimes and dedupes it by
   `(origin_peer_id, origin_sequence)`
+- the runtime now also exports and imports incremental relay-feed batches for
+  those families by origin-aware cursor, and evidence blobs now move through
+  separate CID-addressed relay blob routes instead of being inlined into every
+  ongoing feed batch
 - canonical durable IDs for those peer-visible entities now come from the
   create-event envelope CID, and the old short IDs are preserved only as
   aliases for display, replay compatibility, and embodiment transition
@@ -186,16 +190,18 @@ Done now:
 - the runtime now reloads shared live draft bodies authoritatively from CAS
   through per-item local draft manifests, including one-time backfill of older
   manifest files that only carried inline draft text
-- bootstrap peer exchange now carries inline CID-keyed evidence blobs and
+- bootstrap peer exchange still carries inline CID-keyed evidence blobs and
   re-materializes them into a local compatibility attachment path on import
+- ongoing relay-feed exchange now requires evidence blobs to be staged into
+  local CAS by CID before evidence-bearing feed batches import successfully
 - the browser, CLI, and Neovim embodiments still project through the current
   local HTTP adapter on top of those signed families
 
 Remaining:
 
-- keep embodiment/runtime language honest while richer relay-network behavior
-  and other deferred product follow-on work remain outside the current
-  PromiseGrid slice
+- keep embodiment/runtime language honest while direct non-HTTP embodiment
+  contracts and other deferred product follow-on work remain outside the
+  current PromiseGrid slice
 
 ## Current implementation claim
 
@@ -222,9 +228,11 @@ The next staged PromiseGrid work is no longer a sixth durable
 `knowledge-search-metadata` family. Search metadata is settled as derived
 projection state, so the next work is the peer/storage layer backlog that
 follows the frozen operational families. The relay-visible slice now ships as
-whole-family bootstrap export/import for items, approvals, evidence, runs,
-places, resources, links, and responsibilities, with inline CID-keyed
-evidence blob carriage.
+whole-family bootstrap export/import plus incremental relay-feed export/import
+for items, approvals, evidence, runs, places, resources, links, and
+responsibilities. Bootstrap exchange still inlines evidence blobs by CID,
+while incremental relay-feed exchange keeps blobs on separate CID-addressed
+relay routes.
 CAS now ships as an additive sidecar for signed envelopes and copied evidence
 blobs plus authoritative reload for shared live draft bodies through local
 manifests, and the embodiment-tightening step now ships through capability
@@ -235,4 +243,4 @@ its peer-visible entities now use create-envelope CIDs as the durable IDs while
 preserving the old short IDs as aliases. Source: `DI-fusok`; `DI-guzab`;
 `DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`;
 `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`;
-`DI-zunep`; `DI-bavuk`.
+`DI-zunep`; `DI-bavuk`; `DI-pazek`.

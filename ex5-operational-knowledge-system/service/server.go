@@ -33,6 +33,9 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/peer-exchange/export", server.handlePeerExchangeExport)
 	mux.HandleFunc("/api/peer-exchange/import", server.handlePeerExchangeImport)
+	mux.HandleFunc("/api/relay/feed/export", server.handleRelayFeedExport)
+	mux.HandleFunc("/api/relay/feed/import", server.handleRelayFeedImport)
+	mux.HandleFunc("/api/relay/blobs/", server.handleRelayBlob)
 	mux.HandleFunc("/api/dashboard", server.handleDashboard)
 	mux.HandleFunc("/api/problem-review", server.handleProblemReview)
 	mux.HandleFunc("/api/search", server.handleSearch)
@@ -116,6 +119,92 @@ func (server *Server) handlePeerExchangeImport(writer http.ResponseWriter, reque
 		return
 	}
 	writeJSON(writer, http.StatusOK, result)
+}
+
+// Intent: Expose the first richer relay-network slice as an incremental feed
+// over origin-aware signed records while keeping the existing bundle routes for
+// compatibility during rollout. Source: DI-pazek
+func (server *Server) handleRelayFeedExport(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, 256*1024)
+	var relayRequest RelayFeedRequest
+	if err := decodeJSONBody(request, &relayRequest); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	batch, err := server.app.ExportRelayFeed(relayRequest)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(writer, http.StatusOK, batch)
+}
+
+// Intent: Keep the richer relay slice record-oriented by refusing feed import
+// until every referenced blob CID is already staged into local CAS.
+// Source: DI-pazek
+func (server *Server) handleRelayFeedImport(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, 8*1024*1024)
+	var batch RelayFeedBatch
+	if err := decodeJSONBody(request, &batch); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	result, err := server.app.ImportRelayFeed(batch)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(result.MissingBlobCIDs) > 0 {
+		writeJSON(writer, http.StatusConflict, result)
+		return
+	}
+	writeJSON(writer, http.StatusOK, result)
+}
+
+// Intent: Split blob carriage from relay-feed records so callers fetch or
+// stage only the CAS objects they actually need by CID.
+// Source: DI-pazek
+func (server *Server) handleRelayBlob(writer http.ResponseWriter, request *http.Request) {
+	cid := strings.Trim(strings.TrimPrefix(request.URL.Path, "/api/relay/blobs/"), "/")
+	if cid == "" {
+		http.NotFound(writer, request)
+		return
+	}
+	switch request.Method {
+	case http.MethodGet:
+		body, err := server.app.RelayBlob(cid)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusNotFound)
+			return
+		}
+		writeNoStoreHeaders(writer)
+		writer.Header().Set("Content-Type", "application/octet-stream")
+		if _, err := writer.Write(body); err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		}
+	case http.MethodPut:
+		request.Body = http.MaxBytesReader(writer, request.Body, maxEvidenceAttachmentBytes)
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := server.app.StoreRelayBlob(cid, body); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, http.StatusCreated, map[string]any{"cid": cid, "stored": true})
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.Request) {

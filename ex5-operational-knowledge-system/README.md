@@ -165,12 +165,16 @@ What the current runtime actually implements today:
   logs
 - ongoing peer exchange over the local adapter with origin-aware dedupe and
   create-envelope CID durable identity
+- incremental relay-feed exchange over the local adapter with separate CID
+  blob transfer for ongoing evidence carriage
 - CAS-authoritative replay/export for the eight frozen family envelopes
-- inline CID-keyed evidence blob carriage during peer exchange
+- inline CID-keyed evidence blob carriage only in the bootstrap peer-exchange
+  bundle path
 
 What is not yet implemented in the shipped runtime:
 
-- full relay network behavior beyond the current local-adapter exchange layer
+- dedicated remote relay deployment beyond the current local-adapter exchange
+  layer
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
@@ -485,7 +489,7 @@ What it does not try to do yet:
 - keep websocket-preferred live-draft carriage under the existing local adapter instead of porting the full `ex3` collaboration stack into `ex5`
 - treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
-- ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
+- ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, create-envelope-CID durable IDs plus preserved short aliases, bootstrap inline evidence blobs, and incremental relay-feed plus CID blob transfer
 - dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests
 - expose peer-exchange, CAS, shared-draft, websocket-live-transport, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing the broader transport family
-- treat richer relay-network behavior and deferred embodiment/product follow-on work as the remaining PromiseGrid-adjacent backlog
+- treat direct non-HTTP embodiment contracts and deferred product follow-on work as the remaining PromiseGrid-adjacent backlog
