@@ -8,11 +8,23 @@ import (
 func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 	index := string(MustRead("index.html"))
 	required := []string{
+		"workspace-status",
+		"Review",
+		"Author",
+		"Operate",
+		"Create",
+		"Browse Collections",
 		"Create Place",
 		"Create Resource",
 		"Live Draft Studio",
 		"Problem Review",
 		"Record Inspector",
+		"search-clear",
+		"search-debug",
+		"run-item-select",
+		"evidence-run-select",
+		"approval-target-select",
+		"resource-place-select",
 		"detail-timeline",
 		"detail-review",
 		"search-kind",
@@ -28,6 +40,11 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 			t.Fatalf("embedded index missing %q", marker)
 		}
 	}
+	reviewIndex := strings.Index(index, `workspace workspace-review`)
+	createIndex := strings.Index(index, `workspace workspace-create`)
+	if reviewIndex == -1 || createIndex == -1 || reviewIndex > createIndex {
+		t.Fatalf("embedded index does not keep review ahead of create")
+	}
 }
 
 func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
@@ -41,6 +58,13 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"renderProblemReview",
 		"getSearchFilters",
 		"buildSearchParams",
+		"refreshActionCatalog",
+		"renderApprovalTargetOptions",
+		"applyContextDefaults",
+		"workspace-status",
+		"setWorkspaceStatus",
+		"clearSearch",
+		"makeActionButton",
 		"/api/problem-review",
 		"inspectRecord",
 		"renderDetailTimeline",

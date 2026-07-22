@@ -78,11 +78,19 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	dom := string(output)
 	required := []string{
 		"Operational Knowledge System",
+		"Review",
+		"Author",
+		"Operate",
+		"Create",
+		"Browse Collections",
 		"Receiving checklist",
 		"Record Inspector",
 		"Revisions",
 		"Ready to use",
 		"Receiving lead",
+		"Debug payload",
+		"run-item-select",
+		"approval-target-select",
 	}
 	for _, marker := range required {
 		if !strings.Contains(dom, marker) {

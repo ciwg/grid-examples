@@ -83,6 +83,7 @@ CLI. Source: `DI-jabup`; `DI-vogar`.
 
 ## Where To Read Next
 
+- [Browser UI Guide](./browser-ui-guide.md)
 - [User Guide](./user-guide.md)
 - [Terminal Capability Matrix](./terminal-capability-matrix.md)
 - [Features Guide](./features-guide.md)

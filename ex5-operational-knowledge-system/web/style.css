@@ -25,13 +25,23 @@ body {
   padding: 2rem 2.5rem 1.5rem;
   border-bottom: 1px solid var(--line);
 }
+.hero-copy {
+  max-width: 42rem;
+}
 .hero h1 { margin: 0 0 0.5rem; font-size: 2.1rem; }
 .hero p { margin: 0; max-width: 54rem; color: var(--muted); }
+.hero-review {
+  display: grid;
+  gap: 0.85rem;
+  min-width: min(28rem, 100%);
+}
+.hero-meta {
+  max-width: 28rem;
+}
 .stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(7rem, 1fr));
+  grid-template-columns: repeat(3, minmax(7rem, 1fr));
   gap: 0.75rem;
-  min-width: 20rem;
 }
 .stat {
   background: var(--panel);
@@ -42,9 +52,76 @@ body {
 .stat strong { display: block; font-size: 1.1rem; }
 .layout {
   display: grid;
+  gap: 1.35rem;
+  padding: 1.25rem 1.5rem 2rem;
+}
+.workspace {
+  display: grid;
+  gap: 0.9rem;
+}
+.workspace-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+}
+.workspace-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--accent-2);
+}
+.workspace-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
   gap: 1rem;
-  padding: 1.25rem 1.5rem 2rem;
+}
+.review-grid {
+  align-items: start;
+}
+.problem-panel {
+  grid-column: span 1;
+}
+.search-panel,
+.detail-panel,
+.editor-panel {
+  grid-column: 1 / -1;
+}
+.operate-grid {
+  align-items: start;
+}
+.browse-grid {
+  align-items: start;
+}
+.workspace-status {
+  border: 1px solid var(--line);
+  background: #fff6ed;
+  color: #5c2f0f;
+  border-radius: 0.95rem;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 0.4rem 1.1rem rgba(80, 42, 14, 0.08);
+}
+.workspace-status strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.workspace-status pre {
+  margin: 0.7rem 0 0;
+  background: rgba(255, 255, 255, 0.75);
+}
+.workspace-collapsible {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 253, 249, 0.8);
+  padding: 0.9rem 1rem 1rem;
+}
+.workspace-collapsible > summary {
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
 }
 .panel {
   background: rgba(255, 253, 249, 0.96);
@@ -53,11 +130,16 @@ body {
   padding: 1rem;
   box-shadow: 0 0.4rem 1.2rem rgba(35, 27, 18, 0.06);
 }
-.panel h2 {
+.panel h2,
+.panel h3,
+.panel h4 {
   margin-top: 0;
   font-size: 1.05rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+.panel h4 {
+  font-size: 0.95rem;
 }
 form {
   display: grid;
@@ -89,6 +171,15 @@ button {
   cursor: pointer;
 }
 button:hover { filter: brightness(1.05); }
+.button-secondary {
+  background: linear-gradient(135deg, #dfd2c0, #eadfce);
+  color: var(--text);
+}
+.button-tertiary {
+  background: linear-gradient(135deg, #f7f2ea, #fff);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
 .card {
   border: 1px solid var(--line);
   border-radius: 0.8rem;
@@ -190,12 +281,28 @@ button:hover { filter: brightness(1.05); }
   display: grid;
   gap: 0.9rem;
 }
+.search-result-head,
+.hotspot-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: start;
+}
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.card-actions button {
+  padding: 0.55rem 0.8rem;
+}
 .search-form {
   gap: 0.9rem;
 }
 .search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.8rem;
 }
 .search-filters {
@@ -287,6 +394,13 @@ button:hover { filter: brightness(1.05); }
   color: var(--muted);
   margin-bottom: 0.65rem;
 }
+.debug-disclosure {
+  margin-top: 0.9rem;
+}
+.debug-disclosure summary {
+  cursor: pointer;
+  color: var(--muted);
+}
 pre {
   overflow: auto;
   background: #fff;
@@ -308,6 +422,12 @@ pre {
   .hero,
   .editor-summary {
     flex-direction: column;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(7rem, 1fr));
+  }
+  .search-row {
+    grid-template-columns: 1fr;
   }
   .participant-list {
     justify-content: flex-start;

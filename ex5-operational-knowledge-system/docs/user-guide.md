@@ -156,6 +156,7 @@ Source: `DI-givot`; `DI-lorav`; `DI-ravum`; `DI-davur`.
 Use the browser when you want:
 
 - the broadest operational surface
+- a review-first workspace that keeps triage and inspection ahead of setup forms
 - shared live browser drafting
 - contextual review panels
 - grouped hotspot review
@@ -184,6 +185,7 @@ Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-ravum`.
 
 ## Where To Read Next
 
+- [Browser UI Guide](./browser-ui-guide.md)
 - [Product Overview](./product-overview.md)
 - [Terminal Capability Matrix](./terminal-capability-matrix.md)
 - [Features Guide](./features-guide.md)

@@ -8,257 +8,335 @@
   </head>
   <body>
     <header class="hero">
-      <div>
+      <div class="hero-copy">
         <h1>Operational Knowledge System</h1>
         <p>Collaborative operational knowledge plus durable event-sourced runs, approvals, evidence, and responsibilities.</p>
       </div>
-      <div class="stats" id="stats"></div>
+      <div class="hero-review">
+        <div class="meta hero-meta">Review first: triage problems, inspect history, then draft, record, and approve without losing the current context.</div>
+        <div class="stats" id="stats"></div>
+      </div>
     </header>
 
     <main class="layout">
-      <section class="panel">
-        <h2>Create Place</h2>
-        <form id="place-form">
-          <label>Actor <input name="actor" value="alice"></label>
-          <label>Kind <input name="kind" placeholder="site, room, area, bin" required></label>
-          <label>Name <input name="name" required></label>
-          <label>Summary <textarea name="summary"></textarea></label>
-          <label>Parent Place ID <input name="parent_id" placeholder="PLACE-0001"></label>
-          <label>Tags <input name="tags" placeholder="inventory,receiving"></label>
-          <button type="submit">Create Place</button>
-        </form>
-      </section>
+      <div id="workspace-status" class="workspace-status" hidden></div>
 
-      <section class="panel">
-        <h2>Create Resource</h2>
-        <form id="resource-form">
-          <label>Actor <input name="actor" value="alice"></label>
-          <label>Kind <input name="kind" placeholder="machine, tool, container" required></label>
-          <label>Name <input name="name" required></label>
-          <label>Summary <textarea name="summary"></textarea></label>
-          <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
-          <label>Tags <input name="tags" placeholder="parts,line-a"></label>
-          <button type="submit">Create Resource</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Create Responsibility</h2>
-        <form id="responsibility-form">
-          <label>Actor <input name="actor" value="alice"></label>
-          <label>Title <input name="title" required></label>
-          <label>Summary <textarea name="summary"></textarea></label>
-          <label>Role Keys <input name="role_keys" placeholder="author,approver"></label>
-          <label>Tags <input name="tags" placeholder="ops,startup"></label>
-          <button type="submit">Create Responsibility</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Create Knowledge Item</h2>
-        <form id="item-form">
-          <label>Actor <input name="actor" value="alice"></label>
-          <label>Kind
-            <select name="kind">
-              <option value="procedure">procedure</option>
-              <option value="training">training</option>
-              <option value="maintenance">maintenance</option>
-              <option value="receiving_check">receiving_check</option>
-              <option value="inventory_audit">inventory_audit</option>
-            </select>
-          </label>
-          <label>Title <input name="title" required></label>
-          <label>Summary <textarea name="summary"></textarea></label>
-          <label>Body <textarea name="body" rows="8"></textarea></label>
-          <label>Tags <input name="tags" placeholder="startup,line-a"></label>
-          <label>Responsibilities <input name="responsibility_ids" placeholder="RESP-0001,RESP-0002"></label>
-          <button type="submit">Create Knowledge Item</button>
-        </form>
-      </section>
-
-      <section class="panel editor-panel">
-        <h2>Live Draft Studio</h2>
-        <div class="editor-toolbar">
-          <label>Knowledge Item
-            <select id="editor-item-id"></select>
-          </label>
-          <label>Actor
-            <input id="editor-actor" value="alice">
-          </label>
-          <label>Participant Name
-            <input id="editor-display-name" value="Browser User">
-          </label>
-          <label>Color
-            <input id="editor-color" value="#0c6d62">
-          </label>
-        </div>
-        <div class="editor-summary">
-          <div id="editor-meta" class="meta">Select a knowledge item to load its live draft.</div>
-          <div id="editor-participants" class="participant-list"></div>
-        </div>
-        <label>Working Body
-          <textarea id="editor-body" rows="14" placeholder="Select an item to edit its working draft"></textarea>
-        </label>
-        <div class="editor-actions">
-          <button id="editor-refresh" type="button">Refresh Live State</button>
-          <button id="editor-snapshot" type="button">Snapshot Revision</button>
-          <button id="editor-approve" type="button">Approve Current Revision</button>
-          <button id="editor-supersede" type="button">Supersede Item</button>
-        </div>
-        <p class="meta">This editor keeps a shared working draft for the selected knowledge item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
-      </section>
-
-      <section class="panel">
-        <h2>Record Run</h2>
-        <form id="run-form">
-          <label>Actor <input name="actor" value="bob"></label>
-          <label>Kind
-            <select name="kind">
-              <option value="procedure">procedure</option>
-              <option value="training">training</option>
-              <option value="maintenance">maintenance</option>
-              <option value="receiving_check">receiving_check</option>
-              <option value="inventory_audit">inventory_audit</option>
-            </select>
-          </label>
-          <label>Item ID <input name="item_id" required></label>
-          <label>Revision <input name="revision" type="number" min="1" value="1"></label>
-          <label>Outcome <input name="outcome" placeholder="completed"></label>
-          <label>Machine <input name="machine"></label>
-          <label>Location <input name="location"></label>
-          <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
-          <label>Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
-          <label>Responsibilities <input name="responsibility_ids" placeholder="RESP-0001"></label>
-          <label>Notes <textarea name="notes"></textarea></label>
-          <button type="submit">Record Run</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Add Evidence</h2>
-        <form id="evidence-form" enctype="multipart/form-data">
-          <label>Actor <input name="actor" value="bob"></label>
-          <label>Run ID <input name="run_id" required></label>
-          <label>Summary <input name="summary" required></label>
-          <label>Facts JSON <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
-          <label>Attachment <input name="attachment" type="file"></label>
-          <button type="submit">Add Evidence</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Record Approval</h2>
-        <form id="approval-form">
-          <label>Actor <input name="actor" value="boss"></label>
-          <label>Target Type
-            <select name="target_type">
-              <option value="knowledge_item">knowledge_item</option>
-              <option value="run">run</option>
-            </select>
-          </label>
-          <label>Target ID <input name="target_id" required></label>
-          <label>Revision <input name="revision" type="number" min="0" value="0"></label>
-          <label>Role <input name="role" placeholder="reviewer"></label>
-          <label>Decision
-            <select name="decision">
-              <option value="approved">approved</option>
-              <option value="rejected">rejected</option>
-              <option value="noted">noted</option>
-            </select>
-          </label>
-          <label>Notes <textarea name="notes"></textarea></label>
-          <button type="submit">Record Approval</button>
-        </form>
-      </section>
-
-      <section class="panel search-panel">
-        <h2>Problem Review</h2>
-        <div id="problem-review" class="search-results"></div>
-      </section>
-
-      <section class="panel search-panel">
-        <h2>Search</h2>
-        <form id="search-form" class="search-form">
-          <div class="search-row">
-            <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
-            <button type="submit">Search</button>
+      <section class="workspace workspace-review">
+        <div class="workspace-head">
+          <div>
+            <h2>Review</h2>
+            <p class="meta">Start here to triage repeated problems, search the operational graph, and inspect the current record in detail.</p>
           </div>
-          <div class="search-filters">
-            <label>Kind
-              <select name="kind" id="search-kind">
-                <option value="">any</option>
-                <option value="procedure">procedure</option>
-                <option value="training">training</option>
-                <option value="maintenance">maintenance</option>
-                <option value="receiving_check">receiving_check</option>
-                <option value="inventory_audit">inventory_audit</option>
-                <option value="site">site</option>
-                <option value="room">room</option>
-                <option value="area">area</option>
-                <option value="bin">bin</option>
-                <option value="machine">machine</option>
-                <option value="tool">tool</option>
-                <option value="container">container</option>
-              </select>
-            </label>
-            <label>Status
-              <select name="status" id="search-status">
-                <option value="">any</option>
-                <option value="draft">draft</option>
-                <option value="approved">approved</option>
-                <option value="superseded">superseded</option>
-              </select>
-            </label>
-            <label>Outcome <input name="outcome" id="search-outcome" placeholder="completed"></label>
-            <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
-            <label>Resource ID <input name="resource_id" placeholder="RES-0001"></label>
-            <label>Responsibility ID <input name="responsibility_id" placeholder="RESP-0001"></label>
-          </div>
-        </form>
-        <div id="search-active" class="meta">No active search filters.</div>
-        <div id="search-results" class="search-results"></div>
-        <pre id="search-raw" hidden></pre>
+        </div>
+        <div class="workspace-grid review-grid">
+          <section class="panel problem-panel">
+            <h3>Problem Review</h3>
+            <div id="problem-review" class="search-results"></div>
+          </section>
+
+          <section class="panel search-panel">
+            <h3>Search</h3>
+            <form id="search-form" class="search-form">
+              <div class="search-row">
+                <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
+                <button type="submit">Search</button>
+                <button id="search-clear" type="button" class="button-secondary">Clear</button>
+              </div>
+              <div class="search-filters">
+                <label>Kind
+                  <select name="kind" id="search-kind">
+                    <option value="">any</option>
+                    <option value="procedure">procedure</option>
+                    <option value="training">training</option>
+                    <option value="maintenance">maintenance</option>
+                    <option value="receiving_check">receiving_check</option>
+                    <option value="inventory_audit">inventory_audit</option>
+                    <option value="site">site</option>
+                    <option value="room">room</option>
+                    <option value="area">area</option>
+                    <option value="bin">bin</option>
+                    <option value="machine">machine</option>
+                    <option value="tool">tool</option>
+                    <option value="container">container</option>
+                  </select>
+                </label>
+                <label>Status
+                  <select name="status" id="search-status">
+                    <option value="">any</option>
+                    <option value="draft">draft</option>
+                    <option value="approved">approved</option>
+                    <option value="superseded">superseded</option>
+                  </select>
+                </label>
+                <label>Outcome <input name="outcome" id="search-outcome" placeholder="completed"></label>
+                <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
+                <label>Resource ID <input name="resource_id" placeholder="RES-0001"></label>
+                <label>Responsibility ID <input name="responsibility_id" placeholder="RESP-0001"></label>
+              </div>
+            </form>
+            <div id="search-active" class="meta">No active search filters.</div>
+            <div id="search-results" class="search-results"></div>
+            <details class="debug-disclosure" id="search-debug">
+              <summary>Debug payload</summary>
+              <pre id="search-raw" hidden></pre>
+            </details>
+          </section>
+
+          <section class="panel detail-panel">
+            <h3>Record Inspector</h3>
+            <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
+            <div id="detail-summary" class="detail-summary"></div>
+            <div id="detail-actions" class="detail-actions"></div>
+            <div id="detail-review" class="detail-review"></div>
+            <div class="detail-timeline-wrap">
+              <h4>Timeline</h4>
+              <div id="detail-timeline" class="detail-timeline"></div>
+            </div>
+            <details class="detail-raw">
+              <summary>Raw JSON</summary>
+              <pre id="detail-json"></pre>
+            </details>
+          </section>
+        </div>
       </section>
 
-      <section class="panel detail-panel">
-        <h2>Record Inspector</h2>
-        <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
-        <div id="detail-summary" class="detail-summary"></div>
-        <div id="detail-actions" class="detail-actions"></div>
-        <div id="detail-review" class="detail-review"></div>
-        <div class="detail-timeline-wrap">
-          <h3>Timeline</h3>
-          <div id="detail-timeline" class="detail-timeline"></div>
+      <section class="workspace workspace-author">
+        <div class="workspace-head">
+          <div>
+            <h2>Author</h2>
+            <p class="meta">Collaborate on the working draft, then cut a durable snapshot when the text is ready for review.</p>
+          </div>
         </div>
-        <details class="detail-raw">
-          <summary>Raw JSON</summary>
-          <pre id="detail-json"></pre>
+        <section class="panel editor-panel">
+          <h3>Live Draft Studio</h3>
+          <div class="editor-toolbar">
+            <label>Knowledge Item
+              <select id="editor-item-id"></select>
+            </label>
+            <label>Actor
+              <input id="editor-actor" value="alice">
+            </label>
+            <label>Participant Name
+              <input id="editor-display-name" value="Browser User">
+            </label>
+            <label>Color
+              <input id="editor-color" value="#0c6d62">
+            </label>
+          </div>
+          <div class="editor-summary">
+            <div id="editor-meta" class="meta">Select a knowledge item to load its live draft.</div>
+            <div id="editor-participants" class="participant-list"></div>
+          </div>
+          <label>Working Body
+            <textarea id="editor-body" rows="14" placeholder="Select an item to edit its working draft"></textarea>
+          </label>
+          <div class="editor-actions">
+            <button id="editor-refresh" type="button">Refresh Live State</button>
+            <button id="editor-snapshot" type="button">Snapshot Revision</button>
+            <button id="editor-approve" type="button">Approve Current Revision</button>
+            <button id="editor-supersede" type="button">Supersede Item</button>
+          </div>
+          <p class="meta">This editor keeps a shared working draft for the selected knowledge item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
+        </section>
+      </section>
+
+      <section class="workspace workspace-operate">
+        <div class="workspace-head">
+          <div>
+            <h2>Operate</h2>
+            <p class="meta">Record performed work, attach evidence, and capture approvals using the current browser context as a default when possible.</p>
+          </div>
+        </div>
+        <div class="workspace-grid operate-grid">
+          <section class="panel">
+            <h3>Record Run</h3>
+            <form id="run-form">
+              <label>Actor <input name="actor" value="bob"></label>
+              <label>Kind
+                <select name="kind">
+                  <option value="procedure">procedure</option>
+                  <option value="training">training</option>
+                  <option value="maintenance">maintenance</option>
+                  <option value="receiving_check">receiving_check</option>
+                  <option value="inventory_audit">inventory_audit</option>
+                </select>
+              </label>
+              <label>Knowledge Item
+                <select id="run-item-select" name="item_id_select"></select>
+              </label>
+              <label>Manual Item ID Override <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
+              <label>Revision <input name="revision" type="number" min="1" value="1"></label>
+              <label>Outcome <input name="outcome" placeholder="completed"></label>
+              <label>Machine <input name="machine"></label>
+              <label>Location <input name="location"></label>
+              <label>Place
+                <select id="run-place-select" name="place_id_select"></select>
+              </label>
+              <label>Manual Place ID Override <input name="place_id" placeholder="PLACE-0001"></label>
+              <label>Primary Resource
+                <select id="run-resource-select" name="resource_id_select"></select>
+              </label>
+              <label>Additional Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
+              <label>Primary Responsibility
+                <select id="run-responsibility-select" name="responsibility_id_select"></select>
+              </label>
+              <label>Additional Responsibility IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
+              <label>Notes <textarea name="notes"></textarea></label>
+              <button type="submit">Record Run</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h3>Add Evidence</h3>
+            <form id="evidence-form" enctype="multipart/form-data">
+              <label>Actor <input name="actor" value="bob"></label>
+              <label>Run
+                <select id="evidence-run-select" name="run_id_select"></select>
+              </label>
+              <label>Manual Run ID Override <input name="run_id" placeholder="RUN-0001"></label>
+              <label>Summary <input name="summary" required></label>
+              <label>Facts JSON <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
+              <label>Attachment <input name="attachment" type="file"></label>
+              <button type="submit">Add Evidence</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h3>Record Approval</h3>
+            <form id="approval-form">
+              <label>Actor <input name="actor" value="boss"></label>
+              <label>Target Type
+                <select name="target_type">
+                  <option value="knowledge_item">knowledge_item</option>
+                  <option value="run">run</option>
+                </select>
+              </label>
+              <label>Target
+                <select id="approval-target-select" name="target_id_select"></select>
+              </label>
+              <label>Manual Target ID Override <input name="target_id" placeholder="ITEM-0001"></label>
+              <div id="approval-target-summary" class="meta">Choose a target type to load matching records.</div>
+              <label>Revision <input name="revision" type="number" min="0" value="0"></label>
+              <label>Role <input name="role" placeholder="reviewer"></label>
+              <label>Decision
+                <select name="decision">
+                  <option value="approved">approved</option>
+                  <option value="rejected">rejected</option>
+                  <option value="noted">noted</option>
+                </select>
+              </label>
+              <label>Notes <textarea name="notes"></textarea></label>
+              <button type="submit">Record Approval</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section class="workspace workspace-create">
+        <details class="workspace-collapsible">
+          <summary>Create</summary>
+          <p class="meta">Lower-frequency setup surfaces stay in the browser, but they are collapsed by default so review and operational work stay primary.</p>
+          <div class="workspace-grid create-grid">
+            <section class="panel">
+              <h3>Create Place</h3>
+              <form id="place-form">
+                <label>Actor <input name="actor" value="alice"></label>
+                <label>Kind <input name="kind" placeholder="site, room, area, bin" required></label>
+                <label>Name <input name="name" required></label>
+                <label>Summary <textarea name="summary"></textarea></label>
+                <label>Parent Place ID <input name="parent_id" placeholder="PLACE-0001"></label>
+                <label>Tags <input name="tags" placeholder="inventory,receiving"></label>
+                <button type="submit">Create Place</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <h3>Create Resource</h3>
+              <form id="resource-form">
+                <label>Actor <input name="actor" value="alice"></label>
+                <label>Kind <input name="kind" placeholder="machine, tool, container" required></label>
+                <label>Name <input name="name" required></label>
+                <label>Summary <textarea name="summary"></textarea></label>
+                <label>Place
+                  <select id="resource-place-select" name="place_id_select"></select>
+                </label>
+                <label>Manual Place ID Override <input name="place_id" placeholder="PLACE-0001"></label>
+                <label>Tags <input name="tags" placeholder="parts,line-a"></label>
+                <button type="submit">Create Resource</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <h3>Create Responsibility</h3>
+              <form id="responsibility-form">
+                <label>Actor <input name="actor" value="alice"></label>
+                <label>Title <input name="title" required></label>
+                <label>Summary <textarea name="summary"></textarea></label>
+                <label>Role Keys <input name="role_keys" placeholder="author,approver"></label>
+                <label>Tags <input name="tags" placeholder="ops,startup"></label>
+                <button type="submit">Create Responsibility</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <h3>Create Knowledge Item</h3>
+              <form id="item-form">
+                <label>Actor <input name="actor" value="alice"></label>
+                <label>Kind
+                  <select name="kind">
+                    <option value="procedure">procedure</option>
+                    <option value="training">training</option>
+                    <option value="maintenance">maintenance</option>
+                    <option value="receiving_check">receiving_check</option>
+                    <option value="inventory_audit">inventory_audit</option>
+                  </select>
+                </label>
+                <label>Title <input name="title" required></label>
+                <label>Summary <textarea name="summary"></textarea></label>
+                <label>Body <textarea name="body" rows="8"></textarea></label>
+                <label>Tags <input name="tags" placeholder="startup,line-a"></label>
+                <label>Primary Responsibility
+                  <select id="item-responsibility-select" name="responsibility_id_select"></select>
+                </label>
+                <label>Additional Responsibility IDs <input name="responsibility_ids" placeholder="RESP-0001,RESP-0002"></label>
+                <button type="submit">Create Knowledge Item</button>
+              </form>
+            </section>
+          </div>
         </details>
       </section>
 
-      <section class="panel">
-        <h2>Places</h2>
-        <div id="place-list"></div>
-      </section>
+      <section class="workspace workspace-browse">
+        <details class="workspace-collapsible">
+          <summary>Browse Collections</summary>
+          <p class="meta">All list views remain available for broad inventory browsing and direct record inspection.</p>
+          <div class="workspace-grid browse-grid">
+            <section class="panel">
+              <h3>Places</h3>
+              <div id="place-list"></div>
+            </section>
 
-      <section class="panel">
-        <h2>Resources</h2>
-        <div id="resource-list"></div>
-      </section>
+            <section class="panel">
+              <h3>Resources</h3>
+              <div id="resource-list"></div>
+            </section>
 
-      <section class="panel">
-        <h2>Responsibilities</h2>
-        <div id="responsibility-list"></div>
-      </section>
+            <section class="panel">
+              <h3>Responsibilities</h3>
+              <div id="responsibility-list"></div>
+            </section>
 
-      <section class="panel">
-        <h2>Knowledge Items</h2>
-        <div id="item-list"></div>
-      </section>
+            <section class="panel">
+              <h3>Knowledge Items</h3>
+              <div id="item-list"></div>
+            </section>
 
-      <section class="panel">
-        <h2>Runs</h2>
-        <div id="run-list"></div>
+            <section class="panel">
+              <h3>Runs</h3>
+              <div id="run-list"></div>
+            </section>
+          </div>
+        </details>
       </section>
     </main>
 

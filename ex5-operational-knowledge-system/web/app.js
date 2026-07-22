@@ -8,7 +8,10 @@ const problemReviewEl = document.getElementById("problem-review");
 const searchResultsEl = document.getElementById("search-results");
 const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
+const searchDebugEl = document.getElementById("search-debug");
+const searchClearEl = document.getElementById("search-clear");
 const toastEl = document.getElementById("toast");
+const workspaceStatusEl = document.getElementById("workspace-status");
 const detailMetaEl = document.getElementById("detail-meta");
 const detailSummaryEl = document.getElementById("detail-summary");
 const detailActionsEl = document.getElementById("detail-actions");
@@ -27,6 +30,17 @@ const editorRefreshEl = document.getElementById("editor-refresh");
 const editorSnapshotEl = document.getElementById("editor-snapshot");
 const editorApproveEl = document.getElementById("editor-approve");
 const editorSupersedeEl = document.getElementById("editor-supersede");
+const approvalFormEl = document.getElementById("approval-form");
+const resourcePlaceSelectEl = document.getElementById("resource-place-select");
+const itemResponsibilitySelectEl = document.getElementById("item-responsibility-select");
+const runItemSelectEl = document.getElementById("run-item-select");
+const runItemIDEl = document.getElementById("run-item-id");
+const runPlaceSelectEl = document.getElementById("run-place-select");
+const runResourceSelectEl = document.getElementById("run-resource-select");
+const runResponsibilitySelectEl = document.getElementById("run-responsibility-select");
+const evidenceRunSelectEl = document.getElementById("evidence-run-select");
+const approvalTargetSelectEl = document.getElementById("approval-target-select");
+const approvalTargetSummaryEl = document.getElementById("approval-target-summary");
 
 const participantID = getParticipantID();
 const editorState = {
@@ -45,11 +59,21 @@ const editorState = {
 const detailState = {
   type: "",
   id: "",
+  record: null,
 };
 
-function runHandled(action) {
+const catalogState = {
+  places: [],
+  resources: [],
+  responsibilities: [],
+  items: [],
+  runs: [],
+};
+
+function runHandled(action, context) {
   return (...args) => {
-    Promise.resolve(action(...args)).catch(handleError);
+    clearWorkspaceStatus();
+    Promise.resolve(action(...args)).catch((error) => handleError(error, context));
   };
 }
 
@@ -71,23 +95,24 @@ document.getElementById("place-form").addEventListener("submit", runHandled(asyn
   form.reset();
   form.actor.value = "alice";
   await refresh();
-}));
+}, "Create Place"));
 
 document.getElementById("resource-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const placeID = firstPresent(form.place_id.value, form.place_id_select.value);
   await postJSON("/api/resources", {
     actor: form.actor.value,
     kind: form.kind.value,
     name: form.name.value,
     summary: form.summary.value,
-    place_id: form.place_id.value,
+    place_id: placeID,
     tags: splitCSV(form.tags.value),
   });
   form.reset();
   form.actor.value = "alice";
   await refresh();
-}));
+}, "Create Resource"));
 
 document.getElementById("responsibility-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
@@ -102,11 +127,15 @@ document.getElementById("responsibility-form").addEventListener("submit", runHan
   form.reset();
   form.actor.value = "alice";
   await refresh();
-}));
+}, "Create Responsibility"));
 
 document.getElementById("item-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const responsibilityIDs = mergeSelectedIDs(
+    form.responsibility_ids.value,
+    form.responsibility_id_select.value,
+  );
   const item = await postJSON("/api/items", {
     actor: form.actor.value,
     kind: form.kind.value,
@@ -114,41 +143,45 @@ document.getElementById("item-form").addEventListener("submit", runHandled(async
     summary: form.summary.value,
     body: form.body.value,
     tags: splitCSV(form.tags.value),
-    responsibility_ids: splitCSV(form.responsibility_ids.value),
+    responsibility_ids: responsibilityIDs,
   });
   form.reset();
   form.actor.value = "alice";
   form.kind.value = "procedure";
   await refresh(item.id);
-}));
+}, "Create Knowledge Item"));
 
 document.getElementById("run-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const itemID = firstPresent(form.item_id.value, form.item_id_select.value);
+  const placeID = firstPresent(form.place_id.value, form.place_id_select.value);
+  const resourceIDs = mergeSelectedIDs(form.resource_ids.value, form.resource_id_select.value);
+  const responsibilityIDs = mergeSelectedIDs(form.responsibility_ids.value, form.responsibility_id_select.value);
   await postJSON("/api/runs", {
     actor: form.actor.value,
     kind: form.kind.value,
-    item_id: form.item_id.value,
+    item_id: itemID,
     revision: Number(form.revision.value || 1),
     outcome: form.outcome.value,
     notes: form.notes.value,
     machine: form.machine.value,
     location: form.location.value,
-    place_id: form.place_id.value,
-    resource_ids: splitCSV(form.resource_ids.value),
-    responsibility_ids: splitCSV(form.responsibility_ids.value),
+    place_id: placeID,
+    resource_ids: resourceIDs,
+    responsibility_ids: responsibilityIDs,
   });
   form.reset();
   form.actor.value = "bob";
   form.kind.value = "procedure";
   form.revision.value = "1";
   await refresh();
-}));
+}, "Record Run"));
 
 document.getElementById("approval-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const targetID = form.target_id.value;
+  const targetID = firstPresent(form.target_id.value, form.target_id_select.value);
   const targetType = form.target_type.value;
   const path = targetType === "run" ? `/api/runs/${targetID}/approvals` : `/api/items/${targetID}/approvals`;
   await postJSON(path, {
@@ -163,12 +196,14 @@ document.getElementById("approval-form").addEventListener("submit", runHandled(a
   form.target_type.value = "knowledge_item";
   form.decision.value = "approved";
   form.revision.value = "0";
+  renderApprovalTargetOptions();
   await refresh(editorState.itemID);
-}));
+}, "Record Approval"));
 
 document.getElementById("evidence-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const runID = firstPresent(form.run_id.value, form.run_id_select.value);
   const body = new FormData();
   body.set("actor", form.actor.value);
   body.set("summary", form.summary.value);
@@ -176,7 +211,7 @@ document.getElementById("evidence-form").addEventListener("submit", runHandled(a
   if (form.attachment.files[0]) {
     body.set("attachment", form.attachment.files[0]);
   }
-  const response = await fetch(`/api/runs/${form.run_id.value}/evidence`, { method: "POST", body });
+  const response = await fetch(`/api/runs/${runID}/evidence`, { method: "POST", body });
   if (!response.ok) {
     throw new Error(await response.text());
   }
@@ -184,23 +219,22 @@ document.getElementById("evidence-form").addEventListener("submit", runHandled(a
   form.actor.value = "bob";
   showToast("Evidence attached");
   await refresh();
-}));
+}, "Add Evidence"));
 
 document.getElementById("search-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   event.currentTarget.dataset.problem = "false";
   const filters = getSearchFilters(event.currentTarget);
-  const response = await fetch(`/api/search?${buildSearchParams(filters).toString()}`);
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  const payload = await response.json();
-  renderSearchResults(filters, payload);
-}));
+  await runSearch(filters);
+}, "Search"));
+
+searchClearEl.addEventListener("click", () => {
+  clearSearch();
+});
 
 editorItemIDEl.addEventListener("change", runHandled(async () => {
   await loadEditorItem(editorItemIDEl.value);
-}));
+}, "Live Draft Studio"));
 
 editorBodyEl.addEventListener("input", () => {
   editorState.dirty = true;
@@ -215,7 +249,7 @@ editorRefreshEl.addEventListener("click", runHandled(async () => {
     return;
   }
   await pullLiveState(editorState.itemID, true);
-}));
+}, "Live Draft Studio"));
 
 editorSnapshotEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
@@ -233,7 +267,7 @@ editorSnapshotEl.addEventListener("click", runHandled(async () => {
   });
   showToast(`Snapshot created as revision ${updated.current_revision}`);
   await refresh(editorState.itemID);
-}));
+}, "Live Draft Studio"));
 
 editorApproveEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
@@ -249,7 +283,7 @@ editorApproveEl.addEventListener("click", runHandled(async () => {
   });
   showToast("Current revision approved");
   await refresh(editorState.itemID);
-}));
+}, "Live Draft Studio"));
 
 editorSupersedeEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
@@ -262,10 +296,84 @@ editorSupersedeEl.addEventListener("click", runHandled(async () => {
   });
   showToast("Item superseded");
   await refresh(editorState.itemID);
-}));
+}, "Live Draft Studio"));
+
+approvalFormEl.target_type.addEventListener("change", () => {
+  renderApprovalTargetOptions();
+  syncApprovalDefaults();
+});
+
+runItemSelectEl.addEventListener("change", () => {
+  if (runItemSelectEl.value) {
+    runItemIDEl.value = runItemSelectEl.value;
+    const item = catalogState.items.find((value) => value.id === runItemSelectEl.value);
+    if (item && item.current_revision) {
+      document.getElementById("run-form").revision.value = String(item.current_revision);
+    }
+  }
+});
+
+evidenceRunSelectEl.addEventListener("change", () => {
+  if (evidenceRunSelectEl.value) {
+    document.getElementById("evidence-form").run_id.value = evidenceRunSelectEl.value;
+  }
+});
+
+approvalTargetSelectEl.addEventListener("change", () => {
+  const form = document.getElementById("approval-form");
+  if (approvalTargetSelectEl.value) {
+    form.target_id.value = approvalTargetSelectEl.value;
+    if (form.target_type.value === "knowledge_item") {
+      const item = catalogState.items.find((value) => value.id === approvalTargetSelectEl.value);
+      if (item && item.current_revision) {
+        form.revision.value = String(item.current_revision);
+      }
+    } else {
+      form.revision.value = "0";
+    }
+  }
+  syncApprovalDefaults();
+});
 
 function splitCSV(input) {
   return input.split(",").map((value) => value.trim()).filter(Boolean);
+}
+
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function mergeSelectedIDs(csvValue, selectedValue) {
+  const values = splitCSV(csvValue || "");
+  if (selectedValue && !values.includes(selectedValue)) {
+    values.unshift(selectedValue);
+  }
+  return values;
+}
+
+function setWorkspaceStatus(message, tone = "error", detail = "") {
+  workspaceStatusEl.hidden = false;
+  workspaceStatusEl.dataset.tone = tone;
+  workspaceStatusEl.innerHTML = "";
+  const headline = document.createElement("strong");
+  headline.textContent = message;
+  workspaceStatusEl.appendChild(headline);
+  if (detail) {
+    const block = document.createElement("pre");
+    block.textContent = detail;
+    workspaceStatusEl.appendChild(block);
+  }
+}
+
+function clearWorkspaceStatus() {
+  workspaceStatusEl.hidden = true;
+  workspaceStatusEl.dataset.tone = "";
+  workspaceStatusEl.innerHTML = "";
 }
 
 async function postJSON(path, payload) {
@@ -315,6 +423,7 @@ function renderStats(data) {
 }
 
 function renderPlaces(items) {
+  catalogState.places = items;
   placeListEl.innerHTML = "";
   for (const item of items) {
     const card = document.createElement("button");
@@ -329,6 +438,7 @@ function renderPlaces(items) {
 }
 
 function renderResources(items) {
+  catalogState.resources = items;
   resourceListEl.innerHTML = "";
   for (const item of items) {
     const card = document.createElement("button");
@@ -343,6 +453,7 @@ function renderResources(items) {
 }
 
 function renderResponsibilities(items) {
+  catalogState.responsibilities = items;
   responsibilityListEl.innerHTML = "";
   for (const item of items) {
     const card = document.createElement("button");
@@ -357,6 +468,7 @@ function renderResponsibilities(items) {
 }
 
 function renderKnowledgeItems(items) {
+  catalogState.items = items;
   itemListEl.innerHTML = "";
   editorItemIDEl.innerHTML = "";
   const placeholder = document.createElement("option");
@@ -387,6 +499,7 @@ function renderKnowledgeItems(items) {
 }
 
 function renderRuns(items) {
+  catalogState.runs = items;
   runListEl.innerHTML = "";
   for (const item of items) {
     const card = document.createElement("button");
@@ -398,6 +511,72 @@ function renderRuns(items) {
     });
     runListEl.appendChild(card);
   }
+}
+
+// Intent: Keep browser actions reachable without memorizing raw IDs by
+// populating select helpers from the same projections that already drive the
+// current lists, while preserving manual override fields for every workflow.
+// Source: DI-lafor
+function refreshActionCatalog() {
+  renderSelect(resourcePlaceSelectEl, catalogState.places, "Select a place", (place) => `${place.id} · ${place.name}`);
+  renderSelect(itemResponsibilitySelectEl, catalogState.responsibilities, "Optional responsibility", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
+  renderSelect(runItemSelectEl, catalogState.items, "Select a knowledge item", (item) => `${item.id} · ${item.title}`);
+  renderSelect(runPlaceSelectEl, catalogState.places, "Optional place", (place) => `${place.id} · ${place.name}`);
+  renderSelect(runResourceSelectEl, catalogState.resources, "Optional primary resource", (resource) => `${resource.id} · ${resource.name}`);
+  renderSelect(runResponsibilitySelectEl, catalogState.responsibilities, "Optional primary responsibility", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
+  renderSelect(evidenceRunSelectEl, catalogState.runs, "Select a run", (run) => `${run.id} · ${run.item_id} · ${run.outcome || "-"}`);
+  renderApprovalTargetOptions();
+}
+
+function renderSelect(selectEl, items, placeholder, formatter) {
+  const previous = selectEl.value;
+  selectEl.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = placeholder;
+  selectEl.appendChild(option);
+  for (const item of items) {
+    const next = document.createElement("option");
+    next.value = item.id;
+    next.textContent = formatter(item);
+    selectEl.appendChild(next);
+  }
+  if (previous) {
+    selectEl.value = previous;
+  }
+}
+
+function renderApprovalTargetOptions() {
+  const form = approvalFormEl;
+  const targetType = form.target_type.value;
+  const items = targetType === "run" ? catalogState.runs : catalogState.items;
+  const formatter = targetType === "run"
+    ? (run) => `${run.id} · ${run.item_id} · ${run.outcome || "-"}`
+    : (item) => `${item.id} · ${item.title} · rev ${item.current_revision}`;
+  renderSelect(approvalTargetSelectEl, items, `Select a ${targetType === "run" ? "run" : "knowledge item"}`, formatter);
+  syncApprovalDefaults();
+}
+
+function syncApprovalDefaults() {
+  const form = approvalFormEl;
+  if (form.target_type.value === "run" && detailState.type === "run" && detailState.record) {
+    approvalTargetSelectEl.value = detailState.record.id;
+    form.target_id.value = detailState.record.id;
+    form.revision.value = "0";
+    approvalTargetSummaryEl.textContent = `${detailState.record.id} · ${detailState.record.item_id} · ${detailState.record.outcome || "-"}`;
+    return;
+  }
+  if (form.target_type.value === "knowledge_item" && detailState.type === "item" && detailState.record) {
+    approvalTargetSelectEl.value = detailState.record.id;
+    form.target_id.value = detailState.record.id;
+    form.revision.value = String(detailState.record.current_revision || 0);
+    approvalTargetSummaryEl.textContent = `${detailState.record.id} · ${detailState.record.title} · rev ${detailState.record.current_revision || 0}`;
+    return;
+  }
+  const selected = approvalTargetSelectEl.selectedOptions[0];
+  approvalTargetSummaryEl.textContent = selected && approvalTargetSelectEl.value
+    ? selected.textContent
+    : `Choose a ${form.target_type.value === "run" ? "run" : "knowledge item"} to load matching records.`;
 }
 
 // Intent: Surface repeated receiving and count problems as grouped hotspots so
@@ -419,14 +598,17 @@ function renderProblemReview(summary) {
     heading.textContent = `${title} (${items.length})`;
     block.appendChild(heading);
     for (const item of items) {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "card selectable-card";
+      const card = document.createElement("article");
+      card.className = "card";
       const highlights = (item.highlights || []).slice(0, 3).join(" · ") || "no highlights";
-      card.innerHTML = `<div class="kind">${item.kind}</div><h3>${item.group_id} · ${item.name}</h3><div class="meta">${item.problem_count} problems\nreceiving: ${item.receiving_problems} · inventory: ${item.inventory_problems}\n${highlights}</div>`;
-      card.addEventListener("click", () => {
-        inspectRecord(targetType, item.group_id).catch(handleError);
-      });
+      card.innerHTML = `<div class="hotspot-head"><div><div class="kind">${item.kind}</div><h3>${item.group_id} · ${item.name}</h3></div><strong>${item.problem_count} problems</strong></div><div class="meta">receiving: ${item.receiving_problems} · inventory: ${item.inventory_problems}\n${highlights}</div>`;
+      const actions = document.createElement("div");
+      actions.className = "card-actions";
+      actions.appendChild(makeActionButton("Inspect context", () => inspectRecord(targetType, item.group_id), "Problem Review"));
+      actions.appendChild(makeActionButton("Problem runs here", () => runSearch({ [`${targetType}_id`]: item.group_id, problem: true }), "Problem Review"));
+      actions.appendChild(makeActionButton("Receiving here", () => runSearch({ [`${targetType}_id`]: item.group_id, kind: "receiving_check" }), "Problem Review"));
+      actions.appendChild(makeActionButton("Inventory here", () => runSearch({ [`${targetType}_id`]: item.group_id, kind: "inventory_audit" }), "Problem Review"));
+      card.appendChild(actions);
       block.appendChild(card);
     }
     problemReviewEl.appendChild(block);
@@ -475,6 +657,8 @@ function renderSearchResults(filters, payload) {
   searchResultsEl.innerHTML = "";
   searchRawEl.hidden = false;
   searchRawEl.textContent = JSON.stringify(payload, null, 2);
+  searchDebugEl.hidden = false;
+  searchDebugEl.open = false;
   searchActiveEl.textContent = formatSearchFilters(payload.filters || filters);
   const groups = [
     ["places", "place"],
@@ -494,13 +678,19 @@ function renderSearchResults(filters, payload) {
     heading.textContent = `${key} (${items.length})`;
     block.appendChild(heading);
     for (const item of items) {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "card selectable-card";
-      card.innerHTML = `<div class="kind">${type}</div><h3>${item.id}</h3><div class="meta">${searchSummary(type, item)}</div>`;
-      card.addEventListener("click", () => {
-        inspectRecord(type, item.id).catch(handleError);
-      });
+      const card = document.createElement("article");
+      card.className = "card";
+      card.innerHTML = `<div class="search-result-head"><div><div class="kind">${type}</div><h3>${item.id}</h3></div></div><div class="meta">${searchSummary(type, item)}</div>`;
+      const actions = document.createElement("div");
+      actions.className = "card-actions";
+      actions.appendChild(makeActionButton("Inspect", () => inspectRecord(type, item.id), "Search"));
+      if (type === "item") {
+        actions.appendChild(makeActionButton("Open draft", () => Promise.all([loadEditorItem(item.id), inspectRecord("item", item.id)]), "Search"));
+      }
+      if (type === "run") {
+        actions.appendChild(makeActionButton("Item", () => inspectRecord("item", item.item_id), "Search"));
+      }
+      card.appendChild(actions);
       block.appendChild(card);
     }
     searchResultsEl.appendChild(block);
@@ -569,18 +759,21 @@ function searchSummary(type, item) {
 async function inspectRecord(type, id) {
   detailState.type = type;
   detailState.id = id;
+  detailState.record = null;
   detailMetaEl.textContent = `Loading ${type} ${id}...`;
   detailSummaryEl.innerHTML = "";
   detailActionsEl.innerHTML = "";
   detailReviewEl.innerHTML = "";
   detailTimelineEl.innerHTML = "";
   const record = await getJSON(detailPath(type, id));
+  detailState.record = record;
   detailMetaEl.textContent = detailSummary(type, record);
   renderDetailSummary(type, record);
   renderDetailReview(type, record);
   renderDetailTimeline(record.timeline || []);
   detailJSONEl.textContent = JSON.stringify(record, null, 2);
   renderDetailActions(type, record);
+  applyContextDefaults(type, record);
   if (type === "item") {
     await loadEditorItem(id);
   }
@@ -744,18 +937,79 @@ function renderDetailActions(type, record) {
     }
   }
   for (const [label, nextType, nextID] of links) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", () => {
-      if (nextType === "search") {
-        runSearch(nextID).catch(handleError);
-        return;
-      }
-      inspectRecord(nextType, nextID).catch(handleError);
-    });
-    detailActionsEl.appendChild(button);
+    if (nextType === "search") {
+      detailActionsEl.appendChild(makeActionButton(label, () => runSearch(nextID), "Record Inspector"));
+      continue;
+    }
+    detailActionsEl.appendChild(makeActionButton(label, () => inspectRecord(nextType, nextID), "Record Inspector"));
   }
+}
+
+// Intent: Keep every current browser form reachable while prefilling the
+// high-frequency run, evidence, and approval flows from the record the operator
+// is already reviewing, so the browser stops depending on raw ID memorization.
+// Source: DI-lafor
+function applyContextDefaults(type, record) {
+  const runForm = document.getElementById("run-form");
+  const evidenceForm = document.getElementById("evidence-form");
+  const approvalForm = approvalFormEl;
+
+  if (type === "item") {
+    runItemSelectEl.value = record.id;
+    runItemIDEl.value = record.id;
+    runForm.revision.value = String(record.current_revision || runForm.revision.value);
+    approvalForm.target_type.value = "knowledge_item";
+    renderApprovalTargetOptions();
+    approvalTargetSelectEl.value = record.id;
+    approvalForm.target_id.value = record.id;
+    approvalForm.revision.value = String(record.current_revision || 0);
+    if ((record.responsibility_ids || [])[0]) {
+      runResponsibilitySelectEl.value = record.responsibility_ids[0];
+    }
+  }
+  if (type === "run") {
+    evidenceRunSelectEl.value = record.id;
+    evidenceForm.run_id.value = record.id;
+    approvalForm.target_type.value = "run";
+    renderApprovalTargetOptions();
+    approvalTargetSelectEl.value = record.id;
+    approvalForm.target_id.value = record.id;
+    approvalForm.revision.value = "0";
+    if (record.item_id) {
+      runItemSelectEl.value = record.item_id;
+      runItemIDEl.value = record.item_id;
+    }
+    if (record.place_id) {
+      runPlaceSelectEl.value = record.place_id;
+      runForm.place_id.value = record.place_id;
+    }
+    if ((record.resource_ids || [])[0]) {
+      runResourceSelectEl.value = record.resource_ids[0];
+    }
+    if ((record.responsibility_ids || [])[0]) {
+      runResponsibilitySelectEl.value = record.responsibility_ids[0];
+    }
+    if (record.revision) {
+      runForm.revision.value = String(record.revision);
+    }
+  }
+  if (type === "place") {
+    runPlaceSelectEl.value = record.id;
+    runForm.place_id.value = record.id;
+    resourcePlaceSelectEl.value = record.id;
+  }
+  if (type === "resource") {
+    runResourceSelectEl.value = record.id;
+    if (record.place_id) {
+      runPlaceSelectEl.value = record.place_id;
+      runForm.place_id.value = record.place_id;
+    }
+  }
+  if (type === "responsibility") {
+    runResponsibilitySelectEl.value = record.id;
+    itemResponsibilitySelectEl.value = record.id;
+  }
+  syncApprovalDefaults();
 }
 
 // Intent: Reuse the structured search form as the single drilldown path so
@@ -763,6 +1017,7 @@ function renderDetailActions(type, record) {
 // identical, including problem-only review drilldowns. Source: DI-vafuk;
 // DI-vemur
 async function runSearch(filters) {
+  clearWorkspaceStatus();
   const form = document.getElementById("search-form");
   form.q.value = filters.q || "";
   form.kind.value = filters.kind || "";
@@ -774,8 +1029,35 @@ async function runSearch(filters) {
   form.dataset.problem = filters.problem ? "true" : "false";
   const effectiveFilters = getSearchFilters(form);
   const response = await fetch(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
   const payload = await response.json();
   renderSearchResults(effectiveFilters, payload);
+  clearWorkspaceStatus();
+}
+
+function clearSearch() {
+  const form = document.getElementById("search-form");
+  form.reset();
+  form.dataset.problem = "false";
+  searchResultsEl.innerHTML = "";
+  searchActiveEl.textContent = "No active search filters.";
+  searchRawEl.hidden = true;
+  searchRawEl.textContent = "";
+  searchDebugEl.hidden = true;
+  searchDebugEl.open = false;
+}
+
+function makeActionButton(label, action, context) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button-tertiary";
+  button.textContent = label;
+  button.addEventListener("click", () => {
+    Promise.resolve(action()).catch((error) => handleError(error, context));
+  });
+  return button;
 }
 
 function renderDetailTimeline(events) {
@@ -1004,6 +1286,7 @@ async function refresh(selectedItemID = editorState.itemID) {
   renderResponsibilities(responsibilities.responsibilities || []);
   renderKnowledgeItems(items.items || []);
   renderRuns(runs.runs || []);
+  refreshActionCatalog();
   if (!selectedItemID && (items.items || []).length > 0) {
     selectedItemID = items.items[0].id;
   }
@@ -1013,6 +1296,7 @@ async function refresh(selectedItemID = editorState.itemID) {
       inspectRecord("item", selectedItemID),
     ]);
   }
+  clearWorkspaceStatus();
 }
 
 async function loadEditorItem(itemID) {
@@ -1186,9 +1470,10 @@ function showToast(message) {
   }, 1800);
 }
 
-function handleError(error) {
+function handleError(error, context = "Browser") {
   showToast(error.message);
-  searchResultsEl.textContent = error.stack || error.message;
+  setWorkspaceStatus(`${context} failed`, "error", error.message);
 }
 
+clearSearch();
 refresh().catch(handleError);

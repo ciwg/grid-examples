@@ -61,6 +61,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - browser search filters by kind, status, outcome, place, resource, and responsibility
 - browser free-text search now reaches run evidence facts and approval notes
 - browser request failures stay inside the UI through the shared error path
+- browser now defaults to a review-first workspace instead of a flat wall of equally weighted forms
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
 - item detail drilldown into the runs that used that item
@@ -98,6 +99,7 @@ For operator-facing docs that describe the current product directly, see:
 
 - [Product Overview](docs/product-overview.md)
 - [User Guide](docs/user-guide.md)
+- [Browser UI Guide](docs/browser-ui-guide.md)
 - [Terminal Capability Matrix](docs/terminal-capability-matrix.md)
 
 ## Current PromiseGrid Shape
