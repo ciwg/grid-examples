@@ -236,6 +236,7 @@ instead of forcing one tool to do everything badly.
 CLI behavior today:
 
 - fast shell-oriented create/list/show commands
+- shell-only durable revision snapshots over the shared item revision route
 - explicit record-run and approval actions
 - explicit typed-link creation over validated existing graph endpoints
 - explicit run evidence upload with optional facts JSON and optional attachment

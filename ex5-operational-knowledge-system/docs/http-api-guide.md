@@ -394,6 +394,11 @@ current live draft body through `/api/items/{id}/live`. That keeps durable
 authoring on the shared HTTP model instead of inventing an editor-only
 snapshot path. Source: `DI-jabup`.
 
+The CLI now reuses this route too. `oks-cli snapshot-item ITEM_ID ACTOR BODY`
+loads the existing item title, summary, and tags from `GET /api/items/{id}`,
+then posts the supplied body through this revision endpoint. Source:
+`DI-muvok`.
+
 Payload fields:
 
 - `actor`

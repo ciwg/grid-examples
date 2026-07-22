@@ -212,6 +212,7 @@ go run ./cmd/oks-cli items
 go run ./cmd/oks-cli new-item alice procedure "Start line A" "Startup procedure" "# Start line A"
 go run ./cmd/oks-cli new-item alice receiving_check "Inspect inbound pallet" "Receiving check for inbound pallet" "# Inspect inbound pallet"
 go run ./cmd/oks-cli new-item alice inventory_audit "Count RJ45 bin" "Cycle count for RJ45 connectors" "# Count RJ45 bin"
+go run ./cmd/oks-cli snapshot-item PROC-0001 alice "# Start line A\nAdd audited latch check"
 go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_notes "Outer wrap torn" PLACE-0001 RES-0001
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
 go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
@@ -239,6 +240,8 @@ The intended terminal behavior today is:
   existing records
 - use the CLI when you need one-shot run evidence upload with optional facts
   JSON and optional copied file attachments
+- use the CLI when you need a shell-only durable revision snapshot without
+  opening Neovim
 - use the CLI when you need the same structured or `problem=true` search
   slices that already drive browser and Neovim review views
 - use the CLI when you need grouped hotspot review or projected responsibility
@@ -273,7 +276,7 @@ The terminal surface is intentionally staged, not fully symmetric yet:
 That means a terminal-heavy operator can already do a large amount of real work
 without opening the browser, while later follow-ons can still add narrower
 workflow actions instead of trying to duplicate the whole browser at once.
-Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vabok`.
+Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vabok`; `DI-muvok`.
 
 ## Neovim
 

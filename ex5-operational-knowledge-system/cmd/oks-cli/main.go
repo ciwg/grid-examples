@@ -103,6 +103,11 @@ func (cli *CLI) run(args []string) (int, error) {
 			return 2, fmt.Errorf("%s", usageText)
 		}
 		err = cli.ShowItem(args[1])
+	case "snapshot-item":
+		if len(args) < 4 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		err = cli.SnapshotItem(args[1], args[2], strings.Join(args[3:], " "))
 	case "runs":
 		kind := ""
 		if len(args) > 1 {
@@ -190,7 +195,7 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|problem-review|pending-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
+const usageText = "usage: oks-cli dashboard|problem-review|pending-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|snapshot-item ITEM_ID ACTOR BODY|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
 
 type CLI struct {
 	ServerURL string
@@ -274,6 +279,7 @@ type cliItemDetail struct {
 	Status            string          `json:"status"`
 	Title             string          `json:"title"`
 	Summary           string          `json:"summary"`
+	Tags              []string        `json:"tags"`
 	ResponsibilityIDs []string        `json:"responsibility_ids"`
 	CurrentRevision   int             `json:"current_revision"`
 	Revisions         []cliRevision   `json:"revisions"`
@@ -454,6 +460,28 @@ func (cli *CLI) ShowItem(itemID string) error {
 	}
 	fmt.Println(renderItemDetail(item))
 	return nil
+}
+
+// Intent: Let shell-first operators cut a durable item revision without
+// switching to the browser or Neovim, while still reusing the existing item
+// revision route and the item's current title, summary, and tags. Source:
+// DI-muvok
+func (cli *CLI) SnapshotItem(itemID string, actor string, body string) error {
+	itemBody, err := cli.get("/api/items/" + itemID)
+	if err != nil {
+		return err
+	}
+	var item cliItemDetail
+	if err := json.Unmarshal(itemBody, &item); err != nil {
+		return err
+	}
+	return cli.post("/api/items/"+itemID+"/revisions", map[string]any{
+		"actor":   actor,
+		"title":   item.Title,
+		"summary": item.Summary,
+		"body":    body,
+		"tags":    item.Tags,
+	})
 }
 
 // Intent: Keep run drilldowns on the shared run-detail projection while

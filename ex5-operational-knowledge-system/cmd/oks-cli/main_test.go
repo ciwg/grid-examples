@@ -446,6 +446,69 @@ func TestShowItemCommandRendersDrilldownSummary(t *testing.T) {
 	}
 }
 
+func TestSnapshotItemCommandUsesExistingRevisionRoute(t *testing.T) {
+	paths := []string{}
+	var received map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		paths = append(paths, request.URL.Path)
+		writer.Header().Set("Content-Type", "application/json")
+		switch {
+		case request.Method == http.MethodGet && request.URL.Path == "/api/items/ITEM-0001":
+			_, _ = writer.Write([]byte(`{
+				"id":"ITEM-0001",
+				"kind":"procedure",
+				"status":"approved",
+				"title":"Open receiving dock",
+				"summary":"Checklist for morning dock startup",
+				"tags":["startup","receiving"],
+				"responsibility_ids":["RESP-0001"],
+				"current_revision":2,
+				"revisions":[],
+				"related_runs":[],
+				"approvals":[],
+				"links":[]
+			}`))
+		case request.Method == http.MethodPost && request.URL.Path == "/api/items/ITEM-0001/revisions":
+			if err := json.NewDecoder(request.Body).Decode(&received); err != nil {
+				t.Fatalf("decode snapshot request: %v", err)
+			}
+			_, _ = writer.Write([]byte(`{"id":"ITEM-0001","current_revision":3}`))
+		default:
+			t.Fatalf("unexpected request: %s %s", request.Method, request.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"snapshot-item", "ITEM-0001", "alice", "new line 1\nnew line 2"})
+	if err != nil {
+		t.Fatalf("snapshot-item command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	expectedPaths := []string{"/api/items/ITEM-0001", "/api/items/ITEM-0001/revisions"}
+	if !slices.Equal(paths, expectedPaths) {
+		t.Fatalf("unexpected paths: got=%#v want=%#v", paths, expectedPaths)
+	}
+	if got := received["actor"]; got != "alice" {
+		t.Fatalf("unexpected actor: %#v", got)
+	}
+	if got := received["title"]; got != "Open receiving dock" {
+		t.Fatalf("unexpected title: %#v", got)
+	}
+	if got := received["summary"]; got != "Checklist for morning dock startup" {
+		t.Fatalf("unexpected summary: %#v", got)
+	}
+	if got := received["body"]; got != "new line 1\nnew line 2" {
+		t.Fatalf("unexpected body: %#v", got)
+	}
+	tags, ok := received["tags"].([]any)
+	if !ok || len(tags) != 2 || tags[0] != "startup" || tags[1] != "receiving" {
+		t.Fatalf("unexpected tags: %#v", received["tags"])
+	}
+}
+
 func TestShowRunCommandRendersDrilldownSummary(t *testing.T) {
 	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

@@ -48,6 +48,10 @@ phase 1.
 - [x] nuvok.19 Define the next richer Neovim authoring follow-on as durable revision snapshot creation under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`.
 - [x] nuvok.20 Define the adjacent write-side command coverage slice under `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`.
 - [x] nuvok.21 Define the adjacent terminal authoring-handoff doc slice under `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`.
+- [x] nuvok.22 Define the next shell-only authoring follow-on as CLI durable revision snapshot parity under `TODO/TODO-muvok-ex5-cli-revision-snapshot-parity.md`.
+- [x] nuvok.23 Define the adjacent older inspect command coverage slice under `TODO/TODO-taruv-ex5-neovim-inspect-command-coverage.md`.
+- [x] nuvok.24 Define the adjacent terminal capability matrix drift slice under `TODO/TODO-razim-ex5-terminal-capability-matrix-drift.md`.
+- [x] nuvok.25 Define the adjacent architecture terminal-surface drift slice under `TODO/TODO-favun-ex5-architecture-terminal-surface-drift-2.md`.
 
 ## Status
 
@@ -66,6 +70,8 @@ phase 1.
 - the next Neovim follow-ons are now split into explicit child TODOs for `:OksSearch` command-surface repair, direct Ex-command coverage, and high-level terminal-doc drift under `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`, `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`, and `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
 - the next Neovim follow-ons are now split into explicit child TODOs for durable revision snapshots, write-side Ex-command coverage, and terminal authoring-handoff docs under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`, `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`, and `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`
 - durable revision snapshots now exist inside the Neovim live-draft embodiment, and the direct write-side `:Oks...` commands now have headless command-path coverage under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md` and `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`
+- the next terminal follow-ons are now split into explicit child TODOs for CLI durable revision snapshot parity, older inspect command coverage, terminal capability matrix drift, and architecture-doc drift under `TODO/TODO-muvok-ex5-cli-revision-snapshot-parity.md`, `TODO/TODO-taruv-ex5-neovim-inspect-command-coverage.md`, `TODO/TODO-razim-ex5-terminal-capability-matrix-drift.md`, and `TODO/TODO-favun-ex5-architecture-terminal-surface-drift-2.md`
+- CLI durable revision snapshots now exist, the older `:OksInspect...` commands now have direct headless command-path coverage, and the remaining terminal matrix and architecture drift are closed under `TODO/TODO-muvok-ex5-cli-revision-snapshot-parity.md`, `TODO/TODO-taruv-ex5-neovim-inspect-command-coverage.md`, `TODO/TODO-razim-ex5-terminal-capability-matrix-drift.md`, and `TODO/TODO-favun-ex5-architecture-terminal-surface-drift-2.md`
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API

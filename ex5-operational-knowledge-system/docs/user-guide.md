@@ -108,6 +108,7 @@ reuse the same validated graph contract as the other surfaces. Source:
 CLI:
 
 ```bash
+go run ./cmd/oks-cli snapshot-item PROC-0001 alice "# Start line A\nAdd audited latch check"
 go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
 go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
 ```
@@ -120,10 +121,11 @@ Neovim:
 - `:OksSupersedeItem`
 
 Snapshot, approval, and supersede actions stay on the existing shared HTTP API
-and refresh the relevant terminal view afterward. `:OksSnapshot` requires an
-open live draft and cuts a durable revision from the current editor body using
-the item's existing title, summary, and tags. Source: `DI-jabup`; `DI-vamor`;
-`DI-bafor`; `DI-pudor`; `DI-dazim`.
+and refresh the relevant terminal view afterward. `snapshot-item` lets a
+CLI-only operator cut a durable revision by supplying the new body directly,
+while `:OksSnapshot` requires an open live draft and snapshots the current
+editor body using the item's existing title, summary, and tags. Source:
+`DI-muvok`; `DI-jabup`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-dazim`.
 
 ## Common Workflow 6: Search And Triage
 
@@ -161,6 +163,7 @@ Use the browser when you want:
 Use the CLI when you want:
 
 - fast shell-first creation or mutation
+- shell-only durable revision snapshots
 - evidence upload
 - terminal search and queue review
 - one-shot drilldown commands

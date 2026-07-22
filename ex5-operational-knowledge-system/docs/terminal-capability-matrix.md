@@ -12,7 +12,7 @@ today. Source: `DI-movar`.
 | Create knowledge items | Yes | Yes | No |
 | Edit live draft body | Yes | No | Yes |
 | Refresh live draft | Yes | No | Yes |
-| Snapshot revision | Yes | No | Yes |
+| Snapshot revision | Yes | Yes | Yes |
 | Inspect item detail | Yes | Yes | Yes |
 | Inspect run detail | Yes | Yes | Yes |
 | Inspect place/resource/responsibility detail | Yes | Yes | Yes |
@@ -22,7 +22,7 @@ today. Source: `DI-movar`.
 | Upload evidence | Yes | Yes | No |
 | Approve item | Yes | Yes | Yes |
 | Approve run | Yes | Yes | Yes |
-| Supersede item | Yes | No direct command today | Yes |
+| Supersede item | Yes | Yes | Yes |
 | Free-text search | Yes | Yes | Yes |
 | Structured search filters | Yes | Yes | Yes |
 | Pending-review queue | Yes | Yes | Yes |
@@ -39,12 +39,13 @@ and still not perfectly symmetric with the browser. Source: `DI-fudok`;
 ### CLI is strongest for
 
 - one-shot create and mutate commands
+- shell-only durable revision snapshots
 - evidence upload
 - typed-link creation
 - shell-friendly review queues
 - direct drilldown summaries
 
-Source: `DI-zanub`; `DI-vuteg`; `DI-ravum`; `DI-salup`.
+Source: `DI-zanub`; `DI-vuteg`; `DI-ravum`; `DI-salup`; `DI-muvok`.
 
 ### Neovim is strongest for
 

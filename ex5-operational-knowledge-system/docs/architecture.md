@@ -43,6 +43,7 @@ The browser owns:
 The CLI owns:
 
 - operator-oriented creation and mutation commands
+- shell-only durable revision snapshots over the shared item revision route
 - run evidence upload over the shared multipart evidence route
 - typed-link creation over the shared validated graph route
 - structured search and `problem=true` review over the shared search route
@@ -66,8 +67,14 @@ The first-phase Neovim embodiment owns:
   responsibilities, items, and runs
 - opening a read-only grouped search buffer from the projected `/api/search`
   API, then handing off deeper browsing to the existing inspectors
+- extending that same grouped search buffer with the shared structured filter
+  vocabulary the CLI already uses
 - opening a read-only pending-review buffer by composing draft-item and
   run-review slices from the same search projection family
+- opening a read-only grouped problem-review buffer over the shared hotspot
+  projection
+- posting durable item revision snapshots by flushing the live-draft body and
+  then using the existing item revision route
 - posting limited item approvals by reading the current item projection first
   and then using the existing item approval route
 - posting limited run approvals through the existing run approval route
@@ -77,10 +84,11 @@ Together, those two terminal embodiments now form a staged terminal-first
 surface:
 
 - CLI handles direct command-style mutation and shell inspection
+- CLI now also handles shell-only durable revision snapshots
 - CLI also assembles shell-facing pending and problem review summaries from the
   same shared projections Neovim already uses
-- Neovim handles text editing, review, browse, pending-work triage, limited
-  approval actions, and limited supersede action
+- Neovim handles text editing, revision snapshots, review, browse,
+  pending-work triage, limited approval actions, and limited supersede action
 - both surfaces now provide deeper contextual drilldown from run and queue work
   into related item, place, resource, and responsibility records
 

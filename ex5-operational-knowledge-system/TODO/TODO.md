@@ -1,7 +1,6 @@
 # TODO
 
 ## Open / Planned
-
 - [x] 063 - Clean up ex5 high-level terminal doc surface drift - `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
 - [x] 062 - Add direct headless coverage for ex5 Neovim Ex commands - `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`
 - [x] 061 - Fix ex5 Neovim `:OksSearch` command arity and documented syntax mismatch - `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`
@@ -37,6 +36,10 @@
 
 ## Completed
 
+- [x] 070 - Bring ex5 architecture docs up to the current terminal surface after recent Neovim follow-ons - `TODO/TODO-favun-ex5-architecture-terminal-surface-drift-2.md`
+- [x] 069 - Correct ex5 terminal capability matrix drift after recent terminal follow-ons - `TODO/TODO-razim-ex5-terminal-capability-matrix-drift.md`
+- [x] 068 - Add direct headless coverage for ex5 Neovim inspect Ex commands - `TODO/TODO-taruv-ex5-neovim-inspect-command-coverage.md`
+- [x] 067 - Add ex5 CLI durable revision snapshot parity - `TODO/TODO-muvok-ex5-cli-revision-snapshot-parity.md`
 - [x] 066 - Clarify ex5 terminal authoring handoff docs - `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`
 - [x] 065 - Add direct headless coverage for ex5 Neovim write-side Ex commands - `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`
 - [x] 064 - Add ex5 Neovim durable revision snapshot phase - `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`

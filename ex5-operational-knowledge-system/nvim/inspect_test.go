@@ -46,8 +46,9 @@ func TestNeovimInspectItemRendersProjectedDetail(t *testing.T) {
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
 local oks = require("oks")
+oks.setup()
 
-oks.inspect("ITEM-0001")
+vim.cmd("OksInspect ITEM-0001")
 
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local body = table.concat(lines, "\n")
@@ -131,8 +132,9 @@ func TestNeovimInspectRunRendersContextHandoffs(t *testing.T) {
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
 local oks = require("oks")
+oks.setup()
 
-oks.inspect_run("RUN-0001")
+vim.cmd("OksInspectRun RUN-0001")
 
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local body = table.concat(lines, "\n")
@@ -214,8 +216,9 @@ func TestNeovimInspectEntityRendersResponsibilityDetail(t *testing.T) {
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
 local oks = require("oks")
+oks.setup()
 
-oks.inspect_entity("responsibility", "RESP-0001")
+vim.cmd("OksInspectEntity responsibility RESP-0001")
 
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local body = table.concat(lines, "\n")
