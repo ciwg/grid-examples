@@ -122,7 +122,6 @@ The current shipped ex5 runtime does not yet promise:
 - that all ex5 durable families are already frozen and PromiseGrid-native at
   runtime
 - that the local HTTP route names are the PromiseGrid peer contract
-- that ex5 already supports ongoing non-bootstrap multi-peer exchange
 - that CAS is already the authoritative replay/read source instead of an
   additive sidecar
 - that exchanged place/resource references are already backed by their own
@@ -142,8 +141,13 @@ Done now:
   `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
   `knowledge-link`, `knowledge-responsibility`, and `operational-run` records
   plus their compatibility events over the local HTTP adapter
-- bootstrap import preserves unresolved place/resource references in runs and
-  links explicitly instead of trimming the family logs
+- the runtime now also imports origin-aware unseen peer history for those
+  families into non-empty runtimes and dedupes it by
+  `(origin_peer_id, origin_sequence)`
+- non-bootstrap import still rejects create-event ID collisions that the
+  current runtime cannot yet reconcile honestly
+- import preserves unresolved place/resource references in runs and links
+  explicitly instead of trimming the family logs
 - search metadata remains derived projection state over those families, not a
   sixth signed family
 - the runtime computes all six `pCID`s from the exact shipped spec bytes
@@ -166,7 +170,7 @@ Done now:
 
 Remaining:
 
-- extend peer exchange beyond bootstrap-only import into non-empty runtimes
+- reconcile peer-visible entity namespaces across independent peers
 - adopt authoritative CAS-backed replay/read paths for the still-unfrozen
   runtime state outside the six frozen families
 - decide how place/resource references become first-class peer-visible durable
@@ -204,6 +208,9 @@ links, and responsibilities, with inline CID-keyed evidence blob carriage.
 CAS now ships as an additive sidecar for signed envelopes and copied evidence
 blobs rather than a log replacement rewrite, and the first
 embodiment-tightening step now ships through capability metadata plus
-adapter-over-runtime doc updates. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`;
-`DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`; `DI-vamok`;
-`DI-faruv`.
+adapter-over-runtime doc updates. The current peer layer is no longer
+bootstrap-only; it now uses origin-aware dedupe and local sequence projection
+for ongoing import, while leaving entity namespace reconciliation as follow-on
+work. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`; `DI-lavuz`;
+`DI-vabek`; `DI-rovuz`; `DI-tivor`; `DI-vamok`; `DI-faruv`; `DI-ruzok`;
+`DI-rumek`.

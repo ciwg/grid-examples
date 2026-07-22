@@ -30,6 +30,7 @@ const (
 
 type Meta struct {
 	DataRoot                    string   `json:"data_root"`
+	LocalPeerID                 string   `json:"local_peer_id"`
 	KnowledgeKinds              []string `json:"knowledge_kinds"`
 	RunKinds                    []string `json:"run_kinds"`
 	ApprovalDecisions           []string `json:"approval_decisions"`
@@ -50,6 +51,7 @@ type PeerExchangeBundle struct {
 	Format                         string                                `json:"format"`
 	ExportedAt                     string                                `json:"exported_at"`
 	Implementation                 string                                `json:"implementation"`
+	ExportingPeerID                string                                `json:"exporting_peer_id"`
 	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
 	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
 	KnowledgeEvidencePCID          string                                `json:"knowledge_evidence_pcid"`
@@ -292,6 +294,8 @@ type LiveItemState struct {
 
 type OperationalEvent struct {
 	Sequence          uint64            `json:"sequence"`
+	OriginPeerID      string            `json:"origin_peer_id"`
+	OriginSequence    uint64            `json:"origin_sequence"`
 	Timestamp         string            `json:"timestamp"`
 	EntityType        string            `json:"entity_type"`
 	EntityID          string            `json:"entity_id"`

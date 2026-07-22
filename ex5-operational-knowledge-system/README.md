@@ -61,6 +61,8 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   - `knowledge-link`
   - `knowledge-responsibility`
   - `operational-run`
+- origin-aware peer exchange that now imports unseen history into non-empty
+  runtimes and dedupes it by peer-stable origin tuple
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms

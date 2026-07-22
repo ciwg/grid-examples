@@ -17,17 +17,20 @@ type App struct {
 	dataRoot string
 	store    *Store
 
-	mu               sync.Mutex
-	responsibilities map[string]*Responsibility
-	places           map[string]*Place
-	resources        map[string]*Resource
-	items            map[string]*KnowledgeItem
-	runs             map[string]*RunRecord
-	links            map[string]*Link
-	approvals        map[string]*Approval
-	presence         map[string]map[string]*LivePresence
-	nextSequence     uint64
-	nextNumbers      map[string]int
+	mu                 sync.Mutex
+	responsibilities   map[string]*Responsibility
+	places             map[string]*Place
+	resources          map[string]*Resource
+	items              map[string]*KnowledgeItem
+	runs               map[string]*RunRecord
+	links              map[string]*Link
+	approvals          map[string]*Approval
+	presence           map[string]map[string]*LivePresence
+	localPeerID        string
+	nextSequence       uint64
+	nextOriginSequence uint64
+	nextNumbers        map[string]int
+	knownOriginEvents  map[string]bool
 }
 
 func NewApp(dataRoot string) (*App, error) {
@@ -36,18 +39,27 @@ func NewApp(dataRoot string) (*App, error) {
 		return nil, err
 	}
 	app := &App{
-		dataRoot:         dataRoot,
-		store:            store,
-		responsibilities: map[string]*Responsibility{},
-		places:           map[string]*Place{},
-		resources:        map[string]*Resource{},
-		items:            map[string]*KnowledgeItem{},
-		runs:             map[string]*RunRecord{},
-		links:            map[string]*Link{},
-		approvals:        map[string]*Approval{},
-		presence:         map[string]map[string]*LivePresence{},
-		nextNumbers:      map[string]int{},
+		dataRoot:          dataRoot,
+		store:             store,
+		responsibilities:  map[string]*Responsibility{},
+		places:            map[string]*Place{},
+		resources:         map[string]*Resource{},
+		items:             map[string]*KnowledgeItem{},
+		runs:              map[string]*RunRecord{},
+		links:             map[string]*Link{},
+		approvals:         map[string]*Approval{},
+		presence:          map[string]map[string]*LivePresence{},
+		localPeerID:       store.identity.PeerID(),
+		nextNumbers:       map[string]int{},
+		knownOriginEvents: map[string]bool{},
 	}
+	events = normalizeOperationalEvents(events, app.localPeerID)
+	knowledgeItemRecords = normalizeKnowledgeItemRecordOrigins(knowledgeItemRecords, events)
+	knowledgeApprovalRecords = normalizeKnowledgeApprovalRecordOrigins(knowledgeApprovalRecords, events)
+	knowledgeEvidenceRecords = normalizeKnowledgeEvidenceRecordOrigins(knowledgeEvidenceRecords, events)
+	operationalRunRecords = normalizeOperationalRunRecordOrigins(operationalRunRecords, events)
+	knowledgeLinkRecords = normalizeKnowledgeLinkRecordOrigins(knowledgeLinkRecords, events)
+	knowledgeResponsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(knowledgeResponsibilityRecords, events)
 	for _, event := range events {
 		if err := app.applyEventLocked(event); err != nil {
 			return nil, fmt.Errorf("replay event %d: %w", event.Sequence, err)
@@ -55,6 +67,7 @@ func NewApp(dataRoot string) (*App, error) {
 		if event.Sequence > app.nextSequence {
 			app.nextSequence = event.Sequence
 		}
+		app.observeOriginEventLocked(event)
 	}
 	if err := verifySignedKnowledgeItemRecords(events, knowledgeItemRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-item envelopes: %w", err)
@@ -93,6 +106,7 @@ func NewApp(dataRoot string) (*App, error) {
 func (app *App) Meta() Meta {
 	return Meta{
 		DataRoot:                    app.dataRoot,
+		LocalPeerID:                 app.localPeerID,
 		KnowledgeKinds:              []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
 		RunKinds:                    []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
 		ApprovalDecisions:           []string{DecisionApproved, DecisionRejected, DecisionNoted},
@@ -1054,36 +1068,40 @@ func (app *App) UpdateLiveItem(itemID string, participantID string, displayName 
 
 func (app *App) appendEventLocked(event OperationalEvent) error {
 	app.nextSequence++
+	app.nextOriginSequence++
+	rollback := true
+	defer func() {
+		if rollback {
+			app.nextSequence--
+			app.nextOriginSequence--
+		}
+	}()
 	event.Sequence = app.nextSequence
 	event.Timestamp = time.Now().Format(time.RFC3339)
+	event.OriginPeerID = app.localPeerID
+	event.OriginSequence = app.nextOriginSequence
 	itemRecord, hasItemRecord, err := buildSignedKnowledgeItemRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	approvalRecord, hasApprovalRecord, err := buildSignedKnowledgeApprovalRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	evidenceRecord, hasEvidenceRecord, err := buildSignedKnowledgeEvidenceRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	operationalRunRecord, hasOperationalRunRecord, err := buildSignedOperationalRunRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	linkRecord, hasLinkRecord, err := buildSignedKnowledgeLinkRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	responsibilityRecord, hasResponsibilityRecord, err := buildSignedKnowledgeResponsibilityRecord(app.store.identity, event)
 	if err != nil {
-		app.nextSequence--
 		return err
 	}
 	if hasItemRecord {
@@ -1091,7 +1109,6 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// before the compatibility event log so ex5 never claims a new signed item
 		// event that the runtime failed to materialize. Source: DI-mibor
 		if err := app.store.AppendSignedKnowledgeItemRecord(itemRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
@@ -1100,7 +1117,6 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// artifact before the compatibility event log so ex5 never claims a new
 		// signed approval that the runtime failed to materialize. Source: DI-vosul
 		if err := app.store.AppendSignedKnowledgeApprovalRecord(approvalRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
@@ -1110,7 +1126,6 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// signed evidence record that the runtime failed to materialize. Source:
 		// DI-kavup; DI-ribof
 		if err := app.store.AppendSignedKnowledgeEvidenceRecord(evidenceRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
@@ -1119,7 +1134,6 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// before the compatibility event log so ex5 never claims a new signed run
 		// record that the runtime failed to materialize. Source: DI-vamok
 		if err := app.store.AppendSignedOperationalRunRecord(operationalRunRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
@@ -1128,7 +1142,6 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// before the compatibility event log so ex5 never claims a new signed
 		// link record that the runtime failed to materialize. Source: DI-votek
 		if err := app.store.AppendSignedKnowledgeLinkRecord(linkRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
@@ -1138,14 +1151,13 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// ex5 never claims a new signed responsibility record that the runtime
 		// failed to materialize. Source: DI-sarib
 		if err := app.store.AppendSignedKnowledgeResponsibilityRecord(responsibilityRecord); err != nil {
-			app.nextSequence--
 			return err
 		}
 	}
 	if err := app.store.AppendEvent(event); err != nil {
-		app.nextSequence--
 		return err
 	}
+	rollback = false
 	return app.applyEventLocked(event)
 }
 
@@ -1371,6 +1383,7 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 		return fmt.Errorf("unknown event type %q", event.Type)
 	}
 	app.observeIDLocked(event.EntityID)
+	app.observeOriginEventLocked(event)
 	return nil
 }
 
@@ -1527,6 +1540,36 @@ func (app *App) observeIDLocked(id string) {
 	}
 	if number > app.nextNumbers[prefix] {
 		app.nextNumbers[prefix] = number
+	}
+}
+
+func normalizeOperationalEvents(events []OperationalEvent, localPeerID string) []OperationalEvent {
+	out := make([]OperationalEvent, 0, len(events))
+	for _, event := range events {
+		out = append(out, normalizeOperationalEvent(event, localPeerID))
+	}
+	return out
+}
+
+func normalizeOperationalEvent(event OperationalEvent, localPeerID string) OperationalEvent {
+	if strings.TrimSpace(event.OriginPeerID) == "" {
+		event.OriginPeerID = localPeerID
+	}
+	if event.OriginSequence == 0 {
+		event.OriginSequence = event.Sequence
+	}
+	return event
+}
+
+func originEventKey(peerID string, originSequence uint64) string {
+	return peerID + "#" + fmt.Sprintf("%d", originSequence)
+}
+
+func (app *App) observeOriginEventLocked(event OperationalEvent) {
+	event = normalizeOperationalEvent(event, app.localPeerID)
+	app.knownOriginEvents[originEventKey(event.OriginPeerID, event.OriginSequence)] = true
+	if event.OriginPeerID == app.localPeerID && event.OriginSequence > app.nextOriginSequence {
+		app.nextOriginSequence = event.OriginSequence
 	}
 }
 

@@ -3,12 +3,15 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
 type SignedOperationalRunRecord struct {
 	Sequence       uint64 `json:"sequence"`
+	OriginPeerID   string `json:"origin_peer_id"`
+	OriginSequence uint64 `json:"origin_sequence"`
 	RunID          string `json:"run_id"`
 	ItemID         string `json:"item_id"`
 	PCID           string `json:"pcid"`
@@ -44,7 +47,7 @@ func operationalRunPayloadForEvent(event OperationalEvent) (operationalRunPayloa
 		RunID:             event.EntityID,
 		ItemID:            event.TargetID,
 		EventType:         event.Type,
-		Sequence:          event.Sequence,
+		Sequence:          effectiveOriginSequence(event),
 		Timestamp:         event.Timestamp,
 		Actor:             event.Actor,
 		Kind:              event.Kind,
@@ -91,6 +94,8 @@ func buildSignedOperationalRunRecord(identity *RuntimeIdentity, event Operationa
 	}
 	return SignedOperationalRunRecord{
 		Sequence:       event.Sequence,
+		OriginPeerID:   effectiveOriginPeerID(event, identity.PeerID()),
+		OriginSequence: effectiveOriginSequence(event),
 		RunID:          event.EntityID,
 		ItemID:         event.TargetID,
 		PCID:           protocols.OperationalRunProfile.CID.String(),
@@ -105,16 +110,24 @@ func verifySignedOperationalRunRecords(events []OperationalEvent, records []Sign
 	if len(records) == 0 {
 		return nil
 	}
-	expected := map[uint64]operationalRunPayload{}
+	expected := map[string]operationalRunPayload{}
 	for _, event := range events {
 		payload, ok := operationalRunPayloadForEvent(event)
 		if !ok {
 			continue
 		}
-		expected[event.Sequence] = payload
+		expected[originEventKey(effectiveOriginPeerID(event, ""), effectiveOriginSequence(event))] = payload
 	}
 	for _, record := range records {
-		payload, ok := expected[record.Sequence]
+		peerID := record.OriginPeerID
+		if strings.TrimSpace(peerID) == "" {
+			peerID = ""
+		}
+		originSequence := record.OriginSequence
+		if originSequence == 0 {
+			originSequence = record.Sequence
+		}
+		payload, ok := expected[originEventKey(peerID, originSequence)]
 		if !ok {
 			continue
 		}

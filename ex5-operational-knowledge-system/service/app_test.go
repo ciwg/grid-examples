@@ -917,6 +917,98 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	}
 }
 
+func TestAppPeerExchangeBundleCarriesOriginIdentity(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if _, err := app.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil); err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	bundle, err := app.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	if bundle.ExportingPeerID == "" {
+		t.Fatalf("expected exporting peer id")
+	}
+	for _, event := range bundle.Events {
+		if event.OriginPeerID == "" || event.OriginSequence == 0 {
+			t.Fatalf("expected origin identity on exported event: %+v", event)
+		}
+	}
+	if len(bundle.KnowledgeItemRecords) == 0 || bundle.KnowledgeItemRecords[0].OriginPeerID == "" || bundle.KnowledgeItemRecords[0].OriginSequence == 0 {
+		t.Fatalf("expected origin identity on exported knowledge-item record: %+v", bundle.KnowledgeItemRecords)
+	}
+}
+
+func TestAppImportsPeerExchangeIntoNonEmptyRuntimeAndDedupesByOrigin(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	if _, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil); err != nil {
+		t.Fatalf("create source item: %v", err)
+	}
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := target.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil); err != nil {
+		t.Fatalf("seed target responsibility: %v", err)
+	}
+	result, err := target.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		t.Fatalf("import bundle into non-empty runtime: %v", err)
+	}
+	if result.ImportedKnowledgeItems != 1 || result.ImportedEvents == 0 {
+		t.Fatalf("unexpected first import result: %+v", result)
+	}
+	second, err := target.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		t.Fatalf("re-import bundle: %v", err)
+	}
+	if second.ImportedEvents != 0 || second.ImportedKnowledgeItems != 0 {
+		t.Fatalf("expected duplicate import to dedupe by origin, got %+v", second)
+	}
+}
+
+func TestAppRejectsPeerExchangeNamespaceCollision(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	if _, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil); err != nil {
+		t.Fatalf("create source item: %v", err)
+	}
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := target.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet again", "Local receiving check", "# Inspect inbound pallet again", nil, nil); err != nil {
+		t.Fatalf("seed target item: %v", err)
+	}
+	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "collides with existing local namespace") {
+		t.Fatalf("expected namespace collision rejection, got %v", err)
+	}
+}
+
 func TestAppUsesCASAuthoritativelyForFrozenFamilyReplay(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "runtime")
 	app, err := NewApp(root)

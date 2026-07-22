@@ -49,6 +49,10 @@ func (identity *RuntimeIdentity) KeyID() string {
 	return hex.EncodeToString(identity.PublicKey())
 }
 
+func (identity *RuntimeIdentity) PeerID() string {
+	return identity.KeyID()
+}
+
 func (identity *RuntimeIdentity) SignProof(signable []byte) ([]byte, error) {
 	proof := struct {
 		Algorithm string `cbor:"algorithm"`

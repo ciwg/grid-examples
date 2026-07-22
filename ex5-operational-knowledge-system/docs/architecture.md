@@ -41,6 +41,15 @@ in that bootstrap bundle by CID, while place/resource references inside runs
 and links still remain outside the current peer-visible slice. Source:
 `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`.
 
+That peer layer is no longer empty-runtime-only. The runtime now tracks
+`origin_peer_id` plus `origin_sequence` for compatibility events and signed
+family records, accepts unseen peer history into non-empty runtimes, and
+assigns a fresh local compatibility `Sequence` on acceptance. The remaining
+hard limit is cross-peer entity namespace collision: two independent peers that
+mint the same local-facing `RECV-*`, `RUN-*`, or `RESP-*` ID are still
+rejected explicitly instead of being silently merged. Source: `DI-ruzok`;
+`DI-rumek`.
+
 That later storage step is also now staged: CAS enters first as an additive
 sidecar for signed envelopes and copied evidence blobs, while the current
 family logs and copied attachment paths remain during migration. Source:

@@ -10,13 +10,14 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
-const peerExchangeBundleFormat = "ex5-peer-exchange-v2"
+const peerExchangeBundleFormat = "ex5-peer-exchange-v3"
 
 // Intent: Expose the current relay-visible ex5 PromiseGrid slice as
-// whole-family bootstrap export/import over the current local HTTP adapter so
-// peers can exchange signed item, approval, evidence, operational-run, link,
-// and responsibility artifacts without inventing merge semantics or trimming
-// family history. Source: DI-voruk; DI-vamok; DI-faruv
+// whole-family peer exchange over the current local HTTP adapter so peers can
+// exchange signed item, approval, evidence, operational-run, link, and
+// responsibility artifacts with origin-aware identity, while preserving the
+// current family history and compatibility projections. Source: DI-voruk;
+// DI-vamok; DI-faruv; DI-ruzok; DI-rumek
 func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -25,6 +26,7 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read events: %w", err)
 	}
+	events = normalizeOperationalEvents(events, app.localPeerID)
 	itemRecords, err := app.store.LoadSignedKnowledgeItemRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-item records: %w", err)
@@ -49,6 +51,12 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-responsibility records: %w", err)
 	}
+	itemRecords = normalizeKnowledgeItemRecordOrigins(itemRecords, events)
+	approvalRecords = normalizeKnowledgeApprovalRecordOrigins(approvalRecords, events)
+	evidenceRecords = normalizeKnowledgeEvidenceRecordOrigins(evidenceRecords, events)
+	runRecords = normalizeOperationalRunRecordOrigins(runRecords, events)
+	linkRecords = normalizeKnowledgeLinkRecordOrigins(linkRecords, events)
+	responsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(responsibilityRecords, events)
 
 	filteredEvents := make([]OperationalEvent, 0, len(events))
 	for _, event := range events {
@@ -80,6 +88,7 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 		Format:                         peerExchangeBundleFormat,
 		ExportedAt:                     time.Now().Format(time.RFC3339),
 		Implementation:                 "ex5-local-runtime",
+		ExportingPeerID:                app.localPeerID,
 		KnowledgeItemPCID:              protocols.KnowledgeItemProfile.CID.String(),
 		KnowledgeApprovalPCID:          protocols.KnowledgeApprovalProfile.CID.String(),
 		KnowledgeEvidencePCID:          protocols.KnowledgeEvidenceProfile.CID.String(),
@@ -97,29 +106,39 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	}, nil
 }
 
-// Intent: Keep the peer-exchange importer bootstrap-only so whole-family item,
-// approval, evidence, operational-run, link, and responsibility artifacts can
-// be preserved honestly, including unresolved references, without pretending
-// ex5 already has a safe multi-peer merge protocol. Source: DI-voruk;
-// DI-vamok; DI-faruv
+// Intent: Accept origin-aware unseen peer history into already-populated
+// runtimes while preserving whole-family signed artifacts, keeping local
+// sequence as a projection order, and rejecting namespace collisions that the
+// current runtime still cannot reconcile honestly. Source: DI-ruzok; DI-rumek
 func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchangeImportResult, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	if err := app.validatePeerExchangeImportStateLocked(); err != nil {
-		return PeerExchangeImportResult{}, err
-	}
 	if err := validatePeerExchangeBundle(bundle); err != nil {
 		return PeerExchangeImportResult{}, err
 	}
 
 	result := summarizePeerExchangeImport(bundle)
-	for _, record := range bundle.KnowledgeItemRecords {
+	unseenEvents, unseenEventKeys, err := app.collectUnseenPeerExchangeEventsLocked(bundle)
+	if err != nil {
+		return PeerExchangeImportResult{}, err
+	}
+	if len(unseenEvents) == 0 {
+		result.ImportedEvents = 0
+		result.ImportedKnowledgeItems = 0
+		result.ImportedKnowledgeApprovals = 0
+		result.ImportedKnowledgeEvidence = 0
+		result.ImportedOperationalRuns = 0
+		result.ImportedKnowledgeLinks = 0
+		result.ImportedResponsibilities = 0
+		return result, nil
+	}
+	for _, record := range filterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeItemRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-item record: %w", err)
 		}
 	}
-	for _, record := range bundle.KnowledgeApprovalRecords {
+	for _, record := range filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeApprovalRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-approval record: %w", err)
 		}
@@ -137,37 +156,46 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 			return PeerExchangeImportResult{}, fmt.Errorf("cas blob cid mismatch for %q", cid)
 		}
 	}
-	for _, record := range bundle.KnowledgeEvidenceRecords {
+	for _, record := range filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeEvidenceRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-evidence record: %w", err)
 		}
 	}
-	for _, record := range bundle.OperationalRunRecords {
+	for _, record := range filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedOperationalRunRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append operational-run record: %w", err)
 		}
 	}
-	for _, record := range bundle.KnowledgeLinkRecords {
+	for _, record := range filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeLinkRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-link record: %w", err)
 		}
 	}
-	for _, record := range bundle.KnowledgeResponsibilityRecords {
+	for _, record := range filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeResponsibilityRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-responsibility record: %w", err)
 		}
 	}
-	for _, event := range bundle.Events {
-		if err := app.store.AppendEvent(event); err != nil {
+	for _, event := range unseenEvents {
+		app.nextSequence++
+		accepted := event
+		accepted.Sequence = app.nextSequence
+		if err := app.store.AppendEvent(accepted); err != nil {
+			app.nextSequence--
 			return PeerExchangeImportResult{}, fmt.Errorf("append peer-exchange event: %w", err)
 		}
-		if err := app.applyEventLocked(event); err != nil {
-			return PeerExchangeImportResult{}, fmt.Errorf("apply peer-exchange event %d: %w", event.Sequence, err)
-		}
-		if event.Sequence > app.nextSequence {
-			app.nextSequence = event.Sequence
+		if err := app.applyEventLocked(accepted); err != nil {
+			app.nextSequence--
+			return PeerExchangeImportResult{}, fmt.Errorf("apply peer-exchange event %s: %w", originEventKey(accepted.OriginPeerID, accepted.OriginSequence), err)
 		}
 	}
+	result.ImportedEvents = len(unseenEvents)
+	result.ImportedKnowledgeItems = len(filterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys))
+	result.ImportedKnowledgeApprovals = len(filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys))
+	result.ImportedKnowledgeEvidence = len(filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys))
+	result.ImportedOperationalRuns = len(filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys))
+	result.ImportedKnowledgeLinks = len(filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys))
+	result.ImportedResponsibilities = len(filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys))
 	return result, nil
 }
 
@@ -183,27 +211,6 @@ func peerExchangeSupportsEvent(eventType string) bool {
 	default:
 		return false
 	}
-}
-
-func (app *App) validatePeerExchangeImportStateLocked() error {
-	if app.nextSequence != 0 ||
-		len(app.responsibilities) != 0 ||
-		len(app.places) != 0 ||
-		len(app.resources) != 0 ||
-		len(app.items) != 0 ||
-		len(app.runs) != 0 ||
-		len(app.links) != 0 ||
-		len(app.approvals) != 0 {
-		return fmt.Errorf("peer exchange import requires an empty runtime")
-	}
-	drafts, err := app.store.LoadDrafts()
-	if err != nil {
-		return fmt.Errorf("load drafts: %w", err)
-	}
-	if len(drafts) != 0 {
-		return fmt.Errorf("peer exchange import requires no saved drafts")
-	}
-	return nil
 }
 
 func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
@@ -233,12 +240,13 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 	}
 	lastSequence := uint64(0)
 	seenSequences := map[uint64]bool{}
-	itemEventSequences := map[uint64]bool{}
-	approvalEventSequences := map[uint64]bool{}
-	evidenceEventSequences := map[uint64]bool{}
-	runEventSequences := map[uint64]bool{}
-	linkEventSequences := map[uint64]bool{}
-	responsibilityEventSequences := map[uint64]bool{}
+	seenOriginKeys := map[string]bool{}
+	itemEventSequences := map[string]bool{}
+	approvalEventSequences := map[string]bool{}
+	evidenceEventSequences := map[string]bool{}
+	runEventSequences := map[string]bool{}
+	linkEventSequences := map[string]bool{}
+	responsibilityEventSequences := map[string]bool{}
 	for i, event := range bundle.Events {
 		if !peerExchangeSupportsEvent(event.Type) {
 			return fmt.Errorf("unsupported peer exchange event type %q", event.Type)
@@ -251,52 +259,60 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 			return fmt.Errorf("duplicate peer exchange event sequence %d", event.Sequence)
 		}
 		seenSequences[event.Sequence] = true
+		if strings.TrimSpace(event.OriginPeerID) == "" || event.OriginSequence == 0 {
+			return fmt.Errorf("peer exchange event %d is missing origin identity", event.Sequence)
+		}
+		key := originEventKey(event.OriginPeerID, event.OriginSequence)
+		if seenOriginKeys[key] {
+			return fmt.Errorf("duplicate peer exchange origin tuple %s", key)
+		}
+		seenOriginKeys[key] = true
 		if _, ok := knowledgeItemPayloadForEvent(event); ok {
-			itemEventSequences[event.Sequence] = true
+			itemEventSequences[key] = true
 		}
 		if _, ok := knowledgeApprovalPayloadForEvent(event); ok {
-			approvalEventSequences[event.Sequence] = true
+			approvalEventSequences[key] = true
 		}
 		if _, ok := knowledgeEvidencePayloadForEvent(event); ok {
-			evidenceEventSequences[event.Sequence] = true
+			evidenceEventSequences[key] = true
 		}
 		if _, ok := operationalRunPayloadForEvent(event); ok {
-			runEventSequences[event.Sequence] = true
+			runEventSequences[key] = true
 		}
 		if _, ok := knowledgeLinkPayloadForEvent(event); ok {
-			linkEventSequences[event.Sequence] = true
+			linkEventSequences[key] = true
 		}
 		if _, ok := knowledgeResponsibilityPayloadForEvent(event); ok {
-			responsibilityEventSequences[event.Sequence] = true
+			responsibilityEventSequences[key] = true
 		}
 	}
 	for _, record := range bundle.KnowledgeItemRecords {
-		if !itemEventSequences[record.Sequence] {
+		if !itemEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-item record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeApprovalRecords {
-		if !approvalEventSequences[record.Sequence] {
+		if !approvalEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-approval record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeEvidenceRecords {
-		if !evidenceEventSequences[record.Sequence] {
+		if !evidenceEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-evidence record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.OperationalRunRecords {
-		if !runEventSequences[record.Sequence] {
+		if !runEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("operational-run record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeLinkRecords {
-		if !linkEventSequences[record.Sequence] {
+		if !linkEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-link record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeResponsibilityRecords {
-		if !responsibilityEventSequences[record.Sequence] {
+		if !responsibilityEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-responsibility record %d has no matching event", record.Sequence)
 		}
 	}
@@ -339,6 +355,131 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 		}
 	}
 	return nil
+}
+
+func recordOriginKey(peerID string, originSequence uint64, sequence uint64) string {
+	if strings.TrimSpace(peerID) == "" {
+		return originEventKey("", sequence)
+	}
+	if originSequence == 0 {
+		return originEventKey(peerID, sequence)
+	}
+	return originEventKey(peerID, originSequence)
+}
+
+func (app *App) collectUnseenPeerExchangeEventsLocked(bundle PeerExchangeBundle) ([]OperationalEvent, map[string]bool, error) {
+	unseen := make([]OperationalEvent, 0, len(bundle.Events))
+	unseenKeys := map[string]bool{}
+	for _, rawEvent := range bundle.Events {
+		event := normalizeOperationalEvent(rawEvent, app.localPeerID)
+		key := originEventKey(event.OriginPeerID, event.OriginSequence)
+		if app.knownOriginEvents[key] {
+			continue
+		}
+		if err := app.validateImportedOriginCollisionLocked(event); err != nil {
+			return nil, nil, err
+		}
+		unseen = append(unseen, event)
+		unseenKeys[key] = true
+	}
+	return unseen, unseenKeys, nil
+}
+
+func (app *App) validateImportedOriginCollisionLocked(event OperationalEvent) error {
+	switch event.Type {
+	case "knowledge_item_created":
+		if existing, ok := app.items[event.EntityID]; ok && existing.ID == event.EntityID {
+			return fmt.Errorf("knowledge item id %q collides with existing local namespace", event.EntityID)
+		}
+	case "responsibility_created":
+		if existing, ok := app.responsibilities[event.EntityID]; ok && existing.ID == event.EntityID {
+			return fmt.Errorf("responsibility id %q collides with existing local namespace", event.EntityID)
+		}
+	case "run_recorded":
+		if existing, ok := app.runs[event.EntityID]; ok && existing.ID == event.EntityID {
+			return fmt.Errorf("run id %q collides with existing local namespace", event.EntityID)
+		}
+	case "approval_recorded":
+		if existing, ok := app.approvals[event.EntityID]; ok && existing.ID == event.EntityID {
+			return fmt.Errorf("approval id %q collides with existing local namespace", event.EntityID)
+		}
+	case "link_added":
+		if existing, ok := app.links[event.EntityID]; ok && existing.ID == event.EntityID {
+			return fmt.Errorf("link id %q collides with existing local namespace", event.EntityID)
+		}
+	case "evidence_added":
+		if strings.TrimSpace(event.EvidenceID) == "" {
+			return fmt.Errorf("peer exchange evidence event %s is missing evidence_id", originEventKey(event.OriginPeerID, event.OriginSequence))
+		}
+		for _, run := range app.runs {
+			for _, evidence := range run.Evidence {
+				if evidence.ID == event.EvidenceID {
+					return fmt.Errorf("evidence id %q collides with existing local namespace", event.EvidenceID)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func filterKnowledgeItemRecordsByOrigin(records []SignedKnowledgeItemRecord, wanted map[string]bool) []SignedKnowledgeItemRecord {
+	out := []SignedKnowledgeItemRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterKnowledgeApprovalRecordsByOrigin(records []SignedKnowledgeApprovalRecord, wanted map[string]bool) []SignedKnowledgeApprovalRecord {
+	out := []SignedKnowledgeApprovalRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterKnowledgeEvidenceRecordsByOrigin(records []SignedKnowledgeEvidenceRecord, wanted map[string]bool) []SignedKnowledgeEvidenceRecord {
+	out := []SignedKnowledgeEvidenceRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterOperationalRunRecordsByOrigin(records []SignedOperationalRunRecord, wanted map[string]bool) []SignedOperationalRunRecord {
+	out := []SignedOperationalRunRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterKnowledgeLinkRecordsByOrigin(records []SignedKnowledgeLinkRecord, wanted map[string]bool) []SignedKnowledgeLinkRecord {
+	out := []SignedKnowledgeLinkRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterKnowledgeResponsibilityRecordsByOrigin(records []SignedKnowledgeResponsibilityRecord, wanted map[string]bool) []SignedKnowledgeResponsibilityRecord {
+	out := []SignedKnowledgeResponsibilityRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
 }
 
 func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportResult {

@@ -439,10 +439,46 @@ func TestServerRejectsPeerExchangeImportIntoNonEmptyRuntime(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/peer-exchange/import", bytes.NewReader(body))
 	response := httptest.NewRecorder()
 	targetServer.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected import rejection for non-empty runtime, got %d %s", response.Code, response.Body.String())
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected non-empty import success for disjoint ids, got %d %s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), "empty runtime") {
+	if !strings.Contains(response.Body.String(), `"imported_knowledge_items":1`) {
+		t.Fatalf("unexpected import body: %s", response.Body.String())
+	}
+}
+
+func TestServerRejectsPeerExchangeImportEntityIDCollision(t *testing.T) {
+	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	if _, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil); err != nil {
+		t.Fatalf("create source item: %v", err)
+	}
+	bundle, err := sourceApp.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+
+	targetApp, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := targetApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect receiving", "Local receiving flow", "# Inspect receiving", nil, nil); err != nil {
+		t.Fatalf("seed target receiving item: %v", err)
+	}
+	targetServer := NewServer(targetApp)
+	body, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatalf("encode import bundle: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/peer-exchange/import", bytes.NewReader(body))
+	response := httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected collision rejection, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "collides with existing local namespace") {
 		t.Fatalf("unexpected rejection body: %s", response.Body.String())
 	}
 }
