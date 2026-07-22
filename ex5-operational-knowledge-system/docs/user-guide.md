@@ -159,10 +159,13 @@ Use the browser when you want:
 - a review-first workspace that keeps triage and inspection ahead of setup forms
 - a primary-flow layer that points you toward hotspots, draft review, and the
   most likely next action for the current record
+- a draft-first review queue that gives you one clear landing path before
+  switching to hotspots or known-record search
 - a mode rail that lets you stay in Review, Author, Operate, Create, or Browse
   intentionally while keeping the browser single-page
 - shared live browser drafting
-- live draft metrics, writing focus, and a dedicated authoring sidecar
+- live draft metrics, writing focus, and quieter authoring support that stays
+  behind disclosure until needed
 - a calmer writing environment with collaboration settings hidden until needed
 - contextual review panels
 - grouped hotspot review
@@ -172,6 +175,8 @@ Use the browser when you want:
   capture, and approvals
 - an operate-from-current-record panel that keeps the main action path anchored
   to the record you are already reviewing
+- staged operate choices that let you pick log work, attach evidence, or review
+  first, then open the heavier form only for that action
 
 Use the CLI when you want:
 

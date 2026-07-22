@@ -72,66 +72,80 @@
             </details>
           </section>
 
-          <section class="panel problem-panel">
-            <h3>Problem Review</h3>
-            <div id="problem-review" class="search-results"></div>
-          </section>
-
-          <section class="panel search-panel">
-            <h3>Search</h3>
-            <div class="search-presets">
-              <button id="search-preset-drafts" type="button">Draft procedures</button>
-              <button id="search-preset-problems" type="button" class="button-secondary">Receiving problems</button>
-              <button id="search-preset-counts" type="button" class="button-secondary">Inventory counts</button>
-              <button id="search-preset-runs" type="button" class="button-secondary">Recent runs</button>
+          <section class="panel review-queue-panel">
+            <h3>Review Queue</h3>
+            <div class="review-lane-switch">
+              <button id="review-lane-drafts" type="button">Draft queue</button>
+              <button id="review-lane-hotspots" type="button" class="button-secondary">Problem hotspots</button>
+              <button id="review-lane-search" type="button" class="button-secondary">Known record search</button>
             </div>
-            <form id="search-form" class="search-form">
-              <div class="search-row">
-                <input name="q" placeholder="Search by record name, checklist title, run ID, location, or role">
-                <button type="submit">Search</button>
-                <button id="search-clear" type="button" class="button-secondary">Clear</button>
+
+            <div id="review-drafts-lane" class="review-lane">
+              <div class="meta">Start here when you want the clearest review home: draft items that need inspection, revision, or approval.</div>
+              <div id="draft-review" class="search-results"></div>
+            </div>
+
+            <div id="review-hotspots-lane" class="review-lane" hidden>
+              <div class="meta">Use hotspots when you need the fastest path into repeated receiving or count trouble.</div>
+              <div id="problem-review" class="search-results"></div>
+            </div>
+
+            <div id="review-search-lane" class="review-lane" hidden>
+              <div class="meta">Use search when you already know the record, location, tool, or role you need.</div>
+              <div class="search-presets">
+                <button id="search-preset-drafts" type="button">Draft procedures</button>
+                <button id="search-preset-problems" type="button" class="button-secondary">Receiving problems</button>
+                <button id="search-preset-counts" type="button" class="button-secondary">Inventory counts</button>
+                <button id="search-preset-runs" type="button" class="button-secondary">Recent runs</button>
               </div>
-              <details id="search-advanced" class="advanced-filter-disclosure">
-                <summary>Advanced filters</summary>
-                <div class="search-filters">
-                  <label>Work type
-                    <select name="kind" id="search-kind">
-                      <option value="">any</option>
-                      <option value="procedure">procedure</option>
-                      <option value="training">training</option>
-                      <option value="maintenance">maintenance</option>
-                      <option value="receiving_check">receiving_check</option>
-                      <option value="inventory_audit">inventory_audit</option>
-                      <option value="site">site</option>
-                      <option value="room">room</option>
-                      <option value="area">area</option>
-                      <option value="bin">bin</option>
-                      <option value="machine">machine</option>
-                      <option value="tool">tool</option>
-                      <option value="container">container</option>
-                    </select>
-                  </label>
-                  <label>State
-                    <select name="status" id="search-status">
-                      <option value="">any</option>
-                      <option value="draft">draft</option>
-                      <option value="approved">approved</option>
-                      <option value="superseded">superseded</option>
-                    </select>
-                  </label>
-                  <label>Result <input name="outcome" id="search-outcome" placeholder="completed"></label>
-                  <label>Where <input name="place_id" placeholder="PLACE-0001"></label>
-                  <label>With tool / resource <input name="resource_id" placeholder="RES-0001"></label>
-                  <label>Owned by role <input name="responsibility_id" placeholder="RESP-0001"></label>
+              <form id="search-form" class="search-form">
+                <div class="search-row">
+                  <input name="q" placeholder="Search by record name, checklist title, run ID, location, or role">
+                  <button type="submit">Search</button>
+                  <button id="search-clear" type="button" class="button-secondary">Clear</button>
                 </div>
+                <details id="search-advanced" class="advanced-filter-disclosure">
+                  <summary>Advanced filters</summary>
+                  <div class="search-filters">
+                    <label>Work type
+                      <select name="kind" id="search-kind">
+                        <option value="">any</option>
+                        <option value="procedure">procedure</option>
+                        <option value="training">training</option>
+                        <option value="maintenance">maintenance</option>
+                        <option value="receiving_check">receiving_check</option>
+                        <option value="inventory_audit">inventory_audit</option>
+                        <option value="site">site</option>
+                        <option value="room">room</option>
+                        <option value="area">area</option>
+                        <option value="bin">bin</option>
+                        <option value="machine">machine</option>
+                        <option value="tool">tool</option>
+                        <option value="container">container</option>
+                      </select>
+                    </label>
+                    <label>State
+                      <select name="status" id="search-status">
+                        <option value="">any</option>
+                        <option value="draft">draft</option>
+                        <option value="approved">approved</option>
+                        <option value="superseded">superseded</option>
+                      </select>
+                    </label>
+                    <label>Result <input name="outcome" id="search-outcome" placeholder="completed"></label>
+                    <label>Where <input name="place_id" placeholder="PLACE-0001"></label>
+                    <label>With tool / resource <input name="resource_id" placeholder="RES-0001"></label>
+                    <label>Owned by role <input name="responsibility_id" placeholder="RESP-0001"></label>
+                  </div>
+                </details>
+              </form>
+              <div id="search-active" class="meta">No active search filters.</div>
+              <div id="search-results" class="search-results"></div>
+              <details class="debug-disclosure" id="search-debug">
+                <summary>Debug payload</summary>
+                <pre id="search-raw" hidden></pre>
               </details>
-            </form>
-            <div id="search-active" class="meta">No active search filters.</div>
-            <div id="search-results" class="search-results"></div>
-            <details class="debug-disclosure" id="search-debug">
-              <summary>Debug payload</summary>
-              <pre id="search-raw" hidden></pre>
-            </details>
+            </div>
           </section>
         </div>
       </section>
@@ -177,6 +191,7 @@
               <div id="editor-meta" class="meta">Select a draft item to load its live draft.</div>
               <div id="editor-participants" class="participant-list"></div>
             </div>
+            <div id="editor-status-cards" class="authoring-stats"></div>
             <div class="writing-frame">
               <div class="writing-frame-head">
                 <strong>Writing Surface</strong>
@@ -186,24 +201,26 @@
                 <textarea id="editor-body" rows="18" placeholder="Select an item to edit its working draft"></textarea>
               </label>
             </div>
-            <div class="editor-actions editor-actions-lifecycle">
-              <button id="editor-approve" type="button">Approve Current Revision</button>
-              <button id="editor-supersede" type="button">Supersede Item</button>
-            </div>
+            <details id="editor-lifecycle-details" class="editor-lifecycle-details">
+              <summary>Revision decisions</summary>
+              <div class="editor-actions editor-actions-lifecycle">
+                <button id="editor-approve" type="button">Approve Current Revision</button>
+                <button id="editor-supersede" type="button">Supersede Item</button>
+              </div>
+            </details>
             <p class="meta">This editor keeps a shared working draft for the selected item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
+            <details id="editor-support-details" class="editor-support-details">
+              <summary>Writing context</summary>
+              <div class="authoring-guide">
+                <h4>Author Flow</h4>
+                <ul>
+                  <li>Open one draft item and stay with it until the change is coherent.</li>
+                  <li>Use the live draft for iteration, then cut a snapshot when the text is reviewable.</li>
+                  <li>Approve or supersede only after the durable revision says what you mean.</li>
+                </ul>
+              </div>
+            </details>
           </section>
-          <aside class="panel author-sidecar">
-            <h3>Authoring Status</h3>
-            <div id="editor-status-cards" class="authoring-stats"></div>
-            <div class="authoring-guide">
-              <h4>Author Flow</h4>
-              <ul>
-                <li>Open one draft item and stay with it until the change is coherent.</li>
-                <li>Use the live draft for iteration, then cut a snapshot when the text is reviewable.</li>
-                <li>Approve or supersede only after the durable revision says what you mean.</li>
-              </ul>
-            </div>
-          </aside>
         </div>
       </section>
 
@@ -221,6 +238,11 @@
           <section class="panel operate-assistant-panel">
             <h3>Operate From Current Record</h3>
             <div id="operate-context" class="operate-context"></div>
+            <div class="detail-actions operate-choice-actions">
+              <button id="operate-choose-run" type="button">Log work</button>
+              <button id="operate-choose-evidence" type="button" class="button-secondary">Attach evidence</button>
+              <button id="operate-choose-approve" type="button" class="button-secondary">Review record</button>
+            </div>
             <div class="detail-actions operate-context-actions">
               <button id="operate-run-current" type="button">Log work from current record</button>
               <button id="operate-evidence-current" type="button" class="button-secondary">Attach evidence from current record</button>
@@ -228,9 +250,10 @@
             </div>
           </section>
 
-          <section class="panel">
-            <h3>Log Work Performed</h3>
-            <form id="run-form">
+          <section class="panel operate-stage-panel">
+            <details id="operate-run-details" class="operate-stage-details" open>
+              <summary>Log Work Performed</summary>
+              <form id="run-form">
               <label>Actor <input name="actor" value="bob"></label>
               <label>What kind of work is this?
                 <select name="kind">
@@ -268,12 +291,14 @@
                 </div>
               </details>
               <button type="submit">Save Run</button>
-            </form>
+              </form>
+            </details>
           </section>
 
-          <section class="panel">
-            <h3>Attach Evidence</h3>
-            <form id="evidence-form" enctype="multipart/form-data">
+          <section class="panel operate-stage-panel">
+            <details id="operate-evidence-details" class="operate-stage-details">
+              <summary>Attach Evidence</summary>
+              <form id="evidence-form" enctype="multipart/form-data">
               <label>Actor <input name="actor" value="bob"></label>
               <label>Which run does this evidence support?
                 <select id="evidence-run-select" name="run_id_select"></select>
@@ -288,12 +313,14 @@
                 </div>
               </details>
               <button type="submit">Save Evidence</button>
-            </form>
+              </form>
+            </details>
           </section>
 
-          <section class="panel">
-            <h3>Capture Review Decision</h3>
-            <form id="approval-form">
+          <section class="panel operate-stage-panel">
+            <details id="operate-approval-details" class="operate-stage-details">
+              <summary>Capture Review Decision</summary>
+              <form id="approval-form">
               <label>Actor <input name="actor" value="boss"></label>
               <label>What are you reviewing?
                 <select name="target_type">
@@ -322,7 +349,8 @@
                 </div>
               </details>
               <button type="submit">Save Decision</button>
-            </form>
+              </form>
+            </details>
           </section>
         </div>
       </section>

@@ -73,10 +73,13 @@ or review panels.
 
 This is the top operational zone of the browser. It contains:
 
-- Problem Review
-- Search
-- Record Inspector
 - the shared browser status/error area
+- the `Primary Flow` panel
+- the `Current Record` inspector
+- the `Review Queue`, which now switches between:
+  - draft queue
+  - problem hotspots
+  - known-record search
 
 ### Why it matters
 
@@ -91,10 +94,12 @@ already staged. Source: `DI-mitav`.
 
 The browser now also makes its primary flow explicit here:
 
-1. review hotspots when you need to find repeated trouble fast
-2. search when you already know the record or slice you need
-3. open one record in the inspector
-4. take the next step from that inspected record instead of jumping back to a
+1. start in the draft queue when you want the clearest “what needs attention?”
+   home path
+2. switch to hotspots when you need repeated-problem review
+3. switch to search when you already know the record or context slice you need
+4. open one record in the inspector
+5. take the next step from that inspected record instead of jumping back to a
    generic form
 
 That guidance is surfaced directly in the `Primary Flow` panel and reinforced
@@ -109,6 +114,11 @@ The browser now also compresses inactive workspaces more aggressively, showing
 their summary instead of leaving every major panel expanded at once. That keeps
 all capabilities reachable while reducing simultaneous visual load. Source:
 `DI-nabek`.
+
+The draft queue is now the clearest default review home. It reduces browser
+clutter by showing only the most immediate review items first instead of
+putting hotspots, search, and multiple larger panels on equal footing at the
+same time. Source: `DI-rabok`; `DI-javik`.
 
 ## Create Place
 
@@ -261,10 +271,12 @@ This authoring zone now sits below the main review workspace so drafting stays
 easy to reach without displacing problem triage and inspection. Source:
 `DI-lafor`.
 
-The authoring surface now also includes a dedicated status sidecar, live draft
-metrics, a `Focus Writing` action, and hidden-by-default collaboration settings
-so sustained drafting feels more like a real authoring mode than an
-administrative panel. Source: `DI-rofek`; `DI-tavul`.
+The authoring surface now keeps live draft metrics inside the main editor
+panel, keeps collaboration settings hidden by default, tucks revision decisions
+behind disclosure, and offers a separate `Writing context` disclosure instead
+of a permanently visible support sidecar. That makes the writing surface more
+dominant and quieter without removing any lifecycle controls. Source:
+`DI-rofek`; `DI-tavul`; `DI-farok`.
 
 ### Fields And Controls
 
@@ -316,12 +328,16 @@ administrative panel. Source: `DI-rofek`; `DI-tavul`.
   - show live version, current revision, word count, paragraph count,
     participant count, and status
   - important because they make the draft feel trackable while you write
-- author flow sidecar
-  - keeps the snapshot/approve/supersede sequence visible next to the editor
 - writing surface frame
   - visually prioritizes the draft body over the surrounding controls
   - important because it makes authoring feel like writing work, not just
     configuration
+- `Revision decisions`
+  - keeps approval and supersede controls available without making them compete
+    with the draft body all the time
+- `Writing context`
+  - keeps the author-flow guidance reachable without leaving another large
+    support panel permanently open
 
 ## Log Work Performed
 
@@ -347,6 +363,11 @@ instead of retyping IDs. Source: `DI-mitav`.
 The operate workspace now also includes an `Operate From Current Record` panel
 that makes the default run/evidence/review action explicit for the record
 already open in Review. Source: `DI-matub`.
+
+The operate workspace now also stages the heavier transaction forms behind
+smaller action choices: `Log work`, `Attach evidence`, and `Review record`.
+That keeps the main operate surface lighter while preserving the full generic
+forms underneath. Source: `DI-zumor`.
 
 ### Fields
 

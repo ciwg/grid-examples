@@ -4,6 +4,7 @@ const resourceListEl = document.getElementById("resource-list");
 const responsibilityListEl = document.getElementById("responsibility-list");
 const itemListEl = document.getElementById("item-list");
 const runListEl = document.getElementById("run-list");
+const draftReviewEl = document.getElementById("draft-review");
 const problemReviewEl = document.getElementById("problem-review");
 const searchResultsEl = document.getElementById("search-results");
 const searchActiveEl = document.getElementById("search-active");
@@ -11,6 +12,9 @@ const searchRawEl = document.getElementById("search-raw");
 const searchDebugEl = document.getElementById("search-debug");
 const searchClearEl = document.getElementById("search-clear");
 const searchAdvancedEl = document.getElementById("search-advanced");
+const reviewLaneDraftsEl = document.getElementById("review-lane-drafts");
+const reviewLaneHotspotsEl = document.getElementById("review-lane-hotspots");
+const reviewLaneSearchEl = document.getElementById("review-lane-search");
 const searchPresetDraftsEl = document.getElementById("search-preset-drafts");
 const searchPresetProblemsEl = document.getElementById("search-preset-problems");
 const searchPresetCountsEl = document.getElementById("search-preset-counts");
@@ -38,6 +42,7 @@ const editorActorEl = document.getElementById("editor-actor");
 const editorDisplayNameEl = document.getElementById("editor-display-name");
 const editorColorEl = document.getElementById("editor-color");
 const editorCollabDetailsEl = document.getElementById("editor-collab-details");
+const editorLifecycleDetailsEl = document.getElementById("editor-lifecycle-details");
 const editorMetaEl = document.getElementById("editor-meta");
 const editorParticipantsEl = document.getElementById("editor-participants");
 const editorStatusCardsEl = document.getElementById("editor-status-cards");
@@ -47,6 +52,7 @@ const editorRefreshEl = document.getElementById("editor-refresh");
 const editorSnapshotEl = document.getElementById("editor-snapshot");
 const editorApproveEl = document.getElementById("editor-approve");
 const editorSupersedeEl = document.getElementById("editor-supersede");
+const editorSupportDetailsEl = document.getElementById("editor-support-details");
 const approvalFormEl = document.getElementById("approval-form");
 const createDetailsEl = document.getElementById("create-details");
 const browseDetailsEl = document.getElementById("browse-details");
@@ -61,9 +67,15 @@ const evidenceRunSelectEl = document.getElementById("evidence-run-select");
 const approvalTargetSelectEl = document.getElementById("approval-target-select");
 const approvalTargetSummaryEl = document.getElementById("approval-target-summary");
 const operateContextEl = document.getElementById("operate-context");
+const operateChooseRunEl = document.getElementById("operate-choose-run");
+const operateChooseEvidenceEl = document.getElementById("operate-choose-evidence");
+const operateChooseApproveEl = document.getElementById("operate-choose-approve");
 const operateRunCurrentEl = document.getElementById("operate-run-current");
 const operateEvidenceCurrentEl = document.getElementById("operate-evidence-current");
 const operateApproveCurrentEl = document.getElementById("operate-approve-current");
+const operateRunDetailsEl = document.getElementById("operate-run-details");
+const operateEvidenceDetailsEl = document.getElementById("operate-evidence-details");
+const operateApprovalDetailsEl = document.getElementById("operate-approval-details");
 
 const participantID = getParticipantID();
 const editorState = {
@@ -101,6 +113,30 @@ const modeButtons = {
   operate: modeOperateEl,
   create: modeCreateEl,
   browse: modeBrowseEl,
+};
+
+const reviewLaneEls = {
+  drafts: document.getElementById("review-drafts-lane"),
+  hotspots: document.getElementById("review-hotspots-lane"),
+  search: document.getElementById("review-search-lane"),
+};
+
+const reviewLaneButtons = {
+  drafts: reviewLaneDraftsEl,
+  hotspots: reviewLaneHotspotsEl,
+  search: reviewLaneSearchEl,
+};
+
+const operateStageDetails = {
+  run: operateRunDetailsEl,
+  evidence: operateEvidenceDetailsEl,
+  approval: operateApprovalDetailsEl,
+};
+
+const operateStageButtons = {
+  run: operateChooseRunEl,
+  evidence: operateChooseEvidenceEl,
+  approval: operateChooseApproveEl,
 };
 
 function runHandled(action, context) {
@@ -141,6 +177,46 @@ function focusMode(mode) {
   }
   setActiveMode(mode);
   workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Intent: Keep Review feeling like one working state instead of three peer
+// panels by showing exactly one review queue lane at a time while preserving
+// drafts, hotspots, and search as reachable entry paths. Source: DI-rabok;
+// DI-javik
+function setReviewLane(lane) {
+  for (const [key, section] of Object.entries(reviewLaneEls)) {
+    if (!section) {
+      continue;
+    }
+    section.hidden = key !== lane;
+  }
+  for (const [key, button] of Object.entries(reviewLaneButtons)) {
+    if (!button) {
+      continue;
+    }
+    const active = key === lane;
+    button.classList.toggle("is-active", active);
+    button.classList.toggle("button-secondary", !active);
+  }
+}
+
+// Intent: Make Operate feel like a staged action workspace instead of one
+// large transaction console by opening only the selected operation form while
+// keeping every generic form reachable. Source: DI-zumor
+function openOperateStage(stage) {
+  for (const [key, details] of Object.entries(operateStageDetails)) {
+    if (details) {
+      details.open = key === stage;
+    }
+  }
+  for (const [key, button] of Object.entries(operateStageButtons)) {
+    if (!button) {
+      continue;
+    }
+    const active = key === stage;
+    button.classList.toggle("is-active", active);
+    button.classList.toggle("button-secondary", !active);
+  }
 }
 
 // Intent: Keep the browser as an equal operational embodiment while making
@@ -299,20 +375,39 @@ searchClearEl.addEventListener("click", () => {
 });
 
 searchPresetDraftsEl.addEventListener("click", runHandled(async () => {
+  setReviewLane("search");
   await runPresetSearch({ status: "draft" }, "Draft review is loaded. Open one draft record and keep the next action attached to that record.");
 }, "Search"));
 
 searchPresetProblemsEl.addEventListener("click", runHandled(async () => {
+  setReviewLane("search");
   await runPresetSearch({ kind: "receiving_check", problem: true }, "Receiving problems are loaded. Start with one hotspot or run and stay in that review thread.");
 }, "Search"));
 
 searchPresetCountsEl.addEventListener("click", runHandled(async () => {
+  setReviewLane("search");
   await runPresetSearch({ kind: "inventory_audit" }, "Inventory counts are loaded. Open one run or context record and review the count history there.");
 }, "Search"));
 
 searchPresetRunsEl.addEventListener("click", runHandled(async () => {
+  setReviewLane("search");
   await runPresetSearch({}, "Recent runs are loaded. Search broadly when you know the work but not yet the exact record.");
 }, "Search"));
+
+reviewLaneDraftsEl.addEventListener("click", () => {
+  setActiveMode("review");
+  setReviewLane("drafts");
+});
+
+reviewLaneHotspotsEl.addEventListener("click", () => {
+  setActiveMode("review");
+  setReviewLane("hotspots");
+});
+
+reviewLaneSearchEl.addEventListener("click", () => {
+  setActiveMode("review");
+  setReviewLane("search");
+});
 
 modeReviewEl.addEventListener("click", () => {
   focusMode("review");
@@ -335,11 +430,15 @@ modeBrowseEl.addEventListener("click", () => {
 });
 
 focusProblemsEl.addEventListener("click", () => {
+  setActiveMode("review");
+  setReviewLane("hotspots");
   problemReviewEl.scrollIntoView({ behavior: "smooth", block: "start" });
   setWorkspaceStatus("Review hotspots first when you need the fastest path into repeated receiving or count problems.", "info");
 });
 
 focusSearchEl.addEventListener("click", () => {
+  setActiveMode("review");
+  setReviewLane("search");
   const queryInput = document.querySelector("#search-form input[name='q']");
   if (queryInput) {
     queryInput.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -350,8 +449,8 @@ focusSearchEl.addEventListener("click", () => {
 
 focusDraftsEl.addEventListener("click", runHandled(async () => {
   setActiveMode("review");
-  await runSearch({ status: "draft" });
-  searchResultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  setReviewLane("drafts");
+  draftReviewEl.scrollIntoView({ behavior: "smooth", block: "start" });
   setWorkspaceStatus("Draft items are loaded. Open one record, then use the inspector to draft, approve, or record work from that item.", "info");
 }, "Primary Flow"));
 
@@ -361,9 +460,29 @@ focusDraftsEl.addEventListener("click", runHandled(async () => {
 editorFocusWritingEl.addEventListener("click", () => {
   setActiveMode("author");
   editorCollabDetailsEl.open = false;
+  editorLifecycleDetailsEl.open = false;
+  editorSupportDetailsEl.open = false;
   editorBodyEl.scrollIntoView({ behavior: "smooth", block: "center" });
   editorBodyEl.focus({ preventScroll: true });
   setWorkspaceStatus("Writing focus is active. Stay in one draft, then snapshot when the change is coherent.", "info");
+});
+
+operateChooseRunEl.addEventListener("click", () => {
+  setActiveMode("operate");
+  openOperateStage("run");
+  operateRunDetailsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+operateChooseEvidenceEl.addEventListener("click", () => {
+  setActiveMode("operate");
+  openOperateStage("evidence");
+  operateEvidenceDetailsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+operateChooseApproveEl.addEventListener("click", () => {
+  setActiveMode("operate");
+  openOperateStage("approval");
+  operateApprovalDetailsEl.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 operateRunCurrentEl.addEventListener("click", runHandled(async () => {
@@ -379,7 +498,7 @@ operateApproveCurrentEl.addEventListener("click", runHandled(async () => {
 }, "Operate"));
 
 editorItemIDEl.addEventListener("change", runHandled(async () => {
-  await loadEditorItem(editorItemIDEl.value);
+  await loadEditorItem(editorItemIDEl.value, { activateMode: true });
 }, "Live Draft Studio"));
 
 editorBodyEl.addEventListener("input", () => {
@@ -638,15 +757,46 @@ function renderKnowledgeItems(items) {
     card.className = "card selectable-card";
     card.innerHTML = `<div class="kind">${item.kind} · ${item.status}</div><h3>${item.id} · ${item.title}</h3><div class="meta">revision ${item.current_revision} · live v${item.working_version}\n${item.summary || ""}</div>`;
     card.addEventListener("click", () => {
-      Promise.all([
-        loadEditorItem(item.id),
-        inspectRecord("item", item.id),
-      ]).catch(handleError);
+      inspectRecord("item", item.id).catch(handleError);
     });
     itemListEl.appendChild(card);
   }
   if (editorState.itemID) {
     editorItemIDEl.value = editorState.itemID;
+  }
+}
+
+// Intent: Make draft review the clearest browser home path by surfacing only
+// draft items that most directly need revision, run recording, or approval
+// before operators branch into broader hotspot or search work. Source:
+// DI-rabok; DI-javik
+function renderDraftQueue(items) {
+  draftReviewEl.innerHTML = "";
+  const drafts = items.filter((item) => item.status === "draft");
+  if (!drafts.length) {
+    const empty = document.createElement("div");
+    empty.className = "meta";
+    empty.textContent = "No draft items are waiting right now. Switch to hotspots or search when work starts from an observed issue or known record.";
+    draftReviewEl.appendChild(empty);
+    return;
+  }
+  for (const item of drafts) {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.innerHTML = `<div class="search-result-head"><div><div class="kind">${item.kind} draft</div><h3>${item.id} · ${item.title}</h3></div><strong>rev ${item.current_revision || 0}</strong></div><div class="meta">${item.summary || "No summary yet."}</div>`;
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    actions.appendChild(makeActionButton("Inspect", () => inspectRecord("item", item.id), "Draft Queue"));
+    actions.appendChild(makeActionButton("Continue draft", async () => {
+      await loadEditorItem(item.id, { activateMode: true });
+      await inspectRecord("item", item.id, { activateMode: false });
+    }, "Draft Queue"));
+    actions.appendChild(makeActionButton("Review item", async () => {
+      await inspectRecord("item", item.id);
+      startApprovalFromContext("item", detailState.record);
+    }, "Draft Queue"));
+    card.appendChild(actions);
+    draftReviewEl.appendChild(card);
   }
 }
 
@@ -820,6 +970,13 @@ function syncApprovalDefaults() {
 // DI-mitav
 function focusOperateForm(formEl, message, focusSelector = "textarea, input, select") {
   setActiveMode("operate");
+  if (formEl === document.getElementById("run-form")) {
+    openOperateStage("run");
+  } else if (formEl === document.getElementById("evidence-form")) {
+    openOperateStage("evidence");
+  } else if (formEl === approvalFormEl) {
+    openOperateStage("approval");
+  }
   formEl.scrollIntoView({ behavior: "smooth", block: "start" });
   const target = formEl.querySelector(focusSelector);
   if (target) {
@@ -969,6 +1126,7 @@ function buildSearchParams(filters) {
 }
 
 function renderSearchResults(filters, payload) {
+  setReviewLane("search");
   searchResultsEl.innerHTML = "";
   searchRawEl.hidden = false;
   searchRawEl.textContent = JSON.stringify(payload, null, 2);
@@ -1000,7 +1158,10 @@ function renderSearchResults(filters, payload) {
       actions.className = "card-actions";
       actions.appendChild(makeActionButton("Inspect", () => inspectRecord(type, item.id), "Search"));
       if (type === "item") {
-        actions.appendChild(makeActionButton("Open draft", () => Promise.all([loadEditorItem(item.id), inspectRecord("item", item.id)]), "Search"));
+        actions.appendChild(makeActionButton("Open draft", async () => {
+          await loadEditorItem(item.id, { activateMode: true });
+          await inspectRecord("item", item.id, { activateMode: false });
+        }, "Search"));
         actions.appendChild(makeActionButton("Record run", async () => {
           await inspectRecord("item", item.id);
           startRunFromContext("item", detailState.record);
@@ -1049,7 +1210,10 @@ function renderDetailPrimary(type, record) {
 
   if (type === "item") {
     summary.textContent = "Revise this item or record work from its current revision, then approve that durable revision when it is ready.";
-    actions.appendChild(makePrimaryActionButton("Continue draft", () => Promise.all([loadEditorItem(record.id), inspectRecord("item", record.id)]), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Continue draft", async () => {
+      await loadEditorItem(record.id, { activateMode: true });
+      await inspectRecord("item", record.id, { activateMode: false });
+    }, "Record Inspector"));
     actions.appendChild(makePrimaryActionButton("Record run", () => startRunFromContext("item", record), "Record Inspector"));
     actions.appendChild(makePrimaryActionButton("Approve item", () => startApprovalFromContext("item", record), "Record Inspector"));
   } else if (type === "run") {
@@ -1134,8 +1298,10 @@ function searchSummary(type, item) {
 // the browser without manually copying IDs between separate lists, while
 // keeping the existing local HTTP runtime and record model unchanged. Source:
 // DI-vopuk
-async function inspectRecord(type, id) {
-  setActiveMode("review");
+async function inspectRecord(type, id, options = {}) {
+  if (options.activateMode !== false) {
+    setActiveMode("review");
+  }
   detailState.type = type;
   detailState.id = id;
   detailState.record = null;
@@ -1158,7 +1324,7 @@ async function inspectRecord(type, id) {
   applyContextDefaults(type, record);
   renderOperateContext();
   if (type === "item") {
-    await loadEditorItem(id);
+    await loadEditorItem(id, { activateMode: false });
   }
 }
 
@@ -1416,6 +1582,7 @@ function applyContextDefaults(type, record) {
 // DI-vemur
 async function runSearch(filters) {
   clearWorkspaceStatus();
+  setReviewLane("search");
   const form = document.getElementById("search-form");
   form.q.value = filters.q || "";
   form.kind.value = filters.kind || "";
@@ -1720,22 +1887,26 @@ async function refresh(selectedItemID = editorState.itemID) {
   renderResources(resources.resources || []);
   renderResponsibilities(responsibilities.responsibilities || []);
   renderKnowledgeItems(items.items || []);
+  renderDraftQueue(items.items || []);
   renderRuns(runs.runs || []);
   refreshActionCatalog();
   if (!selectedItemID && (items.items || []).length > 0) {
-    selectedItemID = items.items[0].id;
+    const drafts = (items.items || []).filter((item) => item.status === "draft");
+    selectedItemID = (drafts[0] || items.items[0]).id;
   }
   if (selectedItemID) {
     await Promise.all([
-      loadEditorItem(selectedItemID),
-      inspectRecord("item", selectedItemID),
+      loadEditorItem(selectedItemID, { activateMode: false }),
+      inspectRecord("item", selectedItemID, { activateMode: false }),
     ]);
   }
   clearWorkspaceStatus();
 }
 
-async function loadEditorItem(itemID) {
-  setActiveMode("author");
+async function loadEditorItem(itemID, options = {}) {
+  if (options.activateMode) {
+    setActiveMode("author");
+  }
   editorCollabDetailsEl.open = false;
   editorState.itemID = itemID;
   editorItemIDEl.value = itemID;
@@ -1915,6 +2086,8 @@ function handleError(error, context = "Browser") {
 
 clearSearch();
 setActiveMode("review");
+setReviewLane("drafts");
+openOperateStage("run");
 refresh().catch(handleError);
 // Intent: Keep search centered on common review tasks first, then let operators
 // drop into structured filters only when they need finer drilldown. Source:

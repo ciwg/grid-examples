@@ -1,6 +1,11 @@
 # TODO
 
 ## Open / Planned
+- [x] 083 - Reduce ex5 browser simultaneous surface clutter - `TODO/TODO-rabok-ex5-browser-surface-clutter-reduction.md`
+- [x] 084 - Strengthen ex5 browser mode separation into clearer working states - `TODO/TODO-lutav-ex5-browser-clearer-working-states.md`
+- [x] 085 - Make ex5 browser review the unmistakable home path - `TODO/TODO-javik-ex5-browser-review-home-path.md`
+- [x] 086 - Stage ex5 browser operate flows behind clearer action choices - `TODO/TODO-zumor-ex5-browser-staged-operate-flows.md`
+- [x] 087 - Make ex5 browser authoring feel quieter and more writing-centered - `TODO/TODO-farok-ex5-browser-writing-centered-authoring.md`
 - [x] 078 - Make ex5 browser operate flows more intent-driven and less schema-driven - `TODO/TODO-matub-ex5-browser-intent-driven-operations.md`
 - [x] 079 - Turn ex5 browser search into a more task-first discovery surface - `TODO/TODO-rovak-ex5-browser-task-first-search.md`
 - [x] 080 - Strengthen ex5 browser mode behavior beyond visual dimming - `TODO/TODO-nabek-ex5-browser-stronger-mode-behavior.md`

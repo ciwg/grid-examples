@@ -79,18 +79,26 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	required := []string{
 		"Operational Knowledge System",
 		"Review",
-		`id="mode-author" class="mode-pill is-active"`,
-		`class="workspace workspace-review is-muted"`,
+		`id="mode-review" class="mode-pill is-active"`,
+		`class="workspace workspace-review is-active"`,
 		"Primary Flow",
-		"Review the queue",
+		"Review draft items",
+		"Review Queue",
+		"Draft queue",
+		"Problem hotspots",
+		"Known record search",
 		"Draft procedures",
 		"Advanced filters",
 		"Author",
-		"Authoring Status",
 		"Collaboration settings",
+		"Revision decisions",
+		"Writing context",
 		"Writing Surface",
 		"Operate",
 		"Operate From Current Record",
+		"Log work",
+		"Attach evidence",
+		"Review record",
 		"Log work from current record",
 		"Review this item",
 		"Create",
@@ -849,6 +857,9 @@ const problemClickTimer = setInterval(() => {
 	mux.HandleFunc("/api/items/RECV-0001/live", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"item_id":"RECV-0001","title":"Inspect inbound pallet","status":"approved","body":"# Inspect inbound pallet","version":2,"current_revision":1,"participants":[]}`)
 	})
+	mux.HandleFunc("/api/items/RECV-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"RECV-0001","kind":"receiving_check","status":"approved","title":"Inspect inbound pallet","summary":"Receiving check","current_revision":1,"approvals":[{"decision":"approved","role":"reviewer","actor":"boss","revision":1,"notes":"Ready to use"}],"revisions":[{"number":1,"title":"Inspect inbound pallet","author":"alice","created_at":"2026-07-20T16:03:00Z"}],"responsibility_ids":["RESP-0001"],"related_runs":[{"id":"RUN-0001","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","kind":"receiving_check"}],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T16:03:00Z","actor":"alice","title":"Inspect inbound pallet"}]}`)
+	})
 	mux.HandleFunc("/api/places/PLACE-0001", func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, `{"id":"PLACE-0001","kind":"area","name":"Receiving","summary":"Inbound inspection area","parent_id":"","child_place_ids":[],"resource_ids":["RES-0001"],"related_runs":[{"id":"RUN-0001","kind":"receiving_check","revision":1,"outcome":"accepted_with_notes","created_at":"2026-07-20T17:10:00Z","evidence":[{"id":"EVID-0001","summary":"Receiving inspection","facts":{"supplier":"Acme Parts","variance":"-2","condition":"wrap torn"},"actor":"bob","created_at":"2026-07-20T17:11:00Z"}]},{"id":"RUN-0002","kind":"inventory_audit","revision":1,"outcome":"completed","created_at":"2026-07-20T18:10:00Z","evidence":[{"id":"EVID-0002","summary":"Cycle count","facts":{"expected_count":"12","actual_count":"10","discrepancy":"-2"},"actor":"bob","created_at":"2026-07-20T18:11:00Z"}]}],"timeline":[{"type":"place_created","timestamp":"2026-07-20T16:00:00Z","actor":"alice","summary":"Inbound inspection area"}]}`)
 	})
@@ -873,7 +884,7 @@ const problemClickTimer = setInterval(() => {
 	}
 	dom := string(output)
 	required := []string{
-		"Problem Review",
+		"Problem hotspots",
 		"Places with repeated problems",
 		"2 problems",
 		"condition: wrap torn",

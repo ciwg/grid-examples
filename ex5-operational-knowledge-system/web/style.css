@@ -137,14 +137,15 @@ body {
 }
 .search-panel,
 .detail-panel,
-.editor-panel {
+.editor-panel,
+.review-queue-panel {
   grid-column: 1 / -1;
 }
 .operate-grid {
   align-items: start;
 }
 .author-grid {
-  grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 0.9fr);
+  grid-template-columns: 1fr;
   align-items: start;
 }
 .browse-grid {
@@ -265,12 +266,22 @@ button:hover { filter: brightness(1.05); }
 .editor-panel {
   grid-column: 1 / -1;
 }
-.author-sidecar {
-  display: grid;
-  gap: 1rem;
-}
 .detail-panel {
   grid-column: 1 / -1;
+}
+.review-lane-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+.review-lane-switch button.is-active {
+  background: linear-gradient(135deg, var(--accent), #158678);
+  color: #fff;
+}
+.review-lane {
+  display: grid;
+  gap: 0.85rem;
 }
 .detail-summary {
   display: grid;
@@ -319,14 +330,11 @@ button:hover { filter: brightness(1.05); }
   justify-content: flex-end;
   margin-bottom: 0;
 }
-.editor-actions-lifecycle {
-  border-top: 1px solid var(--line);
-  padding-top: 0.9rem;
-}
 .authoring-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 .author-stat {
   background: #fff;
@@ -363,7 +371,10 @@ button:hover { filter: brightness(1.05); }
 }
 .editor-collab-details,
 .advanced-filter-disclosure,
-.advanced-operate-disclosure {
+.advanced-operate-disclosure,
+.editor-support-details,
+.editor-lifecycle-details,
+.operate-stage-details {
   border: 1px solid var(--line);
   border-radius: 0.85rem;
   background: rgba(255, 253, 249, 0.76);
@@ -372,14 +383,20 @@ button:hover { filter: brightness(1.05); }
 }
 .editor-collab-details > summary,
 .advanced-filter-disclosure > summary,
-.advanced-operate-disclosure > summary {
+.advanced-operate-disclosure > summary,
+.editor-support-details > summary,
+.editor-lifecycle-details > summary,
+.operate-stage-details > summary {
   cursor: pointer;
   font-weight: 700;
   color: var(--accent);
 }
 .editor-collab-details[open] > summary,
 .advanced-filter-disclosure[open] > summary,
-.advanced-operate-disclosure[open] > summary {
+.advanced-operate-disclosure[open] > summary,
+.editor-support-details[open] > summary,
+.editor-lifecycle-details[open] > summary,
+.operate-stage-details[open] > summary {
   margin-bottom: 0.8rem;
 }
 .writing-frame {
@@ -510,6 +527,9 @@ button:hover { filter: brightness(1.05); }
     linear-gradient(135deg, rgba(12, 109, 98, 0.08), rgba(183, 92, 28, 0.08)),
     rgba(255, 253, 249, 0.98);
 }
+.operate-stage-panel {
+  grid-column: 1 / -1;
+}
 .operate-context {
   display: grid;
   gap: 0.55rem;
@@ -521,6 +541,10 @@ button:hover { filter: brightness(1.05); }
 }
 .operate-context-actions {
   margin-top: 0.9rem;
+}
+.operate-choice-actions {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
 }
 .operate-context-actions button[disabled] {
   opacity: 0.45;
@@ -645,9 +669,6 @@ pre {
   max-width: 24rem;
 }
 @media (max-width: 720px) {
-  .author-grid {
-    grid-template-columns: 1fr;
-  }
   .hero,
   .editor-summary,
   .writing-frame-head {
