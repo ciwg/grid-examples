@@ -447,12 +447,13 @@ func TestServerRejectsPeerExchangeImportIntoNonEmptyRuntime(t *testing.T) {
 	}
 }
 
-func TestServerRejectsPeerExchangeImportEntityIDCollision(t *testing.T) {
+func TestServerAllowsPeerExchangeImportEntityAliasReuse(t *testing.T) {
 	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
 	if err != nil {
 		t.Fatalf("new source app: %v", err)
 	}
-	if _, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil); err != nil {
+	sourceItem, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
 		t.Fatalf("create source item: %v", err)
 	}
 	bundle, err := sourceApp.ExportPeerExchangeBundle()
@@ -475,11 +476,15 @@ func TestServerRejectsPeerExchangeImportEntityIDCollision(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/peer-exchange/import", bytes.NewReader(body))
 	response := httptest.NewRecorder()
 	targetServer.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected collision rejection, got %d %s", response.Code, response.Body.String())
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected alias reuse import success, got %d %s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), "collides with existing local namespace") {
-		t.Fatalf("unexpected rejection body: %s", response.Body.String())
+	imported, err := targetApp.GetKnowledgeItem(sourceItem.ID)
+	if err != nil {
+		t.Fatalf("get imported canonical item: %v", err)
+	}
+	if imported.AliasID == "" {
+		t.Fatalf("expected imported canonical item alias after server import, got %+v", imported)
 	}
 }
 

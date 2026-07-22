@@ -117,6 +117,7 @@ type Resource struct {
 
 type Responsibility struct {
 	ID             string             `json:"id"`
+	AliasID        string             `json:"alias_id,omitempty"`
 	Title          string             `json:"title"`
 	Summary        string             `json:"summary"`
 	Team           string             `json:"team"`
@@ -133,6 +134,7 @@ type Responsibility struct {
 
 type KnowledgeItem struct {
 	ID                string              `json:"id"`
+	AliasID           string              `json:"alias_id,omitempty"`
 	Kind              string              `json:"kind"`
 	Status            string              `json:"status"`
 	Title             string              `json:"title"`
@@ -164,6 +166,7 @@ type KnowledgeRevision struct {
 
 type RunRecord struct {
 	ID                string             `json:"id"`
+	AliasID           string             `json:"alias_id,omitempty"`
 	Kind              string             `json:"kind"`
 	ItemID            string             `json:"item_id"`
 	ItemKind          string             `json:"item_kind"`
@@ -186,6 +189,7 @@ type RunRecord struct {
 
 type Evidence struct {
 	ID             string            `json:"id"`
+	AliasID        string            `json:"alias_id,omitempty"`
 	Summary        string            `json:"summary"`
 	Facts          map[string]string `json:"facts"`
 	AttachmentName string            `json:"attachment_name"`
@@ -198,6 +202,7 @@ type Evidence struct {
 
 type Approval struct {
 	ID         string `json:"id"`
+	AliasID    string `json:"alias_id,omitempty"`
 	TargetType string `json:"target_type"`
 	TargetID   string `json:"target_id"`
 	Revision   int    `json:"revision"`
@@ -211,6 +216,7 @@ type Approval struct {
 
 type Link struct {
 	ID        string `json:"id"`
+	AliasID   string `json:"alias_id,omitempty"`
 	FromType  string `json:"from_type"`
 	FromID    string `json:"from_id"`
 	ToType    string `json:"to_type"`
@@ -299,6 +305,8 @@ type OperationalEvent struct {
 	Timestamp         string            `json:"timestamp"`
 	EntityType        string            `json:"entity_type"`
 	EntityID          string            `json:"entity_id"`
+	DisplayID         string            `json:"display_id,omitempty"`
+	CanonicalID       string            `json:"canonical_id,omitempty"`
 	Type              string            `json:"type"`
 	Actor             string            `json:"actor"`
 	Name              string            `json:"name"`

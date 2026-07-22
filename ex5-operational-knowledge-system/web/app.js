@@ -149,6 +149,10 @@ function runHandled(action, context) {
   };
 }
 
+function displayRecordID(record) {
+  return record?.alias_id || record?.id || "";
+}
+
 // Intent: Keep the single-page browser readable as distinct workflow modes by
 // letting operators explicitly activate Review, Author, Operate, Create, or
 // Browse without hiding any shipped surface, while letting inactive modes
@@ -1165,7 +1169,7 @@ function renderSearchResults(filters, payload) {
     for (const item of items) {
       const card = document.createElement("article");
       card.className = "card";
-      card.innerHTML = `<div class="search-result-head"><div><div class="kind">${type}</div><h3>${item.id}</h3></div></div><div class="meta">${searchSummary(type, item)}</div>`;
+      card.innerHTML = `<div class="search-result-head"><div><div class="kind">${type}</div><h3>${displayRecordID(item)}</h3></div></div><div class="meta">${searchSummary(type, item)}</div>`;
       const actions = document.createElement("div");
       actions.className = "card-actions";
       actions.appendChild(makeActionButton("Inspect", () => inspectRecord(type, item.id), "Search"));
@@ -1357,17 +1361,17 @@ function detailPath(type, id) {
 function detailSummary(type, record) {
   switch (type) {
     case "place":
-      return `${record.id} · ${record.kind} · ${record.name}`;
+      return `${displayRecordID(record)} · ${record.kind} · ${record.name}`;
     case "resource":
-      return `${record.id} · ${record.kind} · ${record.name}`;
+      return `${displayRecordID(record)} · ${record.kind} · ${record.name}`;
     case "responsibility":
-      return `${record.id} · responsibility · ${record.title}`;
+      return `${displayRecordID(record)} · responsibility · ${record.title}`;
     case "item":
-      return `${record.id} · ${record.kind} · ${record.title} · ${record.status}`;
+      return `${displayRecordID(record)} · ${record.kind} · ${record.title} · ${record.status}`;
     case "run":
-      return `${record.id} · ${record.kind} run · ${record.item_id}`;
+      return `${displayRecordID(record)} · ${record.kind} run · ${record.item_id}`;
     default:
-      return `${type} ${record.id || ""}`;
+      return `${type} ${displayRecordID(record) || record.id || ""}`;
   }
 }
 

@@ -223,14 +223,15 @@ PromiseGrid-facing work, see
 [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
 
 The next staged PromiseGrid boundary is now also explicit: the first
-relay-visible exchange slice is attachment-free and carries
-`knowledge-item`, `knowledge-approval`, `knowledge-link`, and
-`knowledge-responsibility`. Peer-visible `knowledge-evidence` remains deferred
-until the later storage/carriage decision because the current evidence family
-still points at local copied attachment paths. The shipped bootstrap importer
-accepts the whole approval and link family logs into an empty runtime and
-reports unresolved run/place/resource references explicitly instead of trimming
-those artifacts out of the exchange bundle. Source: `DI-guzab`; `DI-voruk`.
+relay-visible exchange slice carries `knowledge-item`, `knowledge-approval`,
+`knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, and
+`operational-run`. The shipped importer accepts origin-aware unseen history for
+those families into non-empty runtimes, carries inline CID-keyed evidence
+blobs, and treats the create-envelope CID as the durable peer-visible entity
+ID while preserving the older short ID only as an alias. It still reports
+unresolved place/resource references explicitly instead of trimming those
+artifacts out of the exchange bundle. Source: `DI-guzab`; `DI-voruk`;
+`DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`.
 
 That later storage decision is now also staged: the first CAS pass dual-writes
 signed family envelopes and copied evidence blobs into content-addressed
@@ -249,10 +250,10 @@ remain adapter-delivered, but the adapter now exposes the shipped peer-exchange
 format and CAS capability through runtime metadata and is described as an
 adapter over that broader runtime. Source: `DI-vabek`; `DI-rovuz`.
 
-What remains after that first shipped runtime wave is narrower: peer exchange
-is still bootstrap-only, CAS is still sidecar-first rather than authoritative
-for replay/read, and peer-visible `knowledge-evidence` still waits on portable
-blob carriage. Source: `DI-voruk`; `DI-lavuz`; `DI-tivor`.
+What remains after that shipped runtime wave is narrower: place/resource
+references are still outside the peer-visible frozen family set, and CAS is
+still only authoritative for the six frozen families rather than every local
+projection/runtime artifact. Source: `DI-lavuz`; `DI-tivor`; `DI-loruk`.
 
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and

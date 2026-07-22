@@ -17,20 +17,21 @@ type App struct {
 	dataRoot string
 	store    *Store
 
-	mu                 sync.Mutex
-	responsibilities   map[string]*Responsibility
-	places             map[string]*Place
-	resources          map[string]*Resource
-	items              map[string]*KnowledgeItem
-	runs               map[string]*RunRecord
-	links              map[string]*Link
-	approvals          map[string]*Approval
-	presence           map[string]map[string]*LivePresence
-	localPeerID        string
-	nextSequence       uint64
-	nextOriginSequence uint64
-	nextNumbers        map[string]int
-	knownOriginEvents  map[string]bool
+	mu                   sync.Mutex
+	responsibilities     map[string]*Responsibility
+	places               map[string]*Place
+	resources            map[string]*Resource
+	items                map[string]*KnowledgeItem
+	runs                 map[string]*RunRecord
+	links                map[string]*Link
+	approvals            map[string]*Approval
+	presence             map[string]map[string]*LivePresence
+	localPeerID          string
+	nextSequence         uint64
+	nextOriginSequence   uint64
+	nextNumbers          map[string]int
+	knownOriginEvents    map[string]bool
+	peerAliasToCanonical map[string]string
 }
 
 func NewApp(dataRoot string) (*App, error) {
@@ -39,19 +40,20 @@ func NewApp(dataRoot string) (*App, error) {
 		return nil, err
 	}
 	app := &App{
-		dataRoot:          dataRoot,
-		store:             store,
-		responsibilities:  map[string]*Responsibility{},
-		places:            map[string]*Place{},
-		resources:         map[string]*Resource{},
-		items:             map[string]*KnowledgeItem{},
-		runs:              map[string]*RunRecord{},
-		links:             map[string]*Link{},
-		approvals:         map[string]*Approval{},
-		presence:          map[string]map[string]*LivePresence{},
-		localPeerID:       store.identity.PeerID(),
-		nextNumbers:       map[string]int{},
-		knownOriginEvents: map[string]bool{},
+		dataRoot:             dataRoot,
+		store:                store,
+		responsibilities:     map[string]*Responsibility{},
+		places:               map[string]*Place{},
+		resources:            map[string]*Resource{},
+		items:                map[string]*KnowledgeItem{},
+		runs:                 map[string]*RunRecord{},
+		links:                map[string]*Link{},
+		approvals:            map[string]*Approval{},
+		presence:             map[string]map[string]*LivePresence{},
+		localPeerID:          store.identity.PeerID(),
+		nextNumbers:          map[string]int{},
+		knownOriginEvents:    map[string]bool{},
+		peerAliasToCanonical: map[string]string{},
 	}
 	events = normalizeOperationalEvents(events, app.localPeerID)
 	knowledgeItemRecords = normalizeKnowledgeItemRecordOrigins(knowledgeItemRecords, events)
@@ -60,6 +62,15 @@ func NewApp(dataRoot string) (*App, error) {
 	operationalRunRecords = normalizeOperationalRunRecordOrigins(operationalRunRecords, events)
 	knowledgeLinkRecords = normalizeKnowledgeLinkRecordOrigins(knowledgeLinkRecords, events)
 	knowledgeResponsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(knowledgeResponsibilityRecords, events)
+	events = decoratePeerVisibleEventCanonicalIDs(
+		events,
+		knowledgeItemRecords,
+		knowledgeApprovalRecords,
+		knowledgeEvidenceRecords,
+		operationalRunRecords,
+		knowledgeLinkRecords,
+		knowledgeResponsibilityRecords,
+	)
 	for _, event := range events {
 		if err := app.applyEventLocked(event); err != nil {
 			return nil, fmt.Errorf("replay event %d: %w", event.Sequence, err)
@@ -92,7 +103,8 @@ func NewApp(dataRoot string) (*App, error) {
 		return nil, err
 	}
 	for itemID, draft := range drafts {
-		item, ok := app.items[itemID]
+		resolvedItemID := app.resolveLocalInputIDLocked("knowledge_item", itemID)
+		item, ok := app.items[resolvedItemID]
 		if !ok {
 			continue
 		}
@@ -360,6 +372,7 @@ func (app *App) ListResponsibilities() []Responsibility {
 func (app *App) GetResponsibility(id string) (Responsibility, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	id = app.resolveLocalInputIDLocked("responsibility", id)
 	record, ok := app.responsibilities[id]
 	if !ok {
 		return Responsibility{}, fmt.Errorf("responsibility %q not found", id)
@@ -395,7 +408,8 @@ func (app *App) CreateResponsibility(actor string, title string, summary string,
 	if err := app.appendEventLocked(event); err != nil {
 		return Responsibility{}, err
 	}
-	return cloneResponsibility(app.responsibilities[id]), nil
+	canonicalID := app.resolveLocalInputIDLocked("responsibility", id)
+	return cloneResponsibility(app.responsibilities[canonicalID]), nil
 }
 
 func (app *App) ListKnowledgeItems(kind string) ([]KnowledgeItem, error) {
@@ -415,6 +429,7 @@ func (app *App) ListKnowledgeItems(kind string) ([]KnowledgeItem, error) {
 func (app *App) GetKnowledgeItem(id string) (KnowledgeItem, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	id = app.resolveLocalInputIDLocked("knowledge_item", id)
 	item, ok := app.items[id]
 	if !ok {
 		return KnowledgeItem{}, fmt.Errorf("knowledge item %q not found", id)
@@ -438,6 +453,7 @@ func (app *App) CreateKnowledgeItem(actor string, kind string, title string, sum
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	responsibilityIDs = app.resolveLocalPeerVisibleIDsLocked("responsibility", responsibilityIDs)
 	if err := app.validateResponsibilitiesLocked(responsibilityIDs); err != nil {
 		return KnowledgeItem{}, err
 	}
@@ -459,7 +475,8 @@ func (app *App) CreateKnowledgeItem(actor string, kind string, title string, sum
 	if err := app.appendEventLocked(event); err != nil {
 		return KnowledgeItem{}, err
 	}
-	return cloneKnowledgeItem(app.items[id]), nil
+	canonicalID := app.resolveLocalInputIDLocked("knowledge_item", id)
+	return cloneKnowledgeItem(app.items[canonicalID]), nil
 }
 
 func (app *App) AddRevision(actor string, itemID string, title string, summary string, body string, tags []string) (KnowledgeItem, error) {
@@ -468,6 +485,7 @@ func (app *App) AddRevision(actor string, itemID string, title string, summary s
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
 	item, ok := app.items[itemID]
 	if !ok {
 		return KnowledgeItem{}, fmt.Errorf("knowledge item %q not found", itemID)
@@ -501,6 +519,7 @@ func (app *App) SupersedeKnowledgeItem(actor string, itemID string, notes string
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
 	if _, ok := app.items[itemID]; !ok {
 		return KnowledgeItem{}, fmt.Errorf("knowledge item %q not found", itemID)
 	}
@@ -535,6 +554,7 @@ func (app *App) ListRuns(kind string) ([]RunRecord, error) {
 func (app *App) GetRun(id string) (RunRecord, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	id = app.resolveLocalInputIDLocked("run", id)
 	run, ok := app.runs[id]
 	if !ok {
 		return RunRecord{}, fmt.Errorf("run %q not found", id)
@@ -558,6 +578,7 @@ func (app *App) RecordRun(actor string, kind string, itemID string, revision int
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
 	item, ok := app.items[itemID]
 	if !ok {
 		return RunRecord{}, fmt.Errorf("knowledge item %q not found", itemID)
@@ -568,6 +589,7 @@ func (app *App) RecordRun(actor string, kind string, itemID string, revision int
 	if revision <= 0 || revision > len(item.Revisions) {
 		return RunRecord{}, fmt.Errorf("revision %d not found for %s", revision, itemID)
 	}
+	responsibilityIDs = app.resolveLocalPeerVisibleIDsLocked("responsibility", responsibilityIDs)
 	if err := app.validateResponsibilitiesLocked(responsibilityIDs); err != nil {
 		return RunRecord{}, err
 	}
@@ -597,7 +619,8 @@ func (app *App) RecordRun(actor string, kind string, itemID string, revision int
 	if err := app.appendEventLocked(event); err != nil {
 		return RunRecord{}, err
 	}
-	return cloneRun(app.runs[id]), nil
+	canonicalID := app.resolveLocalInputIDLocked("run", id)
+	return cloneRun(app.runs[canonicalID]), nil
 }
 
 func (app *App) AddEvidence(actor string, runID string, summary string, facts map[string]string, attachmentName string, attachmentBody []byte) (RunRecord, error) {
@@ -609,6 +632,7 @@ func (app *App) AddEvidence(actor string, runID string, summary string, facts ma
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	runID = app.resolveLocalInputIDLocked("run", runID)
 	run, ok := app.runs[runID]
 	if !ok {
 		return RunRecord{}, fmt.Errorf("run %q not found", runID)
@@ -654,6 +678,7 @@ func (app *App) RecordApproval(actor string, targetType string, targetID string,
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	targetID = app.resolveLocalInputIDLocked(targetType, targetID)
 	var item *KnowledgeItem
 	switch targetType {
 	case "knowledge_item":
@@ -720,9 +745,9 @@ func (app *App) AddLink(actor string, fromType string, fromID string, toType str
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	fromType = strings.TrimSpace(strings.ToLower(fromType))
-	fromID = strings.TrimSpace(fromID)
+	fromID = app.resolveLocalInputIDLocked(fromType, strings.TrimSpace(fromID))
 	toType = strings.TrimSpace(strings.ToLower(toType))
-	toID = strings.TrimSpace(toID)
+	toID = app.resolveLocalInputIDLocked(toType, strings.TrimSpace(toID))
 	// Intent: Keep the typed-link graph trustworthy by rejecting dangling or
 	// mistyped endpoints before they enter the append-only history. Source:
 	// DI-luzaf
@@ -759,6 +784,7 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	options = normalizeSearchOptions(options)
+	options.ResponsibilityID = app.resolveLocalInputIDLocked("responsibility", options.ResponsibilityID)
 	problemContext := app.problemSearchContextLocked(options)
 	places := []Place{}
 	resources := []Resource{}
@@ -922,7 +948,7 @@ func matchesResponsibilitySearch(record *Responsibility, options SearchOptions) 
 	if options.ResponsibilityID != "" && record.ID != options.ResponsibilityID {
 		return false
 	}
-	return matchesQuery(record.ID+" "+record.Title+" "+record.Summary+" "+strings.Join(record.LinkedRoleKeys, " "), options.Query)
+	return matchesQuery(record.ID+" "+record.AliasID+" "+record.Title+" "+record.Summary+" "+strings.Join(record.LinkedRoleKeys, " "), options.Query)
 }
 
 func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
@@ -935,7 +961,7 @@ func matchesItemSearch(record *KnowledgeItem, options SearchOptions) bool {
 	if options.ResponsibilityID != "" && !containsValue(record.ResponsibilityIDs, options.ResponsibilityID) {
 		return false
 	}
-	return matchesQuery(record.ID+" "+record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status+" "+strings.Join(record.ResponsibilityIDs, " "), options.Query)
+	return matchesQuery(record.ID+" "+record.AliasID+" "+record.Title+" "+record.Summary+" "+record.WorkingBody+" "+record.Status+" "+strings.Join(record.ResponsibilityIDs, " "), options.Query)
 }
 
 func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOptions) bool {
@@ -979,7 +1005,7 @@ func problemRunMatchesOptions(run *RunRecord, options SearchOptions) bool {
 // basic run fields. Source: DI-farun
 func runSearchBlob(record *RunRecord, places map[string]*Place, resources map[string]*Resource) string {
 	var parts []string
-	parts = append(parts, record.ID, record.ItemID, record.PlaceID, record.Outcome, record.Notes, record.Machine, record.Location, strings.Join(record.ResourceIDs, " "), strings.Join(record.ResponsibilityIDs, " "))
+	parts = append(parts, record.ID, record.AliasID, record.ItemID, record.PlaceID, record.Outcome, record.Notes, record.Machine, record.Location, strings.Join(record.ResourceIDs, " "), strings.Join(record.ResponsibilityIDs, " "))
 	if place, ok := places[record.PlaceID]; ok {
 		parts = append(parts, place.ID, place.Name, place.Summary, place.Kind)
 	}
@@ -1010,6 +1036,7 @@ func matchesQuery(value string, query string) bool {
 func (app *App) LiveItemState(itemID string) (LiveItemState, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
 	item, ok := app.items[itemID]
 	if !ok {
 		return LiveItemState{}, fmt.Errorf("knowledge item %q not found", itemID)
@@ -1024,6 +1051,7 @@ func (app *App) LiveItemState(itemID string) (LiveItemState, error) {
 func (app *App) UpdateLiveItem(itemID string, participantID string, displayName string, color string, cursor int, head int, typing bool, baseVersion int, updateBody bool, body string) (LiveItemState, bool, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
 	item, ok := app.items[itemID]
 	if !ok {
 		return LiveItemState{}, false, fmt.Errorf("knowledge item %q not found", itemID)
@@ -1104,6 +1132,30 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 	if err != nil {
 		return err
 	}
+	switch event.Type {
+	case "knowledge_item_created", "responsibility_created", "run_recorded", "approval_recorded", "link_added":
+		if strings.TrimSpace(event.DisplayID) == "" {
+			event.DisplayID = event.EntityID
+		}
+	case "evidence_added":
+		if strings.TrimSpace(event.DisplayID) == "" {
+			event.DisplayID = event.EvidenceID
+		}
+	}
+	switch {
+	case hasItemRecord && event.Type == "knowledge_item_created":
+		event.CanonicalID = itemRecord.EnvelopeCID
+	case hasApprovalRecord:
+		event.CanonicalID = approvalRecord.EnvelopeCID
+	case hasEvidenceRecord:
+		event.CanonicalID = evidenceRecord.EnvelopeCID
+	case hasOperationalRunRecord:
+		event.CanonicalID = operationalRunRecord.EnvelopeCID
+	case hasLinkRecord:
+		event.CanonicalID = linkRecord.EnvelopeCID
+	case hasResponsibilityRecord:
+		event.CanonicalID = responsibilityRecord.EnvelopeCID
+	}
 	if hasItemRecord {
 		// Intent: Persist the first PromiseGrid-native knowledge-item artifact
 		// before the compatibility event log so ex5 never claims a new signed item
@@ -1162,6 +1214,9 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 }
 
 func (app *App) applyEventLocked(event OperationalEvent) error {
+	eventPeerID := effectiveOriginPeerID(event, app.localPeerID)
+	entityID := eventEntityCanonicalID(event)
+	displayAlias := eventDisplayAlias(event)
 	switch event.Type {
 	case "place_created":
 		place := &Place{
@@ -1200,8 +1255,12 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			place.UpdatedAt = event.Timestamp
 		}
 	case "responsibility_created":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
 		record := &Responsibility{
-			ID:             event.EntityID,
+			ID:             entityID,
+			AliasID:        displayAlias,
 			Title:          event.Title,
 			Summary:        event.Summary,
 			Team:           defaultTeam,
@@ -1211,16 +1270,25 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			LinkedRoleKeys: append([]string(nil), event.RoleKeys...),
 			Timeline:       []OperationalEvent{event},
 		}
-		app.responsibilities[event.EntityID] = record
+		app.responsibilities[entityID] = record
+		app.registerPeerAliasLocked("responsibility", eventPeerID, displayAlias, entityID)
 	case "knowledge_item_created":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		responsibilityIDs := make([]string, 0, len(event.ResponsibilityIDs))
+		for _, responsibilityID := range event.ResponsibilityIDs {
+			responsibilityIDs = append(responsibilityIDs, app.resolvePeerVisibleIDLocked("responsibility", eventPeerID, responsibilityID))
+		}
 		item := &KnowledgeItem{
-			ID:                event.EntityID,
+			ID:                entityID,
+			AliasID:           displayAlias,
 			Kind:              event.Kind,
 			Status:            ItemStatusDraft,
 			Title:             event.Title,
 			Summary:           event.Summary,
 			Tags:              append([]string(nil), event.Tags...),
-			ResponsibilityIDs: append([]string(nil), event.ResponsibilityIDs...),
+			ResponsibilityIDs: responsibilityIDs,
 			CreatedAt:         event.Timestamp,
 			UpdatedAt:         event.Timestamp,
 			WorkingBody:       event.Body,
@@ -1238,17 +1306,19 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			}},
 			Timeline: []OperationalEvent{event},
 		}
-		app.items[event.EntityID] = item
-		for _, responsibilityID := range event.ResponsibilityIDs {
+		app.items[entityID] = item
+		app.registerPeerAliasLocked("knowledge_item", eventPeerID, displayAlias, entityID)
+		for _, responsibilityID := range responsibilityIDs {
 			if responsibility, ok := app.responsibilities[responsibilityID]; ok {
-				responsibility.LinkedItemIDs = appendUnique(responsibility.LinkedItemIDs, event.EntityID)
+				responsibility.LinkedItemIDs = appendUnique(responsibility.LinkedItemIDs, entityID)
 				responsibility.UpdatedAt = event.Timestamp
 			}
 		}
 	case "revision_added":
-		item, ok := app.items[event.EntityID]
+		itemID := app.resolvePeerVisibleIDLocked("knowledge_item", eventPeerID, event.EntityID)
+		item, ok := app.items[itemID]
 		if !ok {
-			return fmt.Errorf("knowledge item %q not found for revision", event.EntityID)
+			return fmt.Errorf("knowledge item %q not found for revision", itemID)
 		}
 		item.CurrentRevision = event.Revision
 		item.Status = ItemStatusDraft
@@ -1270,14 +1340,23 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 		})
 		item.Timeline = append(item.Timeline, event)
 	case "run_recorded":
-		item, ok := app.items[event.TargetID]
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		itemID := app.resolvePeerVisibleIDLocked("knowledge_item", eventPeerID, event.TargetID)
+		item, ok := app.items[itemID]
 		if !ok {
-			return fmt.Errorf("knowledge item %q not found for run", event.TargetID)
+			return fmt.Errorf("knowledge item %q not found for run", itemID)
+		}
+		responsibilityIDs := make([]string, 0, len(event.ResponsibilityIDs))
+		for _, responsibilityID := range event.ResponsibilityIDs {
+			responsibilityIDs = append(responsibilityIDs, app.resolvePeerVisibleIDLocked("responsibility", eventPeerID, responsibilityID))
 		}
 		run := &RunRecord{
-			ID:                event.EntityID,
+			ID:                entityID,
+			AliasID:           displayAlias,
 			Kind:              event.Kind,
-			ItemID:            event.TargetID,
+			ItemID:            itemID,
 			ItemKind:          item.Kind,
 			Revision:          event.Revision,
 			Actor:             event.Actor,
@@ -1287,37 +1366,44 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			ResourceIDs:       append([]string(nil), event.ResourceIDs...),
 			Machine:           event.Machine,
 			Location:          event.Location,
-			ResponsibilityIDs: append([]string(nil), event.ResponsibilityIDs...),
+			ResponsibilityIDs: responsibilityIDs,
 			CreatedAt:         event.Timestamp,
 			UpdatedAt:         event.Timestamp,
 			Timeline:          []OperationalEvent{event},
 		}
-		app.runs[event.EntityID] = run
-		for _, responsibilityID := range event.ResponsibilityIDs {
+		app.runs[entityID] = run
+		app.registerPeerAliasLocked("run", eventPeerID, displayAlias, entityID)
+		for _, responsibilityID := range responsibilityIDs {
 			if responsibility, ok := app.responsibilities[responsibilityID]; ok {
-				responsibility.LinkedRunIDs = appendUnique(responsibility.LinkedRunIDs, event.EntityID)
+				responsibility.LinkedRunIDs = appendUnique(responsibility.LinkedRunIDs, entityID)
 				responsibility.UpdatedAt = event.Timestamp
 			}
 		}
 	case "evidence_added":
-		run, ok := app.runs[event.EntityID]
+		runID := app.resolvePeerVisibleIDLocked("run", eventPeerID, event.EntityID)
+		run, ok := app.runs[runID]
 		if !ok {
-			return fmt.Errorf("run %q not found for evidence", event.EntityID)
+			return fmt.Errorf("run %q not found for evidence", runID)
 		}
-		id := event.EvidenceID
+		id := entityID
+		if strings.TrimSpace(id) == "" {
+			id = canonicalOrAliasID(event.CanonicalID, event.EvidenceID)
+		}
 		if strings.TrimSpace(id) == "" {
 			id = app.nextDerivedIDLocked("EVID")
 		}
 		attachmentPath := event.AttachmentPath
 		if strings.TrimSpace(event.AttachmentCID) != "" {
-			if materializedPath, err := app.store.MaterializeAttachmentFromCID(event.EntityID, event.AttachmentName, event.AttachmentCID); err != nil {
-				return fmt.Errorf("materialize attachment for run %q evidence %q: %w", event.EntityID, id, err)
+			if materializedPath, err := app.store.MaterializeAttachmentFromCID(runID, event.AttachmentName, event.AttachmentCID); err != nil {
+				return fmt.Errorf("materialize attachment for run %q evidence %q: %w", runID, id, err)
 			} else if strings.TrimSpace(materializedPath) != "" {
 				attachmentPath = materializedPath
 			}
 		}
+		app.registerPeerAliasLocked("evidence", eventPeerID, displayAlias, id)
 		run.Evidence = append(run.Evidence, Evidence{
 			ID:             id,
+			AliasID:        displayAlias,
 			Summary:        event.Summary,
 			Facts:          cloneFacts(event.Facts),
 			AttachmentName: event.AttachmentName,
@@ -1330,59 +1416,81 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 		run.UpdatedAt = event.Timestamp
 		run.Timeline = append(run.Timeline, event)
 	case "approval_recorded":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		targetID := event.TargetID
+		switch event.TargetType {
+		case "knowledge_item":
+			targetID = app.resolvePeerVisibleIDLocked("knowledge_item", eventPeerID, event.TargetID)
+		case "run":
+			targetID = app.resolvePeerVisibleIDLocked("run", eventPeerID, event.TargetID)
+		}
 		approval := Approval{
-			ID:         event.EntityID,
+			ID:         entityID,
+			AliasID:    displayAlias,
 			TargetType: event.TargetType,
-			TargetID:   event.TargetID,
+			TargetID:   targetID,
 			Revision:   event.Revision,
-			RunID:      event.RunID,
+			RunID:      app.resolvePeerVisibleIDLocked("run", eventPeerID, event.RunID),
 			Role:       event.Role,
 			Decision:   event.Decision,
 			Actor:      event.Actor,
 			Notes:      event.Notes,
 			CreatedAt:  event.Timestamp,
 		}
-		app.approvals[event.EntityID] = &approval
+		app.approvals[entityID] = &approval
+		app.registerPeerAliasLocked("approval", eventPeerID, displayAlias, entityID)
 		switch event.TargetType {
 		case "knowledge_item":
-			if item, ok := app.items[event.TargetID]; ok {
+			if item, ok := app.items[targetID]; ok {
 				item.Approvals = append(item.Approvals, approval)
 				item.UpdatedAt = event.Timestamp
 				item.Timeline = append(item.Timeline, event)
 			}
 		case "run":
-			if run, ok := app.runs[event.TargetID]; ok {
+			if run, ok := app.runs[targetID]; ok {
 				run.Approvals = append(run.Approvals, approval)
 				run.UpdatedAt = event.Timestamp
 				run.Timeline = append(run.Timeline, event)
 			}
 		}
 	case "knowledge_item_status_changed", "knowledge_item_superseded":
-		item, ok := app.items[event.EntityID]
+		itemID := app.resolvePeerVisibleIDLocked("knowledge_item", eventPeerID, event.EntityID)
+		item, ok := app.items[itemID]
 		if !ok {
-			return fmt.Errorf("knowledge item %q not found for status change", event.EntityID)
+			return fmt.Errorf("knowledge item %q not found for status change", itemID)
 		}
 		item.Status = event.Status
 		item.UpdatedAt = event.Timestamp
 		item.Timeline = append(item.Timeline, event)
 	case "link_added":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		fromID := app.resolvePeerVisibleIDLocked(event.FromType, eventPeerID, event.FromID)
+		toID := app.resolvePeerVisibleIDLocked(event.ToType, eventPeerID, event.ToID)
 		link := &Link{
-			ID:        event.EntityID,
+			ID:        entityID,
+			AliasID:   displayAlias,
 			FromType:  event.FromType,
-			FromID:    event.FromID,
+			FromID:    fromID,
 			ToType:    event.ToType,
-			ToID:      event.ToID,
+			ToID:      toID,
 			Relation:  event.Relation,
 			Notes:     event.Notes,
 			Actor:     event.Actor,
 			CreatedAt: event.Timestamp,
 		}
-		app.links[event.EntityID] = link
+		app.links[entityID] = link
+		app.registerPeerAliasLocked("link", eventPeerID, displayAlias, entityID)
 		app.attachLinkLocked(*link, event)
 	default:
 		return fmt.Errorf("unknown event type %q", event.Type)
 	}
+	app.observeIDLocked(displayAlias)
 	app.observeIDLocked(event.EntityID)
+	app.observeIDLocked(event.EvidenceID)
 	app.observeOriginEventLocked(event)
 	return nil
 }
@@ -1565,6 +1673,104 @@ func originEventKey(peerID string, originSequence uint64) string {
 	return peerID + "#" + fmt.Sprintf("%d", originSequence)
 }
 
+func peerAliasKey(entityType string, peerID string, aliasID string) string {
+	return entityType + "|" + peerID + "|" + aliasID
+}
+
+func (app *App) registerPeerAliasLocked(entityType string, peerID string, aliasID string, canonicalID string) {
+	if strings.TrimSpace(aliasID) == "" || strings.TrimSpace(canonicalID) == "" {
+		return
+	}
+	app.peerAliasToCanonical[peerAliasKey(entityType, peerID, aliasID)] = canonicalID
+}
+
+func (app *App) canonicalIDForPeerAliasLocked(entityType string, peerID string, aliasID string) string {
+	if strings.TrimSpace(aliasID) == "" {
+		return ""
+	}
+	return app.peerAliasToCanonical[peerAliasKey(entityType, peerID, aliasID)]
+}
+
+func (app *App) canonicalIDForLocalAliasLocked(entityType string, aliasID string) string {
+	if canonicalID := app.canonicalIDForPeerAliasLocked(entityType, app.localPeerID, aliasID); canonicalID != "" {
+		return canonicalID
+	}
+	canonicalMatches := []string{}
+	for key, canonicalID := range app.peerAliasToCanonical {
+		parts := strings.SplitN(key, "|", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		if parts[0] == entityType && parts[2] == aliasID {
+			canonicalMatches = append(canonicalMatches, canonicalID)
+		}
+	}
+	if len(canonicalMatches) == 1 {
+		return canonicalMatches[0]
+	}
+	return ""
+}
+
+func (app *App) resolveLocalInputIDLocked(entityType string, id string) string {
+	if strings.TrimSpace(id) == "" {
+		return ""
+	}
+	if canonicalID := app.canonicalIDForLocalAliasLocked(entityType, id); canonicalID != "" {
+		return canonicalID
+	}
+	return id
+}
+
+func (app *App) resolveLocalPeerVisibleIDsLocked(entityType string, ids []string) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		resolved := app.resolveLocalInputIDLocked(entityType, strings.TrimSpace(id))
+		if resolved == "" {
+			continue
+		}
+		out = append(out, resolved)
+	}
+	return normalizeStrings(out)
+}
+
+func eventEntityCanonicalID(event OperationalEvent) string {
+	if strings.TrimSpace(event.CanonicalID) != "" {
+		return event.CanonicalID
+	}
+	switch event.Type {
+	case "evidence_added":
+		if strings.TrimSpace(event.EvidenceID) != "" {
+			return event.EvidenceID
+		}
+	}
+	return event.EntityID
+}
+
+func eventDisplayAlias(event OperationalEvent) string {
+	if strings.TrimSpace(event.DisplayID) != "" {
+		return event.DisplayID
+	}
+	switch event.Type {
+	case "evidence_added":
+		return event.EvidenceID
+	default:
+		return event.EntityID
+	}
+}
+
+func (app *App) resolvePeerVisibleIDLocked(entityType string, eventPeerID string, id string) string {
+	if strings.TrimSpace(id) == "" {
+		return ""
+	}
+	switch entityType {
+	case "knowledge_item", "responsibility", "run", "approval", "link", "evidence":
+		if canonicalID := app.canonicalIDForPeerAliasLocked(entityType, eventPeerID, id); canonicalID != "" {
+			return canonicalID
+		}
+	}
+	return id
+}
+
 func (app *App) observeOriginEventLocked(event OperationalEvent) {
 	event = normalizeOperationalEvent(event, app.localPeerID)
 	app.knownOriginEvents[originEventKey(event.OriginPeerID, event.OriginSequence)] = true
@@ -1705,7 +1911,7 @@ func cloneFacts(in map[string]string) map[string]string {
 func flattenProblemGroups(groups map[string]*ProblemReviewGroup) []ProblemReviewGroup {
 	out := make([]ProblemReviewGroup, 0, len(groups))
 	for _, group := range groups {
-		sort.Slice(group.Runs, func(i, j int) bool { return group.Runs[i].ID < group.Runs[j].ID })
+		sortRunsForDisplay(group.Runs)
 		sort.Strings(group.HighlightExamples)
 		out = append(out, *group)
 	}
@@ -1883,9 +2089,7 @@ func (app *App) itemWithRelatedRunsLocked(item *KnowledgeItem) KnowledgeItem {
 		}
 		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
 	}
-	sort.Slice(out.RelatedRuns, func(i, j int) bool {
-		return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID
-	})
+	sortRunsForDisplay(out.RelatedRuns)
 	return out
 }
 
@@ -1912,7 +2116,7 @@ func (app *App) placeWithRelatedRunsLocked(place *Place) Place {
 		}
 		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
 	}
-	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
+	sortRunsForDisplay(out.RelatedRuns)
 	return out
 }
 
@@ -1925,7 +2129,7 @@ func (app *App) resourceWithRelatedRunsLocked(resource *Resource) Resource {
 		}
 		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
 	}
-	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
+	sortRunsForDisplay(out.RelatedRuns)
 	return out
 }
 
@@ -1938,6 +2142,21 @@ func (app *App) responsibilityWithRelatedRunsLocked(record *Responsibility) Resp
 		}
 		out.RelatedRuns = append(out.RelatedRuns, cloneRun(run))
 	}
-	sort.Slice(out.RelatedRuns, func(i, j int) bool { return out.RelatedRuns[i].ID < out.RelatedRuns[j].ID })
+	sortRunsForDisplay(out.RelatedRuns)
 	return out
+}
+
+// Intent: Keep related-run views stable and human-meaningful after canonical
+// IDs switch to envelope CIDs by sorting primarily on event time and the
+// preserved short alias instead of the opaque durable ID. Source: DI-loruk
+func sortRunsForDisplay(runs []RunRecord) {
+	sort.Slice(runs, func(i, j int) bool {
+		if runs[i].CreatedAt == runs[j].CreatedAt {
+			if runs[i].AliasID == runs[j].AliasID {
+				return runs[i].ID < runs[j].ID
+			}
+			return runs[i].AliasID < runs[j].AliasID
+		}
+		return runs[i].CreatedAt < runs[j].CreatedAt
+	})
 }

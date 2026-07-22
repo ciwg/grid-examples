@@ -1,10 +1,11 @@
 # TODO
 
 ## Open / Planned
-- [ ] 109 - Reconcile ex5 peer-visible entity namespaces across independent peers - `TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
+- none
 
 ## Completed
 
+- [x] 109 - Reconcile ex5 peer-visible entity namespaces across independent peers - `TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
 - [x] 108 - Freeze and claim the sixth ex5 PromiseGrid protocol family for runs - `TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`
 - [x] 107 - Introduce peer-stable identity and ordering for ex5 peer exchange - `TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`
 - [x] 105 - Make ex5 `knowledge-evidence` peer-visible and portable - `TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`

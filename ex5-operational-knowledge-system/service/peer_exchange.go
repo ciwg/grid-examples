@@ -10,7 +10,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
-const peerExchangeBundleFormat = "ex5-peer-exchange-v3"
+const peerExchangeBundleFormat = "ex5-peer-exchange-v4"
 
 // Intent: Expose the current relay-visible ex5 PromiseGrid slice as
 // whole-family peer exchange over the current local HTTP adapter so peers can
@@ -57,6 +57,15 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	runRecords = normalizeOperationalRunRecordOrigins(runRecords, events)
 	linkRecords = normalizeKnowledgeLinkRecordOrigins(linkRecords, events)
 	responsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(responsibilityRecords, events)
+	events = decoratePeerVisibleEventCanonicalIDs(
+		events,
+		itemRecords,
+		approvalRecords,
+		evidenceRecords,
+		runRecords,
+		linkRecords,
+		responsibilityRecords,
+	)
 
 	filteredEvents := make([]OperationalEvent, 0, len(events))
 	for _, event := range events {
@@ -108,8 +117,9 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 
 // Intent: Accept origin-aware unseen peer history into already-populated
 // runtimes while preserving whole-family signed artifacts, keeping local
-// sequence as a projection order, and rejecting namespace collisions that the
-// current runtime still cannot reconcile honestly. Source: DI-ruzok; DI-rumek
+// sequence as a projection order, and relying on create-envelope CIDs instead
+// of local short IDs for peer-visible durable identity. Source: DI-ruzok;
+// DI-rumek; DI-loruk
 func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchangeImportResult, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -117,6 +127,15 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 	if err := validatePeerExchangeBundle(bundle); err != nil {
 		return PeerExchangeImportResult{}, err
 	}
+	bundle.Events = decoratePeerVisibleEventCanonicalIDs(
+		bundle.Events,
+		bundle.KnowledgeItemRecords,
+		bundle.KnowledgeApprovalRecords,
+		bundle.KnowledgeEvidenceRecords,
+		bundle.OperationalRunRecords,
+		bundle.KnowledgeLinkRecords,
+		bundle.KnowledgeResponsibilityRecords,
+	)
 
 	result := summarizePeerExchangeImport(bundle)
 	unseenEvents, unseenEventKeys, err := app.collectUnseenPeerExchangeEventsLocked(bundle)
@@ -376,50 +395,10 @@ func (app *App) collectUnseenPeerExchangeEventsLocked(bundle PeerExchangeBundle)
 		if app.knownOriginEvents[key] {
 			continue
 		}
-		if err := app.validateImportedOriginCollisionLocked(event); err != nil {
-			return nil, nil, err
-		}
 		unseen = append(unseen, event)
 		unseenKeys[key] = true
 	}
 	return unseen, unseenKeys, nil
-}
-
-func (app *App) validateImportedOriginCollisionLocked(event OperationalEvent) error {
-	switch event.Type {
-	case "knowledge_item_created":
-		if existing, ok := app.items[event.EntityID]; ok && existing.ID == event.EntityID {
-			return fmt.Errorf("knowledge item id %q collides with existing local namespace", event.EntityID)
-		}
-	case "responsibility_created":
-		if existing, ok := app.responsibilities[event.EntityID]; ok && existing.ID == event.EntityID {
-			return fmt.Errorf("responsibility id %q collides with existing local namespace", event.EntityID)
-		}
-	case "run_recorded":
-		if existing, ok := app.runs[event.EntityID]; ok && existing.ID == event.EntityID {
-			return fmt.Errorf("run id %q collides with existing local namespace", event.EntityID)
-		}
-	case "approval_recorded":
-		if existing, ok := app.approvals[event.EntityID]; ok && existing.ID == event.EntityID {
-			return fmt.Errorf("approval id %q collides with existing local namespace", event.EntityID)
-		}
-	case "link_added":
-		if existing, ok := app.links[event.EntityID]; ok && existing.ID == event.EntityID {
-			return fmt.Errorf("link id %q collides with existing local namespace", event.EntityID)
-		}
-	case "evidence_added":
-		if strings.TrimSpace(event.EvidenceID) == "" {
-			return fmt.Errorf("peer exchange evidence event %s is missing evidence_id", originEventKey(event.OriginPeerID, event.OriginSequence))
-		}
-		for _, run := range app.runs {
-			for _, evidence := range run.Evidence {
-				if evidence.ID == event.EvidenceID {
-					return fmt.Errorf("evidence id %q collides with existing local namespace", event.EvidenceID)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func filterKnowledgeItemRecordsByOrigin(records []SignedKnowledgeItemRecord, wanted map[string]bool) []SignedKnowledgeItemRecord {
@@ -489,11 +468,14 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 	for _, event := range bundle.Events {
 		switch event.Type {
 		case "knowledge_item_created", "revision_added", "knowledge_item_status_changed", "knowledge_item_superseded":
-			itemIDs[event.EntityID] = true
+			itemIDs[eventEntityCanonicalID(event)] = true
+			itemIDs[eventDisplayAlias(event)] = true
 		case "responsibility_created":
-			responsibilityIDs[event.EntityID] = true
+			responsibilityIDs[eventEntityCanonicalID(event)] = true
+			responsibilityIDs[eventDisplayAlias(event)] = true
 		case "run_recorded":
-			runIDs[event.EntityID] = true
+			runIDs[eventEntityCanonicalID(event)] = true
+			runIDs[eventDisplayAlias(event)] = true
 		}
 	}
 	result := PeerExchangeImportResult{
@@ -511,14 +493,14 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 			if strings.TrimSpace(event.PlaceID) != "" {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "operational_run",
-					RecordID:   event.EntityID,
+					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "place reference is outside the current peer-visible slice",
 				})
 			}
 			for _, resourceID := range event.ResourceIDs {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "operational_run",
-					RecordID:   event.EntityID,
+					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "resource reference " + resourceID + " is outside the current peer-visible slice",
 				})
 			}
@@ -526,7 +508,7 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 			if event.TargetType == "run" && !runIDs[event.TargetID] {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "knowledge_approval",
-					RecordID:   event.EntityID,
+					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "run target is missing from the bundle",
 				})
 			}
@@ -534,14 +516,14 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 			if reason := peerExchangeMissingEndpointReason(event.FromType, event.FromID, itemIDs, responsibilityIDs, runIDs); reason != "" {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "knowledge_link",
-					RecordID:   event.EntityID,
+					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "from endpoint " + reason,
 				})
 			}
 			if reason := peerExchangeMissingEndpointReason(event.ToType, event.ToID, itemIDs, responsibilityIDs, runIDs); reason != "" {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "knowledge_link",
-					RecordID:   event.EntityID,
+					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "to endpoint " + reason,
 				})
 			}

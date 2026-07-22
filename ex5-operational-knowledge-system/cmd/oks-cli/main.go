@@ -212,6 +212,7 @@ type cliLink struct {
 
 type cliRunSummary struct {
 	ID          string   `json:"id"`
+	AliasID     string   `json:"alias_id"`
 	Kind        string   `json:"kind"`
 	ItemID      string   `json:"item_id"`
 	Outcome     string   `json:"outcome"`
@@ -263,6 +264,7 @@ type cliRevision struct {
 
 type cliResponsibilityDetail struct {
 	ID             string          `json:"id"`
+	AliasID        string          `json:"alias_id"`
 	Title          string          `json:"title"`
 	Summary        string          `json:"summary"`
 	Team           string          `json:"team"`
@@ -275,6 +277,7 @@ type cliResponsibilityDetail struct {
 
 type cliItemDetail struct {
 	ID                string          `json:"id"`
+	AliasID           string          `json:"alias_id"`
 	Kind              string          `json:"kind"`
 	Status            string          `json:"status"`
 	Title             string          `json:"title"`
@@ -290,6 +293,7 @@ type cliItemDetail struct {
 
 type cliRunDetail struct {
 	ID                string        `json:"id"`
+	AliasID           string        `json:"alias_id"`
 	Kind              string        `json:"kind"`
 	ItemID            string        `json:"item_id"`
 	ItemKind          string        `json:"item_kind"`
@@ -307,6 +311,7 @@ type cliRunDetail struct {
 
 type cliSearchItem struct {
 	ID      string `json:"id"`
+	AliasID string `json:"alias_id"`
 	Kind    string `json:"kind"`
 	Status  string `json:"status"`
 	Title   string `json:"title"`
@@ -315,6 +320,7 @@ type cliSearchItem struct {
 
 type cliSearchRun struct {
 	ID          string        `json:"id"`
+	AliasID     string        `json:"alias_id"`
 	Kind        string        `json:"kind"`
 	ItemID      string        `json:"item_id"`
 	Outcome     string        `json:"outcome"`
@@ -329,6 +335,7 @@ type cliSearchRun struct {
 func (run *cliSearchRun) UnmarshalJSON(body []byte) error {
 	type rawSearchRun struct {
 		ID          string           `json:"id"`
+		AliasID     string           `json:"alias_id"`
 		Kind        string           `json:"kind"`
 		ItemID      string           `json:"item_id"`
 		Outcome     string           `json:"outcome"`
@@ -354,6 +361,7 @@ func (run *cliSearchRun) UnmarshalJSON(body []byte) error {
 	}
 
 	run.ID = raw.ID
+	run.AliasID = raw.AliasID
 	run.Kind = raw.Kind
 	run.ItemID = raw.ItemID
 	run.Outcome = raw.Outcome
@@ -854,7 +862,7 @@ func renderResourceDetail(resource cliResourceDetail) string {
 
 func renderResponsibilityDetail(responsibility cliResponsibilityDetail) string {
 	lines := []string{
-		fmt.Sprintf("# Responsibility %s", safeText(responsibility.ID, "-")),
+		fmt.Sprintf("# Responsibility %s", safeDisplayID(responsibility.ID, responsibility.AliasID)),
 		fmt.Sprintf("title=%s team=%s", safeText(responsibility.Title, "-"), safeText(responsibility.Team, "-")),
 	}
 	if strings.TrimSpace(responsibility.Summary) != "" {
@@ -875,7 +883,7 @@ func renderResponsibilityDetail(responsibility cliResponsibilityDetail) string {
 
 func renderItemDetail(item cliItemDetail) string {
 	lines := []string{
-		fmt.Sprintf("# Item %s", safeText(item.ID, "-")),
+		fmt.Sprintf("# Item %s", safeDisplayID(item.ID, item.AliasID)),
 		fmt.Sprintf("title=%s kind=%s status=%s current_revision=%d", safeText(item.Title, "-"), safeText(item.Kind, "-"), safeText(item.Status, "-"), item.CurrentRevision),
 	}
 	if strings.TrimSpace(item.Summary) != "" {
@@ -900,7 +908,7 @@ func renderItemDetail(item cliItemDetail) string {
 
 func renderRunDetail(run cliRunDetail) string {
 	lines := []string{
-		fmt.Sprintf("# Run %s", safeText(run.ID, "-")),
+		fmt.Sprintf("# Run %s", safeDisplayID(run.ID, run.AliasID)),
 		fmt.Sprintf("kind=%s outcome=%s item=%s item_kind=%s revision=%d actor=%s", safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-"), safeText(run.ItemKind, "-"), run.Revision, safeText(run.Actor, "-")),
 	}
 	if strings.TrimSpace(run.Notes) != "" {
@@ -978,7 +986,7 @@ func renderRunLines(runs []cliRunSummary) []string {
 	}
 	lines := make([]string, 0, len(runs)*3)
 	for _, run := range runs {
-		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s", safeText(run.ID, "-"), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-")))
+		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s", safeDisplayID(run.ID, run.AliasID), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-")))
 		lines = append(lines, "  show: oks-cli show-run "+safeText(run.ID, "-"))
 		if len(run.ResourceIDs) > 0 {
 			lines = append(lines, "  resources: "+strings.Join(run.ResourceIDs, ", "))
@@ -996,7 +1004,7 @@ func renderSearchItemLines(items []cliSearchItem) []string {
 	}
 	lines := make([]string, 0, len(items)*3)
 	for _, item := range items {
-		lines = append(lines, fmt.Sprintf("- %s kind=%s status=%s title=%s", safeText(item.ID, "-"), safeText(item.Kind, "-"), safeText(item.Status, "-"), safeText(item.Title, "-")))
+		lines = append(lines, fmt.Sprintf("- %s kind=%s status=%s title=%s", safeDisplayID(item.ID, item.AliasID), safeText(item.Kind, "-"), safeText(item.Status, "-"), safeText(item.Title, "-")))
 		lines = append(lines, "  show: oks-cli show-item "+safeText(item.ID, "-"))
 		if strings.TrimSpace(item.Summary) != "" {
 			lines = append(lines, "  "+item.Summary)
@@ -1011,7 +1019,7 @@ func renderSearchRunLines(runs []cliSearchRun) []string {
 	}
 	lines := make([]string, 0, len(runs)*3)
 	for _, run := range runs {
-		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s approvals=%d", safeText(run.ID, "-"), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-"), len(run.Approvals)))
+		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s approvals=%d", safeDisplayID(run.ID, run.AliasID), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-"), len(run.Approvals)))
 		lines = append(lines, "  show: oks-cli show-run "+safeText(run.ID, "-"))
 		if len(run.ResourceIDs) > 0 {
 			lines = append(lines, "  resources: "+strings.Join(run.ResourceIDs, ", "))
@@ -1126,6 +1134,17 @@ func safeText(value string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// Intent: Keep the CLI human-readable after peer-visible entity IDs switch to
+// canonical envelope CIDs by showing the preserved short alias when one is
+// available, while still using canonical IDs underneath for stable commands
+// and lookups. Source: DI-loruk
+func safeDisplayID(canonicalID string, aliasID string) string {
+	if strings.TrimSpace(aliasID) != "" {
+		return aliasID
+	}
+	return safeText(canonicalID, "-")
 }
 
 func readResponseBody(response *http.Response) ([]byte, error) {

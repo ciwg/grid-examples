@@ -467,6 +467,7 @@ What it does not try to do yet:
 - [Knowledge evidence protocol](protocols/knowledge-evidence.md)
 - [Knowledge link protocol](protocols/knowledge-link.md)
 - [Knowledge responsibility protocol](protocols/knowledge-responsibility.md)
+- [Operational run protocol](protocols/operational-run.md)
 - [Knowledge search metadata note](protocols/knowledge-search-metadata.md)
 
 ## Current direction
@@ -474,7 +475,7 @@ What it does not try to do yet:
 - keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
-- ship the first PromiseGrid peer exchange as bootstrap export/import for the four attachment-free signed families while deferring evidence carriage to the later CAS step
-- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the five frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
+- ship PromiseGrid peer exchange for the six signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
+- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the six frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
 - expose peer-exchange and CAS runtime capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
-- treat non-bootstrap peer exchange, authoritative CAS-backed replay/read, and peer-visible evidence carriage as the remaining PromiseGrid follow-on work
+- treat broader place/resource peer visibility, stronger CAS-backed replay/read for unfrozen state, and optional later embodiment tightening as the remaining PromiseGrid follow-on work

@@ -503,8 +503,8 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 	if record.PCID != protocols.KnowledgeEvidenceProfile.CID.String() {
 		t.Fatalf("unexpected evidence record pCID: got %q want %q", record.PCID, protocols.KnowledgeEvidenceProfile.CID.String())
 	}
-	if record.EvidenceID != run.Evidence[0].ID {
-		t.Fatalf("unexpected evidence id in record: got %q want %q", record.EvidenceID, run.Evidence[0].ID)
+	if record.EvidenceID != run.Evidence[0].AliasID {
+		t.Fatalf("unexpected evidence alias in record: got %q want %q", record.EvidenceID, run.Evidence[0].AliasID)
 	}
 
 	if err := app.store.Close(); err != nil {
@@ -621,7 +621,7 @@ func TestAppWritesAndReplaysSignedOperationalRunRecords(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
 		t.Fatalf("decode operational-run record: %v", err)
 	}
-	if record.RunID != run.ID || record.ItemID != item.ID {
+	if record.RunID != run.AliasID || record.ItemID != item.ID {
 		t.Fatalf("unexpected operational-run record %+v", record)
 	}
 	if record.PCID != protocols.OperationalRunProfile.CID.String() {
@@ -946,6 +946,22 @@ func TestAppPeerExchangeBundleCarriesOriginIdentity(t *testing.T) {
 	if len(bundle.KnowledgeItemRecords) == 0 || bundle.KnowledgeItemRecords[0].OriginPeerID == "" || bundle.KnowledgeItemRecords[0].OriginSequence == 0 {
 		t.Fatalf("expected origin identity on exported knowledge-item record: %+v", bundle.KnowledgeItemRecords)
 	}
+	foundCanonicalCreate := false
+	for _, event := range bundle.Events {
+		if event.Type != "knowledge_item_created" {
+			continue
+		}
+		foundCanonicalCreate = true
+		if event.CanonicalID != bundle.KnowledgeItemRecords[0].EnvelopeCID {
+			t.Fatalf("expected create event canonical id %q, got %+v", bundle.KnowledgeItemRecords[0].EnvelopeCID, event)
+		}
+		if event.DisplayID == "" || event.DisplayID == event.CanonicalID {
+			t.Fatalf("expected create event display alias alongside canonical id, got %+v", event)
+		}
+	}
+	if !foundCanonicalCreate {
+		t.Fatalf("expected exported knowledge_item_created event")
+	}
 }
 
 func TestAppImportsPeerExchangeIntoNonEmptyRuntimeAndDedupesByOrigin(t *testing.T) {
@@ -984,12 +1000,13 @@ func TestAppImportsPeerExchangeIntoNonEmptyRuntimeAndDedupesByOrigin(t *testing.
 	}
 }
 
-func TestAppRejectsPeerExchangeNamespaceCollision(t *testing.T) {
+func TestAppAllowsPeerExchangeAliasReuseAcrossPeers(t *testing.T) {
 	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
 	if err != nil {
 		t.Fatalf("new source app: %v", err)
 	}
-	if _, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil); err != nil {
+	sourceItem, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
 		t.Fatalf("create source item: %v", err)
 	}
 	bundle, err := source.ExportPeerExchangeBundle()
@@ -1004,8 +1021,22 @@ func TestAppRejectsPeerExchangeNamespaceCollision(t *testing.T) {
 	if _, err := target.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet again", "Local receiving check", "# Inspect inbound pallet again", nil, nil); err != nil {
 		t.Fatalf("seed target item: %v", err)
 	}
-	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "collides with existing local namespace") {
-		t.Fatalf("expected namespace collision rejection, got %v", err)
+	result, err := target.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		t.Fatalf("expected alias reuse import success, got %v", err)
+	}
+	if result.ImportedKnowledgeItems != 1 {
+		t.Fatalf("unexpected import result: %+v", result)
+	}
+	if len(target.items) != 2 {
+		t.Fatalf("expected both canonical items after import, got %d", len(target.items))
+	}
+	importedItem, err := target.GetKnowledgeItem(sourceItem.ID)
+	if err != nil {
+		t.Fatalf("get imported canonical item: %v", err)
+	}
+	if importedItem.AliasID == "" {
+		t.Fatalf("expected imported canonical item to preserve alias id: %+v", importedItem)
 	}
 }
 
@@ -1464,8 +1495,8 @@ func TestAppWritesAndReplaysSignedKnowledgeResponsibilityRecords(t *testing.T) {
 	if record.PCID != protocols.KnowledgeResponsibilityProfile.CID.String() {
 		t.Fatalf("unexpected responsibility record pCID: got %q want %q", record.PCID, protocols.KnowledgeResponsibilityProfile.CID.String())
 	}
-	if record.ResponsibilityID != resp.ID {
-		t.Fatalf("unexpected responsibility id in record: got %q want %q", record.ResponsibilityID, resp.ID)
+	if record.ResponsibilityID != resp.AliasID {
+		t.Fatalf("unexpected responsibility alias in record: got %q want %q", record.ResponsibilityID, resp.AliasID)
 	}
 
 	if err := app.store.Close(); err != nil {

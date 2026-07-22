@@ -70,7 +70,6 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- non-bootstrap peer exchange into already-populated runtimes
 - authoritative CAS-backed replay/read paths for the still-unfrozen runtime
   state outside the six frozen families
 
@@ -144,8 +143,9 @@ Done now:
 - the runtime now also imports origin-aware unseen peer history for those
   families into non-empty runtimes and dedupes it by
   `(origin_peer_id, origin_sequence)`
-- non-bootstrap import still rejects create-event ID collisions that the
-  current runtime cannot yet reconcile honestly
+- canonical durable IDs for those peer-visible entities now come from the
+  create-event envelope CID, and the old short IDs are preserved only as
+  aliases for display, replay compatibility, and embodiment transition
 - import preserves unresolved place/resource references in runs and links
   explicitly instead of trimming the family logs
 - search metadata remains derived projection state over those families, not a
@@ -170,7 +170,6 @@ Done now:
 
 Remaining:
 
-- reconcile peer-visible entity namespaces across independent peers
 - adopt authoritative CAS-backed replay/read paths for the still-unfrozen
   runtime state outside the six frozen families
 - decide how place/resource references become first-class peer-visible durable
@@ -210,7 +209,8 @@ blobs rather than a log replacement rewrite, and the first
 embodiment-tightening step now ships through capability metadata plus
 adapter-over-runtime doc updates. The current peer layer is no longer
 bootstrap-only; it now uses origin-aware dedupe and local sequence projection
-for ongoing import, while leaving entity namespace reconciliation as follow-on
-work. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`; `DI-lavuz`;
-`DI-vabek`; `DI-rovuz`; `DI-tivor`; `DI-vamok`; `DI-faruv`; `DI-ruzok`;
-`DI-rumek`.
+for ongoing import, and its peer-visible entities now use create-envelope CIDs
+as the durable IDs while preserving the old short IDs as aliases. Source:
+`DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`;
+`DI-rovuz`; `DI-tivor`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`;
+`DI-loruk`.

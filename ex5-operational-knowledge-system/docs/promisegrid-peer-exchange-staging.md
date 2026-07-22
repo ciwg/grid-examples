@@ -2,7 +2,7 @@
 
 This note records the current shipped relay-visible peer exchange slice in
 `ex5`. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`; `DI-ruzok`;
-`DI-rumek`.
+`DI-rumek`; `DI-loruk`.
 
 ## First relay-visible slice
 
@@ -42,14 +42,14 @@ The shipped importer now accepts whole-family exchange into non-empty runtimes:
   runs, links, and responsibilities
 - it assigns a fresh local compatibility `Sequence` when new peer history is
   accepted
+- peer-visible entities now use the create-envelope CID as the durable ID and
+  preserve the older short ID only as an alias
 - it reports unresolved place/resource run context and unresolved place/resource
   link endpoints explicitly instead of trimming those artifacts away
-- it still rejects create-event ID collisions such as two independent peers
-  both minting the same local-facing `RECV-*`, `RUN-*`, or `RESP-*` ID
 
-This keeps the shipped exchange honest: it is no longer bootstrap-only, but it
-also does not pretend the runtime has already solved cross-peer entity
-namespace reconciliation. Source: `DI-ruzok`; `DI-rumek`.
+This keeps the shipped exchange honest: it is no longer bootstrap-only, and it
+no longer depends on local counter-minted IDs being globally unique across
+peers. Source: `DI-ruzok`; `DI-rumek`; `DI-loruk`.
 
 ## Staged runtime/storage shape
 
@@ -67,7 +67,6 @@ Source: `DI-guzab`.
 
 ## Follow-on backlog
 
-- reconcile peer-visible entity namespaces across independent peers
 - stronger CAS-backed read/replay authority for exchanged artifacts outside the
   frozen families
 - peer-visible place/resource families or another durable answer for those

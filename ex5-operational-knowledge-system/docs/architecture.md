@@ -44,11 +44,10 @@ and links still remain outside the current peer-visible slice. Source:
 That peer layer is no longer empty-runtime-only. The runtime now tracks
 `origin_peer_id` plus `origin_sequence` for compatibility events and signed
 family records, accepts unseen peer history into non-empty runtimes, and
-assigns a fresh local compatibility `Sequence` on acceptance. The remaining
-hard limit is cross-peer entity namespace collision: two independent peers that
-mint the same local-facing `RECV-*`, `RUN-*`, or `RESP-*` ID are still
-rejected explicitly instead of being silently merged. Source: `DI-ruzok`;
-`DI-rumek`.
+assigns a fresh local compatibility `Sequence` on acceptance. Peer-visible
+entities now use the create-envelope CID as the durable ID, while the older
+short IDs are preserved only as aliases for display and replay compatibility.
+Source: `DI-ruzok`; `DI-rumek`; `DI-loruk`.
 
 That later storage step is also now staged: CAS enters first as an additive
 sidecar for signed envelopes and copied evidence blobs, while the current
