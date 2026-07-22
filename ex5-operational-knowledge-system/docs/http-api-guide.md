@@ -34,12 +34,67 @@ Responses are JSON except:
 
 ### `GET /api/meta`
 
-Returns the supported kinds and lifecycle values, for example:
+Returns runtime capability metadata plus the supported kinds and lifecycle
+values.
+
+The response now includes, for example:
 
 - `knowledge_kinds`
 - `run_kinds`
 - `approval_decisions`
 - `item_statuses`
+- `peer_exchange_format`
+- `peer_exchange_families`
+- `cas_objects_enabled`
+- `cas_attachment_blobs_enabled`
+- `cas_draft_bodies_enabled`
+- `primary_embodiment_adapter`
+
+Those capability fields are the current shipped way for embodiments to confirm
+which local adapter/runtime features are present without treating the HTTP
+route names themselves as the PromiseGrid peer contract. Source: `DI-bavuk`;
+`DI-zunep`.
+
+In the current runtime, `primary_embodiment_adapter` is `local_http`, meaning
+browser, CLI, and Neovim still all route through this adapter surface even
+though the runtime underneath it now has richer peer-exchange and CAS-backed
+behavior. Source: `DI-bavuk`.
+
+## Peer exchange
+
+### `GET /api/peer-exchange/export`
+
+Exports the current shipped peer-visible PromiseGrid bundle over the local HTTP
+adapter.
+
+The response includes:
+
+- `format`
+- `exported_at`
+- `exporting_peer_id`
+- family `pCID` fields for the shipped peer-visible families
+- `events`
+- whole-family signed record arrays
+- `cas_blob_objects` for inline CID-keyed evidence blobs
+
+This is a local embodiment/export surface, not a claim that `/api/*` route
+names are the PromiseGrid wire contract. Source: `DI-voruk`; `DI-rumek`;
+`DI-faruv`; `DI-loruk`.
+
+### `POST /api/peer-exchange/import`
+
+Imports one peer-exchange bundle into the current runtime.
+
+The response includes:
+
+- `imported_events`
+- per-family import counts
+- `unresolved_references`
+
+The shipped importer accepts unseen origin-aware history into non-empty
+runtimes, dedupes by `(origin_peer_id, origin_sequence)`, and preserves the
+current local HTTP adapter as the embodiment surface for that exchange.
+Source: `DI-rumek`; `DI-ruzok`; `DI-bavuk`.
 
 ### `GET /api/dashboard`
 

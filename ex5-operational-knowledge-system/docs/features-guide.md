@@ -553,7 +553,6 @@ The current implementation does **not** yet include:
 
 - websocket-based awareness or presence transport
 - relay-to-relay peer exchange
-- signed grid envelopes on the wire
 - ERP-style quantity ledgers, reservations, purchasing, or planning logic
 
 Those are still important, but this first `ex5` pass is deliberately centered on

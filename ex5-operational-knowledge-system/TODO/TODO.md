@@ -6,6 +6,8 @@
 
 ## Completed
 
+- [x] 114 - Correct downstream ex5 PromiseGrid summary doc drift - `TODO/TODO-tasuk-ex5-downstream-promisegrid-doc-drift.md`
+- [x] 113 - Sync the ex5 HTTP API guide with the shipped PromiseGrid adapter contract - `TODO/TODO-vupok-ex5-http-api-promisegrid-contract-drift.md`
 - [x] 110 - Make place and resource context peer-visible in ex5 - `TODO/TODO-pivok-ex5-peer-visible-place-resource-families.md`
 - [x] 109 - Reconcile ex5 peer-visible entity namespaces across independent peers - `TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
 - [x] 108 - Freeze and claim the sixth ex5 PromiseGrid protocol family for runs - `TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`

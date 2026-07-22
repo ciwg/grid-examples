@@ -89,8 +89,15 @@ What that means in practice:
 - append-only operational history is real and durable today
 - protocol-family and `pCID` language are part of the shipped PromiseGrid
   framing for ex5
-- signed grid envelopes, frozen `pCID`-selected runtime behavior, and
-  relay-visible peer exchange are not yet shipped behavior
+- signed grid envelopes, frozen `pCID`-selected runtime behavior, origin-aware
+  peer exchange, inline evidence blob carriage, and CAS-backed draft-body
+  reload are now shipped runtime behavior
+
+What is still not shipped in that layer:
+
+- websocket collaboration transport
+- richer relay-network behavior beyond the current local-adapter exchange layer
+- direct non-HTTP embodiment contracts
 
 For the technical claims list, see
 [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
