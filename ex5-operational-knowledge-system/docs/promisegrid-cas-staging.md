@@ -19,8 +19,10 @@ This now ships in the runtime:
 - signed family envelopes are dual-written into CAS by envelope CID
 - copied evidence blobs are dual-written into CAS by blob CID
 - the eight frozen family envelopes now replay/export authoritatively from CAS
-- compatibility event replay and attachment paths remain active for still-unfrozen
-  runtime state
+- shared live draft bodies now reload authoritatively from CAS through local
+  per-item draft manifests
+- compatibility event replay and attachment paths remain active where they are
+  still needed for projections and operator compatibility
 - imported evidence blobs now re-materialize into the local compatibility
   attachment tree from CAS when needed
 
@@ -35,9 +37,9 @@ without forcing an immediate storage cutover. Source: `DI-ribek`.
 ## What CAS unblocks
 
 - later peer-visible evidence exchange over portable blob identities
-- later movement of replay and read paths for still-unfrozen runtime state
-  toward authoritative CAS-backed reads
 - clearer long-horizon integrity and migration semantics for signed envelopes
+- clearer long-horizon integrity and migration semantics for local shared draft
+  state
 
 Source: `DI-ribek`; `DI-tivor`; `DI-rovud`.
 

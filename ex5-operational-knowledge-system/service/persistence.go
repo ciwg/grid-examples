@@ -43,6 +43,7 @@ type Store struct {
 
 type PersistedDraft struct {
 	Body      string `json:"body"`
+	BodyCID   string `json:"body_cid,omitempty"`
 	Version   int    `json:"version"`
 	UpdatedAt string `json:"updated_at"`
 }
@@ -967,7 +968,7 @@ func (store *Store) hydrateSignedKnowledgeResponsibilityRecords(records []Signed
 // Intent: Restore the shared browser working bodies on startup without mixing
 // them into the append-only event log, so durable revision history stays
 // explicit while collaborative drafting can resume after a restart. Source:
-// DI-lusov; DI-zoruk
+// DI-lusov; DI-zoruk; DI-zunep
 func (store *Store) LoadDrafts() (map[string]PersistedDraft, error) {
 	entries, err := os.ReadDir(store.draftPath)
 	if err != nil {
@@ -986,15 +987,62 @@ func (store *Store) LoadDrafts() (map[string]PersistedDraft, error) {
 		if err := json.Unmarshal(body, &draft); err != nil {
 			return nil, fmt.Errorf("decode draft %s: %w", entry.Name(), err)
 		}
-		out[strings.TrimSuffix(entry.Name(), ".json")] = draft
+		entityID := strings.TrimSuffix(entry.Name(), ".json")
+		draft, changed, err := store.hydrateDraftManifest(entityID, draft)
+		if err != nil {
+			return nil, fmt.Errorf("hydrate draft %s: %w", entry.Name(), err)
+		}
+		if changed {
+			if err := store.saveDraftManifest(entityID, draft); err != nil {
+				return nil, fmt.Errorf("rewrite draft %s: %w", entry.Name(), err)
+			}
+		}
+		out[entityID] = draft
 	}
 	return out, nil
 }
 
 // Intent: Persist the current shared working body separately from durable
 // revision snapshots so browser collaboration can converge on one draft
-// without rewriting historical revision events. Source: DI-lusov; DI-zoruk
+// without rewriting historical revision events. Source: DI-lusov; DI-zoruk;
+// DI-zunep
 func (store *Store) SaveDraft(entityID string, draft PersistedDraft) error {
+	bodyCID, err := store.writeCASObject([]byte(draft.Body))
+	if err != nil {
+		return err
+	}
+	draft.BodyCID = bodyCID
+	return store.saveDraftManifest(entityID, draft)
+}
+
+// Intent: Treat shared draft bodies as content-addressed local runtime state so
+// reload trusts CAS over any stale inline manifest body while still backfilling
+// older draft files during migration. Source: DI-zunep
+func (store *Store) hydrateDraftManifest(entityID string, draft PersistedDraft) (PersistedDraft, bool, error) {
+	changed := false
+	if strings.TrimSpace(draft.BodyCID) == "" {
+		bodyCID, err := store.writeCASObject([]byte(draft.Body))
+		if err != nil {
+			return PersistedDraft{}, false, err
+		}
+		draft.BodyCID = bodyCID
+		changed = true
+	}
+	body, err := store.loadCASObject(draft.BodyCID)
+	if err != nil {
+		return PersistedDraft{}, false, err
+	}
+	if draft.Body != string(body) {
+		draft.Body = string(body)
+		changed = true
+	}
+	return draft, changed, nil
+}
+
+// Intent: Keep one small per-item local manifest pointing at the authoritative
+// CAS-backed draft body so embodiments can resume shared drafting without
+// promoting drafts into a new peer-visible family. Source: DI-zunep
+func (store *Store) saveDraftManifest(entityID string, draft PersistedDraft) error {
 	body, err := json.Marshal(draft)
 	if err != nil {
 		return err

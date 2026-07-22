@@ -7,8 +7,9 @@ The `ex5` foundation uses one append-only `events.jsonl` file plus
 `knowledge-evidence-messages.jsonl`, `operational-run-messages.jsonl`,
 `operational-place-messages.jsonl`, `operational-resource-messages.jsonl`,
 `knowledge-link-messages.jsonl`, `knowledge-responsibility-messages.jsonl`, an
-`attachments/` directory, and a `drafts/` directory for browser-shared working
-bodies. The service replays the event log at startup, verifies the signed
+`attachments/` directory, and a `drafts/` directory for per-item draft
+manifests that point at browser-shared working bodies in CAS. The service
+replays the event log at startup, verifies the signed
 knowledge-item, knowledge-approval, knowledge-evidence, operational-run,
 operational-place, operational-resource, knowledge-link, and
 knowledge-responsibility logs against that replay, overlays any saved live
@@ -290,11 +291,8 @@ version. Source: `DI-dazim`.
 The foundation still does not yet include:
 
 - websocket transport
-- peer-visible durable families for remaining local-only runtime state beyond
-  the eight shipped signed families
-- CAS-authoritative replay/read behavior for remaining local-only compatibility
-  state beyond the eight shipped signed families
-- embodiment tightening beyond the current local HTTP adapter contract
+- embodiment/product follow-on work beyond the current local HTTP adapter
+  contract
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser

@@ -172,8 +172,6 @@ What is not yet implemented in the shipped runtime:
 
 - websocket-based collaboration transport
 - full relay network behavior beyond the current local-adapter exchange layer
-- CAS-authoritative replay/read for the still-unfrozen runtime state outside
-  those eight families
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
@@ -189,7 +187,8 @@ By default the server stores runtime data under `.operational-knowledge-system/`
 - `events.jsonl`
   - append-only operational event log
 - `drafts/`
-  - per-item shared working drafts used by the browser collaboration surface
+  - per-item shared draft manifests that point at authoritative CAS-backed
+    working bodies used by the browser collaboration surface
 - `attachments/`
   - immutable copied evidence attachments grouped under per-run paths
 
@@ -487,6 +486,6 @@ What it does not try to do yet:
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
-- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the eight frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
-- expose peer-exchange and CAS runtime capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
-- treat broader place/resource peer visibility, stronger CAS-backed replay/read for unfrozen state, and optional later embodiment tightening as the remaining PromiseGrid follow-on work
+- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests
+- expose peer-exchange, CAS, shared-draft, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
+- treat websocket transport, richer relay-network behavior, and deferred embodiment/product follow-on work as the remaining PromiseGrid-adjacent backlog

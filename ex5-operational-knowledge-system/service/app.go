@@ -154,6 +154,8 @@ func (app *App) Meta() Meta {
 		},
 		CASObjectsEnabled:         true,
 		CASAttachmentBlobsEnabled: true,
+		CASDraftBodiesEnabled:     true,
+		PrimaryEmbodimentAdapter:  "local_http",
 	}
 }
 

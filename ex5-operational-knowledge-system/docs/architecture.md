@@ -264,14 +264,11 @@ The code currently implements:
 It still does **not** yet implement:
 
 - websocket-based collaboration transport
-- peer-visible durable families for remaining local-only runtime state beyond
-  the eight shipped signed families
-- CAS-authoritative replay/read behavior for remaining local-only compatibility
-  state beyond the eight shipped signed families
-- embodiment tightening beyond the current local HTTP adapter contract
+- embodiment/product follow-on work beyond the current local HTTP adapter
+  contract
 
 So in current ex5, protocol-family and `pCID` language are part of the shipped
 PromiseGrid framing, and eight families now have real runtime/wire
-implementations. The remaining grid work is now concentrated in peer-visible
-durability and storage authority for the still-local compatibility state. For
-the explicit current claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
+implementations. Shared draft bodies now also reload authoritatively from CAS
+through local manifests, while embodiments continue to route through the local
+HTTP adapter. For the explicit current claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

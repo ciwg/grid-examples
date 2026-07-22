@@ -23,7 +23,8 @@ Today it ships:
 
 - one local Go runtime
 - append-only operational event history
-- local durable draft and attachment storage
+- local durable draft manifests plus CAS-backed draft bodies, and durable
+  attachment storage
 - projected read/query views over that history
 - browser, CLI, and Neovim embodiments over the same local HTTP adapter
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
@@ -81,8 +82,7 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- authoritative CAS-backed replay/read paths for the still-unfrozen runtime
-  state outside the eight frozen families
+- direct non-HTTP embodiment contracts for browser, CLI, or Neovim
 
 ## What the shipped implementation does promise
 
@@ -90,7 +90,9 @@ Today it does **not** yet ship:
 
 Browser, CLI, and Neovim all read and write one shared ex5 runtime model
 through the same local HTTP surface. The embodiments are not separate durable
-systems. Source: `DI-fudok`; `DI-ravum`; `DI-sobek`.
+systems. HTTP remains the sole embodiment adapter for now, even though the
+runtime underneath it is now richer than when that adapter first shipped.
+Source: `DI-fudok`; `DI-ravum`; `DI-sobek`; `DI-bavuk`.
 
 ### 2. Append-only durable operational history
 
@@ -133,10 +135,9 @@ The current shipped ex5 runtime does not yet promise:
 - that all ex5 durable families are already frozen and PromiseGrid-native at
   runtime
 - that the local HTTP route names are the PromiseGrid peer contract
-- that CAS is already the authoritative replay/read source instead of an
-  additive sidecar
-- that the remaining unfrozen projection/runtime state is already fully
-  peer-visible and PromiseGrid-native
+- that browser, CLI, or Neovim already bypass the local HTTP adapter
+- that ephemeral presence or derived projections are durable PromiseGrid
+  families
 
 ## Done now vs. remaining
 
@@ -163,7 +164,7 @@ Done now:
   aliases for display, replay compatibility, and embodiment transition
 - search metadata remains derived projection state over those families, not a
   sixth signed family
-- the runtime computes all six `pCID`s from the exact shipped spec bytes
+- the runtime computes all eight `pCID`s from the exact shipped spec bytes
 - the runtime signs and verifies durable knowledge-item create/revision/status
   artifacts
 - the runtime signs and verifies durable knowledge-item and run approval
@@ -178,6 +179,9 @@ Done now:
 - the runtime now rehydrates the eight frozen family envelopes from CAS
   authoritatively during replay/export, while keeping compatibility event
   replay for still-unfrozen state
+- the runtime now reloads shared live draft bodies authoritatively from CAS
+  through per-item local draft manifests, including one-time backfill of older
+  manifest files that only carried inline draft text
 - bootstrap peer exchange now carries inline CID-keyed evidence blobs and
   re-materializes them into a local compatibility attachment path on import
 - the browser, CLI, and Neovim embodiments still project through the current
@@ -185,10 +189,8 @@ Done now:
 
 Remaining:
 
-- adopt authoritative CAS-backed replay/read paths for the still-unfrozen
-  runtime state outside the eight frozen families
-- decide whether later embodiments should ever bypass the local HTTP adapter
-  instead of using it as the delivery surface over the richer runtime
+- keep embodiment/runtime language honest while websocket transport and other
+  deferred product follow-on work remain outside the current PromiseGrid slice
 
 ## Current implementation claim
 
@@ -219,12 +221,13 @@ whole-family bootstrap export/import for items, approvals, evidence, runs,
 places, resources, links, and responsibilities, with inline CID-keyed
 evidence blob carriage.
 CAS now ships as an additive sidecar for signed envelopes and copied evidence
-blobs rather than a log replacement rewrite, and the first
-embodiment-tightening step now ships through capability metadata plus
-adapter-over-runtime doc updates. The current peer layer is no longer
-bootstrap-only; it now uses origin-aware dedupe and local sequence projection
-for ongoing import, and its peer-visible entities now use create-envelope CIDs
-as the durable IDs while preserving the old short IDs as aliases. Source:
-`DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`;
-`DI-rovuz`; `DI-tivor`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`;
-`DI-loruk`; `DI-pivul`.
+blobs plus authoritative reload for shared live draft bodies through local
+manifests, and the embodiment-tightening step now ships through capability
+metadata plus adapter-over-runtime doc updates while keeping HTTP as the sole
+embodiment adapter. The current peer layer is no longer bootstrap-only; it now
+uses origin-aware dedupe and local sequence projection for ongoing import, and
+its peer-visible entities now use create-envelope CIDs as the durable IDs while
+preserving the old short IDs as aliases. Source: `DI-fusok`; `DI-guzab`;
+`DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`;
+`DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`;
+`DI-zunep`; `DI-bavuk`.

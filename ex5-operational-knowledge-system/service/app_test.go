@@ -484,8 +484,11 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 	if meta.KnowledgeEvidencePCID != protocols.KnowledgeEvidenceProfile.CID.String() {
 		t.Fatalf("unexpected knowledge-evidence pCID in meta: got %q want %q", meta.KnowledgeEvidencePCID, protocols.KnowledgeEvidenceProfile.CID.String())
 	}
-	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled {
+	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled || !meta.CASDraftBodiesEnabled {
 		t.Fatalf("expected CAS capability flags in meta, got %+v", meta)
+	}
+	if meta.PrimaryEmbodimentAdapter != "local_http" {
+		t.Fatalf("expected local_http embodiment adapter in meta, got %+v", meta)
 	}
 
 	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-evidence-messages.jsonl"))
@@ -2057,6 +2060,119 @@ func TestAppAllowsClearingLiveDraftBody(t *testing.T) {
 	}
 	if reloadedItem.WorkingBody != "" || reloadedItem.WorkingVersion != 3 {
 		t.Fatalf("expected cleared live draft after reload, got %+v", reloadedItem)
+	}
+}
+
+func TestAppLoadsDraftBodiesAuthoritativelyFromCAS(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	state, conflict, err := app.UpdateLiveItem(item.ID, "browser-a", "Alice", "#123456", 0, 0, true, 1, true, "# CAS body")
+	if err != nil {
+		t.Fatalf("update live draft: %v", err)
+	}
+	if conflict || state.Version != 2 {
+		t.Fatalf("unexpected live update result: conflict=%v state=%+v", conflict, state)
+	}
+	manifestPath := filepath.Join(root, "drafts", item.ID+".json")
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read draft manifest: %v", err)
+	}
+	var draft PersistedDraft
+	if err := json.Unmarshal(body, &draft); err != nil {
+		t.Fatalf("decode draft manifest: %v", err)
+	}
+	if draft.BodyCID == "" {
+		t.Fatalf("expected body CID in draft manifest: %+v", draft)
+	}
+	draft.Body = "# tampered body"
+	tamperedBody, err := json.Marshal(draft)
+	if err != nil {
+		t.Fatalf("encode tampered draft manifest: %v", err)
+	}
+	if err := os.WriteFile(manifestPath, tamperedBody, 0o644); err != nil {
+		t.Fatalf("rewrite tampered draft manifest: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.WorkingBody != "# CAS body" || reloadedItem.WorkingVersion != 2 {
+		t.Fatalf("expected CAS-authoritative live draft after reload, got %+v", reloadedItem)
+	}
+}
+
+func TestAppBackfillsLegacyDraftFilesIntoCASManifest(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	legacy := PersistedDraft{
+		Body:      "# legacy draft",
+		Version:   7,
+		UpdatedAt: "2026-07-22T14:00:00Z",
+	}
+	legacyBody, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("encode legacy draft: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "drafts", item.ID+".json"), legacyBody, 0o644); err != nil {
+		t.Fatalf("write legacy draft file: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.WorkingBody != "# legacy draft" || reloadedItem.WorkingVersion != 7 {
+		t.Fatalf("expected legacy draft to reload through CAS backfill, got %+v", reloadedItem)
+	}
+
+	manifestPath := filepath.Join(root, "drafts", item.ID+".json")
+	manifestBody, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read backfilled draft manifest: %v", err)
+	}
+	var manifest PersistedDraft
+	if err := json.Unmarshal(manifestBody, &manifest); err != nil {
+		t.Fatalf("decode backfilled draft manifest: %v", err)
+	}
+	if manifest.BodyCID == "" {
+		t.Fatalf("expected backfilled body CID in draft manifest: %+v", manifest)
+	}
+	casBody, err := os.ReadFile(reloaded.store.casObjectPath(manifest.BodyCID))
+	if err != nil {
+		t.Fatalf("read backfilled draft CAS object: %v", err)
+	}
+	if string(casBody) != "# legacy draft" {
+		t.Fatalf("unexpected backfilled draft CAS body %q", string(casBody))
 	}
 }
 

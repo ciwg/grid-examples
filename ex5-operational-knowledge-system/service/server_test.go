@@ -60,8 +60,11 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if meta.OperationalRunPCID == "" {
 		t.Fatalf("expected operational-run pCID in meta: %+v", meta)
 	}
-	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled {
+	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled || !meta.CASDraftBodiesEnabled {
 		t.Fatalf("expected CAS capability flags in meta: %+v", meta)
+	}
+	if meta.PrimaryEmbodimentAdapter != "local_http" {
+		t.Fatalf("expected local_http embodiment adapter in meta: %+v", meta)
 	}
 }
 

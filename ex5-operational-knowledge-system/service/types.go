@@ -47,6 +47,8 @@ type Meta struct {
 	PeerExchangeFamilies        []string `json:"peer_exchange_families"`
 	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
 	CASAttachmentBlobsEnabled   bool     `json:"cas_attachment_blobs_enabled"`
+	CASDraftBodiesEnabled       bool     `json:"cas_draft_bodies_enabled"`
+	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
 }
 
 type PeerExchangeBundle struct {

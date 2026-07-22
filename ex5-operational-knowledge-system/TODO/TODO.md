@@ -1,8 +1,8 @@
 # TODO
 
 ## Open / Planned
-- [ ] 111 - Extend CAS authority beyond the eight frozen families in ex5 - `TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
-- [ ] 112 - Tighten the ex5 embodiment contract beyond the current HTTP adapter - `TODO/TODO-lurog-ex5-embodiment-contract-tightening-beyond-http.md`
+- [ ] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
+- [ ] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
 
 ## Completed
 
@@ -10,6 +10,8 @@
 - [x] 109 - Reconcile ex5 peer-visible entity namespaces across independent peers - `TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
 - [x] 108 - Freeze and claim the sixth ex5 PromiseGrid protocol family for runs - `TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`
 - [x] 107 - Introduce peer-stable identity and ordering for ex5 peer exchange - `TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`
+- [x] 112 - Tighten the ex5 embodiment contract beyond the current HTTP adapter - `TODO/TODO-lurog-ex5-embodiment-contract-tightening-beyond-http.md`
+- [x] 111 - Extend CAS authority beyond the eight frozen families in ex5 - `TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
 - [x] 105 - Make ex5 `knowledge-evidence` peer-visible and portable - `TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`
 - [x] 103 - Extend ex5 PromiseGrid peer exchange beyond bootstrap import - `TODO/TODO-rumek-ex5-peer-exchange-beyond-bootstrap.md`
 - [x] 104 - Adopt CAS-backed read and replay paths in ex5 - `TODO/TODO-tavob-ex5-cas-read-path-adoption.md`
