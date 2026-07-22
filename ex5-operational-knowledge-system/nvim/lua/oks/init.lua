@@ -127,6 +127,15 @@ local function sorted_keys(values)
   return out
 end
 
+local function url_encode(value)
+  if vim.uri_encode then
+    return vim.uri_encode(value)
+  end
+  return (value:gsub("([^%w%-_%.~])", function(char)
+    return string.format("%%%02X", string.byte(char))
+  end))
+end
+
 -- Intent: Reuse the existing ex5 live-draft HTTP surface from Neovim instead
 -- of inventing a separate transport for the first embodiment phase. Source:
 -- DI-fudok
@@ -395,6 +404,106 @@ local function append_links(lines, links)
       table.insert(lines, "  " .. link.notes)
     end
   end
+end
+
+local function append_filter_summary(lines, filters)
+  table.insert(lines, "")
+  table.insert(lines, "## Filters")
+  local wrote = false
+  for _, key in ipairs({ "q", "kind", "status", "outcome", "place_id", "resource_id", "responsibility_id", "problem" }) do
+    local value = filters and filters[key]
+    if value ~= nil and value ~= "" and value ~= false then
+      table.insert(lines, "- " .. key .. ": " .. tostring(value))
+      wrote = true
+    end
+  end
+  if not wrote then
+    table.insert(lines, "- none")
+  end
+end
+
+local function append_search_section(lines, heading, results, render)
+  table.insert(lines, "")
+  table.insert(lines, "## " .. heading)
+  if not results or #results == 0 then
+    table.insert(lines, "- none")
+    return
+  end
+  for _, result in ipairs(results) do
+    for _, line in ipairs(render(result)) do
+      table.insert(lines, line)
+    end
+  end
+end
+
+local function search_result_lines(query, decoded)
+  local lines = {
+    "# Search",
+    "",
+    "- query: " .. query,
+  }
+
+  append_filter_summary(lines, decoded.filters)
+
+  append_search_section(lines, "Places", decoded.places, function(place)
+    local out = {
+      string.format("- %s kind=%s name=%s", place.id or "-", place.kind or "-", place.name or "-"),
+      "  inspect: :OksInspectEntity place " .. (place.id or "-"),
+    }
+    if place.summary and place.summary ~= "" then
+      table.insert(out, 2, "  " .. place.summary)
+    end
+    return out
+  end)
+
+  append_search_section(lines, "Resources", decoded.resources, function(resource)
+    local out = {
+      string.format("- %s kind=%s name=%s", resource.id or "-", resource.kind or "-", resource.name or "-"),
+      "  inspect: :OksInspectEntity resource " .. (resource.id or "-"),
+    }
+    if resource.summary and resource.summary ~= "" then
+      table.insert(out, 2, "  " .. resource.summary)
+    end
+    if resource.place_id and resource.place_id ~= "" then
+      table.insert(out, "  place: " .. resource.place_id)
+    end
+    return out
+  end)
+
+  append_search_section(lines, "Responsibilities", decoded.responsibilities, function(responsibility)
+    local out = {
+      string.format("- %s title=%s", responsibility.id or "-", responsibility.title or "-"),
+      "  inspect: :OksInspectEntity responsibility " .. (responsibility.id or "-"),
+    }
+    if responsibility.summary and responsibility.summary ~= "" then
+      table.insert(out, 2, "  " .. responsibility.summary)
+    end
+    return out
+  end)
+
+  append_search_section(lines, "Items", decoded.items, function(item)
+    local out = {
+      string.format("- %s kind=%s status=%s title=%s", item.id or "-", item.kind or "-", item.status or "-", item.title or "-"),
+      "  inspect: :OksInspect " .. (item.id or "-"),
+    }
+    if item.summary and item.summary ~= "" then
+      table.insert(out, 2, "  " .. item.summary)
+    end
+    return out
+  end)
+
+  append_search_section(lines, "Runs", decoded.runs, function(run)
+    local out = {
+      string.format("- %s kind=%s outcome=%s item=%s", run.id or "-", run.kind or "-", run.outcome or "-", run.item_id or "-"),
+      "  inspect: :OksInspectRun " .. (run.id or "-"),
+    }
+    if run.notes and run.notes ~= "" then
+      table.insert(out, 2, "  " .. run.notes)
+    end
+    return out
+  end)
+
+  return lines
 end
 
 -- Intent: Let Neovim users inspect the durable item record around the live
@@ -781,6 +890,35 @@ function M.inspect_entity(entity_type, entity_id)
   inspect_entity(entity_type, entity_id)
 end
 
+-- Intent: Let Neovim users discover operational records through the same
+-- search projection as the browser and CLI, while keeping the editor-side
+-- surface read-only and routed into the existing inspectors for deeper
+-- browsing. Source: DI-givot
+function M.search(query)
+  query = vim.trim(query or "")
+  if query == "" then
+    notify("search query is required", vim.log.levels.WARN)
+    return
+  end
+
+  local status, body, err = request("GET", "/api/search?q=" .. url_encode(query))
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("search failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify("search decode failed", vim.log.levels.ERROR)
+    return
+  end
+  inspect_buffer("oks-search://" .. url_encode(query), search_result_lines(query, decoded))
+  notify("searched " .. query)
+end
+
 -- Intent: Let the headless regression harness seed inspector state without
 -- going through HTTP-backed inspect flows, so :OksClose teardown can be
 -- validated locally. Source: DI-mabek
@@ -893,6 +1031,9 @@ function M.setup(opts)
     local args = vim.split(vim.trim(command.args), "%s+", { trimempty = true })
     M.inspect_entity(args[1], args[2])
   end, { nargs = "+" })
+  vim.api.nvim_create_user_command("OksSearch", function(command)
+    M.search(command.args)
+  end, { nargs = 1 })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})

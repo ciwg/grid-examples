@@ -83,6 +83,7 @@ Neovim phase 1:
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
 - opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
+- opens a read-only grouped search buffer over `/api/search` for discovery and browse handoff into the existing inspectors
 
 The plugin now tracks the live-draft window explicitly so Neovim presence and
 body pushes continue to report cursor/head against the draft buffer even after
@@ -149,8 +150,9 @@ The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
 websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
-live-draft client plus read-only item/run/entity inspection over projected
-detail. Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`.
+live-draft client plus read-only item/run/entity inspection and search/browse
+over projected detail. Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`;
+`DI-zalor`; `DI-givot`.
 
 ## Current verification shape
 

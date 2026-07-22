@@ -77,6 +77,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim item inspector for revisions, approvals, and related runs
 - Neovim run inspector for direct evidence and approval review
 - Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
+- Neovim search/browse over grouped `/api/search` results with direct inspect hints
 - stub-backed headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -216,6 +217,7 @@ What it supports now:
 - `:OksInspect`
 - `:OksInspectRun`
 - `:OksInspectEntity TYPE ID`
+- `:OksSearch QUERY`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
 
@@ -245,6 +247,15 @@ The typed-link phase adds:
 - link sections inside item and run inspectors
 - generic read-only inspection of linked `place`, `resource`, `responsibility`,
   `item`, and `run` records
+
+The next read-only browse phase adds:
+
+- grouped Neovim search results over the shared `/api/search` projection
+- direct inspect hints for places, resources, responsibilities, items, and runs
+- a read-only `oks-search://...` buffer so discovery can stay inside the editor
+
+It still does not add write-side review or approval actions to Neovim. Source:
+`DI-givot`.
 
 Start it against a running server with:
 

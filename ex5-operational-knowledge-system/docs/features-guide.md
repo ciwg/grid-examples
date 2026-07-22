@@ -141,6 +141,7 @@ It is intentionally narrower than the browser surface:
 - inspect projected item metadata, revisions, approvals, and related runs with `:OksInspect`
 - inspect projected run evidence and approvals directly with `:OksInspectRun`
 - inspect linked entities directly with `:OksInspectEntity TYPE ID`
+- search grouped projected records with `:OksSearch QUERY`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 Cursor and presence reporting now stay anchored to the live-draft window
@@ -171,6 +172,13 @@ The next follow-on after that keeps the same read-only posture. Typed-link
 browsing exposes link sections inside inspectors and lets Neovim jump to the
 existing detail projections for places, resources, responsibilities, items, and
 runs without inventing a second navigation model. Source: `DI-zalor`.
+
+The next follow-on after that keeps the same rule too. Neovim search/browse
+reads the existing `/api/search` projection and renders grouped places,
+resources, responsibilities, items, and runs in a read-only search buffer,
+with explicit hints for the inspect commands that already exist. It improves
+discovery inside the editor without adding write-side workflow actions. Source:
+`DI-givot`.
 
 ### Record inspector and contextual navigation
 

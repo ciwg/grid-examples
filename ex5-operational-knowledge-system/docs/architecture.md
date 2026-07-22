@@ -56,6 +56,8 @@ The first-phase Neovim embodiment owns:
 - opening a read-only run inspector from the projected run-detail API
 - opening a generic read-only entity inspector for linked places, resources,
   responsibilities, items, and runs
+- opening a read-only grouped search buffer from the projected `/api/search`
+  API, then handing off deeper browsing to the existing inspectors
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.
@@ -147,8 +149,9 @@ In the current Neovim phase, the editor participates by polling and posting to
 embodiment aligned with the same runtime truth the browser uses instead of
 creating a second collaboration channel. Linked-entity browsing extends that
 same rule to `GET /api/places/{id}`, `GET /api/resources/{id}`, and
-`GET /api/responsibilities/{id}`. Source: `DI-fudok`; `DI-lonuk`;
-`DI-ravok`; `DI-zalor`.
+`GET /api/responsibilities/{id}`. Search/browse extends it to
+`GET /api/search?q=...` for grouped discovery over the same projections.
+Source: `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`.
 
 ## Current implementation note
 

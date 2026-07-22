@@ -137,6 +137,10 @@ When `problem=true`, the run slice is filtered by the same receiving/inventory
 problem classification used by `/api/problem-review`, instead of by one
 hardcoded receiving outcome. Source: `DI-vemur`.
 
+This is now also the Neovim search/browse surface. `:OksSearch QUERY` reads the
+same response and renders grouped read-only result sections with inspect hints
+for the existing item, run, and generic entity inspectors. Source: `DI-givot`.
+
 ## Places and resources
 
 ### `GET /api/places`
