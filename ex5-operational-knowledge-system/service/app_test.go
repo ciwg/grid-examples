@@ -579,6 +579,116 @@ func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
 	}
 }
 
+func TestAppWritesAndReplaysSignedOperationalRunRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "Dock bin", "Holds inbound parts", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "scanner-1", "dock-a", place.ID, []string{resource.ID}, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordBody, err := os.ReadFile(filepath.Join(root, "operational-run-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read operational-run messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 signed operational-run record, got %d", len(lines))
+	}
+	var record SignedOperationalRunRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode operational-run record: %v", err)
+	}
+	if record.RunID != run.ID || record.ItemID != item.ID {
+		t.Fatalf("unexpected operational-run record %+v", record)
+	}
+	if record.PCID != protocols.OperationalRunProfile.CID.String() {
+		t.Fatalf("unexpected operational-run pCID %q", record.PCID)
+	}
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedRun, err := reloaded.GetRun(run.ID)
+	if err != nil {
+		t.Fatalf("get reloaded run: %v", err)
+	}
+	if reloadedRun.PlaceID != place.ID || len(reloadedRun.ResourceIDs) != 1 || reloadedRun.ResourceIDs[0] != resource.ID {
+		t.Fatalf("unexpected replayed run context: %+v", reloadedRun)
+	}
+	if len(reloadedRun.ResponsibilityIDs) != 1 || reloadedRun.ResponsibilityIDs[0] != resp.ID {
+		t.Fatalf("unexpected replayed run responsibility context: %+v", reloadedRun)
+	}
+}
+
+func TestAppRejectsTamperedSignedOperationalRunRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if _, err := app.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil); err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "operational-run-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read operational-run messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed operational-run record")
+	}
+	var record SignedOperationalRunRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode operational-run record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreioperationalruntampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered operational-run record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	if err := os.WriteFile(recordPath, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("rewrite tampered operational-run record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "operational-run") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected operational-run authoritative CAS cid mismatch after tampering, got %v", err)
+	}
+}
+
 func TestAppDualWritesCASObjectsForSignedFamiliesAndEvidenceBlobs(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "runtime")
 	app, err := NewApp(root)
@@ -664,6 +774,13 @@ func TestAppDualWritesCASObjectsForSignedFamiliesAndEvidenceBlobs(t *testing.T) 
 		}
 		return record.EnvelopeCID, record.EnvelopeBase64
 	})
+	checkSignedRecordCAS(filepath.Join(root, "operational-run-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedOperationalRunRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode operational-run record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
 	checkSignedRecordCAS(filepath.Join(root, "knowledge-link-messages.jsonl"), func(line []byte) (string, string) {
 		var record SignedKnowledgeLinkRecord
 		if err := json.Unmarshal(line, &record); err != nil {
@@ -741,6 +858,9 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if len(bundle.KnowledgeApprovalRecords) != 2 {
 		t.Fatalf("expected 2 approval records in bundle, got %d", len(bundle.KnowledgeApprovalRecords))
 	}
+	if len(bundle.OperationalRunRecords) != 1 {
+		t.Fatalf("expected 1 operational-run record in bundle, got %d", len(bundle.OperationalRunRecords))
+	}
 	if len(bundle.KnowledgeLinkRecords) != 2 {
 		t.Fatalf("expected 2 link records in bundle, got %d", len(bundle.KnowledgeLinkRecords))
 	}
@@ -753,17 +873,17 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import bundle: %v", err)
 	}
-	if result.ImportedKnowledgeApprovals != 2 || result.ImportedKnowledgeLinks != 2 {
+	if result.ImportedKnowledgeApprovals != 2 || result.ImportedOperationalRuns != 1 || result.ImportedKnowledgeLinks != 2 {
 		t.Fatalf("unexpected import counts: %+v", result)
 	}
-	if len(result.UnresolvedReferences) != 2 {
-		t.Fatalf("expected 2 unresolved references, got %+v", result.UnresolvedReferences)
+	if len(result.UnresolvedReferences) != 1 {
+		t.Fatalf("expected 1 unresolved reference, got %+v", result.UnresolvedReferences)
 	}
 	if len(target.items) != 1 || len(target.responsibilities) != 1 {
 		t.Fatalf("expected item and responsibility after import, got items=%d responsibilities=%d", len(target.items), len(target.responsibilities))
 	}
-	if len(target.runs) != 0 || len(target.places) != 0 || len(target.resources) != 0 {
-		t.Fatalf("bootstrap import should not materialize runs/places/resources from this slice: runs=%d places=%d resources=%d", len(target.runs), len(target.places), len(target.resources))
+	if len(target.runs) != 1 || len(target.places) != 0 || len(target.resources) != 0 {
+		t.Fatalf("bootstrap import should materialize runs but not places/resources from this slice: runs=%d places=%d resources=%d", len(target.runs), len(target.places), len(target.resources))
 	}
 	if len(target.approvals) != 2 {
 		t.Fatalf("expected both approvals preserved after import, got %d", len(target.approvals))
@@ -788,6 +908,13 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if len(importedResponsibility.Links) != 1 {
 		t.Fatalf("expected only the responsibility link to attach, got %+v", importedResponsibility.Links)
 	}
+	importedRun, err := target.GetRun(run.ID)
+	if err != nil {
+		t.Fatalf("get imported run: %v", err)
+	}
+	if importedRun.ItemID != item.ID || importedRun.Outcome != "accepted_with_notes" {
+		t.Fatalf("unexpected imported run: %+v", importedRun)
+	}
 }
 
 func TestAppUsesCASAuthoritativelyForFrozenFamilyReplay(t *testing.T) {
@@ -807,6 +934,9 @@ func TestAppUsesCASAuthoritativelyForFrozenFamilyReplay(t *testing.T) {
 	}
 	if err := app.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
 		t.Fatalf("approve item: %v", err)
+	}
+	if _, err := app.RecordRun("carol", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil); err != nil {
+		t.Fatalf("record run: %v", err)
 	}
 	if err := app.AddLink("alice", "responsibility", responsibility.ID, "knowledge_item", item.ID, "owns", "Receiver owns check"); err != nil {
 		t.Fatalf("add link: %v", err)
@@ -848,6 +978,14 @@ func TestAppUsesCASAuthoritativelyForFrozenFamilyReplay(t *testing.T) {
 			return nil, err
 		}
 		record.EnvelopeBase64 = "tampered-approval-envelope"
+		return json.Marshal(record)
+	})
+	tamperEnvelopeBase64(filepath.Join(root, "operational-run-messages.jsonl"), func(line []byte) ([]byte, error) {
+		var record SignedOperationalRunRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, err
+		}
+		record.EnvelopeBase64 = "tampered-operational-run-envelope"
 		return json.Marshal(record)
 	})
 	tamperEnvelopeBase64(filepath.Join(root, "knowledge-link-messages.jsonl"), func(line []byte) ([]byte, error) {
@@ -963,6 +1101,133 @@ func TestAppRejectsTamperedPeerExchangeBundle(t *testing.T) {
 	}
 	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "knowledge-approval") || !strings.Contains(err.Error(), "envelope cid mismatch") {
 		t.Fatalf("expected tampered approval envelope rejection, got %v", err)
+	}
+}
+
+func TestAppExportsAndImportsPeerExchangeEvidenceBundle(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	item, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := source.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = source.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{"variance": "-2"}, "photo.txt", []byte("ok"))
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	sourceAttachmentPath := run.Evidence[0].AttachmentPath
+
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	if len(bundle.KnowledgeEvidenceRecords) != 1 {
+		t.Fatalf("expected 1 evidence record in bundle, got %d", len(bundle.KnowledgeEvidenceRecords))
+	}
+	if len(bundle.CASBlobObjects) != 1 {
+		t.Fatalf("expected 1 evidence blob in bundle, got %d", len(bundle.CASBlobObjects))
+	}
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	result, err := target.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		t.Fatalf("import bundle: %v", err)
+	}
+	if result.ImportedKnowledgeEvidence != 1 || len(result.UnresolvedReferences) != 0 {
+		t.Fatalf("unexpected evidence import result: %+v", result)
+	}
+	importedRun, err := target.GetRun(run.ID)
+	if err != nil {
+		t.Fatalf("get imported run: %v", err)
+	}
+	if len(importedRun.Evidence) != 1 {
+		t.Fatalf("expected imported evidence, got %+v", importedRun.Evidence)
+	}
+	if importedRun.Evidence[0].AttachmentCID == "" || importedRun.Evidence[0].AttachmentPath == "" {
+		t.Fatalf("expected imported evidence attachment refs, got %+v", importedRun.Evidence[0])
+	}
+	if importedRun.Evidence[0].AttachmentPath == sourceAttachmentPath {
+		t.Fatalf("expected imported attachment path to be materialized locally, got source path %q", importedRun.Evidence[0].AttachmentPath)
+	}
+	body, err := os.ReadFile(importedRun.Evidence[0].AttachmentPath)
+	if err != nil {
+		t.Fatalf("read imported attachment: %v", err)
+	}
+	if string(body) != "ok" {
+		t.Fatalf("unexpected imported attachment body %q", string(body))
+	}
+}
+
+func TestAppRejectsPeerExchangeEvidenceBundleMissingBlob(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	item, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := source.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = source.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{"variance": "-2"}, "photo.txt", []byte("ok"))
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	delete(bundle.CASBlobObjects, run.Evidence[0].AttachmentCID)
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "knowledge-evidence blob") || !strings.Contains(err.Error(), "missing from bundle") {
+		t.Fatalf("expected missing evidence blob rejection, got %v", err)
+	}
+}
+
+func TestAppRejectsPeerExchangeEvidenceBundleTamperedBlob(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	item, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := source.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = source.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{"variance": "-2"}, "photo.txt", []byte("ok"))
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	bundle.CASBlobObjects[run.Evidence[0].AttachmentCID] = base64.StdEncoding.EncodeToString([]byte("tampered"))
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "knowledge-evidence blob") || !strings.Contains(err.Error(), "cid mismatch") {
+		t.Fatalf("expected tampered evidence blob rejection, got %v", err)
 	}
 }
 
@@ -1746,7 +2011,7 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 	if got := meta.RunKinds[3]; got != RunKindReceiving {
 		t.Fatalf("expected receiving run kind in meta, got %+v", meta.RunKinds)
 	}
-	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 4 {
+	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 6 {
 		t.Fatalf("unexpected peer-exchange meta: %+v", meta)
 	}
 

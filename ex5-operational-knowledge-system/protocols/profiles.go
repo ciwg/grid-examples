@@ -22,6 +22,9 @@ var knowledgeLinkSpec []byte
 //go:embed knowledge-responsibility.md
 var knowledgeResponsibilitySpec []byte
 
+//go:embed operational-run.md
+var operationalRunSpec []byte
+
 type Profile struct {
 	Name string
 	Spec []byte
@@ -49,6 +52,10 @@ var (
 	// shipped knowledge-responsibility spec bytes rather than a handwritten
 	// constant. Source: DI-sarib
 	KnowledgeResponsibilityProfile = mustProfile("knowledge-responsibility", knowledgeResponsibilitySpec)
+	// Intent: Bind the sixth ex5 PromiseGrid-native runtime slice to the exact
+	// shipped operational-run spec bytes rather than a handwritten constant.
+	// Source: DI-vamok
+	OperationalRunProfile = mustProfile("operational-run", operationalRunSpec)
 )
 
 func mustProfile(name string, spec []byte) Profile {
@@ -60,7 +67,7 @@ func mustProfile(name string, spec []byte) Profile {
 }
 
 func ProfileByCIDText(cidText string) (Profile, error) {
-	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile, KnowledgeEvidenceProfile, KnowledgeLinkProfile, KnowledgeResponsibilityProfile} {
+	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile, KnowledgeEvidenceProfile, KnowledgeLinkProfile, KnowledgeResponsibilityProfile, OperationalRunProfile} {
 		if profile.CID.String() == cidText {
 			return profile, nil
 		}

@@ -39,6 +39,7 @@ type Meta struct {
 	KnowledgeEvidencePCID       string   `json:"knowledge_evidence_pcid"`
 	KnowledgeLinkPCID           string   `json:"knowledge_link_pcid"`
 	KnowledgeResponsibilityPCID string   `json:"knowledge_responsibility_pcid"`
+	OperationalRunPCID          string   `json:"operational_run_pcid"`
 	PeerExchangeFormat          string   `json:"peer_exchange_format"`
 	PeerExchangeFamilies        []string `json:"peer_exchange_families"`
 	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
@@ -51,13 +52,18 @@ type PeerExchangeBundle struct {
 	Implementation                 string                                `json:"implementation"`
 	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
 	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
+	KnowledgeEvidencePCID          string                                `json:"knowledge_evidence_pcid"`
 	KnowledgeLinkPCID              string                                `json:"knowledge_link_pcid"`
 	KnowledgeResponsibilityPCID    string                                `json:"knowledge_responsibility_pcid"`
+	OperationalRunPCID             string                                `json:"operational_run_pcid"`
 	Events                         []OperationalEvent                    `json:"events"`
 	KnowledgeItemRecords           []SignedKnowledgeItemRecord           `json:"knowledge_item_records"`
 	KnowledgeApprovalRecords       []SignedKnowledgeApprovalRecord       `json:"knowledge_approval_records"`
+	KnowledgeEvidenceRecords       []SignedKnowledgeEvidenceRecord       `json:"knowledge_evidence_records"`
+	OperationalRunRecords          []SignedOperationalRunRecord          `json:"operational_run_records"`
 	KnowledgeLinkRecords           []SignedKnowledgeLinkRecord           `json:"knowledge_link_records"`
 	KnowledgeResponsibilityRecords []SignedKnowledgeResponsibilityRecord `json:"knowledge_responsibility_records"`
+	CASBlobObjects                 map[string]string                     `json:"cas_blob_objects,omitempty"`
 }
 
 type PeerExchangeImportIssue struct {
@@ -70,6 +76,8 @@ type PeerExchangeImportResult struct {
 	ImportedEvents             int                       `json:"imported_events"`
 	ImportedKnowledgeItems     int                       `json:"imported_knowledge_items"`
 	ImportedKnowledgeApprovals int                       `json:"imported_knowledge_approvals"`
+	ImportedKnowledgeEvidence  int                       `json:"imported_knowledge_evidence"`
+	ImportedOperationalRuns    int                       `json:"imported_operational_runs"`
 	ImportedKnowledgeLinks     int                       `json:"imported_knowledge_links"`
 	ImportedResponsibilities   int                       `json:"imported_responsibilities"`
 	UnresolvedReferences       []PeerExchangeImportIssue `json:"unresolved_references"`

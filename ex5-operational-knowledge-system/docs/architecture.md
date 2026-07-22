@@ -23,21 +23,23 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
 shipped runtime already uses append-only events and shared embodiments, and it
-now implements five runtime-selected frozen `pCID` documents with signed grid
+now implements six runtime-selected frozen `pCID` documents with signed grid
 envelopes for `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
-`knowledge-link`, and `knowledge-responsibility`. It now also ships the first
-relay-visible bootstrap peer-exchange slice plus additive CAS sidecar storage,
-while search metadata remains derived projection state instead of a sixth
-durable family. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`;
-`DI-votek`; `DI-sarib`; `DI-fusok`; `DI-voruk`; `DI-lavuz`; `DI-tivor`.
+`knowledge-link`, `knowledge-responsibility`, and `operational-run`. It now
+also ships the first relay-visible bootstrap peer-exchange slice plus
+additive CAS sidecar storage, while search metadata remains derived projection
+state instead of a separate durable family. Source: `DI-sobek`; `DI-mibor`;
+`DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-fusok`;
+`DI-voruk`; `DI-lavuz`; `DI-tivor`; `DI-faruv`.
 
 The first staged relay-visible exchange slice is now defined more narrowly than
-the full local runtime: `knowledge-item`, `knowledge-approval`,
-`knowledge-link`, and `knowledge-responsibility` are the first peer-visible
-families, while peer-visible `knowledge-evidence` waits on the later
-storage/blob-carriage decision. That first slice now ships as whole-family
-bootstrap export/import over the current local HTTP adapter. Source:
-`DI-guzab`; `DI-voruk`.
+the full local runtime, but it is no longer attachment-free: `knowledge-item`,
+`knowledge-approval`, `knowledge-evidence`, `knowledge-link`,
+`knowledge-responsibility`, and `operational-run` now ship through bootstrap
+export/import over the current local HTTP adapter. Evidence blobs ride inline
+in that bootstrap bundle by CID, while place/resource references inside runs
+and links still remain outside the current peer-visible slice. Source:
+`DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`.
 
 That later storage step is also now staged: CAS enters first as an additive
 sidecar for signed envelopes and copied evidence blobs, while the current
@@ -46,9 +48,11 @@ family logs and copied attachment paths remain during migration. Source:
 
 That CAS sidecar now ships in implemented form. Signed family envelopes are
 dual-written by envelope CID, copied evidence blobs are dual-written by blob
-CID, and the five frozen families now replay/export their envelope bytes
+CID, and the six frozen families now replay/export their envelope bytes
 authoritatively from CAS while compatibility events and attachment paths remain
-active for still-unfrozen state. Source: `DI-lavuz`; `DI-rovud`.
+active for still-unfrozen state. Imported evidence blobs are also materialized
+back into a local compatibility attachment path on demand. Source:
+`DI-lavuz`; `DI-rovud`; `DI-faruv`.
 
 The embodiment contract also tightens one step at that milestone: browser, CLI,
 and Neovim still use the local HTTP adapter, but the adapter now exposes

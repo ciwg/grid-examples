@@ -3,10 +3,11 @@
 ## Open / Planned
 - [ ] 107 - Introduce peer-stable identity and ordering for ex5 peer exchange - `TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`
 - [ ] 103 - Extend ex5 PromiseGrid peer exchange beyond bootstrap import - `TODO/TODO-rumek-ex5-peer-exchange-beyond-bootstrap.md`
-- [ ] 105 - Make ex5 `knowledge-evidence` peer-visible and portable - `TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`
 
 ## Completed
 
+- [x] 108 - Freeze and claim the sixth ex5 PromiseGrid protocol family for runs - `TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`
+- [x] 105 - Make ex5 `knowledge-evidence` peer-visible and portable - `TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`
 - [x] 104 - Adopt CAS-backed read and replay paths in ex5 - `TODO/TODO-tavob-ex5-cas-read-path-adoption.md`
 - [x] 106 - Realign ex5 PromiseGrid docs and backlog to the shipped runtime - `TODO/TODO-lavur-ex5-promisegrid-doc-and-backlog-honesty.md`
 - [x] 102 - Stage embodiment-contract tightening after peer-exchange and additive CAS implementation - `TODO/TODO-zidor-ex5-embodiment-contract-tightening.md`

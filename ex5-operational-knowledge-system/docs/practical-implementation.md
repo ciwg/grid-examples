@@ -4,13 +4,13 @@
 
 The `ex5` foundation uses one append-only `events.jsonl` file plus
 `knowledge-item-messages.jsonl`, `knowledge-approval-messages.jsonl`,
-`knowledge-evidence-messages.jsonl`, `knowledge-link-messages.jsonl`,
-`knowledge-responsibility-messages.jsonl`, an `attachments/` directory, and a
-`drafts/` directory for browser-shared working bodies. The service replays the
-event log at startup, verifies the signed knowledge-item,
-knowledge-approval, knowledge-evidence, knowledge-link, and
-knowledge-responsibility logs against that replay, overlays any saved live
-draft bodies, and projects current query views for:
+`knowledge-evidence-messages.jsonl`, `operational-run-messages.jsonl`,
+`knowledge-link-messages.jsonl`, `knowledge-responsibility-messages.jsonl`, an
+`attachments/` directory, and a `drafts/` directory for browser-shared working
+bodies. The service replays the event log at startup, verifies the signed
+knowledge-item, knowledge-approval, knowledge-evidence, operational-run,
+knowledge-link, and knowledge-responsibility logs against that replay,
+overlays any saved live draft bodies, and projects current query views for:
 
 - places
 - resources
@@ -34,6 +34,12 @@ The durability rules for that storage are now stricter:
 That keeps old evidence bytes and larger saved knowledge text readable after a
 restart instead of depending on filename uniqueness or the scanner default
 token size. Source: `DI-busor`.
+
+Imported evidence now also re-materializes attachment blobs from CAS into the
+local compatibility attachment tree when the source-host attachment path is not
+valid on the current machine. That keeps bootstrap-exchanged evidence usable in
+the existing browser, CLI, and Neovim surfaces without changing the durable
+signed evidence payload. Source: `DI-faruv`.
 
 ## Current browser, CLI, and Neovim shape
 

@@ -31,7 +31,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,9 @@ func NewApp(dataRoot string) (*App, error) {
 	}
 	if err := verifySignedKnowledgeEvidenceRecords(events, knowledgeEvidenceRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-evidence envelopes: %w", err)
+	}
+	if err := verifySignedOperationalRunRecords(events, operationalRunRecords); err != nil {
+		return nil, fmt.Errorf("verify operational-run envelopes: %w", err)
 	}
 	if err := verifySignedKnowledgeLinkRecords(events, knowledgeLinkRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-link envelopes: %w", err)
@@ -99,10 +102,13 @@ func (app *App) Meta() Meta {
 		KnowledgeEvidencePCID:       protocols.KnowledgeEvidenceProfile.CID.String(),
 		KnowledgeLinkPCID:           protocols.KnowledgeLinkProfile.CID.String(),
 		KnowledgeResponsibilityPCID: protocols.KnowledgeResponsibilityProfile.CID.String(),
+		OperationalRunPCID:          protocols.OperationalRunProfile.CID.String(),
 		PeerExchangeFormat:          peerExchangeBundleFormat,
 		PeerExchangeFamilies: []string{
 			"knowledge-item",
 			"knowledge-approval",
+			"knowledge-evidence",
+			"operational-run",
 			"knowledge-link",
 			"knowledge-responsibility",
 		},
@@ -1065,6 +1071,11 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		app.nextSequence--
 		return err
 	}
+	operationalRunRecord, hasOperationalRunRecord, err := buildSignedOperationalRunRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
 	linkRecord, hasLinkRecord, err := buildSignedKnowledgeLinkRecord(app.store.identity, event)
 	if err != nil {
 		app.nextSequence--
@@ -1099,6 +1110,15 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// signed evidence record that the runtime failed to materialize. Source:
 		// DI-kavup; DI-ribof
 		if err := app.store.AppendSignedKnowledgeEvidenceRecord(evidenceRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
+	if hasOperationalRunRecord {
+		// Intent: Persist the sixth PromiseGrid-native operational-run artifact
+		// before the compatibility event log so ex5 never claims a new signed run
+		// record that the runtime failed to materialize. Source: DI-vamok
+		if err := app.store.AppendSignedOperationalRunRecord(operationalRunRecord); err != nil {
 			app.nextSequence--
 			return err
 		}
@@ -1276,12 +1296,20 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 		if strings.TrimSpace(id) == "" {
 			id = app.nextDerivedIDLocked("EVID")
 		}
+		attachmentPath := event.AttachmentPath
+		if strings.TrimSpace(event.AttachmentCID) != "" {
+			if materializedPath, err := app.store.MaterializeAttachmentFromCID(event.EntityID, event.AttachmentName, event.AttachmentCID); err != nil {
+				return fmt.Errorf("materialize attachment for run %q evidence %q: %w", event.EntityID, id, err)
+			} else if strings.TrimSpace(materializedPath) != "" {
+				attachmentPath = materializedPath
+			}
+		}
 		run.Evidence = append(run.Evidence, Evidence{
 			ID:             id,
 			Summary:        event.Summary,
 			Facts:          cloneFacts(event.Facts),
 			AttachmentName: event.AttachmentName,
-			AttachmentPath: event.AttachmentPath,
+			AttachmentPath: attachmentPath,
 			AttachmentCID:  event.AttachmentCID,
 			AttachmentSize: event.AttachmentSize,
 			Actor:          event.Actor,

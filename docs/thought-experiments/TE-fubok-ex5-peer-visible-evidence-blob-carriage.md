@@ -2,7 +2,7 @@
 
 TE ID: `TE-fubok`
 ## Status
-needs DF
+decided
 
 ## Decision under test
 
@@ -206,5 +206,6 @@ Implications and future work:
 
 ## Decision status
 
-Needs DF on whether to lock Alternative A as the first peer-visible
-`knowledge-evidence` carriage rule.
+Alternative A locked by `DI-faruv`: the first peer-visible
+`knowledge-evidence` slice carries signed evidence records plus inline
+CID-keyed CAS blobs inside the bootstrap bundle.

@@ -18,9 +18,11 @@ This now ships in the runtime:
 
 - signed family envelopes are dual-written into CAS by envelope CID
 - copied evidence blobs are dual-written into CAS by blob CID
-- the five frozen family envelopes now replay/export authoritatively from CAS
+- the six frozen family envelopes now replay/export authoritatively from CAS
 - compatibility event replay and attachment paths remain active for still-unfrozen
   runtime state
+- imported evidence blobs now re-materialize into the local compatibility
+  attachment tree from CAS when needed
 
 Source: `DI-lavuz`; `DI-rovud`.
 

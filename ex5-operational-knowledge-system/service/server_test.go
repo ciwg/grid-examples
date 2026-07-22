@@ -57,6 +57,9 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if meta.PeerExchangeFormat != peerExchangeBundleFormat {
 		t.Fatalf("unexpected peer exchange format in meta: %+v", meta)
 	}
+	if meta.OperationalRunPCID == "" {
+		t.Fatalf("expected operational-run pCID in meta: %+v", meta)
+	}
 	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled {
 		t.Fatalf("expected CAS capability flags in meta: %+v", meta)
 	}
@@ -396,8 +399,11 @@ func TestServerExportsAndImportsPeerExchangeBundle(t *testing.T) {
 	if result.ImportedKnowledgeItems != len(bundle.KnowledgeItemRecords) {
 		t.Fatalf("unexpected import item count: %+v", result)
 	}
-	if len(result.UnresolvedReferences) != 1 {
-		t.Fatalf("expected unresolved run approval after bootstrap import, got %+v", result.UnresolvedReferences)
+	if result.ImportedOperationalRuns != 1 {
+		t.Fatalf("expected imported operational run count after bootstrap import, got %+v", result)
+	}
+	if len(result.UnresolvedReferences) != 0 {
+		t.Fatalf("expected no unresolved references after run-family bootstrap import, got %+v", result.UnresolvedReferences)
 	}
 }
 
