@@ -883,6 +883,9 @@ func renderRunDetail(run cliRunDetail) string {
 	lines = append(lines, "resources: "+joinOrNone(run.ResourceIDs))
 	lines = append(lines, "responsibilities: "+joinOrNone(run.ResponsibilityIDs))
 	lines = append(lines, "show item: oks-cli show-item "+safeText(run.ItemID, "-"))
+	// Intent: Keep terminal drilldowns navigable by turning run context fields
+	// into direct follow-on CLI commands instead of leaving the operator to
+	// reconstruct the next lookup by hand. Source: DI-josav
 	if strings.TrimSpace(run.PlaceID) != "" {
 		lines = append(lines, "show place: oks-cli show-place "+run.PlaceID)
 	}
