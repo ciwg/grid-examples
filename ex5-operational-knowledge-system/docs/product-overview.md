@@ -69,7 +69,6 @@ state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;
 
 `ex5` is intentionally not trying to be:
 
-- a websocket collaboration system yet
 - a peer-to-peer relay
 - a signed wire protocol implementation
 - an ERP or MRP quantity-planning system
@@ -95,7 +94,6 @@ What that means in practice:
 
 What is still not shipped in that layer:
 
-- websocket collaboration transport
 - richer relay-network behavior beyond the current local-adapter exchange layer
 - direct non-HTTP embodiment contracts
 

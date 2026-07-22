@@ -1,11 +1,11 @@
 # TODO
 
 ## Open / Planned
-- [ ] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
 - [ ] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
 
 ## Completed
 
+- [x] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
 - [x] 114 - Correct downstream ex5 PromiseGrid summary doc drift - `TODO/TODO-tasuk-ex5-downstream-promisegrid-doc-drift.md`
 - [x] 113 - Sync the ex5 HTTP API guide with the shipped PromiseGrid adapter contract - `TODO/TODO-vupok-ex5-http-api-promisegrid-contract-drift.md`
 - [x] 110 - Make place and resource context peer-visible in ex5 - `TODO/TODO-pivok-ex5-peer-visible-place-resource-families.md`
@@ -122,8 +122,6 @@
 
 ## Not Implemented / Deferred
 
-- [ ] 005 - Port ex5 to websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
-  Deferred by `DI-tabiv`: do not port the full `ex3` websocket model into `ex5` in the current phase.
 - [ ] 016 - Plan ex5 Neovim embodiment follow-on beyond phase 1 - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
   Deferred by `DI-tabiv`, `DI-nuvok`, and `DI-fudok`: a thin Neovim live-draft phase now exists, but richer Neovim workflow work remains a separate follow-on project rather than part of inventory TODO `007`.
 

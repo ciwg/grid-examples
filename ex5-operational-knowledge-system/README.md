@@ -170,7 +170,6 @@ What the current runtime actually implements today:
 
 What is not yet implemented in the shipped runtime:
 
-- websocket-based collaboration transport
 - full relay network behavior beyond the current local-adapter exchange layer
 - ERP-style inventory quantities, reservations, or planning logic
 
@@ -456,7 +455,6 @@ Optional environment variables:
 
 What it does not try to do yet:
 
-- websocket sync
 - remote cursor rendering
 - durable revision approval/review directly inside Neovim
 - full run creation or write-side approval actions inside Neovim
@@ -482,10 +480,10 @@ What it does not try to do yet:
 
 ## Current direction
 
-- keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
+- keep websocket as live-draft carriage under the existing local adapter instead of porting the full `ex3` websocket collaboration stack into `ex5`
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
 - dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests
-- expose peer-exchange, CAS, shared-draft, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
-- treat websocket transport, richer relay-network behavior, and deferred embodiment/product follow-on work as the remaining PromiseGrid-adjacent backlog
+- expose peer-exchange, CAS, shared-draft, websocket-live-transport, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing the broader transport family
+- treat richer relay-network behavior and deferred embodiment/product follow-on work as the remaining PromiseGrid-adjacent backlog

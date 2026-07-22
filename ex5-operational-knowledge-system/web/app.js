@@ -93,6 +93,12 @@ const editorState = {
   lastRenderedBody: "",
   pushTimer: 0,
   pollTimer: 0,
+  heartbeatTimer: 0,
+  reconnectTimer: 0,
+  socket: null,
+  socketConnected: false,
+  transport: "http-poll",
+  socketGeneration: 0,
 };
 
 const detailState = {
@@ -1870,6 +1876,12 @@ function renderEditorState(state) {
   }
 }
 
+function liveSocketURL(itemID) {
+  const url = new URL(`/api/items/${itemID}/live/socket`, window.location.href);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
+}
+
 // Intent: Make browser authoring feel like sustained drafting work instead of
 // only an administrative form by surfacing live draft health, scale, and
 // collaboration state beside the editor. Source: DI-rofek
@@ -1941,12 +1953,12 @@ async function loadEditorItem(itemID, options = {}) {
     editorParticipantsEl.innerHTML = "";
     editorStatusCardsEl.innerHTML = "";
     editorBodyEl.value = "";
-    clearPollLoop();
+    stopLiveTransport();
     return;
   }
   editorState.dirty = false;
   await pullLiveState(itemID, true);
-  startPollLoop();
+  startLiveTransport();
 }
 
 async function pullLiveState(itemID, replaceBody) {
@@ -1972,6 +1984,9 @@ function scheduleLivePush() {
 
 async function flushLivePush() {
   if (!editorState.itemID || editorState.pushing) {
+    return;
+  }
+  if (sendLiveSocketUpdate(true)) {
     return;
   }
   editorState.pushing = true;
@@ -2026,6 +2041,188 @@ function clearPollLoop() {
     clearInterval(editorState.pollTimer);
     editorState.pollTimer = 0;
   }
+}
+
+function startHeartbeatLoop() {
+  clearHeartbeatLoop();
+  editorState.heartbeatTimer = setInterval(() => {
+    if (!editorState.itemID) {
+      return;
+    }
+    if (editorState.socketConnected) {
+      sendLiveSocketUpdate(false);
+      return;
+    }
+    sendLivePresencePOST(false).catch(handleError);
+  }, 5000);
+}
+
+function clearHeartbeatLoop() {
+  if (editorState.heartbeatTimer) {
+    clearInterval(editorState.heartbeatTimer);
+    editorState.heartbeatTimer = 0;
+  }
+}
+
+function clearReconnectLoop() {
+  if (editorState.reconnectTimer) {
+    clearTimeout(editorState.reconnectTimer);
+    editorState.reconnectTimer = 0;
+  }
+}
+
+function stopLiveTransport() {
+  clearPollLoop();
+  clearHeartbeatLoop();
+  clearReconnectLoop();
+  editorState.socketGeneration += 1;
+  editorState.socketConnected = false;
+  if (editorState.socket) {
+    try {
+      editorState.socket.close();
+    } catch {
+    }
+    editorState.socket = null;
+  }
+  editorState.transport = "http-poll";
+}
+
+function startLiveTransport() {
+  stopLiveTransport();
+  startHeartbeatLoop();
+  if (typeof WebSocket !== "function" || !editorState.itemID) {
+    startPollLoop();
+    return;
+  }
+  // Intent: Prefer websocket carriage for shared draft state and presence while
+  // preserving the existing HTTP live route as fallback during mixed-version
+  // or restart recovery. Source: DI-noruv
+  connectLiveSocket(editorState.itemID);
+}
+
+function connectLiveSocket(itemID) {
+  const generation = editorState.socketGeneration + 1;
+  editorState.socketGeneration = generation;
+  try {
+    const socket = new WebSocket(liveSocketURL(itemID));
+    editorState.socket = socket;
+    socket.addEventListener("open", () => {
+      if (generation !== editorState.socketGeneration || editorState.itemID !== itemID) {
+        socket.close();
+        return;
+      }
+      editorState.socketConnected = true;
+      editorState.transport = "websocket";
+      clearPollLoop();
+      clearReconnectLoop();
+      sendLiveSocketUpdate(false);
+    });
+    socket.addEventListener("message", (event) => {
+      if (generation !== editorState.socketGeneration || editorState.itemID !== itemID) {
+        return;
+      }
+      handleLiveSocketMessage(event);
+    });
+    socket.addEventListener("close", () => {
+      if (generation !== editorState.socketGeneration) {
+        return;
+      }
+      editorState.socketConnected = false;
+      editorState.socket = null;
+      editorState.transport = "http-poll";
+      if (editorState.itemID === itemID) {
+        startPollLoop();
+        scheduleLiveReconnect(itemID, generation);
+      }
+    });
+    socket.addEventListener("error", () => {
+      if (generation !== editorState.socketGeneration) {
+        return;
+      }
+      editorState.socketConnected = false;
+      editorState.transport = "http-poll";
+    });
+  } catch {
+    editorState.socketConnected = false;
+    editorState.transport = "http-poll";
+    startPollLoop();
+    scheduleLiveReconnect(itemID, generation);
+  }
+}
+
+function scheduleLiveReconnect(itemID, generation) {
+  clearReconnectLoop();
+  editorState.reconnectTimer = setTimeout(() => {
+    if (editorState.itemID !== itemID || generation !== editorState.socketGeneration) {
+      return;
+    }
+    connectLiveSocket(itemID);
+  }, 5000);
+}
+
+function handleLiveSocketMessage(event) {
+  let payload;
+  try {
+    payload = JSON.parse(event.data);
+  } catch {
+    return;
+  }
+  if (payload.type === "error") {
+    showToast(payload.message || "Live websocket error");
+    return;
+  }
+  if (!payload.state) {
+    return;
+  }
+  if (payload.type === "live-conflict") {
+    editorState.dirty = false;
+    editorBodyEl.value = payload.state.body;
+    renderEditorState(payload.state);
+    editorMetaEl.textContent = `${payload.state.title} · status ${payload.state.status} · live v${payload.state.version} · current revision ${payload.state.current_revision} · remote changes replaced your stale base version`;
+    showToast("Live draft conflict resolved by reloading the shared body");
+    return;
+  }
+  if (editorBodyEl.value === payload.state.body) {
+    editorState.dirty = false;
+  }
+  renderEditorState(payload.state);
+}
+
+function sendLiveSocketUpdate(updateBody) {
+  if (!editorState.socketConnected || !editorState.socket || editorState.socket.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+  editorState.socket.send(JSON.stringify({
+    type: "live-update",
+    participant_id: participantID,
+    display_name: editorDisplayNameEl.value,
+    color: editorColorEl.value,
+    cursor: editorBodyEl.selectionStart || 0,
+    head: editorBodyEl.selectionEnd || 0,
+    typing: !!updateBody,
+    base_version: editorState.version,
+    update_body: updateBody,
+    body: updateBody ? editorBodyEl.value : "",
+  }));
+  return true;
+}
+
+async function sendLivePresencePOST(typing) {
+  await fetch(`/api/items/${editorState.itemID}/live`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      participant_id: participantID,
+      display_name: editorDisplayNameEl.value,
+      color: editorColorEl.value,
+      cursor: editorBodyEl.selectionStart || 0,
+      head: editorBodyEl.selectionEnd || 0,
+      typing,
+      base_version: editorState.version,
+      update_body: false,
+      body: "",
+    }),
+  });
 }
 
 function createMemoryStorage() {

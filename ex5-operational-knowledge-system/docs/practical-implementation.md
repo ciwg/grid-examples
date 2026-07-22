@@ -290,7 +290,6 @@ version. Source: `DI-dazim`.
 
 The foundation still does not yet include:
 
-- websocket transport
 - embodiment/product follow-on work beyond the current local HTTP adapter
   contract
 
@@ -301,14 +300,14 @@ embodiment, a thinner CLI embodiment, and a browser-only shared draft surface.
 The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
-websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
-live-draft client plus read-only item/run/entity inspection and search/browse
-over projected detail. It now also includes a read-only pending-review queue
-over the same shared search projections plus a narrow set of revision-safe
-item/run approval and item supersede actions over the same local HTTP runtime
-the CLI and browser already use. Source:
+websocket stack into `ex5` now. The current phase now uses websocket-preferred
+live-draft carriage plus HTTP fallback, alongside read-only item/run/entity
+inspection and search/browse over projected detail. It now also includes a
+read-only pending-review queue over the same shared search projections plus a
+narrow set of revision-safe item/run approval and item supersede actions over
+the same local HTTP runtime the CLI and browser already use. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
-`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`.
+`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`; `DI-noruv`.
 
 ## Current verification shape
 

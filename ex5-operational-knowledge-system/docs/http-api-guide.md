@@ -502,7 +502,7 @@ Payload fields:
 The live draft surface is browser-oriented, but it is also reused directly by
 the first Neovim phase. It shares the current working body for a knowledge item
 without turning that live state into a durable revision automatically. Source:
-`DI-fudok`.
+`DI-fudok`; `DI-noruv`.
 
 ### `GET /api/items/{id}/live`
 
@@ -548,6 +548,32 @@ Conflict response shape:
 
 - `conflict: true`
 - `state: <current live state>`
+
+### `GET /api/items/{id}/live/socket`
+
+Upgrades the existing local adapter to websocket for shared live-draft
+carriage. Browser and Neovim now prefer this route for participant presence and
+shared body updates, while `GET/POST /api/items/{id}/live` stay available for
+bootstrap fetch and fallback. Source: `DI-noruv`.
+
+Client message shape:
+
+- `type`
+- `participant_id`
+- `display_name`
+- `color`
+- `cursor`
+- `head`
+- `typing`
+- `base_version`
+- `update_body`
+- `body`
+
+Server message shape:
+
+- `type: "live-state" | "live-conflict" | "error"`
+- `state: <current live state>` when applicable
+- `message` for error payloads
 
 ## Runs
 

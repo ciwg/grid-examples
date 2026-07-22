@@ -1,6 +1,7 @@
 local M = {}
 
 local uv = vim.uv or vim.loop
+local bitops = bit or bit32
 
 local function default_participant_id()
   local pid = tostring(vim.fn.getpid())
@@ -38,6 +39,13 @@ M.state = {
   participant_id = default_participant_id(),
   applying_remote = false,
   poll_timer = nil,
+  heartbeat_timer = nil,
+  reconnect_timer = nil,
+  socket = nil,
+  socket_connected = false,
+  socket_buffer = "",
+  socket_generation = 0,
+  transport = "http-poll",
   augroup = nil,
 }
 
@@ -136,6 +144,108 @@ local function url_encode(value)
   end))
 end
 
+local function websocket_url(path)
+  local base = M.config.base_url
+  if vim.startswith(base, "https://") then
+    return "wss://" .. base:sub(#("https://") + 1) .. path
+  end
+  if vim.startswith(base, "http://") then
+    return "ws://" .. base:sub(#("http://") + 1) .. path
+  end
+  return nil
+end
+
+local function parse_websocket_url(url)
+  if not url then
+    return nil, "websocket url required"
+  end
+  local scheme, rest = url:match("^(wss?)://(.+)$")
+  if not scheme then
+    return nil, "unsupported websocket url"
+  end
+  local host_port, path = rest:match("^([^/]+)(/.*)$")
+  if not host_port then
+    host_port = rest
+    path = "/"
+  end
+  local host, port = host_port:match("^([^:]+):(%d+)$")
+  if not host then
+    host = host_port
+    port = scheme == "wss" and "443" or "80"
+  end
+  return {
+    scheme = scheme,
+    host = host,
+    port = tonumber(port),
+    path = path,
+  }, nil
+end
+
+local function encode_websocket_text_frame(text)
+  local length = #text
+  if length < 126 then
+    return string.char(0x81, length) .. text
+  end
+  if length <= 0xFFFF then
+    local hi = math.floor(length / 256)
+    local lo = length % 256
+    return string.char(0x81, 126, hi, lo) .. text
+  end
+  return nil, "websocket frame too large"
+end
+
+local function decode_websocket_frames(buffer)
+  local frames = {}
+  local index = 1
+  while true do
+    if #buffer - index + 1 < 2 then
+      break
+    end
+    local first = string.byte(buffer, index)
+    local second = string.byte(buffer, index + 1)
+    if bitops.band(first, 0x80) == 0 then
+      return nil, nil, "fragmented websocket frames are unsupported"
+    end
+    local opcode = bitops.band(first, 0x0f)
+    local masked = bitops.band(second, 0x80) ~= 0
+    local length = bitops.band(second, 0x7f)
+    local header = 2
+    if length == 126 then
+      if #buffer - index + 1 < 4 then
+        break
+      end
+      local hi = string.byte(buffer, index + 2)
+      local lo = string.byte(buffer, index + 3)
+      length = hi * 256 + lo
+      header = 4
+    elseif length == 127 then
+      return nil, nil, "64-bit websocket frames are unsupported"
+    end
+    local mask = nil
+    if masked then
+      if #buffer - index + 1 < header + 4 then
+        break
+      end
+      mask = { string.byte(buffer, index + header, index + header + 3) }
+      header = header + 4
+    end
+    if #buffer - index + 1 < header + length then
+      break
+    end
+    local payload = buffer:sub(index + header, index + header + length - 1)
+    if mask then
+      local bytes = { string.byte(payload, 1, #payload) }
+      for i = 1, #bytes do
+        bytes[i] = bitops.bxor(bytes[i], mask[((i - 1) % 4) + 1])
+      end
+      payload = string.char(unpack(bytes))
+    end
+    table.insert(frames, { opcode = opcode, payload = payload })
+    index = index + header + length
+  end
+  return frames, buffer:sub(index), nil
+end
+
 local allowed_search_filters = {
   kind = true,
   status = true,
@@ -180,6 +290,29 @@ local function request(method, path, payload)
     return nil, nil, string.format("request failed: %s", raw)
   end
   return status, body, nil
+end
+
+local function apply_socket_live_state(decoded, conflict)
+  if conflict then
+    if decoded.state then
+      M.state.participants = decoded.state.participants or M.state.participants
+      M.state.version = decoded.state.version or M.state.version
+      M.state.current_revision = decoded.state.current_revision or M.state.current_revision
+      M.state.status = decoded.state.status or M.state.status
+      M.state.title = decoded.state.title or M.state.title
+      apply_live_state(decoded.state, true)
+    end
+    notify("live draft conflict; refresh or merge before retrying", vim.log.levels.WARN)
+    return
+  end
+  local state = decoded.state
+  if not state then
+    return
+  end
+  if current_body() == (state.body or "") then
+    vim.bo[M.state.bufnr].modified = false
+  end
+  apply_live_state(state, not vim.bo[M.state.bufnr].modified)
 end
 
 local function apply_live_state(state, force)
@@ -298,11 +431,169 @@ local function refresh_live_state(force)
   return true
 end
 
+local function clear_reconnect_loop()
+  if M.state.reconnect_timer then
+    M.state.reconnect_timer:stop()
+    M.state.reconnect_timer:close()
+    M.state.reconnect_timer = nil
+  end
+end
+
+local function close_live_socket()
+  if M.state.socket then
+    pcall(M.state.socket.read_stop, M.state.socket)
+    pcall(M.state.socket.close, M.state.socket)
+    M.state.socket = nil
+  end
+  M.state.socket_connected = false
+  M.state.socket_buffer = ""
+  M.state.transport = "http-poll"
+end
+
+local function handle_live_socket_payload(payload)
+  local decoded = json_decode(payload)
+  if not decoded then
+    return
+  end
+  if decoded.type == "error" then
+    notify(decoded.message or "live websocket error", vim.log.levels.WARN)
+    return
+  end
+  if decoded.type == "live-conflict" then
+    apply_socket_live_state(decoded, true)
+    return
+  end
+  if decoded.type == "live-state" then
+    apply_socket_live_state(decoded, false)
+  end
+end
+
+local function schedule_socket_reconnect(item_id, generation)
+  clear_reconnect_loop()
+  M.state.reconnect_timer = uv.new_timer()
+  M.state.reconnect_timer:start(5000, 0, vim.schedule_wrap(function()
+    if M.state.item_id ~= item_id or M.state.socket_generation ~= generation then
+      return
+    end
+    M.connect_live_socket(item_id)
+  end))
+end
+
+local function send_live_socket_update(update_body, typing)
+  if not M.state.socket_connected or not M.state.socket then
+    return false
+  end
+  local payload = json_encode({
+    type = "live-update",
+    participant_id = M.state.participant_id,
+    display_name = M.config.display_name,
+    color = M.config.color,
+    cursor = current_cursor_offset(),
+    head = current_cursor_offset(),
+    typing = typing,
+    base_version = M.state.version,
+    update_body = update_body,
+    body = update_body and current_body() or "",
+  })
+  local frame, err = encode_websocket_text_frame(payload)
+  if err then
+    notify(err, vim.log.levels.WARN)
+    return false
+  end
+  M.state.socket:write(frame)
+  return true
+end
+
+function M.connect_live_socket(item_id)
+  local parsed, parse_err = parse_websocket_url(websocket_url("/api/items/" .. item_id .. "/live/socket"))
+  if parse_err or not parsed or parsed.scheme ~= "ws" then
+    start_poll_loop()
+    return
+  end
+  local generation = M.state.socket_generation + 1
+  M.state.socket_generation = generation
+  close_live_socket()
+  local socket = uv.new_tcp()
+  M.state.socket = socket
+  socket:connect(parsed.host, parsed.port, vim.schedule_wrap(function(err)
+    if err then
+      close_live_socket()
+      start_poll_loop()
+      schedule_socket_reconnect(item_id, generation)
+      return
+    end
+    local request_text = table.concat({
+      "GET " .. parsed.path .. " HTTP/1.1",
+      "Host: " .. parsed.host .. ":" .. tostring(parsed.port),
+      "Upgrade: websocket",
+      "Connection: Upgrade",
+      "Sec-WebSocket-Version: 13",
+      "Sec-WebSocket-Key: b2tzLW5laW92aW0td3M=",
+      "",
+      "",
+    }, "\r\n")
+    socket:write(request_text)
+    socket:read_start(vim.schedule_wrap(function(read_err, chunk)
+      if generation ~= M.state.socket_generation then
+        return
+      end
+      if read_err or not chunk then
+        close_live_socket()
+        start_poll_loop()
+        schedule_socket_reconnect(item_id, generation)
+        return
+      end
+      M.state.socket_buffer = (M.state.socket_buffer or "") .. chunk
+      if not M.state.socket_connected then
+        local header_end = M.state.socket_buffer:find("\r\n\r\n", 1, true)
+        if not header_end then
+          return
+        end
+        local header = M.state.socket_buffer:sub(1, header_end + 3)
+        if not header:match("^HTTP/1%.1 101 ") then
+          close_live_socket()
+          start_poll_loop()
+          schedule_socket_reconnect(item_id, generation)
+          return
+        end
+        M.state.socket_buffer = M.state.socket_buffer:sub(header_end + 4)
+        M.state.socket_connected = true
+        M.state.transport = "websocket"
+        clear_reconnect_loop()
+        stop_poll_loop()
+        send_live_socket_update(false, false)
+      end
+      local frames, rest, frame_err = decode_websocket_frames(M.state.socket_buffer)
+      if frame_err then
+        notify(frame_err, vim.log.levels.WARN)
+        close_live_socket()
+        start_poll_loop()
+        schedule_socket_reconnect(item_id, generation)
+        return
+      end
+      M.state.socket_buffer = rest or ""
+      for _, frame in ipairs(frames or {}) do
+        if frame.opcode == 0x1 then
+          handle_live_socket_payload(frame.payload)
+        elseif frame.opcode == 0x8 then
+          close_live_socket()
+          start_poll_loop()
+          schedule_socket_reconnect(item_id, generation)
+          return
+        end
+      end
+    end))
+  end))
+end
+
 -- Intent: Keep Neovim visible in the shared participant roster without
 -- advancing the draft version when the local editor is only reporting presence
 -- and cursor state. Source: DI-fudok
 local function push_presence(typing)
   if not M.state.item_id then
+    return
+  end
+  if send_live_socket_update(false, typing) then
     return
   end
   local cursor = current_cursor_offset()
@@ -333,6 +624,9 @@ end
 local function push_body()
   if not M.state.item_id or not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
     return false
+  end
+  if send_live_socket_update(true, false) then
+    return true
   end
   local cursor = current_cursor_offset()
   local status, body, err = request("POST", "/api/items/" .. M.state.item_id .. "/live", {
@@ -379,6 +673,14 @@ local function stop_poll_loop()
   end
 end
 
+local function stop_heartbeat_loop()
+  if M.state.heartbeat_timer then
+    M.state.heartbeat_timer:stop()
+    M.state.heartbeat_timer:close()
+    M.state.heartbeat_timer = nil
+  end
+end
+
 -- Intent: Keep the first Neovim phase close to the browser draft studio by
 -- polling the same runtime state and refreshing presence on a short interval.
 -- Source: DI-fudok
@@ -395,6 +697,29 @@ local function start_poll_loop()
       push_presence(false)
     end)
   end)
+end
+
+local function start_heartbeat_loop()
+  stop_heartbeat_loop()
+  M.state.heartbeat_timer = uv.new_timer()
+  M.state.heartbeat_timer:start(M.config.poll_ms, M.config.poll_ms, function()
+    vim.schedule(function()
+      if not M.state.item_id or not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
+        stop_heartbeat_loop()
+        return
+      end
+      push_presence(false)
+    end)
+  end)
+end
+
+local function start_live_transport()
+  stop_poll_loop()
+  start_heartbeat_loop()
+  -- Intent: Make the first Neovim authoring embodiment share the same
+  -- websocket-preferred live-draft carriage as the browser while preserving
+  -- HTTP fallback inside the existing adapter. Source: DI-noruv
+  M.connect_live_socket(M.state.item_id)
 end
 
 local function session_lines()
@@ -1627,6 +1952,9 @@ end
 
 function M.close()
   stop_poll_loop()
+  stop_heartbeat_loop()
+  clear_reconnect_loop()
+  close_live_socket()
   if M.state.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M.state.augroup)
     M.state.augroup = nil
@@ -1701,7 +2029,7 @@ function M.open(item_id)
       M.close()
     end,
   })
-  start_poll_loop()
+  start_live_transport()
   notify("opened " .. item_id)
 end
 

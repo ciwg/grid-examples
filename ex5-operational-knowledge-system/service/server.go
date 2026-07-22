@@ -338,6 +338,10 @@ func (server *Server) handleItem(writer http.ResponseWriter, request *http.Reque
 	case "supersede":
 		server.handleItemSupersede(writer, request, itemID)
 	case "live":
+		if len(parts) == 3 && parts[2] == "socket" {
+			server.handleItemLiveSocket(writer, request, itemID)
+			return
+		}
 		server.handleItemLive(writer, request, itemID)
 	default:
 		http.NotFound(writer, request)

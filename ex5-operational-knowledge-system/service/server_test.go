@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -63,9 +65,164 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled || !meta.CASDraftBodiesEnabled {
 		t.Fatalf("expected CAS capability flags in meta: %+v", meta)
 	}
+	if !meta.LiveDraftWebSocketEnabled || meta.LiveDraftPreferredTransport != "websocket" {
+		t.Fatalf("expected websocket live-draft capability metadata in meta: %+v", meta)
+	}
 	if meta.PrimaryEmbodimentAdapter != "local_http" {
 		t.Fatalf("expected local_http embodiment adapter in meta: %+v", meta)
 	}
+}
+
+func TestServerLiveSocketStreamsDraftUpdates(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := httptest.NewServer(NewServer(app).Handler())
+	defer server.Close()
+
+	socket := dialLiveWebSocket(t, server, "/api/items/"+item.ID+"/live/socket")
+	defer closeSocket(socket)
+
+	initial := readLiveSocketEnvelope(t, socket)
+	if initial.Type != "live-state" || initial.State.Version != 1 || initial.State.Body != "# Start" {
+		t.Fatalf("unexpected initial live socket state: %+v", initial)
+	}
+
+	if err := socket.WriteJSON(map[string]any{
+		"type":           "live-update",
+		"participant_id": "browser-a",
+		"display_name":   "Alice",
+		"color":          "#123456",
+		"cursor":         5,
+		"head":           5,
+		"typing":         true,
+		"base_version":   1,
+		"update_body":    true,
+		"body":           "# Start\n\nChecked PPE.",
+	}); err != nil {
+		t.Fatalf("write live socket update: %v", err)
+	}
+	updated := readLiveSocketEnvelope(t, socket)
+	if updated.Type != "live-state" || updated.State.Version != 2 || updated.State.Body != "# Start\n\nChecked PPE." {
+		t.Fatalf("unexpected updated live socket state: %+v", updated)
+	}
+	if len(updated.State.Participants) != 1 || updated.State.Participants[0].ParticipantID != "browser-a" {
+		t.Fatalf("expected participant state in live socket update: %+v", updated.State.Participants)
+	}
+
+	if _, _, err := app.UpdateLiveItem(item.ID, "browser-b", "Bob", "#654321", 2, 2, false, updated.State.Version, false, ""); err != nil {
+		t.Fatalf("secondary presence update: %v", err)
+	}
+	broadcast := readLiveSocketEnvelope(t, socket)
+	if broadcast.Type != "live-state" || len(broadcast.State.Participants) != 2 {
+		t.Fatalf("expected broadcast participant update, got %+v", broadcast)
+	}
+}
+
+func TestServerLiveSocketReportsConflicts(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := httptest.NewServer(NewServer(app).Handler())
+	defer server.Close()
+
+	socket := dialLiveWebSocket(t, server, "/api/items/"+item.ID+"/live/socket")
+	defer closeSocket(socket)
+	_ = readLiveSocketEnvelope(t, socket)
+
+	if _, _, err := app.UpdateLiveItem(item.ID, "browser-b", "Bob", "#654321", 1, 1, true, 1, true, "# Start\n\nRemote change"); err != nil {
+		t.Fatalf("seed remote live change: %v", err)
+	}
+	_ = readLiveSocketEnvelope(t, socket)
+
+	if err := socket.WriteJSON(map[string]any{
+		"type":           "live-update",
+		"participant_id": "browser-a",
+		"display_name":   "Alice",
+		"color":          "#123456",
+		"cursor":         5,
+		"head":           5,
+		"typing":         true,
+		"base_version":   1,
+		"update_body":    true,
+		"body":           "# Start\n\nStale overwrite",
+	}); err != nil {
+		t.Fatalf("write stale live socket update: %v", err)
+	}
+	conflict := readLiveSocketEnvelope(t, socket)
+	if conflict.Type != "live-conflict" {
+		t.Fatalf("expected live-conflict response, got %+v", conflict)
+	}
+	if conflict.State.Body != "# Start\n\nRemote change" || conflict.State.Version != 2 {
+		t.Fatalf("unexpected conflict state: %+v", conflict.State)
+	}
+}
+
+func dialLiveWebSocket(t *testing.T, server *httptest.Server, path string) *websocketConn {
+	t.Helper()
+	address := strings.TrimPrefix(server.URL, "http://")
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	request := strings.Join([]string{
+		"GET " + path + " HTTP/1.1",
+		"Host: " + address,
+		"Upgrade: websocket",
+		"Connection: Upgrade",
+		"Sec-WebSocket-Version: 13",
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+		"",
+		"",
+	}, "\r\n")
+	if _, err := writer.WriteString(request); err != nil {
+		t.Fatalf("write websocket handshake: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush websocket handshake: %v", err)
+	}
+	statusLine, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read websocket status: %v", err)
+	}
+	if !strings.Contains(statusLine, "101") {
+		t.Fatalf("unexpected websocket status line: %q", statusLine)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read websocket header: %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+	return &websocketConn{
+		conn:   conn,
+		reader: reader,
+		writer: writer,
+	}
+}
+
+func readLiveSocketEnvelope(t *testing.T, socket *websocketConn) liveSocketEnvelope {
+	t.Helper()
+	var envelope liveSocketEnvelope
+	if err := socket.ReadJSON(&envelope); err != nil {
+		t.Fatalf("read live socket envelope: %v", err)
+	}
+	return envelope
 }
 
 func TestServerUploadsEvidenceAttachment(t *testing.T) {

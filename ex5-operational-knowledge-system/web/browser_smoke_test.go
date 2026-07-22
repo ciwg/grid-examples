@@ -1307,7 +1307,9 @@ const snapshotTimer = setInterval(() => {
 		if request.Method == http.MethodPost {
 			body := new(bytes.Buffer)
 			_, _ = body.ReadFrom(request.Body)
-			livePostBody = body.String()
+			if strings.Contains(body.String(), `"update_body":true`) {
+				livePostBody = body.String()
+			}
 			writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":4,"current_revision":2,"participants":[]}`)
 			return
 		}

@@ -231,8 +231,9 @@ Creating a new durable revision snapshots the current working body into the
 append-only knowledge-item history. This keeps live drafting and auditable
 revisions related but distinct.
 
-In the current Neovim phase, the editor participates by polling and posting to
-`GET/POST /api/items/{id}/live`, and it reads projected detail from
+In the current Neovim phase, the editor now prefers websocket carriage for the
+shared live draft and falls back to `GET/POST /api/items/{id}/live` when the
+socket path is unavailable. It still reads projected detail from
 `GET /api/items/{id}` plus `GET /api/runs/{id}` for inspection. That keeps the
 embodiment aligned with the same runtime truth the browser uses instead of
 creating a second collaboration channel. Linked-entity browsing extends that
@@ -263,7 +264,6 @@ The code currently implements:
 
 It still does **not** yet implement:
 
-- websocket-based collaboration transport
 - embodiment/product follow-on work beyond the current local HTTP adapter
   contract
 

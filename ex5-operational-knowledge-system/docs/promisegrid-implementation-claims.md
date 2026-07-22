@@ -25,6 +25,8 @@ Today it ships:
 - append-only operational event history
 - local durable draft manifests plus CAS-backed draft bodies, and durable
   attachment storage
+- websocket-preferred shared live-draft carriage for browser and Neovim, with
+  the existing HTTP live routes preserved as fallback and compatibility paths
 - projected read/query views over that history
 - browser, CLI, and Neovim embodiments over the same local HTTP adapter
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
@@ -92,7 +94,9 @@ Browser, CLI, and Neovim all read and write one shared ex5 runtime model
 through the same local HTTP surface. The embodiments are not separate durable
 systems. HTTP remains the sole embodiment adapter for now, even though the
 runtime underneath it is now richer than when that adapter first shipped.
-Source: `DI-fudok`; `DI-ravum`; `DI-sobek`; `DI-bavuk`.
+Live drafting now prefers websocket carriage under that same adapter for the
+browser and first-phase Neovim embodiment. Source: `DI-fudok`; `DI-ravum`;
+`DI-sobek`; `DI-bavuk`; `DI-noruv`.
 
 ### 2. Append-only durable operational history
 
@@ -189,8 +193,9 @@ Done now:
 
 Remaining:
 
-- keep embodiment/runtime language honest while websocket transport and other
-  deferred product follow-on work remain outside the current PromiseGrid slice
+- keep embodiment/runtime language honest while richer relay-network behavior
+  and other deferred product follow-on work remain outside the current
+  PromiseGrid slice
 
 ## Current implementation claim
 

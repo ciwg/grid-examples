@@ -551,7 +551,6 @@ inside Neovim.
 
 The current implementation does **not** yet include:
 
-- websocket-based awareness or presence transport
 - relay-to-relay peer exchange
 - ERP-style quantity ledgers, reservations, purchasing, or planning logic
 

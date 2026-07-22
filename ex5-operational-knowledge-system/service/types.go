@@ -48,6 +48,8 @@ type Meta struct {
 	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
 	CASAttachmentBlobsEnabled   bool     `json:"cas_attachment_blobs_enabled"`
 	CASDraftBodiesEnabled       bool     `json:"cas_draft_bodies_enabled"`
+	LiveDraftWebSocketEnabled   bool     `json:"live_draft_websocket_enabled"`
+	LiveDraftPreferredTransport string   `json:"live_draft_preferred_transport"`
 	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
 }
 

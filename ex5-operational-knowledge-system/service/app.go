@@ -32,6 +32,7 @@ type App struct {
 	nextNumbers          map[string]int
 	knownOriginEvents    map[string]bool
 	peerAliasToCanonical map[string]string
+	liveSubscribers      map[string]map[chan struct{}]struct{}
 }
 
 func NewApp(dataRoot string) (*App, error) {
@@ -54,6 +55,7 @@ func NewApp(dataRoot string) (*App, error) {
 		nextNumbers:          map[string]int{},
 		knownOriginEvents:    map[string]bool{},
 		peerAliasToCanonical: map[string]string{},
+		liveSubscribers:      map[string]map[chan struct{}]struct{}{},
 	}
 	events = normalizeOperationalEvents(events, app.localPeerID)
 	knowledgeItemRecords = normalizeKnowledgeItemRecordOrigins(knowledgeItemRecords, events)
@@ -152,10 +154,12 @@ func (app *App) Meta() Meta {
 			"knowledge-link",
 			"knowledge-responsibility",
 		},
-		CASObjectsEnabled:         true,
-		CASAttachmentBlobsEnabled: true,
-		CASDraftBodiesEnabled:     true,
-		PrimaryEmbodimentAdapter:  "local_http",
+		CASObjectsEnabled:           true,
+		CASAttachmentBlobsEnabled:   true,
+		CASDraftBodiesEnabled:       true,
+		LiveDraftWebSocketEnabled:   true,
+		LiveDraftPreferredTransport: "websocket",
+		PrimaryEmbodimentAdapter:    "local_http",
 	}
 }
 
@@ -1069,6 +1073,55 @@ func (app *App) LiveItemState(itemID string) (LiveItemState, error) {
 	return app.liveStateLocked(item), nil
 }
 
+// Intent: Let websocket live-draft sessions subscribe to one item-level update
+// feed without changing the underlying draft or revision semantics. Source:
+// DI-noruv
+func (app *App) SubscribeLiveItem(itemID string) (<-chan struct{}, func(), error) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
+	if _, ok := app.items[itemID]; !ok {
+		return nil, nil, fmt.Errorf("knowledge item %q not found", itemID)
+	}
+	updateCh := make(chan struct{}, 1)
+	if app.liveSubscribers[itemID] == nil {
+		app.liveSubscribers[itemID] = map[chan struct{}]struct{}{}
+	}
+	app.liveSubscribers[itemID][updateCh] = struct{}{}
+	return updateCh, func() {
+		app.mu.Lock()
+		defer app.mu.Unlock()
+		subscribers := app.liveSubscribers[itemID]
+		if subscribers == nil {
+			return
+		}
+		delete(subscribers, updateCh)
+		if len(subscribers) == 0 {
+			delete(app.liveSubscribers, itemID)
+		}
+	}, nil
+}
+
+// Intent: Remove websocket-backed participants promptly when a live transport
+// session closes, instead of leaving them to age out only by timeout. Source:
+// DI-noruv
+func (app *App) RemoveLiveParticipant(itemID string, participantID string) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	itemID = app.resolveLocalInputIDLocked("knowledge_item", itemID)
+	if _, ok := app.items[itemID]; !ok {
+		return fmt.Errorf("knowledge item %q not found", itemID)
+	}
+	if peers := app.presence[itemID]; peers != nil {
+		if _, ok := peers[participantID]; ok {
+			delete(peers, participantID)
+			app.cleanupPresenceLocked(itemID)
+			app.notifyLiveSubscribersLocked(itemID)
+		}
+	}
+	return nil
+}
+
 // Intent: Keep collaborative item drafting available in the browser while
 // preserving a separate durable revision workflow for approvals and historical
 // reproduction. Source: DI-lusov; DI-zoruk
@@ -1101,6 +1154,7 @@ func (app *App) UpdateLiveItem(itemID string, participantID string, displayName 
 	if updateBody && body != item.WorkingBody {
 		if baseVersion != item.WorkingVersion {
 			app.cleanupPresenceLocked(itemID)
+			app.notifyLiveSubscribersLocked(itemID)
 			return app.liveStateLocked(item), true, nil
 		}
 		item.WorkingBody = body
@@ -1115,6 +1169,7 @@ func (app *App) UpdateLiveItem(itemID string, participantID string, displayName 
 		}
 	}
 	app.cleanupPresenceLocked(itemID)
+	app.notifyLiveSubscribersLocked(itemID)
 	return app.liveStateLocked(item), false, nil
 }
 
@@ -1860,6 +1915,18 @@ func (app *App) observeOriginEventLocked(event OperationalEvent) {
 func (app *App) ensurePresenceLocked(itemID string) {
 	if app.presence[itemID] == nil {
 		app.presence[itemID] = map[string]*LivePresence{}
+	}
+}
+
+// Intent: Wake websocket live-draft subscribers when presence or body state
+// changes so browser and Neovim do not need polling as their primary live
+// transport. Source: DI-noruv
+func (app *App) notifyLiveSubscribersLocked(itemID string) {
+	for subscriber := range app.liveSubscribers[itemID] {
+		select {
+		case subscriber <- struct{}{}:
+		default:
+		}
 	}
 }
 
