@@ -136,7 +136,7 @@ func TestPendingReviewCommandUsesSharedSearchRoutes(t *testing.T) {
 		case "":
 			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0001","approvals":[]},{"id":"RUN-0009","approvals":[{"actor":"carol"}]}]}`))
 		case "problem=true":
-			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0002"}]}`))
+			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0002","approvals":[]}]}`))
 		default:
 			t.Fatalf("unexpected query: %q", request.URL.RawQuery)
 		}
@@ -201,6 +201,32 @@ func TestPendingReviewCommandRejectsMalformedRunApprovals(t *testing.T) {
 		t.Fatalf("unexpected exit code: %d", exitCode)
 	}
 	if err == nil || !strings.Contains(err.Error(), `/api/search decode:`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPendingReviewCommandRejectsMissingRunApprovals(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.RawQuery {
+		case "status=draft":
+			_, _ = writer.Write([]byte(`{"items":[]}`))
+		case "":
+			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0001"}]}`))
+		case "problem=true":
+			_, _ = writer.Write([]byte(`{"runs":[]}`))
+		default:
+			t.Fatalf("unexpected query: %q", request.URL.RawQuery)
+		}
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"pending-review"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), `search run missing "approvals" array`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

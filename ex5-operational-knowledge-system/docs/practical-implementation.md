@@ -120,6 +120,11 @@ build one shell-facing summary for draft items, review queue runs, and problem
 runs instead of inventing a terminal-only aggregation endpoint. Source:
 `DI-vabok`; `DI-ravum`.
 
+That queue path now also treats an omitted run `approvals` field as a shared
+projection contract error instead of silently reclassifying the run as genuine
+unreviewed work. Neovim follows the same rule so the two terminal review
+surfaces stay aligned. Source: `DI-davur`.
+
 The CLI place/resource drilldown path follows the same rule too. It keeps
 `show-place` and `show-resource` on the existing context-detail routes and
 renders hierarchy, related runs, and typed links in a more useful terminal

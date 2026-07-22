@@ -224,6 +224,7 @@ CLI behavior today:
 - projected run/item/responsibility drilldowns over the shared detail routes,
   including related runs, approvals, evidence, and typed links
 - grouped pending-review aggregation over the same search-route family Neovim already uses, rendered as a terminal summary
+- strict review-queue contract checks so omitted run `approvals` fields fail terminal triage instead of being misread as genuine unreviewed work
 
 Neovim behavior today:
 
@@ -231,6 +232,7 @@ Neovim behavior today:
 - read-only item/run/entity inspection
 - grouped search and browse over the operational graph
 - grouped pending-review browsing for draft items and review-worthy runs
+- strict pending-review contract checks so omitted run `approvals` fields stop the queue instead of inventing fake review work
 - limited item approval for the current or specified item
 - limited run approval for the current or specified run
 - limited item supersede for the current or specified item

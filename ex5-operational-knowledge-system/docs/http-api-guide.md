@@ -59,6 +59,11 @@ The CLI now reuses this same route directly for a terminal hotspot summary:
 
 Source: `DI-nuvaz`; `DI-ravum`.
 
+Terminal review surfaces also assume each run record that participates in
+pending/problem review carries an explicit `approvals` array. The CLI and
+Neovim pending-review queues treat an omitted `approvals` field as shared
+projection contract drift, not as “unreviewed.” Source: `DI-davur`.
+
 The response includes:
 
 - `problem_runs`

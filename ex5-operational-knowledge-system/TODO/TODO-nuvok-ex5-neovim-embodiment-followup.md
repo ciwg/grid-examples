@@ -50,11 +50,13 @@ phase 1.
 - item inspection now exists as the first richer follow-on over projected item detail
 - direct run inspection now exists for evidence and approval review over projected run detail
 - typed-link browsing now exists over item, run, place, resource, and responsibility detail
+- terminal review queues now reject omitted run `approvals` fields instead of silently inventing fake unreviewed work under `TODO/TODO-davur-ex5-review-queue-approvals-contract.md`
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API
 - CLI run, item, responsibility, place, and resource drilldown summaries now exist over the shared detail routes
 - CLI pending-review and problem-review terminal summaries now exist over the shared review projections
+- remaining terminal follow-ons are now split into explicit tracked gaps for review-queue contract strictness, run-context handoffs, architecture-doc drift, and Neovim inspect behavior coverage
 - a small run approval action now exists over the existing run approval API
 - a small item supersede action now exists over the existing item supersede API
 - CLI evidence upload now exists over the shared run evidence route

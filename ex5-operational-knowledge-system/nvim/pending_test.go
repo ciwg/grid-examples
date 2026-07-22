@@ -119,3 +119,74 @@ vim.cmd("qa!")
 		t.Fatalf("unexpected pending output: %s", string(output))
 	}
 }
+
+func TestNeovimPendingRejectsMissingRunApprovals(t *testing.T) {
+	nvimPath, err := exec.LookPath("nvim")
+	if err != nil {
+		t.Skip("nvim not available")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/search" {
+			http.NotFound(response, request)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json")
+		switch request.URL.RawQuery {
+		case "status=draft":
+			if _, err := fmt.Fprint(response, `{"items":[],"runs":[]}`); err != nil {
+				t.Fatalf("write draft response: %v", err)
+			}
+		case "":
+			if _, err := fmt.Fprint(response, `{"items":[],"runs":[{"id":"RUN-0001","kind":"procedure","item_id":"ITEM-0001","outcome":"completed","notes":"Shift startup finished"}]}`); err != nil {
+				t.Fatalf("write all-runs response: %v", err)
+			}
+		case "problem=true":
+			if _, err := fmt.Fprint(response, `{"items":[],"runs":[]}`); err != nil {
+				t.Fatalf("write problem response: %v", err)
+			}
+		default:
+			http.Error(response, fmt.Sprintf("unexpected query %q", request.URL.RawQuery), http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	script := filepath.Join(t.TempDir(), "pending_missing_approvals.lua")
+	scriptBody := fmt.Sprintf(`
+vim.env.OKS_BASE_URL = %q
+local notices = {}
+vim.notify = function(message, level)
+  table.insert(notices, message)
+end
+local oks = require("oks")
+
+oks.pending()
+
+local joined = table.concat(notices, "\n")
+if not string.find(joined, '/api/search runs[1] missing "approvals" array', 1, true) then
+  error("missing approvals contract warning: " .. joined)
+end
+if string.find(vim.api.nvim_buf_get_name(0), "oks-pending://review", 1, true) then
+  error("pending review buffer should not open on malformed approvals payload")
+end
+vim.cmd("qa!")
+`, server.URL)
+	if err := os.WriteFile(script, []byte(scriptBody), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	command := exec.Command(
+		nvimPath,
+		"--headless",
+		"-u", "NONE",
+		"-c", "set runtimepath+=.",
+		"-l", script,
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nvim pending missing approvals regression: %v\n%s", err, string(output))
+	}
+	if strings.Contains(string(output), "missing approvals contract warning") || strings.Contains(string(output), "pending review buffer should not open") {
+		t.Fatalf("unexpected pending output: %s", string(output))
+	}
+}

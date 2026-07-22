@@ -317,6 +317,46 @@ type cliSearchRun struct {
 	Approvals   []cliApproval `json:"approvals"`
 }
 
+// Intent: Treat shared search runs without an explicit approvals array as
+// contract drift instead of silently reclassifying them as genuine unreviewed
+// work in terminal review queues. Source: DI-davur
+func (run *cliSearchRun) UnmarshalJSON(body []byte) error {
+	type rawSearchRun struct {
+		ID          string           `json:"id"`
+		Kind        string           `json:"kind"`
+		ItemID      string           `json:"item_id"`
+		Outcome     string           `json:"outcome"`
+		Notes       string           `json:"notes"`
+		ResourceIDs []string         `json:"resource_ids"`
+		Approvals   *json.RawMessage `json:"approvals"`
+	}
+
+	var raw rawSearchRun
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return err
+	}
+	if raw.Approvals == nil {
+		return errors.New(`search run missing "approvals" array`)
+	}
+	trimmed := bytes.TrimSpace(*raw.Approvals)
+	if len(trimmed) == 0 || trimmed[0] != '[' {
+		return errors.New(`search run "approvals" field is not an array`)
+	}
+	var approvals []cliApproval
+	if err := json.Unmarshal(trimmed, &approvals); err != nil {
+		return fmt.Errorf("search run approvals decode: %w", err)
+	}
+
+	run.ID = raw.ID
+	run.Kind = raw.Kind
+	run.ItemID = raw.ItemID
+	run.Outcome = raw.Outcome
+	run.Notes = raw.Notes
+	run.ResourceIDs = raw.ResourceIDs
+	run.Approvals = approvals
+	return nil
+}
+
 type cliSearchResponse struct {
 	Items []cliSearchItem `json:"items"`
 	Runs  []cliSearchRun  `json:"runs"`

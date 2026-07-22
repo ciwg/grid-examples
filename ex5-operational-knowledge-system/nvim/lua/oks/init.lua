@@ -628,6 +628,34 @@ local function pending_review_lines(draft_items, all_runs, problem_runs)
   return lines
 end
 
+-- Intent: Treat missing approvals arrays in shared pending-review run payloads
+-- as contract drift so terminal review queues fail loudly instead of inventing
+-- fake unreviewed work from omitted fields. Source: DI-davur
+local function validate_pending_runs(runs, label)
+  if runs == nil then
+    return true
+  end
+  if type(runs) ~= "table" or not vim.tbl_islist(runs) then
+    notify(label .. " is not an array", vim.log.levels.ERROR)
+    return false
+  end
+  for index, run in ipairs(runs) do
+    if type(run) ~= "table" then
+      notify(string.format("%s[%d] is not an object", label, index), vim.log.levels.ERROR)
+      return false
+    end
+    if run.approvals == nil then
+      notify(string.format('%s[%d] missing "approvals" array', label, index), vim.log.levels.ERROR)
+      return false
+    end
+    if type(run.approvals) ~= "table" or not vim.tbl_islist(run.approvals) then
+      notify(string.format('%s[%d] "approvals" field is not an array', label, index), vim.log.levels.ERROR)
+      return false
+    end
+  end
+  return true
+end
+
 -- Intent: Let Neovim users inspect the durable item record around the live
 -- draft without leaving the editor or attempting write actions that this phase
 -- does not support yet. Source: DI-lonuk
@@ -1061,6 +1089,12 @@ function M.pending()
   end
   local problems = search_projection("/api/search?problem=true", "pending problem search failed")
   if not problems then
+    return
+  end
+  if not validate_pending_runs(all.runs, "/api/search runs") then
+    return
+  end
+  if not validate_pending_runs(problems.runs, "/api/search?problem=true runs") then
     return
   end
   inspect_buffer("oks-pending://review", pending_review_lines(draft.items or {}, all.runs or {}, problems.runs or {}))

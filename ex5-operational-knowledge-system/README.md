@@ -92,6 +92,12 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 For the longer feature walkthrough, see
 [features guide](docs/features-guide.md).
 
+For operator-facing docs that describe the current product directly, see:
+
+- [Product Overview](docs/product-overview.md)
+- [User Guide](docs/user-guide.md)
+- [Terminal Capability Matrix](docs/terminal-capability-matrix.md)
+
 ## Current PromiseGrid Shape
 
 The implemented foundation already follows the repo's actual grid direction:
@@ -236,6 +242,9 @@ The intended terminal behavior today is:
   detail from the same routes the browser and Neovim embodiments already read
 - use the CLI when you need pending-review and problem-review queues rendered as
   terminal summaries instead of raw JSON
+- use the CLI and Neovim review queues only against the shared search payloads
+  that carry an explicit `approvals` array per run; omitted approvals are
+  treated as contract failure instead of “unreviewed work”
 - use the CLI when you need contextual place/resource drilldowns plus
   review-oriented run/item/responsibility detail with related runs, approvals,
   evidence, and link summaries in one terminal view
