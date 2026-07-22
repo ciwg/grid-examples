@@ -575,6 +575,209 @@ func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
 	}
 }
 
+func TestAppWritesAndReplaysSignedKnowledgeLinkRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.AddLink("alice", "responsibility", resp.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns intake"); err != nil {
+		t.Fatalf("add link: %v", err)
+	}
+
+	meta := app.Meta()
+	if meta.KnowledgeLinkPCID != protocols.KnowledgeLinkProfile.CID.String() {
+		t.Fatalf("unexpected knowledge-link pCID in meta: got %q want %q", meta.KnowledgeLinkPCID, protocols.KnowledgeLinkProfile.CID.String())
+	}
+
+	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-link-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read knowledge-link messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 signed knowledge-link record, got %d", len(lines))
+	}
+	var record SignedKnowledgeLinkRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode link record: %v", err)
+	}
+	if record.PCID != protocols.KnowledgeLinkProfile.CID.String() {
+		t.Fatalf("unexpected link record pCID: got %q want %q", record.PCID, protocols.KnowledgeLinkProfile.CID.String())
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedResp, err := reloaded.GetResponsibility(resp.ID)
+	if err != nil {
+		t.Fatalf("get reloaded responsibility: %v", err)
+	}
+	if len(reloadedResp.Links) != 1 {
+		t.Fatalf("unexpected responsibility links after signed replay verification: %+v", reloadedResp.Links)
+	}
+	if reloadedResp.Links[0].Relation != "owns" || reloadedResp.Links[0].ToID != item.ID {
+		t.Fatalf("unexpected reloaded responsibility link: %+v", reloadedResp.Links[0])
+	}
+}
+
+func TestAppRejectsTamperedSignedKnowledgeLinkRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{resp.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.AddLink("alice", "responsibility", resp.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns intake"); err != nil {
+		t.Fatalf("add link: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "knowledge-link-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read knowledge-link messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed knowledge-link record")
+	}
+	var record SignedKnowledgeLinkRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode link record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreilinktampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered link record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	tampered := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(recordPath, []byte(tampered), 0o644); err != nil {
+		t.Fatalf("rewrite tampered link record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-link") || !strings.Contains(err.Error(), "envelope cid mismatch") {
+		t.Fatalf("expected knowledge-link envelope cid mismatch after tampering, got %v", err)
+	}
+}
+
+func TestAppWritesAndReplaysSignedKnowledgeResponsibilityRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	resp, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+
+	meta := app.Meta()
+	if meta.KnowledgeResponsibilityPCID != protocols.KnowledgeResponsibilityProfile.CID.String() {
+		t.Fatalf("unexpected knowledge-responsibility pCID in meta: got %q want %q", meta.KnowledgeResponsibilityPCID, protocols.KnowledgeResponsibilityProfile.CID.String())
+	}
+
+	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-responsibility-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read knowledge-responsibility messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 signed knowledge-responsibility record, got %d", len(lines))
+	}
+	var record SignedKnowledgeResponsibilityRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode responsibility record: %v", err)
+	}
+	if record.PCID != protocols.KnowledgeResponsibilityProfile.CID.String() {
+		t.Fatalf("unexpected responsibility record pCID: got %q want %q", record.PCID, protocols.KnowledgeResponsibilityProfile.CID.String())
+	}
+	if record.ResponsibilityID != resp.ID {
+		t.Fatalf("unexpected responsibility id in record: got %q want %q", record.ResponsibilityID, resp.ID)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedResp, err := reloaded.GetResponsibility(resp.ID)
+	if err != nil {
+		t.Fatalf("get reloaded responsibility: %v", err)
+	}
+	if reloadedResp.Title != resp.Title || len(reloadedResp.LinkedRoleKeys) != 1 || reloadedResp.LinkedRoleKeys[0] != "reviewer" {
+		t.Fatalf("unexpected responsibility after signed replay verification: %+v", reloadedResp)
+	}
+}
+
+func TestAppRejectsTamperedSignedKnowledgeResponsibilityRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, []string{"receiving"}); err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "knowledge-responsibility-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read knowledge-responsibility messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed knowledge-responsibility record")
+	}
+	var record SignedKnowledgeResponsibilityRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode responsibility record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreiresponsibilitytampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered responsibility record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	tampered := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(recordPath, []byte(tampered), 0o644); err != nil {
+		t.Fatalf("rewrite tampered responsibility record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-responsibility") || !strings.Contains(err.Error(), "envelope cid mismatch") {
+		t.Fatalf("expected knowledge-responsibility envelope cid mismatch after tampering, got %v", err)
+	}
+}
+
 func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

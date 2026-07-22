@@ -14,9 +14,10 @@ blurring together:
 
 ## Current status
 
-`ex5` ships as part of the PromiseGrid example set, and it now has three
+`ex5` ships as part of the PromiseGrid example set, and it now has five
 PromiseGrid-native runtime families, but not yet across the whole operational
-model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`.
+model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`;
+`DI-votek`; `DI-sarib`.
 
 Today it ships:
 
@@ -31,24 +32,34 @@ Today it ships:
   protocol bytes
 - one frozen `knowledge-evidence` profile selected from the exact shipped
   protocol bytes
+- one frozen `knowledge-link` profile selected from the exact shipped protocol
+  bytes
+- one frozen `knowledge-responsibility` profile selected from the exact shipped
+  protocol bytes
 - one local signed-envelope runtime slice for durable knowledge-item
   create/revision/lifecycle events
 - one local signed-envelope runtime slice for durable knowledge-item and run
   approval artifacts
 - one local signed-envelope runtime slice for durable evidence metadata plus
   attachment references
+- one local signed-envelope runtime slice for durable typed links
+- one local signed-envelope runtime slice for first-class responsibility
+  records
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
 - startup verification of the signed knowledge-approval envelope log against
   the replayed approval event history
 - startup verification of the signed knowledge-evidence envelope log against
   the replayed evidence event history
+- startup verification of the signed knowledge-link envelope log against the
+  replayed link event history
+- startup verification of the signed knowledge-responsibility envelope log
+  against the replayed responsibility event history
 
 Today it does **not** yet ship:
 
 - relay-visible peer exchange
-- frozen runtime behavior for link, responsibility, and
-  search-metadata families
+- frozen runtime behavior for search-metadata families
 - relay transport or CAS-backed envelope storage as part of the ex5
   operational workflow
 
@@ -81,13 +92,14 @@ those embodiments, but the durable `knowledge-item` family underneath them is
 now also written as signed PromiseGrid-style envelopes in the local runtime.
 Source: `DI-sobek`; `DI-mibor`.
 
-### 5. `knowledge-item`, `knowledge-approval`, and `knowledge-evidence` are the current frozen families
+### 5. `knowledge-item`, `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, and `knowledge-responsibility` are the current frozen families
 
-`knowledge-item`, `knowledge-approval`, and `knowledge-evidence` now select
-runtime behavior through their computed `pCID`s, and the runtime signs and
-verifies durable artifacts for all three families. The other named ex5
-families remain documented framing and staged migration targets for now.
-Source: `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`.
+`knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
+`knowledge-link`, and `knowledge-responsibility` now select runtime behavior
+through their computed `pCID`s, and the runtime signs and verifies durable
+artifacts for all five families. The other named ex5 families remain
+documented framing and staged migration targets for now. Source: `DI-mibor`;
+`DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`; `DI-sarib`.
 
 ## What the shipped implementation does not yet promise
 
@@ -106,27 +118,30 @@ Done now:
 - `knowledge-item` is frozen as the first ex5 family
 - `knowledge-approval` is frozen as the second ex5 family
 - `knowledge-evidence` is frozen as the third ex5 family
-- the runtime computes all three `pCID`s from the exact shipped spec bytes
+- `knowledge-link` is frozen as the fourth ex5 family
+- `knowledge-responsibility` is frozen as the fifth ex5 family
+- the runtime computes all five `pCID`s from the exact shipped spec bytes
 - the runtime signs and verifies durable knowledge-item create/revision/status
   artifacts
 - the runtime signs and verifies durable knowledge-item and run approval
   artifacts
 - the runtime signs and verifies durable evidence metadata plus attachment
   references
+- the runtime signs and verifies durable typed-link artifacts
+- the runtime signs and verifies durable responsibility-creation artifacts
 - the browser, CLI, and Neovim embodiments still project through the current
   local HTTP adapter on top of those signed families
 
 Remaining:
 
-- freeze and claim `knowledge-link`
-- freeze and claim `knowledge-responsibility`
 - freeze and claim `knowledge-search-metadata`
 - decide and implement any later relay-visible exchange layer
 
 ## Current implementation claim
 
 The current ex5 implementation claims live in
-[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`; `DI-kavup`.
+[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`; `DI-kavup`;
+`DI-votek`; `DI-sarib`.
 
 ## How to read the other ex5 docs
 
@@ -143,6 +158,8 @@ The current ex5 implementation claims live in
 
 ## Follow-on work
 
-The next staged PromiseGrid work is the next family freeze after
-`knowledge-evidence`, not reopening the already settled “should we begin the
-real wire slice at all?” question. Source: `DI-kavup`.
+The next staged PromiseGrid work is the dedicated `knowledge-search-metadata`
+boundary TE after the grouped `knowledge-link` and
+`knowledge-responsibility` slice, not reopening the already settled “should we
+begin the real wire slice at all?” question. Source: `DI-votek`; `DI-sarib`;
+`DI-lomuk`.

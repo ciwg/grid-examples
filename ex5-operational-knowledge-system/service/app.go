@@ -31,7 +31,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,12 @@ func NewApp(dataRoot string) (*App, error) {
 	if err := verifySignedKnowledgeEvidenceRecords(events, knowledgeEvidenceRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-evidence envelopes: %w", err)
 	}
+	if err := verifySignedKnowledgeLinkRecords(events, knowledgeLinkRecords); err != nil {
+		return nil, fmt.Errorf("verify knowledge-link envelopes: %w", err)
+	}
+	if err := verifySignedKnowledgeResponsibilityRecords(events, knowledgeResponsibilityRecords); err != nil {
+		return nil, fmt.Errorf("verify knowledge-responsibility envelopes: %w", err)
+	}
 	drafts, err := store.LoadDrafts()
 	if err != nil {
 		return nil, err
@@ -83,14 +89,16 @@ func NewApp(dataRoot string) (*App, error) {
 
 func (app *App) Meta() Meta {
 	return Meta{
-		DataRoot:              app.dataRoot,
-		KnowledgeKinds:        []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
-		RunKinds:              []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
-		ApprovalDecisions:     []string{DecisionApproved, DecisionRejected, DecisionNoted},
-		ItemStatuses:          []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
-		KnowledgeItemPCID:     protocols.KnowledgeItemProfile.CID.String(),
-		KnowledgeApprovalPCID: protocols.KnowledgeApprovalProfile.CID.String(),
-		KnowledgeEvidencePCID: protocols.KnowledgeEvidenceProfile.CID.String(),
+		DataRoot:                    app.dataRoot,
+		KnowledgeKinds:              []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
+		RunKinds:                    []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
+		ApprovalDecisions:           []string{DecisionApproved, DecisionRejected, DecisionNoted},
+		ItemStatuses:                []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
+		KnowledgeItemPCID:           protocols.KnowledgeItemProfile.CID.String(),
+		KnowledgeApprovalPCID:       protocols.KnowledgeApprovalProfile.CID.String(),
+		KnowledgeEvidencePCID:       protocols.KnowledgeEvidenceProfile.CID.String(),
+		KnowledgeLinkPCID:           protocols.KnowledgeLinkProfile.CID.String(),
+		KnowledgeResponsibilityPCID: protocols.KnowledgeResponsibilityProfile.CID.String(),
 	}
 }
 
@@ -1047,6 +1055,16 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		app.nextSequence--
 		return err
 	}
+	linkRecord, hasLinkRecord, err := buildSignedKnowledgeLinkRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
+	responsibilityRecord, hasResponsibilityRecord, err := buildSignedKnowledgeResponsibilityRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
 	if hasItemRecord {
 		// Intent: Persist the first PromiseGrid-native knowledge-item artifact
 		// before the compatibility event log so ex5 never claims a new signed item
@@ -1071,6 +1089,25 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// signed evidence record that the runtime failed to materialize. Source:
 		// DI-kavup; DI-ribof
 		if err := app.store.AppendSignedKnowledgeEvidenceRecord(evidenceRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
+	if hasLinkRecord {
+		// Intent: Persist the fourth PromiseGrid-native knowledge-link artifact
+		// before the compatibility event log so ex5 never claims a new signed
+		// link record that the runtime failed to materialize. Source: DI-votek
+		if err := app.store.AppendSignedKnowledgeLinkRecord(linkRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
+	if hasResponsibilityRecord {
+		// Intent: Persist the fifth PromiseGrid-native
+		// knowledge-responsibility artifact before the compatibility event log so
+		// ex5 never claims a new signed responsibility record that the runtime
+		// failed to materialize. Source: DI-sarib
+		if err := app.store.AppendSignedKnowledgeResponsibilityRecord(responsibilityRecord); err != nil {
 			app.nextSequence--
 			return err
 		}

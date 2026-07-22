@@ -4,11 +4,13 @@
 
 The `ex5` foundation uses one append-only `events.jsonl` file plus
 `knowledge-item-messages.jsonl`, `knowledge-approval-messages.jsonl`,
-`knowledge-evidence-messages.jsonl`, an `attachments/` directory, and a
+`knowledge-evidence-messages.jsonl`, `knowledge-link-messages.jsonl`,
+`knowledge-responsibility-messages.jsonl`, an `attachments/` directory, and a
 `drafts/` directory for browser-shared working bodies. The service replays the
 event log at startup, verifies the signed knowledge-item,
-knowledge-approval, and knowledge-evidence logs against that replay, overlays
-any saved live draft bodies, and projects current query views for:
+knowledge-approval, knowledge-evidence, knowledge-link, and
+knowledge-responsibility logs against that replay, overlays any saved live
+draft bodies, and projects current query views for:
 
 - places
 - resources
