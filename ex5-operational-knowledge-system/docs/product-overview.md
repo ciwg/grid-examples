@@ -52,8 +52,9 @@ model is operational memory, not just a document editor. Source: `DI-vemok`;
 The current product has three practical embodiments over the same local Go
 runtime:
 
-- Browser: broadest operational surface, shared live draft editing, record
-  inspection, contextual drilldowns, and grouped review panels.
+- Browser: broadest operational surface, a review-first home with one active
+  review queue lane at a time, shared live draft editing, staged operate
+  actions, contextual drilldowns, and grouped review panels.
 - CLI: shell-first creation, inspection, search, evidence upload, approvals,
   and review queues.
 - Neovim: live draft editing, durable revision snapshots, structured search,

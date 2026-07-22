@@ -111,7 +111,7 @@ This is the top operational zone of the browser. It contains:
 
 - the shared browser status/error area
 - the `Primary Flow` panel
-- the `Current Record` inspector
+- the `Current Record` review surface
 - the `Review Queue`, which now switches between:
   - draft queue
   - problem hotspots
@@ -524,11 +524,11 @@ override fields remain available. Source: `DI-mitav`.
   - reveals direct record ID entry only when the current context or helper
     select is not enough
 
-## Problem Review
+## Problem Hotspots Lane
 
 ### What it does
 
-This panel groups repeated receiving and inventory problems by place and
+This review lane groups repeated receiving and inventory problems by place and
 resource.
 
 ### Why it matters
@@ -557,11 +557,11 @@ Each card now also offers direct next-step actions for:
 - searching receiving runs there
 - searching inventory runs there
 
-## Search
+## Known-Record Search Lane
 
 ### What it does
 
-This panel searches places, resources, responsibilities, items, and runs
+This review lane searches places, resources, responsibilities, items, and runs
 together.
 
 ### Why it matters
@@ -596,12 +596,13 @@ available behind disclosure when you need exact faceting. Source: `DI-rovak`.
   - mainly useful for debugging or exact payload inspection
   - important because it keeps the payload available without dominating the normal review path
 
-## Record Inspector
+## Current Record
 
 ### What it does
 
 This is the browser’s main detailed review surface. Clicking a list card,
-search result, or hotspot card opens the selected record here.
+search result, or hotspot card opens the selected record here. The shipped UI
+labels this area `Current Record`.
 
 ### Why it matters
 
@@ -673,17 +674,19 @@ They are the simplest way to:
 - pick a record to inspect
 - confirm IDs for later actions
 
-Each card is also a navigation entry into the Record Inspector.
+Each card is also a navigation entry into the `Current Record` review surface.
 
 ## How The Areas Work Together
 
 The browser is easiest to use when you think of it as one workflow:
 
-1. start in Review to see problem hotspots, search results, and the current inspected record
-2. use the mode rail to switch cleanly into Author when you need to revise the current knowledge item
-3. use Operate to record runs, evidence, and approvals with the current context prefilled when possible
-4. use Create when you need new places, resources, responsibilities, or items
-5. use Browse Collections when you want broad inventory browsing instead of targeted review
+1. start in Review with the draft queue home path and the current inspected record
+2. switch the `Review Queue` lane only when you need hotspots or known-record
+   search instead of the default draft-home path
+3. use the mode rail to switch cleanly into Author when you need to revise the current knowledge item
+4. use Operate to record runs, evidence, and approvals with the current context prefilled when possible
+5. use Create when you need new places, resources, responsibilities, or items
+6. use Browse Collections when you want broad inventory browsing instead of targeted review
 
 That is the operational importance of the layout: the upper forms create and
 capture work, while the lower review areas let the team find and understand the

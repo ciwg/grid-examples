@@ -157,12 +157,18 @@ Use the browser when you want:
 
 - the broadest operational surface
 - a review-first workspace that keeps triage and inspection ahead of setup forms
+- one clear browser home path through the draft review queue before you branch
+  into hotspots or known-record search
+- a single review queue that switches between draft review, problem hotspots,
+  and known-record search instead of showing all three at once
 - a primary-flow layer that points you toward hotspots, draft review, and the
   most likely next action for the current record
 - a draft-first review queue that gives you one clear landing path before
   switching to hotspots or known-record search
 - a mode rail that lets you stay in Review, Author, Operate, Create, or Browse
   intentionally while keeping the browser single-page
+- a current-record review surface that keeps summary, next-step, timeline, and
+  raw JSON in one place
 - shared live browser drafting
 - live draft metrics, writing focus, and quieter authoring support that stays
   behind disclosure until needed
@@ -177,6 +183,8 @@ Use the browser when you want:
   to the record you are already reviewing
 - staged operate choices that let you pick log work, attach evidence, or review
   first, then open the heavier form only for that action
+- authoring disclosures that keep collaboration settings, revision decisions,
+  and writing context reachable without leaving them fully expanded all the time
 
 Use the CLI when you want:
 
