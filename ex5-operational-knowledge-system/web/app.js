@@ -47,11 +47,17 @@ const detailState = {
   id: "",
 };
 
+function runHandled(action) {
+  return (...args) => {
+    Promise.resolve(action(...args)).catch(handleError);
+  };
+}
+
 // Intent: Keep the browser as an equal operational embodiment while making
 // knowledge-item drafting collaborative in the browser without collapsing the
 // durable revision and approval workflow into ephemeral UI state. Source:
 // DI-lusov; DI-zoruk
-document.getElementById("place-form").addEventListener("submit", async (event) => {
+document.getElementById("place-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   await postJSON("/api/places", {
@@ -65,9 +71,9 @@ document.getElementById("place-form").addEventListener("submit", async (event) =
   form.reset();
   form.actor.value = "alice";
   await refresh();
-});
+}));
 
-document.getElementById("resource-form").addEventListener("submit", async (event) => {
+document.getElementById("resource-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   await postJSON("/api/resources", {
@@ -81,9 +87,9 @@ document.getElementById("resource-form").addEventListener("submit", async (event
   form.reset();
   form.actor.value = "alice";
   await refresh();
-});
+}));
 
-document.getElementById("responsibility-form").addEventListener("submit", async (event) => {
+document.getElementById("responsibility-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   await postJSON("/api/responsibilities", {
@@ -96,9 +102,9 @@ document.getElementById("responsibility-form").addEventListener("submit", async 
   form.reset();
   form.actor.value = "alice";
   await refresh();
-});
+}));
 
-document.getElementById("item-form").addEventListener("submit", async (event) => {
+document.getElementById("item-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const item = await postJSON("/api/items", {
@@ -114,9 +120,9 @@ document.getElementById("item-form").addEventListener("submit", async (event) =>
   form.actor.value = "alice";
   form.kind.value = "procedure";
   await refresh(item.id);
-});
+}));
 
-document.getElementById("run-form").addEventListener("submit", async (event) => {
+document.getElementById("run-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   await postJSON("/api/runs", {
@@ -137,9 +143,9 @@ document.getElementById("run-form").addEventListener("submit", async (event) => 
   form.kind.value = "procedure";
   form.revision.value = "1";
   await refresh();
-});
+}));
 
-document.getElementById("approval-form").addEventListener("submit", async (event) => {
+document.getElementById("approval-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const targetID = form.target_id.value;
@@ -158,9 +164,9 @@ document.getElementById("approval-form").addEventListener("submit", async (event
   form.decision.value = "approved";
   form.revision.value = "0";
   await refresh(editorState.itemID);
-});
+}));
 
-document.getElementById("evidence-form").addEventListener("submit", async (event) => {
+document.getElementById("evidence-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const body = new FormData();
@@ -178,20 +184,23 @@ document.getElementById("evidence-form").addEventListener("submit", async (event
   form.actor.value = "bob";
   showToast("Evidence attached");
   await refresh();
-});
+}));
 
-document.getElementById("search-form").addEventListener("submit", async (event) => {
+document.getElementById("search-form").addEventListener("submit", runHandled(async (event) => {
   event.preventDefault();
   event.currentTarget.dataset.problem = "false";
   const filters = getSearchFilters(event.currentTarget);
   const response = await fetch(`/api/search?${buildSearchParams(filters).toString()}`);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
   const payload = await response.json();
   renderSearchResults(filters, payload);
-});
+}));
 
-editorItemIDEl.addEventListener("change", async () => {
+editorItemIDEl.addEventListener("change", runHandled(async () => {
   await loadEditorItem(editorItemIDEl.value);
-});
+}));
 
 editorBodyEl.addEventListener("input", () => {
   editorState.dirty = true;
@@ -201,14 +210,14 @@ editorBodyEl.addEventListener("input", () => {
 editorBodyEl.addEventListener("click", scheduleLivePush);
 editorBodyEl.addEventListener("keyup", scheduleLivePush);
 
-editorRefreshEl.addEventListener("click", async () => {
+editorRefreshEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
     return;
   }
   await pullLiveState(editorState.itemID, true);
-});
+}));
 
-editorSnapshotEl.addEventListener("click", async () => {
+editorSnapshotEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
     showToast("Select an item before snapshotting");
     return;
@@ -224,9 +233,9 @@ editorSnapshotEl.addEventListener("click", async () => {
   });
   showToast(`Snapshot created as revision ${updated.current_revision}`);
   await refresh(editorState.itemID);
-});
+}));
 
-editorApproveEl.addEventListener("click", async () => {
+editorApproveEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
     showToast("Select an item before approving");
     return;
@@ -240,9 +249,9 @@ editorApproveEl.addEventListener("click", async () => {
   });
   showToast("Current revision approved");
   await refresh(editorState.itemID);
-});
+}));
 
-editorSupersedeEl.addEventListener("click", async () => {
+editorSupersedeEl.addEventListener("click", runHandled(async () => {
   if (!editorState.itemID) {
     showToast("Select an item before superseding");
     return;
@@ -253,7 +262,7 @@ editorSupersedeEl.addEventListener("click", async () => {
   });
   showToast("Item superseded");
   await refresh(editorState.itemID);
-});
+}));
 
 function splitCSV(input) {
   return input.split(",").map((value) => value.trim()).filter(Boolean);

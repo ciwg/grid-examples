@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,27 +45,29 @@ func OpenStore(root string) (*Store, []OperationalEvent, error) {
 	}
 	events, err := readEvents(eventsFile)
 	if err != nil {
-		eventsFile.Close()
-		return nil, nil, err
+		return nil, nil, errors.Join(err, eventsFile.Close())
 	}
 	if _, err := eventsFile.Seek(0, os.SEEK_END); err != nil {
-		eventsFile.Close()
-		return nil, nil, err
+		return nil, nil, errors.Join(err, eventsFile.Close())
 	}
 	return &Store{root: root, events: eventsFile, eventPath: eventPath, draftPath: filepath.Join(root, "drafts")}, events, nil
 }
 
-func readEvents(file *os.File) ([]OperationalEvent, error) {
+func readEvents(file *os.File) (events []OperationalEvent, err error) {
 	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
 		return nil, err
 	}
-	defer file.Seek(0, os.SEEK_END)
+	defer func() {
+		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
+			err = errors.Join(err, seekErr)
+		}
+	}()
 	scanner := bufio.NewScanner(file)
 	// Intent: Replay the full stored event log within the server's current
 	// request-size envelope so durable large revisions do not become
 	// unreadable after restart. Source: DI-busor
 	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	events := []OperationalEvent{}
+	events = []OperationalEvent{}
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
@@ -111,8 +114,7 @@ func (store *Store) SaveAttachment(entityID string, filename string, data []byte
 	}
 	target := tempFile.Name()
 	if _, err := tempFile.Write(data); err != nil {
-		tempFile.Close()
-		return "", 0, err
+		return "", 0, errors.Join(err, tempFile.Close())
 	}
 	if err := tempFile.Close(); err != nil {
 		return "", 0, err

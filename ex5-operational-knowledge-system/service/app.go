@@ -1300,7 +1300,9 @@ func (app *App) observeIDLocked(id string) {
 	}
 	prefix := parts[0]
 	var number int
-	fmt.Sscanf(parts[1], "%d", &number)
+	if _, err := fmt.Sscanf(parts[1], "%d", &number); err != nil {
+		return
+	}
 	if number > app.nextNumbers[prefix] {
 		app.nextNumbers[prefix] = number
 	}

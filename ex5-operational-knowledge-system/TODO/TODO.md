@@ -2,10 +2,15 @@
 
 ## Open / Planned
 
-- none
+- [x] 032 - Fix ex5 Neovim `:OksClose` session teardown behavior - `TODO/TODO-mabek-ex5-neovim-close-session-teardown.md`
+- [x] 033 - Harden ex5 browser form and search error handling - `TODO/TODO-ruvot-ex5-browser-error-handling.md`
+- [x] 034 - URL-encode ex5 CLI search queries correctly - `TODO/TODO-sifeg-ex5-cli-search-query-encoding.md`
+- [x] 035 - Correct ex5 browser/CLI embodiment-equality overstatement in docs - `TODO/TODO-pobud-ex5-embodiment-doc-honesty.md`
+- [x] 036 - Correct ex5 browser smoke coverage overstatement in docs/tests - `TODO/TODO-lanis-ex5-browser-smoke-doc-honesty.md`
 
 ## Completed
 
+- [x] 031 - Clean up ex5 pre-existing errcheck debt - `TODO/TODO-zuvom-ex5-errcheck-cleanup.md`
 - [x] 030 - Expand ex5 search so evidence and approval history is actually searchable - `TODO/TODO-farun-ex5-search-evidence-and-approval-history.md`
 - [x] 029 - Harden ex5 browser participant identity startup in restricted storage environments - `TODO/TODO-mitob-ex5-browser-participant-identity-hardening.md`
 - [x] 028 - Fix ex5 Neovim live-draft cursor reporting against the wrong window - `TODO/TODO-pazud-ex5-neovim-cursor-window-correctness.md`

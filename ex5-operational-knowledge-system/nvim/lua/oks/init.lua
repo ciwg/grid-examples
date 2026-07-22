@@ -195,6 +195,13 @@ local function open_scratch_buffer(name)
   return bufnr, winid
 end
 
+local function wipe_buffer(bufnr)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+end
+
 local function refresh_live_state(force)
   if not M.state.item_id then
     return false
@@ -774,15 +781,35 @@ function M.inspect_entity(entity_type, entity_id)
   inspect_entity(entity_type, entity_id)
 end
 
+-- Intent: Let the headless regression harness seed inspector state without
+-- going through HTTP-backed inspect flows, so :OksClose teardown can be
+-- validated locally. Source: DI-mabek
+function M._test_set_inspector(bufnr, winid)
+  inspector.bufnr = bufnr
+  inspector.winid = winid
+end
+
 function M.close()
   stop_poll_loop()
   if M.state.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M.state.augroup)
     M.state.augroup = nil
   end
+  -- Intent: Make :OksClose behave like a real session teardown by wiping the
+  -- live-draft and inspector buffers instead of leaving detached scratch state
+  -- visible after the session hooks are gone. Source: DI-mabek
+  wipe_buffer(inspector.bufnr)
+  wipe_buffer(M.state.bufnr)
   M.state.item_id = nil
+  M.state.bufnr = nil
   M.state.winid = nil
+  M.state.title = ""
+  M.state.status = ""
+  M.state.version = 0
+  M.state.current_revision = 0
   M.state.participants = {}
+  inspector.bufnr = nil
+  inspector.winid = nil
 end
 
 function M.open(item_id)

@@ -22,8 +22,8 @@ history again.
 
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
-example with equal browser and CLI surfaces over one local Go runtime, plus a
-first-phase Neovim live-draft embodiment for teams that work there. Source:
+example with shared browser and CLI embodiments over one local Go runtime, plus
+a first-phase Neovim live-draft embodiment for teams that work there. Source:
 `DI-fudok`.
 
 The current implementation keeps procedures, training content, maintenance
@@ -60,6 +60,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - browser search filters by kind, status, place, resource, and responsibility
 - browser search filters by kind, status, outcome, place, resource, and responsibility
 - browser free-text search now reaches run evidence facts and approval notes
+- browser request failures stay inside the UI through the shared error path
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
 - item detail drilldown into the runs that used that item
@@ -76,7 +77,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim item inspector for revisions, approvals, and related runs
 - Neovim run inspector for direct evidence and approval review
 - Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
-- headless browser smoke coverage for the shipped UI
+- stub-backed headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
 [features guide](docs/features-guide.md).
@@ -137,6 +138,11 @@ The workflow-correctness pass also tightened two behavior edges:
 
 Source: `DI-dazim`.
 
+The browser request path is also now hardened for routine operator errors and
+server validation failures. Create/search/review actions route failures through
+the shared in-app error path instead of leaking them as unhandled async
+rejections. Source: `DI-ruvot`.
+
 ## What You Need To Run
 
 - Go 1.24.13
@@ -189,7 +195,7 @@ go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_no
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
 go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
 go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
-go run ./cmd/oks-cli search startup
+go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2"
 go run ./cmd/oks-cli runs
 ```
 
@@ -212,6 +218,10 @@ What it supports now:
 - `:OksInspectEntity TYPE ID`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
+
+`:OksClose` now tears down the active live-draft session by wiping the live
+draft buffer and any open read-only inspector buffer, instead of only stopping
+timers behind a still-visible detached buffer. Source: `DI-mabek`.
 
 The Neovim embodiment now keeps cursor and presence offsets tied to the actual
 live-draft window even after opening read-only inspector splits. Source:

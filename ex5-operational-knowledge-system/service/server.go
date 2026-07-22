@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/web"
@@ -510,7 +511,11 @@ func (server *Server) handleEvidence(writer http.ResponseWriter, request *http.R
 		return
 	}
 	if request.MultipartForm != nil {
-		defer request.MultipartForm.RemoveAll()
+		defer func() {
+			if err := request.MultipartForm.RemoveAll(); err != nil {
+				fmt.Fprintf(os.Stderr, "oks multipart cleanup: %v\n", err)
+			}
+		}()
 	}
 	actor := request.FormValue("actor")
 	summary := request.FormValue("summary")

@@ -74,6 +74,35 @@ func TestRunSearchRequiresQuery(t *testing.T) {
 	}
 }
 
+func TestSearchCommandEncodesQueryString(t *testing.T) {
+	var (
+		rawQuery string
+		query    string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		rawQuery = request.URL.RawQuery
+		query = request.URL.Query().Get("q")
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"search", "supplier: Acme Parts & variance=-2"})
+	if err != nil {
+		t.Fatalf("search command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if query != "supplier: Acme Parts & variance=-2" {
+		t.Fatalf("unexpected decoded query: %q", query)
+	}
+	if !strings.Contains(rawQuery, "q=supplier%3A+Acme+Parts+%26+variance%3D-2") {
+		t.Fatalf("unexpected raw query: %q", rawQuery)
+	}
+}
+
 func TestNewPlaceAndResourceCommandsEmitExpectedPayloads(t *testing.T) {
 	requests := []map[string]any{}
 	paths := []string{}

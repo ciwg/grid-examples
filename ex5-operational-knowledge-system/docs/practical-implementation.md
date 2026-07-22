@@ -58,6 +58,7 @@ Browser:
 - uses an explicit shared `problem=true` search filter so browser drilldowns and grouped hotspot review classify problems the same way
 - summarizes repeated receiving and inventory problems by place and resource in a dedicated browser review panel
 - falls back to ephemeral in-memory participant identity when browser storage or UUID helpers are restricted, so the live-draft UI still boots in private/policy-limited contexts
+- routes form/search failures through one shared in-app error path instead of relying on unhandled async request failures
 - records runs
 - records approvals
 - uploads evidence
@@ -86,6 +87,11 @@ Neovim phase 1:
 The plugin now tracks the live-draft window explicitly so Neovim presence and
 body pushes continue to report cursor/head against the draft buffer even after
 the user moves focus into a read-only inspector split. Source: `DI-pazud`.
+
+The session close path now wipes both the live-draft buffer and the current
+read-only inspector buffer. That keeps `:OksClose` honest as a teardown action
+instead of leaving a visible buffer whose live session hooks are already gone.
+Source: `DI-mabek`.
 
 ## Why the docs mention protocol families
 
@@ -136,8 +142,8 @@ The foundation still does not yet include:
 - signed grid envelopes on the wire
 
 Those are still important future steps. The current pass focuses on a runnable
-standalone operational-memory tool with one local runtime, equal browser/CLI
-operational embodiments, and a browser-only shared draft surface.
+standalone operational-memory tool with one local runtime, a richer browser
+embodiment, a thinner CLI embodiment, and a browser-only shared draft surface.
 
 The current product direction is to keep that live-draft surface optional,
 rather than making collaborative editing the core of the tool, and to revisit a
@@ -156,8 +162,8 @@ The current code is covered at four levels:
 - Neovim asset tests for the shipped launcher and command surface
 - embedded web asset tests that assert the shipped UI still exposes the
   expected operational workflow sections
-- a headless browser smoke test that loads the real UI against a live test
-  server and checks for rendered operational detail content
+- a headless browser smoke layer that loads the real UI shell and checks
+  rendered operational detail content against mostly stubbed API responses
 
 The browser UI is still not covered by a deep end-to-end interaction suite, but
 it is no longer limited to static asset checks. The current baseline now

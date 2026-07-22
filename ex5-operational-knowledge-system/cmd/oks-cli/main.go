@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -144,7 +146,10 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) < 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/search?q=" + args[1])
+		// Intent: Encode CLI search queries before they hit the HTTP adapter so
+		// spaces and reserved URL characters survive the embodiment boundary.
+		// Source: DI-sifeg
+		err = cli.Show("/api/search?q=" + url.QueryEscape(args[1]))
 	default:
 		return 2, fmt.Errorf("%s", usageText)
 	}
@@ -238,8 +243,7 @@ func (cli *CLI) Show(path string) error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
+	body, err := readResponseBody(response)
 	if err != nil {
 		return err
 	}
@@ -264,8 +268,7 @@ func (cli *CLI) post(path string, payload any) error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	message, err := io.ReadAll(response.Body)
+	message, err := readResponseBody(response)
 	if err != nil {
 		return err
 	}
@@ -279,6 +282,15 @@ func (cli *CLI) post(path string, payload any) error {
 	}
 	fmt.Println(string(message))
 	return nil
+}
+
+func readResponseBody(response *http.Response) ([]byte, error) {
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil || closeErr != nil {
+		return nil, errors.Join(readErr, closeErr)
+	}
+	return body, nil
 }
 
 func splitCSV(input string) []string {

@@ -12,8 +12,10 @@ local memory, and treats them as one problem:
 - people need to find the same history later from either the browser or the CLI
 
 This foundation solves that shared problem by keeping the durable record in one
-append-only operational history and projecting it into equal browser and CLI
-views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`.
+append-only operational history and projecting it into shared browser and CLI
+views over the same runtime. The embodiments are intentionally uneven today:
+the browser is deeper, the CLI is thinner, and both read/write the same
+durable model. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`.
 
 It now also keeps a browser-shared working draft for each knowledge item,
 separate from the durable revision history. That lets operators collaborate on
@@ -145,6 +147,11 @@ Cursor and presence reporting now stay anchored to the live-draft window
 instead of whichever split is currently focused, so opening inspectors does not
 distort shared cursor offsets. Source: `DI-pazud`.
 
+The close path is now explicit too. `:OksClose` tears down the live session by
+wiping the live-draft buffer and any open read-only inspector buffer, so the
+editor does not leave a detached `acwrite` buffer behind after the session
+hooks are gone. Source: `DI-mabek`.
+
 This phase deliberately reuses the existing live-draft API rather than adding a
 separate websocket sidecar or remote-cursor renderer. The point is to give
 Neovim-heavy teams a real operational embodiment now without reopening the
@@ -230,6 +237,11 @@ The browser startup path is also hardened for restrictive/private environments.
 If `localStorage` access is blocked or `crypto.randomUUID()` is unavailable,
 the UI falls back to an in-memory participant identity instead of failing to
 boot the live-draft surface. Source: `DI-mitob`.
+
+The browser request path now uses the same shared error handler for create,
+approval, evidence, refresh, and search flows. That keeps routine validation
+failures inside the UI instead of depending on unhandled async behavior.
+Source: `DI-ruvot`.
 
 ### Performed runs
 
@@ -355,7 +367,8 @@ already do. Source: `DI-luzaf`.
 
 ### Equal embodiments
 
-The browser and CLI are meant to be equal first-class embodiments.
+The browser and CLI are first-class embodiments over the same runtime, but they
+are not equal in depth today.
 
 Current browser surface:
 
@@ -380,8 +393,9 @@ Current browser surface:
 - search
 
 Current browser regression coverage now also includes a headless browser smoke
-test against a live test server, so the shipped UI is checked as a rendered
-page instead of only as embedded asset text.
+layer that loads the shipped UI as a rendered page, but most of those tests use
+stubbed `/api/*` responses rather than the full service stack. That is useful
+coverage, but it is not a full browser-to-service integration suite yet.
 
 Current CLI surface:
 

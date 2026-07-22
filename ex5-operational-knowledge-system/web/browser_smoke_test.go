@@ -197,6 +197,180 @@ if (window.crypto) {
 	}
 }
 
+func TestHeadlessBrowserHandlesSearchFailureInApp(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		MustRead("index.html"),
+		[]byte("</body>"),
+		[]byte(`<script>
+const searchTimer = setInterval(() => {
+  const form = document.getElementById("search-form");
+  if (!form) {
+    return;
+  }
+  form.q.value = "broken search";
+  form.requestSubmit();
+  clearInterval(searchTimer);
+}, 200);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":0,"places":0,"resources":0,"procedures":0,"training_items":0,"maintenance_items":0,"receiving_items":0,"inventory_items":0,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":0,"inventory_runs":0,"approvals":0,"evidence":0,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":0,"place_groups":[],"resource_groups":[]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[]}`)
+	})
+	mux.HandleFunc("/api/search", func(writer http.ResponseWriter, request *http.Request) {
+		http.Error(writer, "search backend unavailable", http.StatusInternalServerError)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=2000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	if !strings.Contains(dom, "search backend unavailable") {
+		t.Fatalf("rendered dom missing search failure text\n%s", dom)
+	}
+}
+
+func TestHeadlessBrowserHandlesPlaceCreateFailureInApp(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		MustRead("index.html"),
+		[]byte("</body>"),
+		[]byte(`<script>
+const placeTimer = setInterval(() => {
+  const form = document.getElementById("place-form");
+  if (!form) {
+    return;
+  }
+  form.actor.value = "alice";
+  form.kind.value = "area";
+  form.name.value = "Receiving";
+  form.summary.value = "Inbound area";
+  form.requestSubmit();
+  clearInterval(placeTimer);
+}, 200);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":0,"places":0,"resources":0,"procedures":0,"training_items":0,"maintenance_items":0,"receiving_items":0,"inventory_items":0,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":0,"inventory_runs":0,"approvals":0,"evidence":0,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":0,"place_groups":[],"resource_groups":[]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodPost {
+			http.Error(writer, "place validation failed", http.StatusBadRequest)
+			return
+		}
+		writeJSON(writer, `{"places":[]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=2000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	if !strings.Contains(dom, "place validation failed") {
+		t.Fatalf("rendered dom missing place failure text\n%s", dom)
+	}
+}
+
 func TestHeadlessBrowserRendersInventoryAuditHistory(t *testing.T) {
 	chromePath, err := exec.LookPath("google-chrome")
 	if err != nil {
