@@ -25,11 +25,11 @@ That top line is part of the PromiseGrid framing that ships with ex5. The
 shipped runtime already uses append-only events and shared embodiments, and it
 now implements five runtime-selected frozen `pCID` documents with signed grid
 envelopes for `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
-`knowledge-link`, and `knowledge-responsibility`. It still does not yet
-implement the relay-visible peer-exchange and CAS-backed storage layers, and
-search metadata remains derived projection state instead of a sixth durable
-family. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`;
-`DI-sarib`; `DI-fusok`.
+`knowledge-link`, and `knowledge-responsibility`. It now also ships the first
+relay-visible bootstrap peer-exchange slice plus additive CAS sidecar storage,
+while search metadata remains derived projection state instead of a sixth
+durable family. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`;
+`DI-votek`; `DI-sarib`; `DI-fusok`; `DI-voruk`; `DI-lavuz`; `DI-tivor`.
 
 The first staged relay-visible exchange slice is now defined more narrowly than
 the full local runtime: `knowledge-item`, `knowledge-approval`,
@@ -46,8 +46,9 @@ family logs and copied attachment paths remain during migration. Source:
 
 That CAS sidecar now ships in implemented form. Signed family envelopes are
 dual-written by envelope CID, copied evidence blobs are dual-written by blob
-CID, and compatibility reads still use the current logs and attachment paths.
-Source: `DI-lavuz`.
+CID, and the five frozen families now replay/export their envelope bytes
+authoritatively from CAS while compatibility events and attachment paths remain
+active for still-unfrozen state. Source: `DI-lavuz`; `DI-rovud`.
 
 The embodiment contract also tightens one step at that milestone: browser, CLI,
 and Neovim still use the local HTTP adapter, but the adapter now exposes
@@ -236,18 +237,25 @@ The code currently implements:
 - participant presence on the current draft
 - durable versioned document bodies inside knowledge-item revisions
 - one shared local HTTP embodiment adapter for browser, CLI, and Neovim
-- one signed-envelope runtime slice for durable knowledge-item create/revision/lifecycle events
-- one frozen `knowledge-item` `pCID` selected from the shipped protocol bytes
+- signed-envelope runtime slices for the five frozen `knowledge-item`,
+  `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, and
+  `knowledge-responsibility` families
+- frozen `pCID`s selected from the shipped protocol bytes for those five
+  families
 
 It still does **not** yet implement:
 
 - websocket-based collaboration transport
-- relay-visible peer exchange
-- signed grid envelopes on the wire for the remaining ex5 families
-- frozen runtime behavior selected by a shipped `pCID` for the remaining ex5 families
+- non-bootstrap peer exchange into already-populated runtimes
+- peer-visible evidence carriage
+- authoritative CAS-backed replay/read behavior
+- signed grid envelopes on the wire for any remaining ex5 families beyond the
+  five frozen ones
+- frozen runtime behavior selected by a shipped `pCID` for any remaining ex5
+  families
 
 So in current ex5, protocol-family and `pCID` language are part of the shipped
-PromiseGrid framing, and the `knowledge-item` family now also has a real
-runtime/wire implementation. The remaining families are still on the staged
-bridge layer. For the explicit current
+PromiseGrid framing, and five families now have real runtime/wire
+implementations. The remaining grid work is now concentrated in peer-exchange
+scope, CAS read-path authority, and evidence portability. For the explicit current
 claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

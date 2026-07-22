@@ -234,12 +234,19 @@ migration. Source: `DI-ribek`.
 That CAS pass now ships. Evidence records keep their compatibility attachment
 paths, and they now also carry blob CIDs so later peer-visible evidence
 exchange can bind to portable blob identity without losing the current read
-model. Source: `DI-lavuz`.
+model. The five frozen family envelopes also now replay/export authoritatively
+from CAS, with one-time manifest backfill kept only for older runtime
+migration. Source: `DI-lavuz`; `DI-rovud`.
 
 Embodiment wording now tightens one step as well. Browser, CLI, and Neovim
 remain adapter-delivered, but the adapter now exposes the shipped peer-exchange
 format and CAS capability through runtime metadata and is described as an
 adapter over that broader runtime. Source: `DI-vabek`; `DI-rovuz`.
+
+What remains after that first shipped runtime wave is narrower: peer exchange
+is still bootstrap-only, CAS is still sidecar-first rather than authoritative
+for replay/read, and peer-visible `knowledge-evidence` still waits on portable
+blob carriage. Source: `DI-voruk`; `DI-lavuz`; `DI-tivor`.
 
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and
@@ -271,9 +278,13 @@ version. Source: `DI-dazim`.
 The foundation still does not yet include:
 
 - websocket transport
-- relay-visible peer exchange
-- signed grid envelopes on the wire for the remaining ex5 families
-- frozen runtime behavior selected by a shipped `pCID` for the remaining ex5 families
+- non-bootstrap peer exchange into already-populated runtimes
+- peer-visible evidence carriage
+- authoritative CAS-backed replay/read behavior
+- signed grid envelopes on the wire for any remaining ex5 families beyond the
+  five frozen ones
+- frozen runtime behavior selected by a shipped `pCID` for any remaining ex5
+  families
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
@@ -289,7 +300,7 @@ over the same shared search projections plus a narrow set of revision-safe
 item/run approval and item supersede actions over the same local HTTP runtime
 the CLI and browser already use. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
-`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`.
+`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`.
 
 ## Current verification shape
 

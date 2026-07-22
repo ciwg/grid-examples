@@ -58,7 +58,9 @@ Source: `DI-guzab`.
 
 ## Follow-on backlog
 
-- `101`: CAS-backed storage and portable evidence/blob carriage
-- `102`: embodiment contract tightening after the peer/storage layers settle
+- non-bootstrap peer exchange into non-empty runtimes
+- peer-visible `knowledge-evidence` exchange once portable blob carriage is
+  settled
+- stronger CAS-backed read/replay authority for exchanged artifacts
 
-Source: `DI-guzab`.
+Source: `DI-guzab`; `DI-tivor`.

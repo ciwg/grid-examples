@@ -472,5 +472,6 @@ What it does not try to do yet:
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship the first PromiseGrid peer exchange as bootstrap export/import for the four attachment-free signed families while deferring evidence carriage to the later CAS step
-- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage while keeping the current logs and attachment paths
+- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the five frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
 - expose peer-exchange and CAS runtime capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
+- treat non-bootstrap peer exchange, authoritative CAS-backed replay/read, and peer-visible evidence carriage as the remaining PromiseGrid follow-on work

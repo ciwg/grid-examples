@@ -134,7 +134,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 	if _, err := knowledgeResponsibilityFile.Seek(0, os.SEEK_END); err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
-	return &Store{
+	store := &Store{
 		root:                            root,
 		events:                          eventsFile,
 		knowledgeItemMessages:           knowledgeItemFile,
@@ -151,7 +151,28 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		draftPath:                       filepath.Join(root, "drafts"),
 		casRoot:                         filepath.Join(root, "cas", "objects"),
 		identity:                        identity,
-	}, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, nil
+	}
+	knowledgeItemRecords, err = store.hydrateSignedKnowledgeItemRecords(knowledgeItemRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	knowledgeApprovalRecords, err = store.hydrateSignedKnowledgeApprovalRecords(knowledgeApprovalRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	knowledgeEvidenceRecords, err = store.hydrateSignedKnowledgeEvidenceRecords(knowledgeEvidenceRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	knowledgeLinkRecords, err = store.hydrateSignedKnowledgeLinkRecords(knowledgeLinkRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	knowledgeResponsibilityRecords, err = store.hydrateSignedKnowledgeResponsibilityRecords(knowledgeResponsibilityRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	return store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, nil
 }
 
 func readEvents(file *os.File) (events []OperationalEvent, err error) {
@@ -240,6 +261,14 @@ func (store *Store) AppendSignedKnowledgeItemRecord(record SignedKnowledgeItemRe
 	return store.knowledgeItemMessages.Sync()
 }
 
+func (store *Store) LoadSignedKnowledgeItemRecordsAuthoritative() ([]SignedKnowledgeItemRecord, error) {
+	records, err := readSignedKnowledgeItemRecords(store.knowledgeItemMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedKnowledgeItemRecords(records)
+}
+
 func readSignedKnowledgeApprovalRecords(file *os.File) (records []SignedKnowledgeApprovalRecord, err error) {
 	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
 		return nil, err
@@ -281,6 +310,14 @@ func (store *Store) AppendSignedKnowledgeApprovalRecord(record SignedKnowledgeAp
 		return err
 	}
 	return store.knowledgeApprovalMessages.Sync()
+}
+
+func (store *Store) LoadSignedKnowledgeApprovalRecordsAuthoritative() ([]SignedKnowledgeApprovalRecord, error) {
+	records, err := readSignedKnowledgeApprovalRecords(store.knowledgeApprovalMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedKnowledgeApprovalRecords(records)
 }
 
 func readSignedKnowledgeEvidenceRecords(file *os.File) (records []SignedKnowledgeEvidenceRecord, err error) {
@@ -326,6 +363,14 @@ func (store *Store) AppendSignedKnowledgeEvidenceRecord(record SignedKnowledgeEv
 	return store.knowledgeEvidenceMessages.Sync()
 }
 
+func (store *Store) LoadSignedKnowledgeEvidenceRecordsAuthoritative() ([]SignedKnowledgeEvidenceRecord, error) {
+	records, err := readSignedKnowledgeEvidenceRecords(store.knowledgeEvidenceMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedKnowledgeEvidenceRecords(records)
+}
+
 func readSignedKnowledgeLinkRecords(file *os.File) (records []SignedKnowledgeLinkRecord, err error) {
 	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
 		return nil, err
@@ -369,6 +414,14 @@ func (store *Store) AppendSignedKnowledgeLinkRecord(record SignedKnowledgeLinkRe
 	return store.knowledgeLinkMessages.Sync()
 }
 
+func (store *Store) LoadSignedKnowledgeLinkRecordsAuthoritative() ([]SignedKnowledgeLinkRecord, error) {
+	records, err := readSignedKnowledgeLinkRecords(store.knowledgeLinkMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedKnowledgeLinkRecords(records)
+}
+
 func readSignedKnowledgeResponsibilityRecords(file *os.File) (records []SignedKnowledgeResponsibilityRecord, err error) {
 	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
 		return nil, err
@@ -410,6 +463,14 @@ func (store *Store) AppendSignedKnowledgeResponsibilityRecord(record SignedKnowl
 		return err
 	}
 	return store.knowledgeResponsibilityMessages.Sync()
+}
+
+func (store *Store) LoadSignedKnowledgeResponsibilityRecordsAuthoritative() ([]SignedKnowledgeResponsibilityRecord, error) {
+	records, err := readSignedKnowledgeResponsibilityRecords(store.knowledgeResponsibilityMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedKnowledgeResponsibilityRecords(records)
 }
 
 // Intent: Preserve evidence attachment history by storing each uploaded file at
@@ -457,6 +518,31 @@ func (store *Store) writeEnvelopeCAS(expectedCID string, envelopeBase64 string) 
 		return fmt.Errorf("envelope CAS cid mismatch: got %q want %q", cid, expectedCID)
 	}
 	return nil
+}
+
+// Intent: Make CAS authoritative for the five frozen family envelope bytes
+// while allowing one-time backfill from the manifest copy so older runtimes can
+// migrate into the stronger replay path without a destructive cutover. Source:
+// DI-rovud
+func (store *Store) authoritativeEnvelopeBase64(envelopeCID string, manifestBase64 string) (string, error) {
+	envelopeBytes, err := store.loadCASObject(envelopeCID)
+	if err == nil {
+		return base64.StdEncoding.EncodeToString(envelopeBytes), nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if strings.TrimSpace(manifestBase64) == "" {
+		return "", fmt.Errorf("cas envelope %q missing and no manifest fallback present", envelopeCID)
+	}
+	if err := store.writeEnvelopeCAS(envelopeCID, manifestBase64); err != nil {
+		return "", err
+	}
+	envelopeBytes, err = store.loadCASObject(envelopeCID)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(envelopeBytes), nil
 }
 
 func (store *Store) writeCASObject(data []byte) (string, error) {
@@ -508,12 +594,87 @@ func (store *Store) writeCASObject(data []byte) (string, error) {
 	return cid.String(), nil
 }
 
+func (store *Store) loadCASObject(cid string) ([]byte, error) {
+	body, err := os.ReadFile(store.casObjectPath(cid))
+	if err != nil {
+		return nil, err
+	}
+	readCID, err := protocols.CIDForBytes(body)
+	if err != nil {
+		return nil, fmt.Errorf("cid cas object %q: %w", cid, err)
+	}
+	if readCID.String() != cid {
+		return nil, fmt.Errorf("cas object %q bytes hash to %q", cid, readCID.String())
+	}
+	return body, nil
+}
+
 func (store *Store) casObjectPath(cid string) string {
 	prefix := cid
 	if len(prefix) > 2 {
 		prefix = prefix[:2]
 	}
 	return filepath.Join(store.casRoot, prefix, cid)
+}
+
+func (store *Store) hydrateSignedKnowledgeItemRecords(records []SignedKnowledgeItemRecord) ([]SignedKnowledgeItemRecord, error) {
+	out := append([]SignedKnowledgeItemRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative knowledge-item envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
+func (store *Store) hydrateSignedKnowledgeApprovalRecords(records []SignedKnowledgeApprovalRecord) ([]SignedKnowledgeApprovalRecord, error) {
+	out := append([]SignedKnowledgeApprovalRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative knowledge-approval envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
+func (store *Store) hydrateSignedKnowledgeEvidenceRecords(records []SignedKnowledgeEvidenceRecord) ([]SignedKnowledgeEvidenceRecord, error) {
+	out := append([]SignedKnowledgeEvidenceRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative knowledge-evidence envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
+func (store *Store) hydrateSignedKnowledgeLinkRecords(records []SignedKnowledgeLinkRecord) ([]SignedKnowledgeLinkRecord, error) {
+	out := append([]SignedKnowledgeLinkRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative knowledge-link envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
+func (store *Store) hydrateSignedKnowledgeResponsibilityRecords(records []SignedKnowledgeResponsibilityRecord) ([]SignedKnowledgeResponsibilityRecord, error) {
+	out := append([]SignedKnowledgeResponsibilityRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative knowledge-responsibility envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
 }
 
 // Intent: Restore the shared browser working bodies on startup without mixing

@@ -337,8 +337,8 @@ func TestAppRejectsTamperedSignedKnowledgeItemRecords(t *testing.T) {
 		t.Fatalf("rewrite tampered record: %v", err)
 	}
 
-	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "envelope cid mismatch") {
-		t.Fatalf("expected envelope cid mismatch after tampering, got %v", err)
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected authoritative CAS cid mismatch after tampering, got %v", err)
 	}
 }
 
@@ -452,8 +452,8 @@ func TestAppRejectsTamperedSignedKnowledgeApprovalRecords(t *testing.T) {
 		t.Fatalf("rewrite tampered approval record: %v", err)
 	}
 
-	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-approval") || !strings.Contains(err.Error(), "envelope cid mismatch") {
-		t.Fatalf("expected knowledge-approval envelope cid mismatch after tampering, got %v", err)
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-approval") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected knowledge-approval authoritative CAS cid mismatch after tampering, got %v", err)
 	}
 }
 
@@ -574,8 +574,8 @@ func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
 		t.Fatalf("rewrite tampered evidence record: %v", err)
 	}
 
-	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-evidence") || !strings.Contains(err.Error(), "envelope cid mismatch") {
-		t.Fatalf("expected knowledge-evidence envelope cid mismatch after tampering, got %v", err)
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-evidence") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected knowledge-evidence authoritative CAS cid mismatch after tampering, got %v", err)
 	}
 }
 
@@ -790,6 +790,148 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	}
 }
 
+func TestAppUsesCASAuthoritativelyForFrozenFamilyReplay(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	responsibility, err := app.CreateResponsibility("alice", "Receiver", "Owns receiving checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Check pallet", "Receiving check", "# Check pallet", nil, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
+		t.Fatalf("approve item: %v", err)
+	}
+	if err := app.AddLink("alice", "responsibility", responsibility.ID, "knowledge_item", item.ID, "owns", "Receiver owns check"); err != nil {
+		t.Fatalf("add link: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	tamperEnvelopeBase64 := func(path string, rewrite func([]byte) ([]byte, error)) {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read manifest %s: %v", path, err)
+		}
+		lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+		if len(lines) == 0 {
+			t.Fatalf("expected manifest line in %s", path)
+		}
+		rewritten, err := rewrite([]byte(lines[0]))
+		if err != nil {
+			t.Fatalf("rewrite manifest %s: %v", path, err)
+		}
+		lines[0] = string(rewritten)
+		if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+			t.Fatalf("write tampered manifest %s: %v", path, err)
+		}
+	}
+
+	tamperEnvelopeBase64(filepath.Join(root, "knowledge-item-messages.jsonl"), func(line []byte) ([]byte, error) {
+		var record SignedKnowledgeItemRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, err
+		}
+		record.EnvelopeBase64 = "tampered-item-envelope"
+		return json.Marshal(record)
+	})
+	tamperEnvelopeBase64(filepath.Join(root, "knowledge-approval-messages.jsonl"), func(line []byte) ([]byte, error) {
+		var record SignedKnowledgeApprovalRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, err
+		}
+		record.EnvelopeBase64 = "tampered-approval-envelope"
+		return json.Marshal(record)
+	})
+	tamperEnvelopeBase64(filepath.Join(root, "knowledge-link-messages.jsonl"), func(line []byte) ([]byte, error) {
+		var record SignedKnowledgeLinkRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, err
+		}
+		record.EnvelopeBase64 = "tampered-link-envelope"
+		return json.Marshal(record)
+	})
+	tamperEnvelopeBase64(filepath.Join(root, "knowledge-responsibility-messages.jsonl"), func(line []byte) ([]byte, error) {
+		var record SignedKnowledgeResponsibilityRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, err
+		}
+		record.EnvelopeBase64 = "tampered-responsibility-envelope"
+		return json.Marshal(record)
+	})
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app with tampered manifests: %v", err)
+	}
+	records, err := reloaded.store.LoadSignedKnowledgeItemRecordsAuthoritative()
+	if err != nil {
+		t.Fatalf("load authoritative item records: %v", err)
+	}
+	if len(records) == 0 || records[0].EnvelopeBase64 == "tampered-item-envelope" {
+		t.Fatalf("expected CAS-authoritative envelope bytes, got %+v", records)
+	}
+}
+
+func TestAppBackfillsMissingCASEnvelopesFromManifestOnce(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	body, err := os.ReadFile(filepath.Join(root, "knowledge-item-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read knowledge-item manifest: %v", err)
+	}
+	var record SignedKnowledgeItemRecord
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(body))), &record); err != nil {
+		t.Fatalf("decode knowledge-item manifest: %v", err)
+	}
+	casPath := filepath.Join(root, "cas", "objects", record.EnvelopeCID[:2], record.EnvelopeCID)
+	if err := os.Remove(casPath); err != nil {
+		t.Fatalf("remove cas object: %v", err)
+	}
+
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app after removing cas object: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.ID != item.ID {
+		t.Fatalf("unexpected reloaded item %+v", reloadedItem)
+	}
+	casBytes, err := os.ReadFile(casPath)
+	if err != nil {
+		t.Fatalf("expected backfilled cas object: %v", err)
+	}
+	envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
+	if err != nil {
+		t.Fatalf("decode manifest envelope: %v", err)
+	}
+	if string(casBytes) != string(envelopeBytes) {
+		t.Fatalf("unexpected backfilled cas bytes")
+	}
+}
+
 func TestAppRejectsTamperedPeerExchangeBundle(t *testing.T) {
 	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
 	if err != nil {
@@ -928,8 +1070,8 @@ func TestAppRejectsTamperedSignedKnowledgeLinkRecords(t *testing.T) {
 		t.Fatalf("rewrite tampered link record: %v", err)
 	}
 
-	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-link") || !strings.Contains(err.Error(), "envelope cid mismatch") {
-		t.Fatalf("expected knowledge-link envelope cid mismatch after tampering, got %v", err)
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-link") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected knowledge-link authoritative CAS cid mismatch after tampering, got %v", err)
 	}
 }
 
@@ -1022,8 +1164,8 @@ func TestAppRejectsTamperedSignedKnowledgeResponsibilityRecords(t *testing.T) {
 		t.Fatalf("rewrite tampered responsibility record: %v", err)
 	}
 
-	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-responsibility") || !strings.Contains(err.Error(), "envelope cid mismatch") {
-		t.Fatalf("expected knowledge-responsibility envelope cid mismatch after tampering, got %v", err)
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-responsibility") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected knowledge-responsibility authoritative CAS cid mismatch after tampering, got %v", err)
 	}
 }
 

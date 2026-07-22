@@ -1,10 +1,14 @@
 # TODO
 
 ## Open / Planned
-- none currently; see deferred items below.
+- [ ] 107 - Introduce peer-stable identity and ordering for ex5 peer exchange - `TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`
+- [ ] 103 - Extend ex5 PromiseGrid peer exchange beyond bootstrap import - `TODO/TODO-rumek-ex5-peer-exchange-beyond-bootstrap.md`
+- [ ] 105 - Make ex5 `knowledge-evidence` peer-visible and portable - `TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`
 
 ## Completed
 
+- [x] 104 - Adopt CAS-backed read and replay paths in ex5 - `TODO/TODO-tavob-ex5-cas-read-path-adoption.md`
+- [x] 106 - Realign ex5 PromiseGrid docs and backlog to the shipped runtime - `TODO/TODO-lavur-ex5-promisegrid-doc-and-backlog-honesty.md`
 - [x] 102 - Stage embodiment-contract tightening after peer-exchange and additive CAS implementation - `TODO/TODO-zidor-ex5-embodiment-contract-tightening.md`
 - [x] 101 - Stage additive CAS-backed storage for signed envelopes and copied evidence blobs - `TODO/TODO-nobek-ex5-cas-envelope-storage.md`
 - [x] 100 - Stage the first relay-visible ex5 peer-exchange slice around attachment-free families - `TODO/TODO-fativ-ex5-relay-visible-peer-exchange.md`

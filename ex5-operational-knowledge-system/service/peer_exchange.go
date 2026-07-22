@@ -23,19 +23,19 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read events: %w", err)
 	}
-	itemRecords, err := readSignedKnowledgeItemRecords(app.store.knowledgeItemMessages)
+	itemRecords, err := app.store.LoadSignedKnowledgeItemRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-item records: %w", err)
 	}
-	approvalRecords, err := readSignedKnowledgeApprovalRecords(app.store.knowledgeApprovalMessages)
+	approvalRecords, err := app.store.LoadSignedKnowledgeApprovalRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-approval records: %w", err)
 	}
-	linkRecords, err := readSignedKnowledgeLinkRecords(app.store.knowledgeLinkMessages)
+	linkRecords, err := app.store.LoadSignedKnowledgeLinkRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-link records: %w", err)
 	}
-	responsibilityRecords, err := readSignedKnowledgeResponsibilityRecords(app.store.knowledgeResponsibilityMessages)
+	responsibilityRecords, err := app.store.LoadSignedKnowledgeResponsibilityRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-responsibility records: %w", err)
 	}

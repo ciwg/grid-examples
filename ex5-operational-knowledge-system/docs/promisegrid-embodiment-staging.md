@@ -31,5 +31,7 @@ Source: `DI-vabek`; `DI-rovuz`.
 - do not rewrite current browser, CLI, or Neovim as if they bypass the adapter
 - do not confuse adapter-visible capability metadata with a finished transport
   migration
+- do not describe ex5 as fully on-grid while peer exchange is still
+  bootstrap-only and CAS remains a sidecar read model
 
-Source: `DI-vabek`; `DI-rovuz`.
+Source: `DI-vabek`; `DI-rovuz`; `DI-tivor`.

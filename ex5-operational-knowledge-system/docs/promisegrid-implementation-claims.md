@@ -48,6 +48,8 @@ Today it ships:
 - additive CAS-backed sidecar storage for signed family envelopes by envelope
   CID
 - additive CAS-backed sidecar storage for copied evidence blobs by blob CID
+- authoritative CAS-backed replay/export envelope bytes for the five frozen
+  families, with one-time manifest backfill for older runtimes
 - runtime capability metadata exposing the shipped peer-exchange format and CAS
   support through `Meta`
 - startup verification of the signed knowledge-item envelope log against the
@@ -64,8 +66,9 @@ Today it ships:
 Today it does **not** yet ship:
 
 - peer-visible `knowledge-evidence` exchange
-- relay transport or CAS-backed envelope storage as part of the ex5
-  operational workflow
+- non-bootstrap peer exchange into already-populated runtimes
+- authoritative CAS-backed replay/read paths for the still-unfrozen runtime
+  state outside the five frozen families
 
 ## What the shipped implementation does promise
 
@@ -114,8 +117,10 @@ The current shipped ex5 runtime does not yet promise:
 - that all ex5 durable families are already frozen and PromiseGrid-native at
   runtime
 - that the local HTTP route names are the PromiseGrid peer contract
-- that relay transport, peer exchange, or CAS-backed envelope storage are
-  already implemented for ex5
+- that ex5 already supports ongoing non-bootstrap multi-peer exchange
+- that CAS is already the authoritative replay/read source instead of an
+  additive sidecar
+- that peer-visible evidence carriage is already portable across hosts
 
 ## Done now vs. remaining
 
@@ -143,13 +148,19 @@ Done now:
   references
 - the runtime signs and verifies durable typed-link artifacts
 - the runtime signs and verifies durable responsibility-creation artifacts
+- the runtime now rehydrates the five frozen family envelopes from CAS
+  authoritatively during replay/export, while keeping compatibility event
+  replay for still-unfrozen state
 - the browser, CLI, and Neovim embodiments still project through the current
   local HTTP adapter on top of those signed families
 
 Remaining:
 
+- extend peer exchange beyond bootstrap-only import into non-empty runtimes
 - add peer-visible `knowledge-evidence` exchange once portable blob carriage
   exists
+- adopt authoritative CAS-backed replay/read paths for the still-unfrozen
+  runtime state outside the five frozen families
 - decide whether later embodiments should ever bypass the local HTTP adapter
   instead of using it as the delivery surface over the richer runtime
 
@@ -184,4 +195,4 @@ storage/carriage decision. CAS now ships as an additive sidecar for signed
 envelopes and copied evidence blobs rather than a log replacement rewrite, and
 the first embodiment-tightening step now ships through capability metadata plus
 adapter-over-runtime doc updates. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`;
-`DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`.
+`DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`.

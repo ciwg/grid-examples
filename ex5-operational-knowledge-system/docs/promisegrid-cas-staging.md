@@ -18,9 +18,11 @@ This now ships in the runtime:
 
 - signed family envelopes are dual-written into CAS by envelope CID
 - copied evidence blobs are dual-written into CAS by blob CID
-- compatibility logs and attachment paths remain the active read model
+- the five frozen family envelopes now replay/export authoritatively from CAS
+- compatibility event replay and attachment paths remain active for still-unfrozen
+  runtime state
 
-Source: `DI-lavuz`.
+Source: `DI-lavuz`; `DI-rovud`.
 
 ## Why the first step is additive
 
@@ -31,10 +33,11 @@ without forcing an immediate storage cutover. Source: `DI-ribek`.
 ## What CAS unblocks
 
 - later peer-visible evidence exchange over portable blob identities
-- later movement of read paths from log-only replay toward CAS-backed reads
+- later movement of replay and read paths for still-unfrozen runtime state
+  toward authoritative CAS-backed reads
 - clearer long-horizon integrity and migration semantics for signed envelopes
 
-Source: `DI-ribek`.
+Source: `DI-ribek`; `DI-tivor`; `DI-rovud`.
 
 ## What stays out of the first CAS step
 
