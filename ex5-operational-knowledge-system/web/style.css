@@ -80,6 +80,12 @@ body {
 .review-grid {
   align-items: start;
 }
+.flow-panel {
+  grid-column: 1 / -1;
+  background:
+    linear-gradient(135deg, rgba(12, 109, 98, 0.08), rgba(183, 92, 28, 0.08)),
+    rgba(255, 253, 249, 0.98);
+}
 .problem-panel {
   grid-column: span 1;
 }
@@ -326,6 +332,35 @@ button:hover { filter: brightness(1.05); }
   flex-wrap: wrap;
   gap: 0.65rem;
   margin: 0.75rem 0;
+}
+.flow-panel-body {
+  display: grid;
+  gap: 0.85rem;
+}
+.primary-flow-actions {
+  margin: 0;
+}
+.detail-primary {
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: linear-gradient(135deg, rgba(12, 109, 98, 0.08), rgba(255, 255, 255, 0.95));
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+  margin: 0.85rem 0 0.4rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.detail-primary strong {
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.detail-primary .meta {
+  margin: 0;
+}
+.detail-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 .detail-review {
   display: grid;

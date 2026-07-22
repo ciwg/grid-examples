@@ -18,7 +18,6 @@ rather than from blank generic forms.
 
 ## Tasks
 
-- [ ] mitav.1 Review the current browser record inspector and operation forms for context handoff gaps.
-- [ ] mitav.2 Define the smallest context-driven run, evidence, and approval action improvements.
-- [ ] mitav.3 Implement those browser action paths while preserving generic fallbacks.
-
+- [x] mitav.1 Review the current browser record inspector and operation forms for context handoff gaps.
+- [x] mitav.2 Define the smallest context-driven run, evidence, and approval action improvements.
+- [x] mitav.3 Implement those browser action paths while preserving generic fallbacks.

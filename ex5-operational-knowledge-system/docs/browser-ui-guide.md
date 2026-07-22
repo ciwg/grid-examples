@@ -78,6 +78,22 @@ This is now the default landing flow. The browser assumes most operators are
 reviewing, triaging, or drilling into existing work more often than they are
 creating fresh context records. Source: `DI-lafor`.
 
+The Review workspace is also where context-driven operations now begin. Once
+you inspect an item, run, place, resource, or responsibility, the inspector
+action bar can launch the matching Operate form with the relevant context
+already staged. Source: `DI-mitav`.
+
+The browser now also makes its primary flow explicit here:
+
+1. review hotspots when you need to find repeated trouble fast
+2. search when you already know the record or slice you need
+3. open one record in the inspector
+4. take the next step from that inspected record instead of jumping back to a
+   generic form
+
+That guidance is surfaced directly in the `Primary Flow` panel and reinforced
+again inside the inspector’s `Next Step` area. Source: `DI-sorik`.
+
 ## Create Place
 
 ### What it does
@@ -284,6 +300,10 @@ Runs are the operational history. They are how the system answers:
 - which resource was involved
 - what later evidence or approvals attached to that event
 
+The inspector can now launch this form already primed for the current item,
+run, place, resource, or responsibility so the operator starts from context
+instead of retyping IDs. Source: `DI-mitav`.
+
 ### Fields
 
 - `Actor`
@@ -332,6 +352,10 @@ Use this form to attach facts and optional immutable files to a recorded run.
 Evidence turns a run into something reviewable later. It is how later operators
 see count facts, receiving inspection facts, photos, and other attached proof.
 
+When you inspect a run or use the matching search action, this form can now
+open already targeted at that run so evidence capture becomes a follow-on step
+from the reviewed run instead of a separate lookup task. Source: `DI-mitav`.
+
 ### Fields
 
 - `Actor`
@@ -360,6 +384,10 @@ run.
 
 Approvals are how the product records explicit review, not just that something
 exists. They are central to operational accountability.
+
+The inspector and search actions now let you start approvals directly from the
+current item or run context, while the generic approval form and manual
+override fields remain available. Source: `DI-mitav`.
 
 ### Fields
 
@@ -478,14 +506,22 @@ This is where the user can inspect:
 This inspector is now the visual center of the browser review flow. Search
 results, hotspot cards, and list panels all feed into it. Source: `DI-lafor`.
 
+It also now exposes a `Next Step` band ahead of the broader action list so the
+browser is more decisive about what the operator should do after opening a
+record. Source: `DI-sorik`.
+
 ### Main Areas
 
 - metadata line
   - identifies the current record
 - summary cards
   - compact counts and core status values
+- next step
+  - highlights the dominant action for the current record type before the full
+    related-action list
 - action buttons
-  - handoffs into related record views or filtered searches
+  - handoffs into related record views, filtered searches, and context-driven
+    operation forms
 - review panels
   - revisions, approvals, evidence, receiving review, inventory discrepancy
     history, linked items, or related runs depending on record type

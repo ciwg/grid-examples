@@ -18,7 +18,6 @@ the inspected-record surface.
 
 ## Tasks
 
-- [ ] sorik.1 Define the highest-priority next actions for the main browser states.
-- [ ] sorik.2 Adjust browser hierarchy and action emphasis to favor those primary flows.
-- [ ] sorik.3 Recheck the docs so they describe the updated browser flow honestly.
-
+- [x] sorik.1 Define the highest-priority next actions for the main browser states.
+- [x] sorik.2 Adjust browser hierarchy and action emphasis to favor those primary flows.
+- [x] sorik.3 Recheck the docs so they describe the updated browser flow honestly.

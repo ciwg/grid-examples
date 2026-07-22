@@ -10,10 +10,14 @@ const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
 const searchDebugEl = document.getElementById("search-debug");
 const searchClearEl = document.getElementById("search-clear");
+const focusProblemsEl = document.getElementById("focus-problems");
+const focusSearchEl = document.getElementById("focus-search");
+const focusDraftsEl = document.getElementById("focus-drafts");
 const toastEl = document.getElementById("toast");
 const workspaceStatusEl = document.getElementById("workspace-status");
 const detailMetaEl = document.getElementById("detail-meta");
 const detailSummaryEl = document.getElementById("detail-summary");
+const detailPrimaryEl = document.getElementById("detail-primary");
 const detailActionsEl = document.getElementById("detail-actions");
 const detailReviewEl = document.getElementById("detail-review");
 const detailTimelineEl = document.getElementById("detail-timeline");
@@ -231,6 +235,26 @@ document.getElementById("search-form").addEventListener("submit", runHandled(asy
 searchClearEl.addEventListener("click", () => {
   clearSearch();
 });
+
+focusProblemsEl.addEventListener("click", () => {
+  problemReviewEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  setWorkspaceStatus("Review hotspots first when you need the fastest path into repeated receiving or count problems.", "info");
+});
+
+focusSearchEl.addEventListener("click", () => {
+  const queryInput = document.querySelector("#search-form input[name='q']");
+  if (queryInput) {
+    queryInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    queryInput.focus({ preventScroll: true });
+  }
+  setWorkspaceStatus("Search is the main path when you already know the item, run, place, resource, or responsibility you need.", "info");
+});
+
+focusDraftsEl.addEventListener("click", runHandled(async () => {
+  await runSearch({ status: "draft" });
+  searchResultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  setWorkspaceStatus("Draft items are loaded. Open one record, then use the inspector to draft, approve, or record work from that item.", "info");
+}, "Primary Flow"));
 
 editorItemIDEl.addEventListener("change", runHandled(async () => {
   await loadEditorItem(editorItemIDEl.value);
@@ -579,6 +603,73 @@ function syncApprovalDefaults() {
     : `Choose a ${form.target_type.value === "run" ? "run" : "knowledge item"} to load matching records.`;
 }
 
+// Intent: Let browser operators jump from the current inspected or searched
+// record into the matching operate form with the right defaults already staged,
+// instead of re-deriving the same context from blank generic forms. Source:
+// DI-mitav
+function focusOperateForm(formEl, message, focusSelector = "textarea, input, select") {
+  formEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  const target = formEl.querySelector(focusSelector);
+  if (target) {
+    target.focus({ preventScroll: true });
+  }
+  setWorkspaceStatus(message, "info");
+}
+
+// Intent: Preserve the generic run form while making item, place, resource,
+// responsibility, and run context act like first-class launch points for a new
+// run record. Source: DI-mitav
+function startRunFromContext(type, record) {
+  const form = document.getElementById("run-form");
+  applyContextDefaults(type, record);
+  if (type === "item") {
+    const revision = record.current_revision || form.revision.value || 1;
+    form.revision.value = String(revision);
+    focusOperateForm(form, `Run form primed for ${record.id} revision ${revision}.`, "input[name='outcome']");
+    return;
+  }
+  if (type === "run") {
+    focusOperateForm(form, `Run form primed from ${record.id} so you can record the next pass with matching context.`, "input[name='outcome']");
+    return;
+  }
+  if (type === "place") {
+    focusOperateForm(form, `Run form primed for work at ${record.id}.`, "select[name='kind']");
+    return;
+  }
+  if (type === "resource") {
+    focusOperateForm(form, `Run form primed for work involving ${record.id}.`, "select[name='kind']");
+    return;
+  }
+  if (type === "responsibility") {
+    focusOperateForm(form, `Run form primed for work owned by ${record.id}.`, "select[name='kind']");
+  }
+}
+
+// Intent: Make evidence attachment feel like a follow-on action from a run the
+// operator is already looking at, instead of a detached generic upload form.
+// Source: DI-mitav
+function startEvidenceFromRun(run) {
+  applyContextDefaults("run", run);
+  const form = document.getElementById("evidence-form");
+  focusOperateForm(form, `Evidence form primed for ${run.id}.`, "input[name='summary']");
+}
+
+// Intent: Keep approvals reachable as a generic form while making the common
+// item/run approval path start from the current record context. Source:
+// DI-mitav
+function startApprovalFromContext(type, record) {
+  if (type !== "item" && type !== "run") {
+    throw new Error(`Unsupported approval context ${type}`);
+  }
+  applyContextDefaults(type, record);
+  const form = approvalFormEl;
+  focusOperateForm(
+    form,
+    `${type === "run" ? "Run" : "Item"} approval primed for ${record.id}.`,
+    "input[name='role']",
+  );
+}
+
 // Intent: Surface repeated receiving and count problems as grouped hotspots so
 // operators can see where issues cluster before drilling into one record at a
 // time. Source: DI-pogul
@@ -686,9 +777,25 @@ function renderSearchResults(filters, payload) {
       actions.appendChild(makeActionButton("Inspect", () => inspectRecord(type, item.id), "Search"));
       if (type === "item") {
         actions.appendChild(makeActionButton("Open draft", () => Promise.all([loadEditorItem(item.id), inspectRecord("item", item.id)]), "Search"));
+        actions.appendChild(makeActionButton("Record run", async () => {
+          await inspectRecord("item", item.id);
+          startRunFromContext("item", detailState.record);
+        }, "Search"));
+        actions.appendChild(makeActionButton("Approve item", async () => {
+          await inspectRecord("item", item.id);
+          startApprovalFromContext("item", detailState.record);
+        }, "Search"));
       }
       if (type === "run") {
         actions.appendChild(makeActionButton("Item", () => inspectRecord("item", item.item_id), "Search"));
+        actions.appendChild(makeActionButton("Add evidence", async () => {
+          await inspectRecord("run", item.id);
+          startEvidenceFromRun(detailState.record);
+        }, "Search"));
+        actions.appendChild(makeActionButton("Approve run", async () => {
+          await inspectRecord("run", item.id);
+          startApprovalFromContext("run", detailState.record);
+        }, "Search"));
       }
       card.appendChild(actions);
       block.appendChild(card);
@@ -701,6 +808,52 @@ function renderSearchResults(filters, payload) {
     empty.textContent = filters.q ? `No results for "${filters.q}".` : "No results.";
     searchResultsEl.appendChild(empty);
   }
+}
+
+// Intent: Make the browser decisive about the most likely next action after a
+// record is open, while preserving the broader related-action list underneath.
+// Source: DI-sorik
+function renderDetailPrimary(type, record) {
+  detailPrimaryEl.innerHTML = "";
+  const title = document.createElement("strong");
+  title.textContent = "Next Step";
+  const summary = document.createElement("p");
+  summary.className = "meta";
+  const actions = document.createElement("div");
+  actions.className = "detail-primary-actions";
+
+  if (type === "item") {
+    summary.textContent = "Revise this item or record work from its current revision, then approve that durable revision when it is ready.";
+    actions.appendChild(makePrimaryActionButton("Continue draft", () => Promise.all([loadEditorItem(record.id), inspectRecord("item", record.id)]), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Record run", () => startRunFromContext("item", record), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Approve item", () => startApprovalFromContext("item", record), "Record Inspector"));
+  } else if (type === "run") {
+    summary.textContent = "Capture supporting evidence first, then record the review decision or open the durable item behind this run.";
+    actions.appendChild(makePrimaryActionButton("Add evidence", () => startEvidenceFromRun(record), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Approve run", () => startApprovalFromContext("run", record), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Open item", () => inspectRecord("item", record.item_id), "Record Inspector"));
+  } else if (type === "place") {
+    summary.textContent = "Review repeated problems for this place or start a run that is explicitly anchored to this location.";
+    actions.appendChild(makePrimaryActionButton("Search problems here", () => runSearch({ place_id: record.id, problem: true }), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Record run here", () => startRunFromContext("place", record), "Record Inspector"));
+  } else if (type === "resource") {
+    summary.textContent = "Use this resource as the anchor for the next run, or review the receiving and count history attached to it.";
+    actions.appendChild(makePrimaryActionButton("Search problems here", () => runSearch({ resource_id: record.id, problem: true }), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Record run with this resource", () => startRunFromContext("resource", record), "Record Inspector"));
+  } else if (type === "responsibility") {
+    summary.textContent = "Review the work owned by this responsibility, then record the next run using the same ownership context.";
+    actions.appendChild(makePrimaryActionButton("Search receiving problems", () => runSearch({ responsibility_id: record.id, problem: true }), "Record Inspector"));
+    actions.appendChild(makePrimaryActionButton("Record run for this responsibility", () => startRunFromContext("responsibility", record), "Record Inspector"));
+  }
+
+  if (!actions.children.length) {
+    detailPrimaryEl.hidden = true;
+    return;
+  }
+  detailPrimaryEl.hidden = false;
+  detailPrimaryEl.appendChild(title);
+  detailPrimaryEl.appendChild(summary);
+  detailPrimaryEl.appendChild(actions);
 }
 
 function formatSearchFilters(filters) {
@@ -762,6 +915,8 @@ async function inspectRecord(type, id) {
   detailState.record = null;
   detailMetaEl.textContent = `Loading ${type} ${id}...`;
   detailSummaryEl.innerHTML = "";
+  detailPrimaryEl.hidden = true;
+  detailPrimaryEl.innerHTML = "";
   detailActionsEl.innerHTML = "";
   detailReviewEl.innerHTML = "";
   detailTimelineEl.innerHTML = "";
@@ -769,6 +924,7 @@ async function inspectRecord(type, id) {
   detailState.record = record;
   detailMetaEl.textContent = detailSummary(type, record);
   renderDetailSummary(type, record);
+  renderDetailPrimary(type, record);
   renderDetailReview(type, record);
   renderDetailTimeline(record.timeline || []);
   detailJSONEl.textContent = JSON.stringify(record, null, 2);
@@ -881,8 +1037,11 @@ function detailStats(type, record) {
 function renderDetailActions(type, record) {
   detailActionsEl.innerHTML = "";
   const links = [];
-  if (type === "resource" && record.place_id) {
-    links.push(["Open place", "place", record.place_id]);
+  if (type === "resource") {
+    links.push(["Record run with this resource", "operate", () => startRunFromContext("resource", record)]);
+    if (record.place_id) {
+      links.push(["Open place", "place", record.place_id]);
+    }
     links.push(["Search receiving here", "search", { kind: "receiving_check", resource_id: record.id }]);
     links.push(["Search counts here", "search", { kind: "inventory_audit", resource_id: record.id }]);
     links.push(["Search problems here", "search", { resource_id: record.id, problem: true }]);
@@ -891,6 +1050,8 @@ function renderDetailActions(type, record) {
     }
   }
   if (type === "item") {
+    links.push(["Record run for this item", "operate", () => startRunFromContext("item", record)]);
+    links.push(["Approve this item", "operate", () => startApprovalFromContext("item", record)]);
     links.push(["Open live draft", "item", record.id]);
     for (const responsibilityID of record.responsibility_ids || []) {
       links.push([`Responsibility ${responsibilityID}`, "responsibility", responsibilityID]);
@@ -900,6 +1061,9 @@ function renderDetailActions(type, record) {
     }
   }
   if (type === "run") {
+    links.push(["Add evidence to this run", "operate", () => startEvidenceFromRun(record)]);
+    links.push(["Approve this run", "operate", () => startApprovalFromContext("run", record)]);
+    links.push(["Record follow-on run", "operate", () => startRunFromContext("run", record)]);
     links.push(["Open item", "item", record.item_id]);
     if (record.place_id) {
       links.push(["Open place", "place", record.place_id]);
@@ -912,6 +1076,7 @@ function renderDetailActions(type, record) {
     }
   }
   if (type === "place") {
+    links.push(["Record run here", "operate", () => startRunFromContext("place", record)]);
     links.push(["Search receiving here", "search", { kind: "receiving_check", place_id: record.id }]);
     links.push(["Search counts here", "search", { kind: "inventory_audit", place_id: record.id }]);
     links.push(["Search problems here", "search", { place_id: record.id, problem: true }]);
@@ -926,6 +1091,7 @@ function renderDetailActions(type, record) {
     }
   }
   if (type === "responsibility") {
+    links.push(["Record run for this responsibility", "operate", () => startRunFromContext("responsibility", record)]);
     links.push(["Search receiving runs", "search", { kind: "receiving_check", responsibility_id: record.id }]);
     links.push(["Search inventory counts", "search", { kind: "inventory_audit", responsibility_id: record.id }]);
     links.push(["Search receiving problems", "search", { responsibility_id: record.id, problem: true }]);
@@ -937,6 +1103,10 @@ function renderDetailActions(type, record) {
     }
   }
   for (const [label, nextType, nextID] of links) {
+    if (nextType === "operate") {
+      detailActionsEl.appendChild(makeActionButton(label, nextID, "Record Inspector"));
+      continue;
+    }
     if (nextType === "search") {
       detailActionsEl.appendChild(makeActionButton(label, () => runSearch(nextID), "Record Inspector"));
       continue;
@@ -1053,6 +1223,16 @@ function makeActionButton(label, action, context) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "button-tertiary";
+  button.textContent = label;
+  button.addEventListener("click", () => {
+    Promise.resolve(action()).catch((error) => handleError(error, context));
+  });
+  return button;
+}
+
+function makePrimaryActionButton(label, action, context) {
+  const button = document.createElement("button");
+  button.type = "button";
   button.textContent = label;
   button.addEventListener("click", () => {
     Promise.resolve(action()).catch((error) => handleError(error, context));

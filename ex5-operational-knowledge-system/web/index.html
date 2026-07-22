@@ -29,6 +29,18 @@
           </div>
         </div>
         <div class="workspace-grid review-grid">
+          <section class="panel flow-panel">
+            <h3>Primary Flow</h3>
+            <div class="flow-panel-body">
+              <div class="meta">Start with the queue, open one record, then take the next action from that record instead of bouncing between generic forms.</div>
+              <div class="detail-actions primary-flow-actions">
+                <button id="focus-problems" type="button" class="button-secondary">Review hotspots</button>
+                <button id="focus-search" type="button" class="button-secondary">Search records</button>
+                <button id="focus-drafts" type="button">Review draft items</button>
+              </div>
+            </div>
+          </section>
+
           <section class="panel problem-panel">
             <h3>Problem Review</h3>
             <div id="problem-review" class="search-results"></div>
@@ -86,6 +98,7 @@
             <h3>Record Inspector</h3>
             <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
             <div id="detail-summary" class="detail-summary"></div>
+            <div id="detail-primary" class="detail-primary"></div>
             <div id="detail-actions" class="detail-actions"></div>
             <div id="detail-review" class="detail-review"></div>
             <div class="detail-timeline-wrap">

@@ -157,9 +157,13 @@ Use the browser when you want:
 
 - the broadest operational surface
 - a review-first workspace that keeps triage and inspection ahead of setup forms
+- a primary-flow layer that points you toward hotspots, draft review, and the
+  most likely next action for the current record
 - shared live browser drafting
 - contextual review panels
 - grouped hotspot review
+- direct jump actions from the current record into run recording, evidence
+  capture, and approvals
 
 Use the CLI when you want:
 
