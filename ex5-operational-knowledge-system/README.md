@@ -488,7 +488,7 @@ What it does not try to do yet:
 
 ## Current direction
 
-- keep websocket-preferred live-draft carriage under the existing local adapter instead of porting the full `ex3` collaboration stack into `ex5`
+- keep browser live drafting on websocket-preferred carriage under the existing local adapter while terminal embodiments use the local Unix-socket contract, instead of porting the full `ex3` collaboration stack into `ex5`
 - treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, create-envelope-CID durable IDs plus preserved short aliases, bootstrap inline evidence blobs, and incremental relay-feed plus CID blob transfer

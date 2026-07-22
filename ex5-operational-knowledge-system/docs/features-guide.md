@@ -153,7 +153,7 @@ It is intentionally narrower than the browser surface:
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - supersede the current or specified item with `:OksSupersedeItem [ITEM_ID] [NOTES...]`
-- prefer websocket live-draft carriage and fall back to the same local HTTP live endpoint for bootstrap fetch and compatibility
+- prefer the direct local Unix-socket contract for request/response and live drafting, and fall back to the same local HTTP live endpoint for compatibility
 
 Cursor and presence reporting now stay anchored to the live-draft window
 instead of whichever split is currently focused, so opening inspectors does not
@@ -165,11 +165,11 @@ editor does not leave a detached `acwrite` buffer behind after the session
 hooks are gone. Source: `DI-mabek`.
 
 This phase deliberately reuses the existing live-draft semantics and local
-adapter rather than inventing a second editor-only runtime. It now prefers the
-same websocket live-draft carriage as the browser while keeping the existing
-HTTP live routes as bootstrap and fallback paths. That gives Neovim-heavy teams
-the same shared drafting transport without reopening the durable-family
-boundary. Source: `DI-tabiv`; `DI-fudok`; `DI-noruv`.
+runtime rather than inventing a second editor-only collaboration model. It now
+prefers the direct local Unix-socket contract while keeping the existing HTTP
+live routes as compatibility fallback. That gives Neovim-heavy teams a direct
+runtime path without reopening the durable-family boundary. Source: `DI-tabiv`;
+`DI-fudok`; `DI-noruv`; `DI-favel`.
 
 The first richer follow-on stays read-only on purpose. The inspector reads the
 same item detail projection as the browser and CLI, so Neovim users can review
@@ -581,6 +581,6 @@ problem and gives it one durable local history.
 
 The current product direction is now:
 
-- keep websocket-preferred live-draft carriage under the existing local adapter instead of porting the full `ex3` collaboration stack into `ex5`
+- keep browser live drafting on websocket-preferred carriage under the existing local adapter, while terminal embodiments use the new local Unix-socket contract instead of porting the full `ex3` collaboration stack into `ex5`
 - treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment as a desirable follow-on because many real teams operate there

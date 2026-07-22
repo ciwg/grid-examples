@@ -10,9 +10,11 @@ operational runtime. Its job is narrower:
 - serve relay-feed pulls by per-origin cursor map
 - stage and fetch CID-addressed blobs
 
-That separation is intentional. The browser, CLI, and Neovim embodiments still
-use the local HTTP adapter, while the relay carries signed durable history and
-evidence blobs remotely. Source: `DI-rovik`; `DI-tasov`; `DI-nulav`.
+That separation is intentional. The browser still uses the local HTTP adapter,
+while CLI and Neovim now prefer the direct local Unix-socket contract. The
+relay carries signed durable history and evidence blobs remotely and does not
+become the main embodiment surface. Source: `DI-rovik`; `DI-tasov`;
+`DI-nulav`; `DI-favel`.
 
 ## Core shape
 

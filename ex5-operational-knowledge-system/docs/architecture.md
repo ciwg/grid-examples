@@ -71,11 +71,12 @@ active for still-unfrozen state. Imported evidence blobs are also materialized
 back into a local compatibility attachment path on demand. Source:
 `DI-lavuz`; `DI-rovud`; `DI-faruv`.
 
-The embodiment contract also tightens one step at that milestone: browser, CLI,
-and Neovim still use the local HTTP adapter, but the adapter now exposes
-peer-exchange and CAS runtime capability metadata and is described as an
-adapter over the richer runtime contract instead of only a local app surface.
-Source: `DI-vabek`; `DI-rovuz`.
+The embodiment contract also tightened another step after that milestone:
+browser still uses the local HTTP adapter, while CLI and Neovim now prefer the
+direct local Unix-socket contract. The HTTP adapter still exposes peer-exchange
+and CAS runtime capability metadata and is described as an adapter over the
+richer runtime contract instead of only a local app surface. Source:
+`DI-vabek`; `DI-rovuz`; `DI-favel`.
 
 The runtime owns:
 
@@ -262,7 +263,8 @@ The code currently implements:
 - live shared drafting through the local HTTP runtime
 - participant presence on the current draft
 - durable versioned document bodies inside knowledge-item revisions
-- one shared local HTTP embodiment adapter for browser, CLI, and Neovim
+- one shared local runtime, with browser on the HTTP adapter and CLI/Neovim on
+  a direct local Unix-socket contract
 - signed-envelope runtime slices for the eight frozen `knowledge-item`,
   `knowledge-approval`, `knowledge-evidence`, `knowledge-link`,
   `knowledge-responsibility`, `operational-run`, `operational-place`, and
@@ -272,11 +274,12 @@ The code currently implements:
 
 It still does **not** yet implement:
 
-- embodiment/product follow-on work beyond the current local HTTP adapter
-  contract
+- embodiment/product follow-on work beyond the current browser HTTP adapter and
+  terminal local-socket split
 
 So in current ex5, protocol-family and `pCID` language are part of the shipped
 PromiseGrid framing, and eight families now have real runtime/wire
 implementations. Shared draft bodies now also reload authoritatively from CAS
-through local manifests, while embodiments continue to route through the local
-HTTP adapter. For the explicit current claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
+through local manifests, while browser remains on the HTTP adapter and
+terminal embodiments use the local Unix socket. For the explicit current claims
+list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

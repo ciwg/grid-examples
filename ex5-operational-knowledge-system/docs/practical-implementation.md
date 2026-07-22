@@ -309,22 +309,23 @@ The foundation still does not yet include:
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
-embodiment, a thinner CLI embodiment, and a shared draft surface that now spans
-browser and Neovim over websocket-preferred carriage.
+embodiment, direct local socket transports for the CLI and Neovim, and a
+shared draft surface that now spans browser websocket carriage plus terminal
+socket carriage.
 
-The current product direction is to keep that live-draft surface inside the
+The current product direction is to keep browser live drafting inside the
 existing local adapter instead of porting the full `ex3` collaboration stack
-into `ex5`, while treating shared live drafting as the real-time collaboration
-transport and keeping the broader create/run/evidence workflow surface
-concentrated in the browser, CLI, and targeted Neovim actions. The current
-phase now uses websocket-preferred live-draft carriage plus HTTP fallback,
-alongside read-only item/run/entity inspection and search/browse over projected
-detail. It now also includes a read-only pending-review queue over the same
-shared search projections plus a narrow set of revision-safe item/run approval
-and item supersede actions over the same local HTTP runtime the CLI and browser
-already use. Source:
+into `ex5`, while giving terminal embodiments a direct local Unix-socket
+contract over the same runtime. Shared live drafting remains the real-time
+collaboration transport, but the carriage now splits by embodiment: browser
+uses websocket-preferred HTTP, while Neovim uses the local socket and falls
+back to HTTP only for compatibility. The current phase still includes read-only
+item/run/entity inspection and search/browse over projected detail, plus a
+read-only pending-review queue and a narrow set of revision-safe item/run
+approval and item supersede actions over that same shared runtime. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
-`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`; `DI-noruv`.
+`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`; `DI-noruv`;
+`DI-favel`.
 
 ## Current verification shape
 
@@ -332,7 +333,8 @@ The current code is covered at four levels:
 
 - app/service tests for projection, search, lifecycle, and live draft behavior
 - HTTP server tests for routes, conflict handling, and mixed workflow flows
-- CLI tests for command argument mapping into the HTTP adapter
+- CLI tests for command argument mapping into the direct local socket contract,
+  with HTTP fallback compatibility still covered by the same transport layer
 - Neovim asset tests for the shipped launcher and command surface
 - embedded web asset tests that assert the shipped UI still exposes the
   expected operational workflow sections
