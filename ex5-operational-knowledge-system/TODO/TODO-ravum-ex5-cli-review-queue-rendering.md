@@ -21,7 +21,7 @@ Render the CLI review queues as shell-usable summaries instead of raw JSON.
 
 ## Tasks
 
-- [ ] ravum.1 Define the terminal summary shape for `pending-review` and `problem-review`.
-- [ ] ravum.2 Add CLI renderers over the existing review projections.
-- [ ] ravum.3 Add regression coverage for the new queue rendering.
-- [ ] ravum.4 Update the ex5 terminal docs.
+- [x] ravum.1 Define the terminal summary shape for `pending-review` and `problem-review`.
+- [x] ravum.2 Add CLI renderers over the existing review projections.
+- [x] ravum.3 Add regression coverage for the new queue rendering.
+- [x] ravum.4 Update the ex5 terminal docs.

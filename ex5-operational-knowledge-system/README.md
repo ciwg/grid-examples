@@ -75,7 +75,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment
 - CLI structured search filters and problem-only review over the shared search projection
-- CLI pending-review aggregation for draft items, unreviewed runs, and problem runs
+- CLI pending-review and problem-review terminal summaries for draft items, unreviewed runs, problem runs, and grouped hotspots
 - CLI place/resource drilldown summaries over the shared context detail routes
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
@@ -234,8 +234,8 @@ The intended terminal behavior today is:
   slices that already drive browser and Neovim review views
 - use the CLI when you need grouped hotspot review or projected responsibility
   detail from the same routes the browser and Neovim embodiments already read
-- use the CLI when you need one pending-review queue for draft items, review
-  queue runs, and problem runs without opening the editor
+- use the CLI when you need pending-review and problem-review queues rendered as
+  terminal summaries instead of raw JSON
 - use the CLI when you need contextual place/resource drilldowns plus
   review-oriented run/item/responsibility detail with related runs, approvals,
   evidence, and link summaries in one terminal view

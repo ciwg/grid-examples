@@ -219,11 +219,11 @@ CLI behavior today:
 - explicit typed-link creation over validated existing graph endpoints
 - explicit run evidence upload with optional facts JSON and optional attachment
 - direct free-text search plus structured and `problem=true` filters
-- grouped hotspot review over the shared problem-review surface
+- grouped hotspot review over the shared problem-review surface, rendered as a terminal summary
 - contextual place/resource drilldowns with related runs and links over the shared detail routes
 - projected run/item/responsibility drilldowns over the shared detail routes,
   including related runs, approvals, evidence, and typed links
-- grouped pending-review aggregation over the same search-route family Neovim already uses
+- grouped pending-review aggregation over the same search-route family Neovim already uses, rendered as a terminal summary
 
 Neovim behavior today:
 

@@ -299,6 +299,46 @@ type cliRunDetail struct {
 	Links             []cliLink     `json:"links"`
 }
 
+type cliSearchItem struct {
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Status  string `json:"status"`
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+}
+
+type cliSearchRun struct {
+	ID          string        `json:"id"`
+	Kind        string        `json:"kind"`
+	ItemID      string        `json:"item_id"`
+	Outcome     string        `json:"outcome"`
+	Notes       string        `json:"notes"`
+	ResourceIDs []string      `json:"resource_ids"`
+	Approvals   []cliApproval `json:"approvals"`
+}
+
+type cliSearchResponse struct {
+	Items []cliSearchItem `json:"items"`
+	Runs  []cliSearchRun  `json:"runs"`
+}
+
+type cliProblemReview struct {
+	ProblemRuns    int                     `json:"problem_runs"`
+	PlaceGroups    []cliProblemReviewGroup `json:"place_groups"`
+	ResourceGroups []cliProblemReviewGroup `json:"resource_groups"`
+}
+
+type cliProblemReviewGroup struct {
+	GroupID           string          `json:"group_id"`
+	Kind              string          `json:"kind"`
+	Name              string          `json:"name"`
+	ProblemCount      int             `json:"problem_count"`
+	ReceivingProblems int             `json:"receiving_problems"`
+	InventoryProblems int             `json:"inventory_problems"`
+	HighlightExamples []string        `json:"highlights"`
+	Runs              []cliRunSummary `json:"runs"`
+}
+
 var allowedSearchFilters = map[string]struct{}{
 	"kind":              {},
 	"status":            {},
@@ -309,8 +349,7 @@ var allowedSearchFilters = map[string]struct{}{
 	"problem":           {},
 }
 
-func (cli *CLI) Dashboard() error     { return cli.Show("/api/dashboard") }
-func (cli *CLI) ProblemReview() error { return cli.Show("/api/problem-review") }
+func (cli *CLI) Dashboard() error { return cli.Show("/api/dashboard") }
 
 // Intent: Keep place drilldowns on the shared place-detail projection while
 // rendering the hierarchy, links, and related runs in a terminal-first review
@@ -394,42 +433,47 @@ func (cli *CLI) ShowRun(runID string) error {
 	return nil
 }
 
+// Intent: Keep the shell-first problem hotspot queue on the shared grouped
+// problem-review projection while rendering it as a review-oriented terminal
+// summary instead of a raw JSON blob. Source: DI-ravum
+func (cli *CLI) ProblemReview() error {
+	body, err := cli.get("/api/problem-review")
+	if err != nil {
+		return err
+	}
+	var review cliProblemReview
+	if err := json.Unmarshal(body, &review); err != nil {
+		return fmt.Errorf("/api/problem-review decode: %w", err)
+	}
+	fmt.Println(renderProblemReview(review))
+	return nil
+}
+
 // Intent: Keep the shell-first pending-review queue on the same projection
 // family Neovim already uses so terminal triage does not invent a separate
 // review endpoint or drift away from the staged editor workflow. Source:
 // DI-vabok
 func (cli *CLI) PendingReview() error {
-	draftItems, err := cli.getSearchArray("/api/search?status=draft", "items")
+	draftSearch, err := cli.getSearch("/api/search?status=draft")
 	if err != nil {
 		return err
 	}
-	allRuns, err := cli.getSearchArray("/api/search", "runs")
+	allRunsSearch, err := cli.getSearch("/api/search")
 	if err != nil {
 		return err
 	}
-	problemRuns, err := cli.getSearchArray("/api/search?problem=true", "runs")
+	problemRunsSearch, err := cli.getSearch("/api/search?problem=true")
 	if err != nil {
 		return err
 	}
-	unreviewedRuns := []map[string]any{}
-	for _, raw := range allRuns {
-		run, err := requireJSONObject(raw, "/api/search runs entry")
-		if err != nil {
-			return err
-		}
-		approvals, err := requireJSONArray(run, "approvals", "/api/search runs entry")
-		if err != nil {
-			return err
-		}
-		if len(approvals) == 0 {
+	unreviewedRuns := make([]cliSearchRun, 0, len(allRunsSearch.Runs))
+	for _, run := range allRunsSearch.Runs {
+		if len(run.Approvals) == 0 {
 			unreviewedRuns = append(unreviewedRuns, run)
 		}
 	}
-	return printJSON(map[string]any{
-		"draft_items":     draftItems,
-		"unreviewed_runs": unreviewedRuns,
-		"problem_runs":    problemRuns,
-	})
+	fmt.Println(renderPendingReview(draftSearch.Items, unreviewedRuns, problemRunsSearch.Runs))
+	return nil
 }
 func (cli *CLI) Places() error           { return cli.Show("/api/places") }
 func (cli *CLI) Resources() error        { return cli.Show("/api/resources") }
@@ -650,6 +694,18 @@ func (cli *CLI) getSearchArray(path string, field string) ([]any, error) {
 	return requireJSONArray(projection, field, path)
 }
 
+func (cli *CLI) getSearch(path string) (cliSearchResponse, error) {
+	body, err := cli.get(path)
+	if err != nil {
+		return cliSearchResponse{}, err
+	}
+	var response cliSearchResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return cliSearchResponse{}, fmt.Errorf("%s decode: %w", path, err)
+	}
+	return response, nil
+}
+
 func printJSON(value any) error {
 	body, err := json.Marshal(value)
 	if err != nil {
@@ -799,6 +855,37 @@ func renderRunDetail(run cliRunDetail) string {
 	return strings.Join(lines, "\n")
 }
 
+func renderPendingReview(draftItems []cliSearchItem, unreviewedRuns []cliSearchRun, problemRuns []cliSearchRun) string {
+	lines := []string{
+		"# Pending review",
+		fmt.Sprintf("draft_items=%d unreviewed_runs=%d problem_runs=%d", len(draftItems), len(unreviewedRuns), len(problemRuns)),
+		"",
+		"draft items:",
+	}
+	lines = append(lines, renderSearchItemLines(draftItems)...)
+	lines = append(lines, "")
+	lines = append(lines, "unreviewed runs:")
+	lines = append(lines, renderSearchRunLines(unreviewedRuns)...)
+	lines = append(lines, "")
+	lines = append(lines, "problem runs:")
+	lines = append(lines, renderSearchRunLines(problemRuns)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderProblemReview(review cliProblemReview) string {
+	lines := []string{
+		"# Problem review",
+		fmt.Sprintf("problem_runs=%d", review.ProblemRuns),
+		"",
+		"place groups:",
+	}
+	lines = append(lines, renderProblemGroups(review.PlaceGroups, "place")...)
+	lines = append(lines, "")
+	lines = append(lines, "resource groups:")
+	lines = append(lines, renderProblemGroups(review.ResourceGroups, "resource")...)
+	return strings.Join(lines, "\n")
+}
+
 func renderRunLines(runs []cliRunSummary) []string {
 	if len(runs) == 0 {
 		return []string{"- none"}
@@ -812,6 +899,58 @@ func renderRunLines(runs []cliRunSummary) []string {
 		}
 		if strings.TrimSpace(run.Notes) != "" {
 			lines = append(lines, "  "+run.Notes)
+		}
+	}
+	return lines
+}
+
+func renderSearchItemLines(items []cliSearchItem) []string {
+	if len(items) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(items)*3)
+	for _, item := range items {
+		lines = append(lines, fmt.Sprintf("- %s kind=%s status=%s title=%s", safeText(item.ID, "-"), safeText(item.Kind, "-"), safeText(item.Status, "-"), safeText(item.Title, "-")))
+		lines = append(lines, "  show: oks-cli show-item "+safeText(item.ID, "-"))
+		if strings.TrimSpace(item.Summary) != "" {
+			lines = append(lines, "  "+item.Summary)
+		}
+	}
+	return lines
+}
+
+func renderSearchRunLines(runs []cliSearchRun) []string {
+	if len(runs) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(runs)*3)
+	for _, run := range runs {
+		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s approvals=%d", safeText(run.ID, "-"), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-"), len(run.Approvals)))
+		lines = append(lines, "  show: oks-cli show-run "+safeText(run.ID, "-"))
+		if len(run.ResourceIDs) > 0 {
+			lines = append(lines, "  resources: "+strings.Join(run.ResourceIDs, ", "))
+		}
+		if strings.TrimSpace(run.Notes) != "" {
+			lines = append(lines, "  "+run.Notes)
+		}
+	}
+	return lines
+}
+
+func renderProblemGroups(groups []cliProblemReviewGroup, groupType string) []string {
+	if len(groups) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(groups)*6)
+	for _, group := range groups {
+		lines = append(lines, fmt.Sprintf("- %s kind=%s name=%s problems=%d receiving=%d inventory=%d", safeText(group.GroupID, "-"), safeText(group.Kind, "-"), safeText(group.Name, "-"), group.ProblemCount, group.ReceivingProblems, group.InventoryProblems))
+		lines = append(lines, "  show: oks-cli show-"+groupType+" "+safeText(group.GroupID, "-"))
+		if len(group.HighlightExamples) > 0 {
+			lines = append(lines, "  highlights: "+strings.Join(group.HighlightExamples, " | "))
+		}
+		lines = append(lines, "  runs:")
+		for _, runLine := range renderRunLines(group.Runs) {
+			lines = append(lines, "  "+runLine)
 		}
 	}
 	return lines

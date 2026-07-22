@@ -54,7 +54,7 @@ phase 1.
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API
 - CLI run, item, responsibility, place, and resource drilldown summaries now exist over the shared detail routes
-- the next concrete terminal-first slice is CLI pending/problem review rendering over the existing review endpoints
+- CLI pending-review and problem-review terminal summaries now exist over the shared review projections
 - a small run approval action now exists over the existing run approval API
 - a small item supersede action now exists over the existing item supersede API
 - CLI evidence upload now exists over the shared run evidence route

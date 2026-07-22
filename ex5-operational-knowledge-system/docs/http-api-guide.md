@@ -53,11 +53,11 @@ Returns the current projected counts for:
 
 Returns grouped receiving/count problem hotspots for the browser review panel.
 
-The CLI now reuses this same route directly:
+The CLI now reuses this same route directly for a terminal hotspot summary:
 
 - `oks-cli problem-review`
 
-Source: `DI-nuvaz`.
+Source: `DI-nuvaz`; `DI-ravum`.
 
 The response includes:
 
@@ -169,8 +169,8 @@ The CLI now reuses this same route too:
 
 `oks-cli pending-review` reuses the same three route reads as `:OksPending`:
 `/api/search?status=draft`, `/api/search`, and `/api/search?problem=true`. It
-assembles one shell-facing pending-review payload instead of requiring a new
-terminal-specific aggregation API. Source: `DI-vabok`.
+renders one shell-facing pending-review summary instead of requiring a new
+terminal-specific aggregation API. Source: `DI-vabok`; `DI-ravum`.
 
 Unsupported or malformed filter tokens are rejected locally instead of being
 silently dropped. Source: `DI-mifot`.

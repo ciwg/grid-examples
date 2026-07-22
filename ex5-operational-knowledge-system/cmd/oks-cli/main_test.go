@@ -72,20 +72,56 @@ func TestProblemReviewCommandUsesExpectedRoute(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		path = request.URL.Path
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"place_groups":[],"resource_groups":[],"problem_runs":[]}`))
+		_, _ = writer.Write([]byte(`{
+			"problem_runs":2,
+			"place_groups":[{"group_id":"PLACE-0001","kind":"area","name":"Receiving","problem_count":2,"receiving_problems":1,"inventory_problems":1,"highlights":["supplier mismatch","count variance"],"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"ITEM-0001","outcome":"accepted_with_notes","notes":"Outer wrap torn","resource_ids":["RES-0001"]}]}],
+			"resource_groups":[{"group_id":"RES-0001","kind":"container","name":"RJ45 Bin","problem_count":1,"receiving_problems":0,"inventory_problems":1,"highlights":["count variance"],"runs":[{"id":"RUN-0002","kind":"inventory_audit","item_id":"ITEM-0002","outcome":"completed","notes":"Count off by two","resource_ids":["RES-0001"]}]}]
+		}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"problem-review"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("problem-review command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if path != "/api/problem-review" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Problem review") ||
+		!strings.Contains(output, "problem_runs=2") ||
+		!strings.Contains(output, "show: oks-cli show-place PLACE-0001") ||
+		!strings.Contains(output, "show: oks-cli show-resource RES-0001") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0001") {
+		t.Fatalf("unexpected problem-review output: %s", output)
+	}
+}
+
+func TestProblemReviewCommandRejectsMalformedPayload(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"problem_runs":1,"place_groups":{"group_id":"PLACE-0001"},"resource_groups":[]}`))
 	}))
 	defer server.Close()
 
 	cli := &CLI{ServerURL: server.URL}
 	exitCode, err := cli.run([]string{"problem-review"})
-	if err != nil {
-		t.Fatalf("problem-review command: %v", err)
-	}
-	if exitCode != 0 {
+	if exitCode != 1 {
 		t.Fatalf("unexpected exit code: %d", exitCode)
 	}
-	if path != "/api/problem-review" {
-		t.Fatalf("unexpected path: %s", path)
+	if err == nil || !strings.Contains(err.Error(), "/api/problem-review decode:") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -132,10 +168,13 @@ func TestPendingReviewCommandUsesSharedSearchRoutes(t *testing.T) {
 		t.Fatalf("unexpected paths: got=%#v want=%#v", paths, expected)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, `"draft_items"`) || !strings.Contains(output, `"unreviewed_runs"`) || !strings.Contains(output, `"problem_runs"`) {
+	if !strings.Contains(output, "# Pending review") ||
+		!strings.Contains(output, "draft_items=1 unreviewed_runs=1 problem_runs=1") ||
+		!strings.Contains(output, "show: oks-cli show-item") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0001") {
 		t.Fatalf("unexpected output: %s", output)
 	}
-	if !strings.Contains(output, `"RUN-0001"`) || strings.Contains(output, `"RUN-0009"`) {
+	if !strings.Contains(output, "RUN-0001") || strings.Contains(output, "RUN-0009") {
 		t.Fatalf("unexpected unreviewed run output: %s", output)
 	}
 }
@@ -161,7 +200,7 @@ func TestPendingReviewCommandRejectsMalformedRunApprovals(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("unexpected exit code: %d", exitCode)
 	}
-	if err == nil || !strings.Contains(err.Error(), `/api/search runs entry "approvals" field is not an array`) {
+	if err == nil || !strings.Contains(err.Error(), `/api/search decode:`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
