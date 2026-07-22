@@ -141,6 +141,11 @@ This is now also the Neovim search/browse surface. `:OksSearch QUERY` reads the
 same response and renders grouped read-only result sections with inspect hints
 for the existing item, run, and generic entity inspectors. Source: `DI-givot`.
 
+The Neovim pending-review view also reuses this route. `:OksPending` combines
+`/api/search?status=draft`, `/api/search`, and `/api/search?problem=true` to
+assemble draft-item, unreviewed-run, and problem-run queues without requiring
+a new terminal-specific API. Source: `DI-lorav`.
+
 ## Places and resources
 
 ### `GET /api/places`

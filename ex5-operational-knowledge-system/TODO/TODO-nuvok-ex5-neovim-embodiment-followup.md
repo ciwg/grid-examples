@@ -33,7 +33,8 @@ phase 1.
 - [x] nuvok.4 Define the next richer Neovim workflow surface as direct read-only run inspection under `TODO/TODO-ravok-ex5-neovim-run-inspector-phase.md`.
 - [x] nuvok.5 Define the next richer Neovim workflow surface as read-only typed-link browsing under `TODO/TODO-zalor-ex5-neovim-typed-link-browsing-phase.md`.
 - [x] nuvok.6 Define the next richer Neovim workflow surface after typed-link browsing as read-only search and browse under `TODO/TODO-givot-ex5-neovim-search-browse-phase.md`.
-- [ ] nuvok.7 Define the next richer Neovim workflow surface after search/browse, such as limited approval actions.
+- [x] nuvok.7 Define the next richer Neovim workflow surface after search/browse as a read-only pending-review view under `TODO/TODO-lorav-ex5-neovim-pending-review-phase.md`.
+- [ ] nuvok.8 Define the next richer Neovim workflow surface after pending review, such as limited approval actions.
 
 ## Status
 
@@ -45,3 +46,4 @@ phase 1.
 - direct run inspection now exists for evidence and approval review over projected run detail
 - typed-link browsing now exists over item, run, place, resource, and responsibility detail
 - read-only search and browse now exists over the shared `/api/search` projection
+- read-only pending review now exists over draft-item and run-review slices from the shared search projections

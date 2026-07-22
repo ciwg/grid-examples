@@ -142,6 +142,7 @@ It is intentionally narrower than the browser surface:
 - inspect projected run evidence and approvals directly with `:OksInspectRun`
 - inspect linked entities directly with `:OksInspectEntity TYPE ID`
 - search grouped projected records with `:OksSearch QUERY`
+- open a grouped pending-review buffer with `:OksPending`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 Cursor and presence reporting now stay anchored to the live-draft window
@@ -179,6 +180,39 @@ resources, responsibilities, items, and runs in a read-only search buffer,
 with explicit hints for the inspect commands that already exist. It improves
 discovery inside the editor without adding write-side workflow actions. Source:
 `DI-givot`.
+
+The next follow-on after that stays terminal-first and read-only. Neovim
+pending review reuses the same search projections to group draft items,
+unreviewed runs, and problem runs into one “what should I inspect next”
+buffer, with direct hints for the existing inspectors. It improves reviewer
+flow without adding write-side approval actions yet. Source: `DI-lorav`.
+
+### Terminal-first behavior
+
+The current terminal behavior is intentionally split between CLI and Neovim
+instead of forcing one tool to do everything badly.
+
+CLI behavior today:
+
+- fast shell-oriented create/list/show commands
+- explicit record-run and approval actions
+- direct free-text search
+
+Neovim behavior today:
+
+- live draft editing for one knowledge item
+- read-only item/run/entity inspection
+- grouped search and browse over the operational graph
+- grouped pending-review browsing for draft items and review-worthy runs
+
+That means terminal-first work in `ex5` currently follows a practical pattern:
+
+- create or mutate directly from the CLI when a one-shot command is clearer
+- stay in Neovim when you want to read, compare, inspect, browse, or queue
+  review work inside one editor session
+
+This is a deliberate staged embodiment strategy, not an accident. Source:
+`DI-fudok`; `DI-givot`; `DI-lorav`.
 
 ### Record inspector and contextual navigation
 

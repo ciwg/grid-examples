@@ -84,6 +84,17 @@ Neovim phase 1:
 - opens a read-only projected run inspector for evidence and approvals
 - opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
 - opens a read-only grouped search buffer over `/api/search` for discovery and browse handoff into the existing inspectors
+- opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
+
+In practice, that gives `ex5` a real terminal-first operating mode:
+
+- CLI for direct command execution and mutation
+- Neovim for continuous text work, review, browsing, and pending-work triage
+
+The important behavior point is that these are not separate backends. They are
+two terminal-facing views over the same local runtime and projected state, so a
+user can mix shell commands and Neovim inspection without crossing embodiment
+boundaries or losing context. Source: `DI-fudok`; `DI-givot`; `DI-lorav`.
 
 The plugin now tracks the live-draft window explicitly so Neovim presence and
 body pushes continue to report cursor/head against the draft buffer even after
@@ -151,8 +162,10 @@ rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
 websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
 live-draft client plus read-only item/run/entity inspection and search/browse
-over projected detail. Source: `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`;
-`DI-zalor`; `DI-givot`.
+over projected detail. The next terminal-first step now adds a read-only
+pending-review queue over the same search projections, still before any
+write-side approval actions are added to the editor. Source: `DI-tabiv`;
+`DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`.
 
 ## Current verification shape
 

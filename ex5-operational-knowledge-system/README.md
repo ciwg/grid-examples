@@ -78,6 +78,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim run inspector for direct evidence and approval review
 - Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
 - Neovim search/browse over grouped `/api/search` results with direct inspect hints
+- Neovim pending-review view for draft items, unreviewed runs, and problem runs
 - stub-backed headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -200,6 +201,34 @@ go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2"
 go run ./cmd/oks-cli runs
 ```
 
+## Terminal Behavior
+
+`ex5` now has two terminal-facing embodiments over the same local runtime:
+
+- the CLI for direct create/list/show/approve/search commands
+- Neovim for live draft editing plus read-only review and browse flows
+
+The intended terminal behavior today is:
+
+- use the CLI for fast shell-oriented creation and direct inspection
+- use Neovim when you want to stay inside one editor session while:
+  - editing a live draft
+  - reviewing item and run detail
+  - browsing linked entities
+  - searching across the operational graph
+  - opening a pending-review queue for draft items and runs that need attention
+
+The terminal surface is intentionally staged, not fully symmetric yet:
+
+- the CLI is better for direct command-style mutation
+- Neovim is better for text work, read-only browsing, and reviewer flow
+- both talk to the same `ex5` runtime and see the same projected state
+
+That means a terminal-heavy operator can already do a large amount of real work
+without opening the browser, while later follow-ons can still add narrower
+workflow actions instead of trying to duplicate the whole browser at once.
+Source: `DI-fudok`; `DI-givot`; `DI-lorav`.
+
 ## Neovim
 
 The first Neovim phase is intentionally thin.
@@ -218,6 +247,7 @@ What it supports now:
 - `:OksInspectRun`
 - `:OksInspectEntity TYPE ID`
 - `:OksSearch QUERY`
+- `:OksPending`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
 
@@ -256,6 +286,16 @@ The next read-only browse phase adds:
 
 It still does not add write-side review or approval actions to Neovim. Source:
 `DI-givot`.
+
+The next terminal-first review phase adds:
+
+- a read-only pending-review buffer for draft items
+- a read-only pending-review buffer for unreviewed runs
+- a read-only pending-review buffer for problem runs
+- direct inspect hints so the next step stays inside the existing Neovim inspectors
+
+It still keeps approval actions themselves out of Neovim for now. Source:
+`DI-lorav`.
 
 Start it against a running server with:
 

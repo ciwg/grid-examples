@@ -58,6 +58,17 @@ The first-phase Neovim embodiment owns:
   responsibilities, items, and runs
 - opening a read-only grouped search buffer from the projected `/api/search`
   API, then handing off deeper browsing to the existing inspectors
+- opening a read-only pending-review buffer by composing draft-item and
+  run-review slices from the same search projection family
+
+Together, those two terminal embodiments now form a staged terminal-first
+surface:
+
+- CLI handles direct command-style mutation and shell inspection
+- Neovim handles text editing, review, browse, and pending-work triage
+
+They still share one runtime and one projection layer. Source: `DI-fudok`;
+`DI-givot`; `DI-lorav`.
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.
@@ -151,7 +162,9 @@ creating a second collaboration channel. Linked-entity browsing extends that
 same rule to `GET /api/places/{id}`, `GET /api/resources/{id}`, and
 `GET /api/responsibilities/{id}`. Search/browse extends it to
 `GET /api/search?q=...` for grouped discovery over the same projections.
-Source: `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`.
+Pending review extends it to filtered and unfiltered `/api/search` reads for
+draft items plus run-review slices. Source: `DI-fudok`; `DI-lonuk`;
+`DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`.
 
 ## Current implementation note
 

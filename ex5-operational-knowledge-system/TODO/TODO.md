@@ -2,6 +2,7 @@
 
 ## Open / Planned
 
+- [x] 038 - Add ex5 Neovim pending review phase - `TODO/TODO-lorav-ex5-neovim-pending-review-phase.md`
 - [x] 037 - Add ex5 Neovim search and browse phase - `TODO/TODO-givot-ex5-neovim-search-browse-phase.md`
 - [x] 032 - Fix ex5 Neovim `:OksClose` session teardown behavior - `TODO/TODO-mabek-ex5-neovim-close-session-teardown.md`
 - [x] 033 - Harden ex5 browser form and search error handling - `TODO/TODO-ruvot-ex5-browser-error-handling.md`
@@ -56,6 +57,7 @@
 - `DI-ravok`: add a direct read-only Neovim run inspector over the existing run detail API before attempting write-side workflow actions in the editor.
 - `DI-zalor`: add read-only typed-link browsing in Neovim over the existing entity detail APIs before attempting in-editor mutation of links or approvals.
 - `DI-givot`: add read-only Neovim search and browse over the existing `/api/search` projection before attempting write-side review or approval actions in the editor.
+- `DI-lorav`: add a read-only Neovim pending-review view over the existing search projections before attempting write-side approval actions in the editor.
 - `DI-vurab`: track the 2026-07-21 deep ex5 review findings as an explicit fix backlog covering attachment durability, event replay limits, revision-aware approvals, empty-body drafts, link validation, problem drilldown alignment, and CLI approval identity.
 - `DI-busor`: handle durability and replay hazards before adding more workflow surface area.
 - `DI-dazim`: fix revision and empty-draft correctness so approvals and live collaboration cannot silently misstate current state.

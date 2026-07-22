@@ -506,6 +506,82 @@ local function search_result_lines(query, decoded)
   return lines
 end
 
+local function search_projection(path, failure_prefix)
+  local status, body, err = request("GET", path)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return nil
+  end
+  if status ~= 200 then
+    notify(failure_prefix .. ": " .. tostring(status), vim.log.levels.ERROR)
+    return nil
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify(failure_prefix .. " decode failed", vim.log.levels.ERROR)
+    return nil
+  end
+  return decoded
+end
+
+local function pending_review_lines(draft_items, all_runs, problem_runs)
+  local lines = {
+    "# Pending review",
+    "",
+    "- inspect next from draft items, unreviewed runs, or problem runs",
+  }
+
+  table.insert(lines, "")
+  table.insert(lines, "## Draft items")
+  if not draft_items or #draft_items == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, item in ipairs(draft_items) do
+      table.insert(lines, string.format("- %s kind=%s status=%s title=%s", item.id or "-", item.kind or "-", item.status or "-", item.title or "-"))
+      table.insert(lines, "  inspect: :OksInspect " .. (item.id or "-"))
+      if item.summary and item.summary ~= "" then
+        table.insert(lines, "  " .. item.summary)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Unreviewed runs")
+  local unreviewed = {}
+  for _, run in ipairs(all_runs or {}) do
+    if not run.approvals or #run.approvals == 0 then
+      table.insert(unreviewed, run)
+    end
+  end
+  if #unreviewed == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, run in ipairs(unreviewed) do
+      table.insert(lines, string.format("- %s kind=%s outcome=%s item=%s", run.id or "-", run.kind or "-", run.outcome or "-", run.item_id or "-"))
+      table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
+      if run.notes and run.notes ~= "" then
+        table.insert(lines, "  " .. run.notes)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "## Problem runs")
+  if not problem_runs or #problem_runs == 0 then
+    table.insert(lines, "- none")
+  else
+    for _, run in ipairs(problem_runs) do
+      table.insert(lines, string.format("- %s kind=%s outcome=%s item=%s", run.id or "-", run.kind or "-", run.outcome or "-", run.item_id or "-"))
+      table.insert(lines, "  inspect: :OksInspectRun " .. (run.id or "-"))
+      if run.notes and run.notes ~= "" then
+        table.insert(lines, "  " .. run.notes)
+      end
+    end
+  end
+
+  return lines
+end
+
 -- Intent: Let Neovim users inspect the durable item record around the live
 -- draft without leaving the editor or attempting write actions that this phase
 -- does not support yet. Source: DI-lonuk
@@ -919,6 +995,26 @@ function M.search(query)
   notify("searched " .. query)
 end
 
+-- Intent: Give terminal users a compact “what needs attention next” surface
+-- by reusing the existing search projections for draft items and review-worthy
+-- runs before adding write-side approval actions in Neovim. Source: DI-lorav
+function M.pending()
+  local draft = search_projection("/api/search?status=draft", "pending draft search failed")
+  if not draft then
+    return
+  end
+  local all = search_projection("/api/search", "pending run search failed")
+  if not all then
+    return
+  end
+  local problems = search_projection("/api/search?problem=true", "pending problem search failed")
+  if not problems then
+    return
+  end
+  inspect_buffer("oks-pending://review", pending_review_lines(draft.items or {}, all.runs or {}, problems.runs or {}))
+  notify("opened pending review")
+end
+
 -- Intent: Let the headless regression harness seed inspector state without
 -- going through HTTP-backed inspect flows, so :OksClose teardown can be
 -- validated locally. Source: DI-mabek
@@ -1034,6 +1130,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksSearch", function(command)
     M.search(command.args)
   end, { nargs = 1 })
+  vim.api.nvim_create_user_command("OksPending", function()
+    M.pending()
+  end, {})
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})
