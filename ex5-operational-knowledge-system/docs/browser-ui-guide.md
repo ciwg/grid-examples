@@ -50,6 +50,10 @@ That order is now intentionally review-first:
 4. record work, evidence, and approvals
 5. create new context records only when needed
 
+The screenshots in this guide were captured from the live local browser surface
+using the shipped UI, not mockups. They show the main top-level work areas in
+their current form.
+
 ## Hero And Dashboard Stats
 
 ### What it does
@@ -66,6 +70,8 @@ the quickest way to answer simple status questions like:
 
 It gives a fast operational snapshot before you drill into the detailed lists
 or review panels.
+
+![Review home with hero stats and draft queue](./browser-ui-shots/review-drafts.png)
 
 ## Review Workspace
 
@@ -119,6 +125,28 @@ The draft queue is now the clearest default review home. It reduces browser
 clutter by showing only the most immediate review items first instead of
 putting hotspots, search, and multiple larger panels on equal footing at the
 same time. Source: `DI-rabok`; `DI-javik`.
+
+### Review Queue Screens
+
+Draft queue:
+
+![Review workspace draft queue](./browser-ui-shots/review-drafts.png)
+
+Problem hotspots:
+
+![Review workspace problem hotspots](./browser-ui-shots/review-hotspots.png)
+
+Known-record search:
+
+![Review workspace known-record search](./browser-ui-shots/review-search.png)
+
+## Create Workspace
+
+The Create workspace is now intentionally lower in the page hierarchy and
+secondary to Review, Author, and Operate. It still contains all current setup
+forms, but it only expands when you switch into Create mode.
+
+![Create workspace](./browser-ui-shots/create.png)
 
 ## Create Place
 
@@ -278,6 +306,8 @@ of a permanently visible support sidecar. That makes the writing surface more
 dominant and quieter without removing any lifecycle controls. Source:
 `DI-rofek`; `DI-tavul`; `DI-farok`.
 
+![Author workspace](./browser-ui-shots/author.png)
+
 ### Fields And Controls
 
 - `Knowledge Item`
@@ -368,6 +398,8 @@ The operate workspace now also stages the heavier transaction forms behind
 smaller action choices: `Log work`, `Attach evidence`, and `Review record`.
 That keeps the main operate surface lighter while preserving the full generic
 forms underneath. Source: `DI-zumor`.
+
+![Operate workspace](./browser-ui-shots/operate.png)
 
 ### Fields
 
@@ -586,6 +618,8 @@ record. Source: `DI-sorik`.
 
 The list panels now sit inside a secondary browse workspace instead of taking
 top-of-page priority.
+
+![Browse Collections workspace](./browser-ui-shots/browse.png)
 
 ## List Panels
 
