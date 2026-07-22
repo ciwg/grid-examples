@@ -236,8 +236,9 @@ The intended terminal behavior today is:
   detail from the same routes the browser and Neovim embodiments already read
 - use the CLI when you need one pending-review queue for draft items, review
   queue runs, and problem runs without opening the editor
-- use the CLI when you need contextual place/resource drilldowns with related
-  runs and link summaries in one terminal view
+- use the CLI when you need contextual place/resource drilldowns plus
+  review-oriented run/item/responsibility detail with related runs, approvals,
+  evidence, and link summaries in one terminal view
 - use Neovim when you want to stay inside one editor session while:
   - editing a live draft
   - reviewing item and run detail
@@ -308,55 +309,40 @@ The typed-link phase adds:
 - generic read-only inspection of linked `place`, `resource`, `responsibility`,
   `item`, and `run` records
 
-The next read-only browse phase adds:
+Neovim also supports read-only search and browse over the shared
+`/api/search` projection:
 
-- grouped Neovim search results over the shared `/api/search` projection
-- direct inspect hints for places, resources, responsibilities, items, and runs
+- grouped places, resources, responsibilities, items, and runs
+- direct inspect hints for the existing inspector commands
 - a read-only `oks-search://...` buffer so discovery can stay inside the editor
 
-It still does not add write-side review or approval actions to Neovim. Source:
-`DI-givot`.
+It also supports a read-only pending-review buffer over the same shared search
+projections:
 
-The next terminal-first review phase adds:
+- draft items
+- unreviewed runs
+- problem runs
+- direct inspect hints so the next step stays inside the existing inspectors
 
-- a read-only pending-review buffer for draft items
-- a read-only pending-review buffer for unreviewed runs
-- a read-only pending-review buffer for problem runs
-- direct inspect hints so the next step stays inside the existing Neovim inspectors
+And it now includes a narrow set of write-side review actions over the existing
+HTTP runtime:
 
-It still keeps approval actions themselves out of Neovim for now. Source:
-`DI-lorav`.
+- `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
+- `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
+- `:OksSupersedeItem [ITEM_ID] [NOTES...]`
 
-The next small write-side phase adds:
+Those actions stay intentionally small:
 
-- one item approval action over the existing item approval API
-- current-revision lookup before the approval is posted
-- refresh of the current live, inspector, or pending-review context afterward
+- item approval resolves the current revision before posting approval
+- run approval reuses the existing run approval endpoint directly
+- item supersede reuses the existing item supersede endpoint directly
+- each action refreshes the relevant live, inspector, or pending-review view afterward
 
-`OksApproveItem` uses the configured Neovim display name as the approval
-`actor`. If you are on a live draft or item inspector, you can omit the item
-ID and approve the current item directly. Source: `DI-vamor`.
-
-The next matching phase adds:
-
-- one run approval action over the existing run approval API
-- direct use from the current run inspector or from an explicit run ID
-- refresh of the current run or pending-review view afterward
-
-`OksApproveRun` also uses the configured Neovim display name as the approval
-`actor`. If you are on a run inspector, you can omit the run ID and approve
-the current run directly. Source: `DI-bafor`.
-
-The next lifecycle phase adds:
-
-- one item supersede action over the existing item supersede API
-- direct use from the current live draft or item inspector, or from an explicit
-  item ID
-- refresh of the current live, inspector, or pending-review view afterward
-
-`OksSupersedeItem` uses the configured Neovim display name as the lifecycle
-`actor`. If you are on a live draft or item inspector, you can omit the item
-ID and supersede the current item directly. Source: `DI-pudor`.
+All three use the configured Neovim display name as the `actor`, and the item
+commands can omit the item ID when you are already on the current live draft or
+item inspector. `:OksApproveRun` can omit the run ID when you are already on a
+run inspector. Source: `DI-givot`; `DI-lorav`; `DI-vamor`; `DI-bafor`;
+`DI-pudor`.
 
 Start it against a running server with:
 

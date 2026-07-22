@@ -125,6 +125,12 @@ The CLI place/resource drilldown path follows the same rule too. It keeps
 renders hierarchy, related runs, and typed links in a more useful terminal
 layout instead of inventing a shell-only detail backend. Source: `DI-luzom`.
 
+The matching CLI drilldown pass follows the same rule too. It keeps `show-run`,
+`show-item`, and `show-responsibility` on the existing projected detail routes
+and renders approvals, evidence, revisions, related runs, and typed links in
+terminal-friendly summaries instead of falling back to raw JSON. Source:
+`DI-salup`.
+
 The important behavior point is that these are not separate backends. They are
 two terminal-facing views over the same local runtime and projected state, so a
 user can mix shell commands and Neovim inspection without crossing embodiment
@@ -196,11 +202,10 @@ rather than making collaborative editing the core of the tool, and to revisit a
 future richer Neovim embodiment later without porting the full `ex3`
 websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
 live-draft client plus read-only item/run/entity inspection and search/browse
-over projected detail. The next terminal-first step now adds a read-only
-pending-review queue over the same search projections, still before any
-write-side approval actions are added to the editor. The next small step now
-adds one revision-safe item approval action, still using the same local HTTP
-runtime and item approval semantics as the CLI and browser. Source:
+over projected detail. It now also includes a read-only pending-review queue
+over the same shared search projections plus a narrow set of revision-safe
+item/run approval and item supersede actions over the same local HTTP runtime
+the CLI and browser already use. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
 `DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`.
 

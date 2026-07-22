@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -80,7 +81,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/responsibilities/" + args[1])
+		err = cli.ShowResponsibility(args[1])
 	case "new-responsibility":
 		if len(args) < 4 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -101,7 +102,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/items/" + args[1])
+		err = cli.ShowItem(args[1])
 	case "runs":
 		kind := ""
 		if len(args) > 1 {
@@ -130,7 +131,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/runs/" + args[1])
+		err = cli.ShowRun(args[1])
 	case "approve-item":
 		if len(args) < 7 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -235,6 +236,69 @@ type cliResourceDetail struct {
 	Links       []cliLink       `json:"links"`
 }
 
+type cliApproval struct {
+	Role     string `json:"role"`
+	Decision string `json:"decision"`
+	Actor    string `json:"actor"`
+	Notes    string `json:"notes"`
+}
+
+type cliEvidence struct {
+	Summary        string            `json:"summary"`
+	Facts          map[string]string `json:"facts"`
+	AttachmentName string            `json:"attachment_name"`
+}
+
+type cliRevision struct {
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+	Author  string `json:"author"`
+}
+
+type cliResponsibilityDetail struct {
+	ID             string          `json:"id"`
+	Title          string          `json:"title"`
+	Summary        string          `json:"summary"`
+	Team           string          `json:"team"`
+	LinkedItemIDs  []string        `json:"linked_item_ids"`
+	LinkedRunIDs   []string        `json:"linked_run_ids"`
+	LinkedRoleKeys []string        `json:"linked_role_keys"`
+	RelatedRuns    []cliRunSummary `json:"related_runs"`
+	Links          []cliLink       `json:"links"`
+}
+
+type cliItemDetail struct {
+	ID                string          `json:"id"`
+	Kind              string          `json:"kind"`
+	Status            string          `json:"status"`
+	Title             string          `json:"title"`
+	Summary           string          `json:"summary"`
+	ResponsibilityIDs []string        `json:"responsibility_ids"`
+	CurrentRevision   int             `json:"current_revision"`
+	Revisions         []cliRevision   `json:"revisions"`
+	RelatedRuns       []cliRunSummary `json:"related_runs"`
+	Approvals         []cliApproval   `json:"approvals"`
+	Links             []cliLink       `json:"links"`
+}
+
+type cliRunDetail struct {
+	ID                string        `json:"id"`
+	Kind              string        `json:"kind"`
+	ItemID            string        `json:"item_id"`
+	ItemKind          string        `json:"item_kind"`
+	Revision          int           `json:"revision"`
+	Actor             string        `json:"actor"`
+	Outcome           string        `json:"outcome"`
+	Notes             string        `json:"notes"`
+	PlaceID           string        `json:"place_id"`
+	ResourceIDs       []string      `json:"resource_ids"`
+	ResponsibilityIDs []string      `json:"responsibility_ids"`
+	Evidence          []cliEvidence `json:"evidence"`
+	Approvals         []cliApproval `json:"approvals"`
+	Links             []cliLink     `json:"links"`
+}
+
 var allowedSearchFilters = map[string]struct{}{
 	"kind":              {},
 	"status":            {},
@@ -277,6 +341,56 @@ func (cli *CLI) ShowResource(resourceID string) error {
 		return err
 	}
 	fmt.Println(renderResourceDetail(resource))
+	return nil
+}
+
+// Intent: Keep responsibility drilldowns on the shared responsibility-detail
+// projection while rendering linked items, runs, roles, and graph links in the
+// same terminal-first review layout used by the newer context drilldowns.
+// Source: DI-salup
+func (cli *CLI) ShowResponsibility(responsibilityID string) error {
+	body, err := cli.get("/api/responsibilities/" + responsibilityID)
+	if err != nil {
+		return err
+	}
+	var responsibility cliResponsibilityDetail
+	if err := json.Unmarshal(body, &responsibility); err != nil {
+		return err
+	}
+	fmt.Println(renderResponsibilityDetail(responsibility))
+	return nil
+}
+
+// Intent: Keep item drilldowns on the shared item-detail projection while
+// rendering revisions, approvals, related runs, and typed links in a
+// terminal-first review layout instead of a raw JSON dump. Source: DI-salup
+func (cli *CLI) ShowItem(itemID string) error {
+	body, err := cli.get("/api/items/" + itemID)
+	if err != nil {
+		return err
+	}
+	var item cliItemDetail
+	if err := json.Unmarshal(body, &item); err != nil {
+		return err
+	}
+	fmt.Println(renderItemDetail(item))
+	return nil
+}
+
+// Intent: Keep run drilldowns on the shared run-detail projection while
+// rendering evidence, approvals, linked context, and follow-on handoff hints
+// in a terminal-first review layout instead of a raw JSON dump. Source:
+// DI-salup
+func (cli *CLI) ShowRun(runID string) error {
+	body, err := cli.get("/api/runs/" + runID)
+	if err != nil {
+		return err
+	}
+	var run cliRunDetail
+	if err := json.Unmarshal(body, &run); err != nil {
+		return err
+	}
+	fmt.Println(renderRunDetail(run))
 	return nil
 }
 
@@ -614,6 +728,77 @@ func renderResourceDetail(resource cliResourceDetail) string {
 	return strings.Join(lines, "\n")
 }
 
+func renderResponsibilityDetail(responsibility cliResponsibilityDetail) string {
+	lines := []string{
+		fmt.Sprintf("# Responsibility %s", safeText(responsibility.ID, "-")),
+		fmt.Sprintf("title=%s team=%s", safeText(responsibility.Title, "-"), safeText(responsibility.Team, "-")),
+	}
+	if strings.TrimSpace(responsibility.Summary) != "" {
+		lines = append(lines, responsibility.Summary)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "items: "+joinOrNone(responsibility.LinkedItemIDs))
+	lines = append(lines, "role keys: "+joinOrNone(responsibility.LinkedRoleKeys))
+	lines = append(lines, "linked runs: "+joinOrNone(responsibility.LinkedRunIDs))
+	lines = append(lines, "")
+	lines = append(lines, "related runs:")
+	lines = append(lines, renderRunLines(responsibility.RelatedRuns)...)
+	lines = append(lines, "")
+	lines = append(lines, "links:")
+	lines = append(lines, renderLinkLines(responsibility.Links)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderItemDetail(item cliItemDetail) string {
+	lines := []string{
+		fmt.Sprintf("# Item %s", safeText(item.ID, "-")),
+		fmt.Sprintf("title=%s kind=%s status=%s current_revision=%d", safeText(item.Title, "-"), safeText(item.Kind, "-"), safeText(item.Status, "-"), item.CurrentRevision),
+	}
+	if strings.TrimSpace(item.Summary) != "" {
+		lines = append(lines, item.Summary)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "responsibilities: "+joinOrNone(item.ResponsibilityIDs))
+	lines = append(lines, "")
+	lines = append(lines, "revisions:")
+	lines = append(lines, renderRevisionLines(item.Revisions)...)
+	lines = append(lines, "")
+	lines = append(lines, "approvals:")
+	lines = append(lines, renderApprovalLines(item.Approvals)...)
+	lines = append(lines, "")
+	lines = append(lines, "related runs:")
+	lines = append(lines, renderRunLines(item.RelatedRuns)...)
+	lines = append(lines, "")
+	lines = append(lines, "links:")
+	lines = append(lines, renderLinkLines(item.Links)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderRunDetail(run cliRunDetail) string {
+	lines := []string{
+		fmt.Sprintf("# Run %s", safeText(run.ID, "-")),
+		fmt.Sprintf("kind=%s outcome=%s item=%s item_kind=%s revision=%d actor=%s", safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-"), safeText(run.ItemKind, "-"), run.Revision, safeText(run.Actor, "-")),
+	}
+	if strings.TrimSpace(run.Notes) != "" {
+		lines = append(lines, run.Notes)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "place: "+safeText(run.PlaceID, "none"))
+	lines = append(lines, "resources: "+joinOrNone(run.ResourceIDs))
+	lines = append(lines, "responsibilities: "+joinOrNone(run.ResponsibilityIDs))
+	lines = append(lines, "show item: oks-cli show-item "+safeText(run.ItemID, "-"))
+	lines = append(lines, "")
+	lines = append(lines, "evidence:")
+	lines = append(lines, renderEvidenceLines(run.Evidence)...)
+	lines = append(lines, "")
+	lines = append(lines, "approvals:")
+	lines = append(lines, renderApprovalLines(run.Approvals)...)
+	lines = append(lines, "")
+	lines = append(lines, "links:")
+	lines = append(lines, renderLinkLines(run.Links)...)
+	return strings.Join(lines, "\n")
+}
+
 func renderRunLines(runs []cliRunSummary) []string {
 	if len(runs) == 0 {
 		return []string{"- none"}
@@ -644,6 +829,63 @@ func renderLinkLines(links []cliLink) []string {
 		}
 	}
 	return lines
+}
+
+func renderRevisionLines(revisions []cliRevision) []string {
+	if len(revisions) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(revisions)*2)
+	for _, revision := range revisions {
+		lines = append(lines, fmt.Sprintf("- r%d title=%s author=%s", revision.Number, safeText(revision.Title, "-"), safeText(revision.Author, "-")))
+		if strings.TrimSpace(revision.Summary) != "" {
+			lines = append(lines, "  "+revision.Summary)
+		}
+	}
+	return lines
+}
+
+func renderApprovalLines(approvals []cliApproval) []string {
+	if len(approvals) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(approvals)*2)
+	for _, approval := range approvals {
+		lines = append(lines, fmt.Sprintf("- role=%s decision=%s actor=%s", safeText(approval.Role, "-"), safeText(approval.Decision, "-"), safeText(approval.Actor, "-")))
+		if strings.TrimSpace(approval.Notes) != "" {
+			lines = append(lines, "  "+approval.Notes)
+		}
+	}
+	return lines
+}
+
+func renderEvidenceLines(evidence []cliEvidence) []string {
+	if len(evidence) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(evidence)*3)
+	for _, entry := range evidence {
+		lines = append(lines, fmt.Sprintf("- %s", safeText(entry.Summary, "-")))
+		if len(entry.Facts) > 0 {
+			lines = append(lines, "  facts: "+renderFactPairs(entry.Facts))
+		}
+		if strings.TrimSpace(entry.AttachmentName) != "" {
+			lines = append(lines, "  attachment: "+entry.AttachmentName)
+		}
+	}
+	return lines
+}
+
+func renderFactPairs(facts map[string]string) string {
+	if len(facts) == 0 {
+		return "none"
+	}
+	pairs := make([]string, 0, len(facts))
+	for key, value := range facts {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", safeText(key, "-"), safeText(value, "-")))
+	}
+	sort.Strings(pairs)
+	return strings.Join(pairs, ", ")
 }
 
 func joinOrNone(values []string) string {

@@ -192,25 +192,50 @@ func TestPendingReviewCommandReportsFailingSharedRoute(t *testing.T) {
 	}
 }
 
-func TestShowResponsibilityCommandUsesExpectedRoute(t *testing.T) {
+func TestShowResponsibilityCommandRendersDrilldownSummary(t *testing.T) {
 	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		path = request.URL.Path
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"id":"RESP-0001","title":"Line lead","links":[]}`))
+		_, _ = writer.Write([]byte(`{
+			"id":"RESP-0001",
+			"title":"Line lead",
+			"summary":"Owns receiving startup checks",
+			"team":"ops",
+			"linked_item_ids":["ITEM-0001"],
+			"linked_run_ids":["RUN-0003"],
+			"linked_role_keys":["reviewer"],
+			"related_runs":[{"id":"RUN-0003","kind":"procedure","item_id":"ITEM-0001","outcome":"completed","notes":"Shift handoff complete","resource_ids":["RES-0001"]}],
+			"links":[{"relation":"uses","from_type":"responsibility","from_id":"RESP-0001","to_type":"knowledge_item","to_id":"ITEM-0001","notes":"Line lead owns the startup checklist"}]
+		}`))
 	}))
 	defer server.Close()
 
 	cli := &CLI{ServerURL: server.URL}
-	exitCode, err := cli.run([]string{"show-responsibility", "RESP-0001"})
+	stdout, restoreStdout, err := captureStdout(t)
 	if err != nil {
-		t.Fatalf("show-responsibility command: %v", err)
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-responsibility", "RESP-0001"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-responsibility command: %v", runErr)
 	}
 	if exitCode != 0 {
+		restoreStdout()
 		t.Fatalf("unexpected exit code: %d", exitCode)
 	}
+	restoreStdout()
 	if path != "/api/responsibilities/RESP-0001" {
 		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Responsibility RESP-0001") ||
+		!strings.Contains(output, "items: ITEM-0001") ||
+		!strings.Contains(output, "linked runs: RUN-0003") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0003") ||
+		!strings.Contains(output, "uses responsibility RESP-0001 -> knowledge_item ITEM-0001") {
+		t.Fatalf("unexpected show-responsibility output: %s", output)
 	}
 }
 
@@ -302,6 +327,111 @@ func TestShowResourceCommandRendersDrilldownSummary(t *testing.T) {
 		!strings.Contains(output, "show: oks-cli show-run RUN-0002") ||
 		!strings.Contains(output, "used_in resource RES-0001 -> run RUN-0002") {
 		t.Fatalf("unexpected show-resource output: %s", output)
+	}
+}
+
+func TestShowItemCommandRendersDrilldownSummary(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{
+			"id":"ITEM-0001",
+			"kind":"procedure",
+			"status":"approved",
+			"title":"Open receiving dock",
+			"summary":"Checklist for morning dock startup",
+			"responsibility_ids":["RESP-0001"],
+			"current_revision":2,
+			"revisions":[{"number":1,"title":"Open receiving dock","summary":"Original issue","author":"alice"},{"number":2,"title":"Open receiving dock","summary":"Adds safety latch check","author":"bob"}],
+			"related_runs":[{"id":"RUN-0004","kind":"procedure","item_id":"ITEM-0001","outcome":"completed","notes":"Morning startup done","resource_ids":["RES-0002"]}],
+			"approvals":[{"role":"reviewer","decision":"approved","actor":"carol","notes":"Ready for operators"}],
+			"links":[{"relation":"uses","from_type":"knowledge_item","from_id":"ITEM-0001","to_type":"resource","to_id":"RES-0002","notes":"References dock key storage"}]
+		}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-item", "ITEM-0001"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-item command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if path != "/api/items/ITEM-0001" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Item ITEM-0001") ||
+		!strings.Contains(output, "status=approved") ||
+		!strings.Contains(output, "responsibilities: RESP-0001") ||
+		!strings.Contains(output, "- r2 title=Open receiving dock author=bob") ||
+		!strings.Contains(output, "role=reviewer decision=approved actor=carol") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0004") ||
+		!strings.Contains(output, "uses knowledge_item ITEM-0001 -> resource RES-0002") {
+		t.Fatalf("unexpected show-item output: %s", output)
+	}
+}
+
+func TestShowRunCommandRendersDrilldownSummary(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{
+			"id":"RUN-0005",
+			"kind":"receiving_check",
+			"item_id":"ITEM-0003",
+			"item_kind":"receiving_check",
+			"revision":3,
+			"actor":"dave",
+			"outcome":"accepted_with_notes",
+			"notes":"Outer wrap torn on one corner",
+			"place_id":"PLACE-0001",
+			"resource_ids":["RES-0003"],
+			"responsibility_ids":["RESP-0002"],
+			"evidence":[{"summary":"Dock photo","facts":{"supplier":"Acme","variance":"-2"},"attachment_name":"dock.jpg"}],
+			"approvals":[{"role":"reviewer","decision":"noted","actor":"ellen","notes":"Accepted with dock note"}],
+			"links":[{"relation":"observed_at","from_type":"run","from_id":"RUN-0005","to_type":"place","to_id":"PLACE-0001","notes":"Recorded at receiving dock"}]
+		}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-run", "RUN-0005"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-run command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if path != "/api/runs/RUN-0005" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Run RUN-0005") ||
+		!strings.Contains(output, "place: PLACE-0001") ||
+		!strings.Contains(output, "show item: oks-cli show-item ITEM-0003") ||
+		!strings.Contains(output, "facts: supplier=Acme, variance=-2") ||
+		!strings.Contains(output, "attachment: dock.jpg") ||
+		!strings.Contains(output, "role=reviewer decision=noted actor=ellen") ||
+		!strings.Contains(output, "observed_at run RUN-0005 -> place PLACE-0001") {
+		t.Fatalf("unexpected show-run output: %s", output)
 	}
 }
 

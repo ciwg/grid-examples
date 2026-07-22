@@ -2,6 +2,10 @@
 
 ## Open / Planned
 
+- [ ] 052 - Render ex5 CLI pending and problem review queues as terminal summaries - `TODO/TODO-ravum-ex5-cli-review-queue-rendering.md`
+- [x] 051 - Define the next concrete ex5 terminal slice under TODO 016 - `TODO/TODO-zovam-ex5-terminal-followon-slice-definition.md`
+- [x] 050 - Clean up ex5 terminal docs so current capabilities read as current state, not rollout history - `TODO/TODO-fudab-ex5-terminal-doc-current-state-cleanup.md`
+- [x] 049 - Polish ex5 CLI run, item, and responsibility drilldowns - `TODO/TODO-salup-ex5-cli-run-item-responsibility-drilldown-polish.md`
 - [x] 048 - Polish ex5 CLI place and resource drilldown detail - `TODO/TODO-luzom-ex5-cli-place-resource-drilldown-polish.md`
 - [x] 047 - Add ex5 CLI pending-review aggregation - `TODO/TODO-vabok-ex5-cli-pending-review.md`
 - [x] 046 - Add ex5 CLI responsibility detail inspection - `TODO/TODO-jubav-ex5-cli-responsibility-detail.md`

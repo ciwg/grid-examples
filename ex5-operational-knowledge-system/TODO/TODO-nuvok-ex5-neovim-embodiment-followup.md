@@ -39,7 +39,7 @@ phase 1.
 - [x] nuvok.10 Define the next richer Neovim workflow surface after run approval as a small item supersede action under `TODO/TODO-pudor-ex5-neovim-item-supersede-phase.md`.
 - [x] nuvok.11 Define the next richer terminal-first follow-on after item supersede as CLI evidence upload, typed-link creation, structured/problem search, grouped problem review, and responsibility detail parity under `TODO/TODO-zanub-ex5-cli-evidence-upload.md`, `TODO/TODO-vuteg-ex5-cli-typed-link-creation.md`, `TODO/TODO-mifot-ex5-cli-structured-search-filters.md`, `TODO/TODO-nuvaz-ex5-cli-problem-review.md`, and `TODO/TODO-jubav-ex5-cli-responsibility-detail.md`.
 - [x] nuvok.12 Define the next richer terminal-first follow-on after that as CLI pending-review aggregation under `TODO/TODO-vabok-ex5-cli-pending-review.md`.
-- [ ] nuvok.13 Define the next richer terminal-first follow-on after CLI pending review.
+- [x] nuvok.13 Define the next richer terminal-first follow-on after CLI pending review under `TODO/TODO-zovam-ex5-terminal-followon-slice-definition.md`, with the adjacent doc cleanup in `TODO/TODO-fudab-ex5-terminal-doc-current-state-cleanup.md` and the next concrete slice recorded as `TODO/TODO-ravum-ex5-cli-review-queue-rendering.md`.
 
 ## Status
 
@@ -53,6 +53,8 @@ phase 1.
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API
+- CLI run, item, responsibility, place, and resource drilldown summaries now exist over the shared detail routes
+- the next concrete terminal-first slice is CLI pending/problem review rendering over the existing review endpoints
 - a small run approval action now exists over the existing run approval API
 - a small item supersede action now exists over the existing item supersede API
 - CLI evidence upload now exists over the shared run evidence route

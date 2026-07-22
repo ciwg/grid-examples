@@ -177,35 +177,31 @@ browsing exposes link sections inside inspectors and lets Neovim jump to the
 existing detail projections for places, resources, responsibilities, items, and
 runs without inventing a second navigation model. Source: `DI-zalor`.
 
-The next follow-on after that keeps the same rule too. Neovim search/browse
+Neovim search/browse keeps the same rule too. It
 reads the existing `/api/search` projection and renders grouped places,
 resources, responsibilities, items, and runs in a read-only search buffer,
 with explicit hints for the inspect commands that already exist. It improves
 discovery inside the editor without adding write-side workflow actions. Source:
 `DI-givot`.
 
-The next follow-on after that stays terminal-first and read-only. Neovim
-pending review reuses the same search projections to group draft items,
+Neovim pending review reuses the same search projections to group draft items,
 unreviewed runs, and problem runs into one “what should I inspect next”
 buffer, with direct hints for the existing inspectors. It improves reviewer
 flow without adding write-side approval actions yet. Source: `DI-lorav`.
 
-The next follow-on after that adds the first small write-side review action.
 Neovim item approval resolves the current revision from the existing item
 detail API, posts the approval through the existing item approval endpoint, and
 then refreshes the relevant live, inspector, or pending-review context. That
 keeps the action small and revision-safe instead of inventing a broader editor
 workflow all at once. Source: `DI-vamor`.
 
-The next follow-on after that adds the matching run-side action. Neovim run
-approval posts directly through the existing run approval endpoint, uses the
+Neovim run approval posts directly through the existing run approval endpoint, uses the
 current inspected run when possible, and then refreshes the run inspector or
 pending-review queue. That gives terminal reviewers a direct next step after
 finding run work in `:OksPending` without opening a broader editor workflow.
 Source: `DI-bafor`.
 
-The next follow-on after that adds the matching item lifecycle action. Neovim
-item supersede posts through the existing item supersede endpoint, uses the
+Neovim item supersede posts through the existing item supersede endpoint, uses the
 current item context when possible, and then refreshes the live draft,
 inspector, or pending-review queue. That gives terminal reviewers the next
 obvious item-state change without widening the editor into a broad mutation
@@ -225,7 +221,8 @@ CLI behavior today:
 - direct free-text search plus structured and `problem=true` filters
 - grouped hotspot review over the shared problem-review surface
 - contextual place/resource drilldowns with related runs and links over the shared detail routes
-- projected responsibility detail inspection over the shared responsibility route
+- projected run/item/responsibility drilldowns over the shared detail routes,
+  including related runs, approvals, evidence, and typed links
 - grouped pending-review aggregation over the same search-route family Neovim already uses
 
 Neovim behavior today:

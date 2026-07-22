@@ -281,11 +281,12 @@ Payload fields:
 
 Returns one responsibility with linked items/runs and its timeline.
 
-The CLI now reuses this same route directly:
+The CLI now reuses this same route directly for a terminal drilldown summary of
+linked items, linked runs, related runs, and typed links:
 
 - `oks-cli show-responsibility RESPONSIBILITY_ID`
 
-Source: `DI-jubav`.
+Source: `DI-jubav`; `DI-salup`.
 
 ## Knowledge items
 
@@ -344,6 +345,13 @@ split that shows status, revisions, approvals, and related runs. Source:
 
 That same inspector now also reads the `links` array for typed-link browsing.
 Source: `DI-zalor`.
+
+The CLI now also reuses this same response shape for a terminal drilldown
+summary of revisions, approvals, related runs, and typed links:
+
+- `oks-cli show-item ITEM_ID`
+
+Source: `DI-salup`.
 
 ### `GET /api/responsibilities/{id}`
 
@@ -495,6 +503,13 @@ Returns one projected run, including:
 - approvals
 - links
 - timeline
+
+The CLI now also reuses this same response shape for a terminal drilldown
+summary of context, evidence, approvals, and typed links:
+
+- `oks-cli show-run RUN_ID`
+
+Source: `DI-salup`.
 
 For a `receiving_check` run, the browser uses the evidence facts from this
 response to render the `Receiving review` panel.
