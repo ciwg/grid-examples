@@ -79,11 +79,20 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	required := []string{
 		"Operational Knowledge System",
 		"Review",
-		"mode-review",
+		`id="mode-author" class="mode-pill is-active"`,
+		`class="workspace workspace-review is-muted"`,
 		"Primary Flow",
+		"Review the queue",
+		"Draft procedures",
+		"Advanced filters",
 		"Author",
 		"Authoring Status",
+		"Collaboration settings",
+		"Writing Surface",
 		"Operate",
+		"Operate From Current Record",
+		"Log work from current record",
+		"Review this item",
 		"Create",
 		"Browse Collections",
 		"Receiving checklist",
@@ -769,8 +778,8 @@ const searchClickTimer = setInterval(() => {
 	dom := string(output)
 	required := []string{
 		"Search problems here",
-		"problems only",
-		"place: PLACE-0001",
+		"problem-focused",
+		"at PLACE-0001",
 		"RUN-0001",
 		"RUN-0002",
 	}

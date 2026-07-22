@@ -163,10 +163,15 @@ Use the browser when you want:
   intentionally while keeping the browser single-page
 - shared live browser drafting
 - live draft metrics, writing focus, and a dedicated authoring sidecar
+- a calmer writing environment with collaboration settings hidden until needed
 - contextual review panels
 - grouped hotspot review
+- task-first search presets for drafts, receiving problems, inventory counts,
+  and broad run discovery
 - direct jump actions from the current record into run recording, evidence
   capture, and approvals
+- an operate-from-current-record panel that keeps the main action path anchored
+  to the record you are already reviewing
 
 Use the CLI when you want:
 

@@ -77,6 +77,10 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - browser task-oriented labels that reduce visible ontology in the main forms while keeping the same underlying records and IDs
 - a sticky browser mode rail that keeps Review, Author, Operate, Create, and Browse behaviorally distinct without splitting the single-page shell
 - a richer browser authoring surface with live draft metrics, writing focus, and a dedicated authoring status sidecar
+- browser operate-from-context guidance that launches work, evidence, and review from the current record instead of making operators start from blank forms
+- task-first browser search presets for draft review, receiving problems, inventory counts, and broad run discovery, while keeping advanced filters available
+- stronger browser mode behavior that compresses inactive workspaces instead of leaving every surface equally expanded
+- a calmer browser writing environment with collaboration settings moved behind disclosure and the writing surface visually prioritized
 - CLI inspection and creation commands
 - CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment

@@ -1,6 +1,11 @@
 # TODO
 
 ## Open / Planned
+- [x] 078 - Make ex5 browser operate flows more intent-driven and less schema-driven - `TODO/TODO-matub-ex5-browser-intent-driven-operations.md`
+- [x] 079 - Turn ex5 browser search into a more task-first discovery surface - `TODO/TODO-rovak-ex5-browser-task-first-search.md`
+- [x] 080 - Strengthen ex5 browser mode behavior beyond visual dimming - `TODO/TODO-nabek-ex5-browser-stronger-mode-behavior.md`
+- [x] 081 - Clarify ex5 browser landing job and dominant review path - `TODO/TODO-pafur-ex5-browser-dominant-review-path.md`
+- [x] 082 - Push ex5 browser authoring toward a more focused writing environment - `TODO/TODO-tavul-ex5-browser-writing-environment.md`
 - [x] 077 - Make ex5 browser operation flows more context-driven - `TODO/TODO-mitav-ex5-browser-context-driven-operations.md`
 - [x] 076 - Clarify the ex5 browser primary action flow - `TODO/TODO-sorik-ex5-browser-primary-flow.md`
 - [x] 075 - Shift ex5 browser controls toward clearer task language - `TODO/TODO-vazut-ex5-browser-task-language.md`

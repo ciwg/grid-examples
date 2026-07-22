@@ -10,6 +10,11 @@ const searchActiveEl = document.getElementById("search-active");
 const searchRawEl = document.getElementById("search-raw");
 const searchDebugEl = document.getElementById("search-debug");
 const searchClearEl = document.getElementById("search-clear");
+const searchAdvancedEl = document.getElementById("search-advanced");
+const searchPresetDraftsEl = document.getElementById("search-preset-drafts");
+const searchPresetProblemsEl = document.getElementById("search-preset-problems");
+const searchPresetCountsEl = document.getElementById("search-preset-counts");
+const searchPresetRunsEl = document.getElementById("search-preset-runs");
 const focusProblemsEl = document.getElementById("focus-problems");
 const focusSearchEl = document.getElementById("focus-search");
 const focusDraftsEl = document.getElementById("focus-drafts");
@@ -32,6 +37,7 @@ const editorItemIDEl = document.getElementById("editor-item-id");
 const editorActorEl = document.getElementById("editor-actor");
 const editorDisplayNameEl = document.getElementById("editor-display-name");
 const editorColorEl = document.getElementById("editor-color");
+const editorCollabDetailsEl = document.getElementById("editor-collab-details");
 const editorMetaEl = document.getElementById("editor-meta");
 const editorParticipantsEl = document.getElementById("editor-participants");
 const editorStatusCardsEl = document.getElementById("editor-status-cards");
@@ -54,6 +60,10 @@ const runResponsibilitySelectEl = document.getElementById("run-responsibility-se
 const evidenceRunSelectEl = document.getElementById("evidence-run-select");
 const approvalTargetSelectEl = document.getElementById("approval-target-select");
 const approvalTargetSummaryEl = document.getElementById("approval-target-summary");
+const operateContextEl = document.getElementById("operate-context");
+const operateRunCurrentEl = document.getElementById("operate-run-current");
+const operateEvidenceCurrentEl = document.getElementById("operate-evidence-current");
+const operateApproveCurrentEl = document.getElementById("operate-approve-current");
 
 const participantID = getParticipantID();
 const editorState = {
@@ -102,7 +112,9 @@ function runHandled(action, context) {
 
 // Intent: Keep the single-page browser readable as distinct workflow modes by
 // letting operators explicitly activate Review, Author, Operate, Create, or
-// Browse without hiding any shipped surface. Source: DI-bavum
+// Browse without hiding any shipped surface, while letting inactive modes
+// recede more aggressively than simple tinting alone. Source: DI-bavum;
+// DI-nabek
 function setActiveMode(mode) {
   for (const workspace of workspaceEls) {
     const active = workspace.dataset.mode === mode;
@@ -119,6 +131,8 @@ function focusMode(mode) {
   if (!workspace) {
     return;
   }
+  createDetailsEl.open = mode === "create";
+  browseDetailsEl.open = mode === "browse";
   if (mode === "create") {
     createDetailsEl.open = true;
   }
@@ -284,6 +298,22 @@ searchClearEl.addEventListener("click", () => {
   clearSearch();
 });
 
+searchPresetDraftsEl.addEventListener("click", runHandled(async () => {
+  await runPresetSearch({ status: "draft" }, "Draft review is loaded. Open one draft record and keep the next action attached to that record.");
+}, "Search"));
+
+searchPresetProblemsEl.addEventListener("click", runHandled(async () => {
+  await runPresetSearch({ kind: "receiving_check", problem: true }, "Receiving problems are loaded. Start with one hotspot or run and stay in that review thread.");
+}, "Search"));
+
+searchPresetCountsEl.addEventListener("click", runHandled(async () => {
+  await runPresetSearch({ kind: "inventory_audit" }, "Inventory counts are loaded. Open one run or context record and review the count history there.");
+}, "Search"));
+
+searchPresetRunsEl.addEventListener("click", runHandled(async () => {
+  await runPresetSearch({}, "Recent runs are loaded. Search broadly when you know the work but not yet the exact record.");
+}, "Search"));
+
 modeReviewEl.addEventListener("click", () => {
   focusMode("review");
 });
@@ -325,12 +355,28 @@ focusDraftsEl.addEventListener("click", runHandled(async () => {
   setWorkspaceStatus("Draft items are loaded. Open one record, then use the inspector to draft, approve, or record work from that item.", "info");
 }, "Primary Flow"));
 
+// Intent: Keep collaboration metadata reachable without letting it compete
+// with the draft body once the operator explicitly chooses writing focus.
+// Source: DI-tavul
 editorFocusWritingEl.addEventListener("click", () => {
   setActiveMode("author");
+  editorCollabDetailsEl.open = false;
   editorBodyEl.scrollIntoView({ behavior: "smooth", block: "center" });
   editorBodyEl.focus({ preventScroll: true });
   setWorkspaceStatus("Writing focus is active. Stay in one draft, then snapshot when the change is coherent.", "info");
 });
+
+operateRunCurrentEl.addEventListener("click", runHandled(async () => {
+  triggerOperateContext("run");
+}, "Operate"));
+
+operateEvidenceCurrentEl.addEventListener("click", runHandled(async () => {
+  triggerOperateContext("evidence");
+}, "Operate"));
+
+operateApproveCurrentEl.addEventListener("click", runHandled(async () => {
+  triggerOperateContext("approve");
+}, "Operate"));
 
 editorItemIDEl.addEventListener("change", runHandled(async () => {
   await loadEditorItem(editorItemIDEl.value);
@@ -632,6 +678,7 @@ function refreshActionCatalog() {
   renderSelect(runResponsibilitySelectEl, catalogState.responsibilities, "Optional owning role", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
   renderSelect(evidenceRunSelectEl, catalogState.runs, "Select a run", (run) => `${run.id} · ${run.item_id} · ${run.outcome || "-"}`);
   renderApprovalTargetOptions();
+  renderOperateContext();
 }
 
 function renderSelect(selectEl, items, placeholder, formatter) {
@@ -661,6 +708,88 @@ function renderApprovalTargetOptions() {
     : (item) => `${item.id} · ${item.title} · rev ${item.current_revision}`;
   renderSelect(approvalTargetSelectEl, items, `Select a ${targetType === "run" ? "run" : "procedure or checklist"}`, formatter);
   syncApprovalDefaults();
+}
+
+// Intent: Keep the operate workspace anchored to the current record so logging
+// work, attaching evidence, and capturing review decisions start from the
+// operator's current context instead of a blank schema-heavy form. Source:
+// DI-matub
+function renderOperateContext() {
+  operateContextEl.innerHTML = "";
+  const title = document.createElement("strong");
+  title.textContent = "Current browser context";
+  const summary = document.createElement("div");
+  summary.className = "meta";
+  let canRun = false;
+  let canEvidence = false;
+  let canApprove = false;
+
+  if (!detailState.record || !detailState.type) {
+    summary.textContent = "Open one current record from Review or Browse to launch the most likely operation from that record.";
+  } else if (detailState.type === "item") {
+    summary.textContent = `${detailState.record.id} · ${detailState.record.title} is open. The fastest next steps are to log work from this revision or capture a review decision for it.`;
+    canRun = true;
+    canApprove = true;
+  } else if (detailState.type === "run") {
+    summary.textContent = `${detailState.record.id} is open. The fastest next steps are to attach evidence, review this run, or log the follow-on run with the same context.`;
+    canRun = true;
+    canEvidence = true;
+    canApprove = true;
+  } else if (detailState.type === "place") {
+    summary.textContent = `${detailState.record.id} is open. Start the next run anchored to this location, then return here to review the resulting history.`;
+    canRun = true;
+  } else if (detailState.type === "resource") {
+    summary.textContent = `${detailState.record.id} is open. Start the next run with this tool or resource already staged in context.`;
+    canRun = true;
+  } else if (detailState.type === "responsibility") {
+    summary.textContent = `${detailState.record.id} is open. Start the next run with this ownership role already staged in context.`;
+    canRun = true;
+  }
+
+  operateRunCurrentEl.disabled = !canRun;
+  operateEvidenceCurrentEl.disabled = !canEvidence;
+  operateApproveCurrentEl.disabled = !canApprove;
+  operateRunCurrentEl.textContent = detailState.type === "run"
+    ? "Log follow-on work from this run"
+    : "Log work from current record";
+  operateEvidenceCurrentEl.textContent = "Attach evidence from current record";
+  operateApproveCurrentEl.textContent = detailState.type === "item"
+    ? "Review this item"
+    : detailState.type === "run"
+      ? "Review this run"
+      : "Review current record";
+
+  operateContextEl.appendChild(title);
+  operateContextEl.appendChild(summary);
+}
+
+function triggerOperateContext(kind) {
+  if (!detailState.record || !detailState.type) {
+    setActiveMode("review");
+    setWorkspaceStatus("Open one current record first, then launch the matching operate action from that record.", "info");
+    return;
+  }
+  if (kind === "run") {
+    startRunFromContext(detailState.type, detailState.record);
+    return;
+  }
+  if (kind === "evidence") {
+    if (detailState.type !== "run") {
+      setWorkspaceStatus("Evidence attaches to a run. Open one run first, then attach evidence from that record.", "info");
+      setActiveMode("review");
+      return;
+    }
+    startEvidenceFromRun(detailState.record);
+    return;
+  }
+  if (kind === "approve") {
+    if (detailState.type !== "item" && detailState.type !== "run") {
+      setWorkspaceStatus("Review decisions apply to items or runs. Open one of those records first.", "info");
+      setActiveMode("review");
+      return;
+    }
+    startApprovalFromContext(detailState.type, detailState.record);
+  }
 }
 
 function syncApprovalDefaults() {
@@ -811,6 +940,18 @@ function getSearchFilters(form) {
   };
 }
 
+function hasAdvancedSearchFilters(filters) {
+  return Boolean(
+    filters.kind
+    || filters.status
+    || filters.outcome
+    || filters.place_id
+    || filters.resource_id
+    || filters.responsibility_id
+    || filters.problem,
+  );
+}
+
 function buildSearchParams(filters) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
@@ -894,8 +1035,9 @@ function renderSearchResults(filters, payload) {
 }
 
 // Intent: Make the browser decisive about the most likely next action after a
-// record is open, while preserving the broader related-action list underneath.
-// Source: DI-sorik
+// record is open, while preserving the broader related-action list underneath
+// and making the dominant review path unambiguous on the landing surface.
+// Source: DI-sorik; DI-pafur
 function renderDetailPrimary(type, record) {
   detailPrimaryEl.innerHTML = "";
   const title = document.createElement("strong");
@@ -942,33 +1084,33 @@ function renderDetailPrimary(type, record) {
 function formatSearchFilters(filters) {
   const labels = [];
   if (filters.query || filters.q) {
-    labels.push(`query: ${filters.query || filters.q}`);
+    labels.push(`searching for "${filters.query || filters.q}"`);
   }
   if (filters.kind) {
-    labels.push(`kind: ${filters.kind}`);
+    labels.push(`work type ${filters.kind}`);
   }
   if (filters.status) {
-    labels.push(`status: ${filters.status}`);
+    labels.push(`state ${filters.status}`);
   }
   if (filters.outcome) {
-    labels.push(`outcome: ${filters.outcome}`);
+    labels.push(`result ${filters.outcome}`);
   }
   if (filters.place_id) {
-    labels.push(`place: ${filters.place_id}`);
+    labels.push(`at ${filters.place_id}`);
   }
   if (filters.resource_id) {
-    labels.push(`resource: ${filters.resource_id}`);
+    labels.push(`with ${filters.resource_id}`);
   }
   if (filters.responsibility_id) {
-    labels.push(`responsibility: ${filters.responsibility_id}`);
+    labels.push(`owned by ${filters.responsibility_id}`);
   }
   if (filters.problem) {
-    labels.push("problems only");
+    labels.push("problem-focused");
   }
   if (labels.length === 0) {
     return "No active search filters.";
   }
-  return `Active filters: ${labels.join(" · ")}`;
+  return `Showing results for ${labels.join(" · ")}.`;
 }
 
 function searchSummary(type, item) {
@@ -976,13 +1118,13 @@ function searchSummary(type, item) {
     case "place":
       return `${item.name || ""}\n${item.summary || ""}`;
     case "resource":
-      return `${item.name || ""}\nplace: ${item.place_id || "-"}`;
+      return `${item.name || ""}\nlocated at ${item.place_id || "-"}`;
     case "responsibility":
       return `${item.title || ""}\n${item.summary || ""}`;
     case "item":
-      return `${item.title || ""}\n${item.kind || ""} · ${item.status || ""}`;
+      return `${item.title || ""}\n${item.kind || ""} · state ${item.status || ""}`;
     case "run":
-      return `${item.item_id || ""}\nrevision ${item.revision || 0} · ${item.outcome || "-"}`;
+      return `${item.item_id || ""}\nrevision ${item.revision || 0} · result ${item.outcome || "-"}`;
     default:
       return "";
   }
@@ -1014,6 +1156,7 @@ async function inspectRecord(type, id) {
   detailJSONEl.textContent = JSON.stringify(record, null, 2);
   renderDetailActions(type, record);
   applyContextDefaults(type, record);
+  renderOperateContext();
   if (type === "item") {
     await loadEditorItem(id);
   }
@@ -1264,6 +1407,7 @@ function applyContextDefaults(type, record) {
     itemResponsibilitySelectEl.value = record.id;
   }
   syncApprovalDefaults();
+  renderOperateContext();
 }
 
 // Intent: Reuse the structured search form as the single drilldown path so
@@ -1281,6 +1425,7 @@ async function runSearch(filters) {
   form.resource_id.value = filters.resource_id || "";
   form.responsibility_id.value = filters.responsibility_id || "";
   form.dataset.problem = filters.problem ? "true" : "false";
+  searchAdvancedEl.open = hasAdvancedSearchFilters(filters);
   const effectiveFilters = getSearchFilters(form);
   const response = await fetch(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
   if (!response.ok) {
@@ -1295,6 +1440,7 @@ function clearSearch() {
   const form = document.getElementById("search-form");
   form.reset();
   form.dataset.problem = "false";
+  searchAdvancedEl.open = false;
   searchResultsEl.innerHTML = "";
   searchActiveEl.textContent = "No active search filters.";
   searchRawEl.hidden = true;
@@ -1590,6 +1736,7 @@ async function refresh(selectedItemID = editorState.itemID) {
 
 async function loadEditorItem(itemID) {
   setActiveMode("author");
+  editorCollabDetailsEl.open = false;
   editorState.itemID = itemID;
   editorItemIDEl.value = itemID;
   if (!itemID) {
@@ -1769,3 +1916,12 @@ function handleError(error, context = "Browser") {
 clearSearch();
 setActiveMode("review");
 refresh().catch(handleError);
+// Intent: Keep search centered on common review tasks first, then let operators
+// drop into structured filters only when they need finer drilldown. Source:
+// DI-rovak
+async function runPresetSearch(filters, message) {
+  setActiveMode("review");
+  await runSearch(filters);
+  searchResultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  setWorkspaceStatus(message, "info");
+}

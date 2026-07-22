@@ -32,73 +32,27 @@
         <div class="workspace-head">
           <div>
             <h2>Review</h2>
-            <p class="meta">Start here to triage repeated problems, search the operational graph, and inspect the current record in detail.</p>
+            <p class="meta">Start here, open one queue, inspect one record, and only then branch into authoring or operation work.</p>
           </div>
+        </div>
+        <div class="workspace-summary">
+          Review stays the browser default because it is the main job: find the next record that needs attention and act from that record.
         </div>
         <div class="workspace-grid review-grid">
           <section class="panel flow-panel">
             <h3>Primary Flow</h3>
             <div class="flow-panel-body">
-              <div class="meta">Start with the queue, open one record, then take the next action from that record instead of bouncing between generic forms.</div>
+              <ol class="flow-steps">
+                <li>Review the queue that best matches what you know: draft work, repeated problems, or a known record.</li>
+                <li>Open one current record and stay with it until the next action is clear.</li>
+                <li>Act from that record instead of re-entering context in blank forms.</li>
+              </ol>
               <div class="detail-actions primary-flow-actions">
+                <button id="focus-drafts" type="button">Review draft items</button>
                 <button id="focus-problems" type="button" class="button-secondary">Review hotspots</button>
                 <button id="focus-search" type="button" class="button-secondary">Search records</button>
-                <button id="focus-drafts" type="button">Review draft items</button>
               </div>
             </div>
-          </section>
-
-          <section class="panel problem-panel">
-            <h3>Problem Review</h3>
-            <div id="problem-review" class="search-results"></div>
-          </section>
-
-          <section class="panel search-panel">
-            <h3>Search</h3>
-            <form id="search-form" class="search-form">
-              <div class="search-row">
-                <input name="q" placeholder="Search places, resources, responsibilities, items, runs">
-                <button type="submit">Search</button>
-                <button id="search-clear" type="button" class="button-secondary">Clear</button>
-              </div>
-              <div class="search-filters">
-                <label>Kind
-                  <select name="kind" id="search-kind">
-                    <option value="">any</option>
-                    <option value="procedure">procedure</option>
-                    <option value="training">training</option>
-                    <option value="maintenance">maintenance</option>
-                    <option value="receiving_check">receiving_check</option>
-                    <option value="inventory_audit">inventory_audit</option>
-                    <option value="site">site</option>
-                    <option value="room">room</option>
-                    <option value="area">area</option>
-                    <option value="bin">bin</option>
-                    <option value="machine">machine</option>
-                    <option value="tool">tool</option>
-                    <option value="container">container</option>
-                  </select>
-                </label>
-                <label>Status
-                  <select name="status" id="search-status">
-                    <option value="">any</option>
-                    <option value="draft">draft</option>
-                    <option value="approved">approved</option>
-                    <option value="superseded">superseded</option>
-                  </select>
-                </label>
-                <label>Outcome <input name="outcome" id="search-outcome" placeholder="completed"></label>
-                <label>At Place <input name="place_id" placeholder="PLACE-0001"></label>
-                <label>Using Resource <input name="resource_id" placeholder="RES-0001"></label>
-                <label>Owned By Role <input name="responsibility_id" placeholder="RESP-0001"></label>
-              </div>
-            </form>
-            <div id="search-active" class="meta">No active search filters.</div>
-            <div id="search-results" class="search-results"></div>
-            <details class="debug-disclosure" id="search-debug">
-              <summary>Debug payload</summary>
-              <pre id="search-raw" hidden></pre>
-            </details>
           </section>
 
           <section class="panel detail-panel">
@@ -117,6 +71,68 @@
               <pre id="detail-json"></pre>
             </details>
           </section>
+
+          <section class="panel problem-panel">
+            <h3>Problem Review</h3>
+            <div id="problem-review" class="search-results"></div>
+          </section>
+
+          <section class="panel search-panel">
+            <h3>Search</h3>
+            <div class="search-presets">
+              <button id="search-preset-drafts" type="button">Draft procedures</button>
+              <button id="search-preset-problems" type="button" class="button-secondary">Receiving problems</button>
+              <button id="search-preset-counts" type="button" class="button-secondary">Inventory counts</button>
+              <button id="search-preset-runs" type="button" class="button-secondary">Recent runs</button>
+            </div>
+            <form id="search-form" class="search-form">
+              <div class="search-row">
+                <input name="q" placeholder="Search by record name, checklist title, run ID, location, or role">
+                <button type="submit">Search</button>
+                <button id="search-clear" type="button" class="button-secondary">Clear</button>
+              </div>
+              <details id="search-advanced" class="advanced-filter-disclosure">
+                <summary>Advanced filters</summary>
+                <div class="search-filters">
+                  <label>Work type
+                    <select name="kind" id="search-kind">
+                      <option value="">any</option>
+                      <option value="procedure">procedure</option>
+                      <option value="training">training</option>
+                      <option value="maintenance">maintenance</option>
+                      <option value="receiving_check">receiving_check</option>
+                      <option value="inventory_audit">inventory_audit</option>
+                      <option value="site">site</option>
+                      <option value="room">room</option>
+                      <option value="area">area</option>
+                      <option value="bin">bin</option>
+                      <option value="machine">machine</option>
+                      <option value="tool">tool</option>
+                      <option value="container">container</option>
+                    </select>
+                  </label>
+                  <label>State
+                    <select name="status" id="search-status">
+                      <option value="">any</option>
+                      <option value="draft">draft</option>
+                      <option value="approved">approved</option>
+                      <option value="superseded">superseded</option>
+                    </select>
+                  </label>
+                  <label>Result <input name="outcome" id="search-outcome" placeholder="completed"></label>
+                  <label>Where <input name="place_id" placeholder="PLACE-0001"></label>
+                  <label>With tool / resource <input name="resource_id" placeholder="RES-0001"></label>
+                  <label>Owned by role <input name="responsibility_id" placeholder="RESP-0001"></label>
+                </div>
+              </details>
+            </form>
+            <div id="search-active" class="meta">No active search filters.</div>
+            <div id="search-results" class="search-results"></div>
+            <details class="debug-disclosure" id="search-debug">
+              <summary>Debug payload</summary>
+              <pre id="search-raw" hidden></pre>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -127,13 +143,25 @@
             <p class="meta">Collaborate on the working draft, then cut a durable snapshot when the text is ready for review.</p>
           </div>
         </div>
+        <div class="workspace-summary">
+          Author keeps one draft in focus and moves collaboration controls into the background until you need them.
+        </div>
         <div class="workspace-grid author-grid">
           <section class="panel editor-panel">
             <h3>Live Draft Studio</h3>
-            <div class="editor-toolbar">
+            <div class="editor-toolbar editor-toolbar-primary">
               <label>Draft Item
                 <select id="editor-item-id"></select>
               </label>
+              <div class="editor-actions editor-actions-primary">
+                <button id="editor-focus-writing" type="button" class="button-secondary">Focus Writing</button>
+                <button id="editor-refresh" type="button">Refresh Live State</button>
+                <button id="editor-snapshot" type="button">Snapshot Revision</button>
+              </div>
+            </div>
+            <details id="editor-collab-details" class="editor-collab-details">
+              <summary>Collaboration settings</summary>
+              <div class="editor-toolbar">
               <label>Actor
                 <input id="editor-actor" value="alice">
               </label>
@@ -143,18 +171,22 @@
               <label>Color
                 <input id="editor-color" value="#0c6d62">
               </label>
-            </div>
+              </div>
+            </details>
             <div class="editor-summary">
               <div id="editor-meta" class="meta">Select a draft item to load its live draft.</div>
               <div id="editor-participants" class="participant-list"></div>
             </div>
-            <label>Working Body
-              <textarea id="editor-body" rows="18" placeholder="Select an item to edit its working draft"></textarea>
-            </label>
-            <div class="editor-actions">
-              <button id="editor-focus-writing" type="button" class="button-secondary">Focus Writing</button>
-              <button id="editor-refresh" type="button">Refresh Live State</button>
-              <button id="editor-snapshot" type="button">Snapshot Revision</button>
+            <div class="writing-frame">
+              <div class="writing-frame-head">
+                <strong>Writing Surface</strong>
+                <span class="meta">Stay with one draft until the change is coherent, then snapshot the durable revision.</span>
+              </div>
+              <label>Working Body
+                <textarea id="editor-body" rows="18" placeholder="Select an item to edit its working draft"></textarea>
+              </label>
+            </div>
+            <div class="editor-actions editor-actions-lifecycle">
               <button id="editor-approve" type="button">Approve Current Revision</button>
               <button id="editor-supersede" type="button">Supersede Item</button>
             </div>
@@ -182,12 +214,25 @@
             <p class="meta">Record performed work, attach evidence, and capture approvals using the current browser context as a default when possible.</p>
           </div>
         </div>
+        <div class="workspace-summary">
+          Operate should start from the record you are already looking at. Blank forms remain available, but context-led actions are the default path.
+        </div>
         <div class="workspace-grid operate-grid">
+          <section class="panel operate-assistant-panel">
+            <h3>Operate From Current Record</h3>
+            <div id="operate-context" class="operate-context"></div>
+            <div class="detail-actions operate-context-actions">
+              <button id="operate-run-current" type="button">Log work from current record</button>
+              <button id="operate-evidence-current" type="button" class="button-secondary">Attach evidence from current record</button>
+              <button id="operate-approve-current" type="button" class="button-secondary">Review current record</button>
+            </div>
+          </section>
+
           <section class="panel">
             <h3>Log Work Performed</h3>
             <form id="run-form">
               <label>Actor <input name="actor" value="bob"></label>
-              <label>Work Type
+              <label>What kind of work is this?
                 <select name="kind">
                   <option value="procedure">procedure</option>
                   <option value="training">training</option>
@@ -196,27 +241,32 @@
                   <option value="inventory_audit">inventory_audit</option>
                 </select>
               </label>
-              <label>Procedure / Checklist
+              <label>What checklist or procedure is this work based on?
                 <select id="run-item-select" name="item_id_select"></select>
               </label>
-              <label>Or Enter Item ID <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
-              <label>Revision Used <input name="revision" type="number" min="1" value="1"></label>
-              <label>Outcome <input name="outcome" placeholder="completed"></label>
-              <label>Machine <input name="machine"></label>
-              <label>Location <input name="location"></label>
-              <label>Main Place
-                <select id="run-place-select" name="place_id_select"></select>
-              </label>
-              <label>Or Enter Place ID <input name="place_id" placeholder="PLACE-0001"></label>
-              <label>Main Tool / Resource
-                <select id="run-resource-select" name="resource_id_select"></select>
-              </label>
-              <label>Other Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
-              <label>Owning Role
-                <select id="run-responsibility-select" name="responsibility_id_select"></select>
-              </label>
-              <label>Other Role IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
+              <label>Which revision did you use? <input name="revision" type="number" min="1" value="1"></label>
+              <label>What was the result? <input name="outcome" placeholder="completed"></label>
               <label>What Happened <textarea name="notes"></textarea></label>
+              <details class="advanced-operate-disclosure">
+                <summary>Advanced context and manual overrides</summary>
+                <div class="advanced-operate-fields">
+                  <label>Manual item ID override <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
+                  <label>Machine <input name="machine"></label>
+                  <label>Location <input name="location"></label>
+                  <label>Main place
+                    <select id="run-place-select" name="place_id_select"></select>
+                  </label>
+                  <label>Manual place ID override <input name="place_id" placeholder="PLACE-0001"></label>
+                  <label>Main tool / resource
+                    <select id="run-resource-select" name="resource_id_select"></select>
+                  </label>
+                  <label>Other resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
+                  <label>Owning role
+                    <select id="run-responsibility-select" name="responsibility_id_select"></select>
+                  </label>
+                  <label>Other role IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
+                </div>
+              </details>
               <button type="submit">Save Run</button>
             </form>
           </section>
@@ -225,13 +275,18 @@
             <h3>Attach Evidence</h3>
             <form id="evidence-form" enctype="multipart/form-data">
               <label>Actor <input name="actor" value="bob"></label>
-              <label>Evidence For Run
+              <label>Which run does this evidence support?
                 <select id="evidence-run-select" name="run_id_select"></select>
               </label>
-              <label>Or Enter Run ID <input name="run_id" placeholder="RUN-0001"></label>
-              <label>Evidence Summary <input name="summary" required></label>
+              <label>Evidence summary <input name="summary" required></label>
               <label>Structured Facts (JSON) <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
               <label>File Attachment <input name="attachment" type="file"></label>
+              <details class="advanced-operate-disclosure">
+                <summary>Manual target override</summary>
+                <div class="advanced-operate-fields">
+                  <label>Manual run ID override <input name="run_id" placeholder="RUN-0001"></label>
+                </div>
+              </details>
               <button type="submit">Save Evidence</button>
             </form>
           </section>
@@ -240,20 +295,19 @@
             <h3>Capture Review Decision</h3>
             <form id="approval-form">
               <label>Actor <input name="actor" value="boss"></label>
-              <label>Reviewing
+              <label>What are you reviewing?
                 <select name="target_type">
                   <option value="knowledge_item">procedure / checklist</option>
                   <option value="run">run</option>
                 </select>
               </label>
-              <label>Review This Record
+              <label>Which record is under review?
                 <select id="approval-target-select" name="target_id_select"></select>
               </label>
-              <label>Or Enter Record ID <input name="target_id" placeholder="ITEM-0001"></label>
               <div id="approval-target-summary" class="meta">Choose what you are reviewing to load matching records.</div>
-              <label>Revision Being Reviewed <input name="revision" type="number" min="0" value="0"></label>
-              <label>Reviewer Role <input name="role" placeholder="reviewer"></label>
-              <label>Review Decision
+              <label>Which revision is under review? <input name="revision" type="number" min="0" value="0"></label>
+              <label>Your reviewer role <input name="role" placeholder="reviewer"></label>
+              <label>Review decision
                 <select name="decision">
                   <option value="approved">approved</option>
                   <option value="rejected">rejected</option>
@@ -261,6 +315,12 @@
                 </select>
               </label>
               <label>Notes <textarea name="notes"></textarea></label>
+              <details class="advanced-operate-disclosure">
+                <summary>Manual target override</summary>
+                <div class="advanced-operate-fields">
+                  <label>Manual record ID override <input name="target_id" placeholder="ITEM-0001"></label>
+                </div>
+              </details>
               <button type="submit">Save Decision</button>
             </form>
           </section>
@@ -268,6 +328,9 @@
       </section>
 
       <section class="workspace workspace-create" id="workspace-create" data-mode="create">
+        <div class="workspace-summary">
+          Create remains available for setup work, but it stays compressed until you intentionally switch into setup mode.
+        </div>
         <details id="create-details" class="workspace-collapsible">
           <summary>Create</summary>
           <p class="meta">Lower-frequency setup surfaces stay in the browser, but they are collapsed by default so review and operational work stay primary.</p>
@@ -342,6 +405,9 @@
       </section>
 
       <section class="workspace workspace-browse" id="workspace-browse" data-mode="browse">
+        <div class="workspace-summary">
+          Browse is for wide inventory scanning after review and operation work, not the main landing path.
+        </div>
         <details id="browse-details" class="workspace-collapsible">
           <summary>Browse Collections</summary>
           <p class="meta">All list views remain available for broad inventory browsing and direct record inspection.</p>

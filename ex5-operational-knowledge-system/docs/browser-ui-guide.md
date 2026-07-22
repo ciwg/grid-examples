@@ -105,6 +105,11 @@ Create, and Browse feel like explicit working modes instead of one undifferentia
 long page. It does not hide any capability; it changes emphasis and navigation.
 Source: `DI-bavum`.
 
+The browser now also compresses inactive workspaces more aggressively, showing
+their summary instead of leaving every major panel expanded at once. That keeps
+all capabilities reachable while reducing simultaneous visual load. Source:
+`DI-nabek`.
+
 ## Create Place
 
 ### What it does
@@ -257,14 +262,19 @@ easy to reach without displacing problem triage and inspection. Source:
 `DI-lafor`.
 
 The authoring surface now also includes a dedicated status sidecar, live draft
-metrics, and a `Focus Writing` action so sustained drafting feels more like a
-real authoring mode than an administrative panel. Source: `DI-rofek`.
+metrics, a `Focus Writing` action, and hidden-by-default collaboration settings
+so sustained drafting feels more like a real authoring mode than an
+administrative panel. Source: `DI-rofek`; `DI-tavul`.
 
 ### Fields And Controls
 
 - `Knowledge Item`
   - selects which item’s live draft you are editing
   - important because all live-draft state is per item
+- `Collaboration settings`
+  - reveals actor, participant name, and color only when you need them
+  - important because it keeps metadata available without making it compete
+    with the draft itself
 - `Actor`
   - the actor used for snapshot, approval, and supersede actions from this panel
 - `Participant Name`
@@ -308,8 +318,12 @@ real authoring mode than an administrative panel. Source: `DI-rofek`.
   - important because they make the draft feel trackable while you write
 - author flow sidecar
   - keeps the snapshot/approve/supersede sequence visible next to the editor
+- writing surface frame
+  - visually prioritizes the draft body over the surrounding controls
+  - important because it makes authoring feel like writing work, not just
+    configuration
 
-## Record Run
+## Log Work Performed
 
 ### What it does
 
@@ -330,6 +344,10 @@ The inspector can now launch this form already primed for the current item,
 run, place, resource, or responsibility so the operator starts from context
 instead of retyping IDs. Source: `DI-mitav`.
 
+The operate workspace now also includes an `Operate From Current Record` panel
+that makes the default run/evidence/review action explicit for the record
+already open in Review. Source: `DI-matub`.
+
 ### Fields
 
 - `Actor`
@@ -340,32 +358,18 @@ instead of retyping IDs. Source: `DI-mitav`.
 - `Procedure / Checklist`
   - helper select for the item used
   - important because it reduces raw ID entry during the common run-recording path
-- `Or Enter Item ID`
-  - optional direct item ID entry
-  - important because it preserves the original manual path
 - `Revision Used`
   - the exact revision used
   - critical because revision-specific history is one of the main product goals
 - `Outcome`
   - result such as `completed` or `accepted_with_notes`
-- `Machine`
-  - optional machine context
-- `Location`
-  - optional free-text location context
-- `Main Place`
-  - optional helper select for the main place anchor
-- `Or Enter Place ID`
-  - optional direct place ID entry
-- `Main Tool / Resource`
-  - optional helper select for the main resource
-- `Other Resource IDs`
-  - optional comma-separated resource IDs
-- `Owning Role`
-  - optional helper select for the main owner or review role
-- `Other Role IDs`
-  - optional comma-separated role IDs
 - `What Happened`
   - human explanation of what happened
+- `Advanced context and manual overrides`
+  - reveals item, place, resource, role, machine, and location overrides only
+    when they are needed
+  - important because it keeps the main action path task-driven while
+    preserving the original schema-level escape hatches
 
 ## Add Evidence
 
@@ -388,8 +392,6 @@ from the reviewed run instead of a separate lookup task. Source: `DI-mitav`.
   - who is attaching the evidence
 - `Evidence For Run`
   - helper select for the run receiving the evidence
-- `Or Enter Run ID`
-  - optional direct run ID entry
 - `Evidence Summary`
   - short label for the evidence entry
 - `Structured Facts (JSON)`
@@ -398,6 +400,9 @@ from the reviewed run instead of a separate lookup task. Source: `DI-mitav`.
 - `File Attachment`
   - optional file upload
   - important when the evidence includes a photo, log, or other artifact
+- `Manual target override`
+  - reveals direct run ID entry only when the current context or helper select
+    is not enough
 
 ## Capture Review Decision
 
@@ -419,12 +424,10 @@ override fields remain available. Source: `DI-mitav`.
 
 - `Actor`
   - who is making the review decision
-- `Reviewing`
+- `What are you reviewing?`
   - whether the approval is for a procedure / checklist or a run
-- `Review This Record`
+- `Which record is under review?`
   - helper select for the exact item or run being reviewed
-- `Or Enter Record ID`
-  - optional direct item or run ID entry
 - `Revision Being Reviewed`
   - revision number when approving a procedure / checklist
   - important because item approvals must target the durable revision being reviewed
@@ -434,6 +437,9 @@ override fields remain available. Source: `DI-mitav`.
   - `approved`, `rejected`, or `noted`
 - `Notes`
   - optional explanation for the review outcome
+- `Manual target override`
+  - reveals direct record ID entry only when the current context or helper
+    select is not enough
 
 ## Problem Review
 
@@ -480,23 +486,22 @@ together.
 Search is the main cross-record review tool. It lets operators move from a word
 or filter to the correct record without manually browsing every list.
 
+The search area now starts with task-first presets for draft review, receiving
+problems, inventory counts, and broad run discovery. Advanced filters remain
+available behind disclosure when you need exact faceting. Source: `DI-rovak`.
+
 ### Fields
 
 - main search box
   - free-text query
   - important because it now reaches run evidence facts and approval notes too
-- `Kind`
-  - limits search to one category of record or workflow kind
-- `Status`
-  - narrows item search by lifecycle state
-- `Outcome`
-  - narrows run search by result
-- `At Place`
-  - narrows search to one place
-- `Using Resource`
-  - narrows search to one resource
-- `Owned By Role`
-  - narrows search to one responsibility or review role
+- search presets
+  - launch the most common review tasks without manually building a filter set
+- `Advanced filters`
+  - reveal detailed `Work type`, `State`, `Result`, `Where`, `With tool /
+    resource`, and `Owned by role` fields
+  - important because they preserve the original search power while making the
+    default discovery path more humane
 
 ### Supporting Areas
 
