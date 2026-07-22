@@ -86,6 +86,7 @@ Neovim phase 1:
 - opens a read-only grouped search buffer over `/api/search` for discovery and browse handoff into the existing inspectors
 - opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
 - posts limited item approvals by resolving current revision from `GET /api/items/{id}` and then using `POST /api/items/{id}/approvals`
+- posts limited run approvals with `POST /api/runs/{id}/approvals`
 
 In practice, that gives `ex5` a real terminal-first operating mode:
 
@@ -169,7 +170,7 @@ write-side approval actions are added to the editor. The next small step now
 adds one revision-safe item approval action, still using the same local HTTP
 runtime and item approval semantics as the CLI and browser. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
-`DI-lorav`; `DI-vamor`.
+`DI-lorav`; `DI-vamor`; `DI-bafor`.
 
 ## Current verification shape
 

@@ -151,6 +151,11 @@ it reads `GET /api/items/{id}` to resolve the current revision, then posts to
 `POST /api/items/{id}/approvals` with the configured Neovim display name as
 the approval actor. Source: `DI-vamor`.
 
+Neovim run approval reuses `POST /api/runs/{id}/approvals` directly. It uses
+the configured Neovim display name as the approval actor and refreshes the
+current run or pending-review view after the write returns. Source:
+`DI-bafor`.
+
 ## Places and resources
 
 ### `GET /api/places`

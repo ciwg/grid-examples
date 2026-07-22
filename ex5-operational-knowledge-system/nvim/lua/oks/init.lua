@@ -230,6 +230,14 @@ local function item_id_from_buffer_name(name)
   return nil
 end
 
+local function run_id_from_buffer_name(name)
+  local run_id = name:match("^oks%-run://(.+)$")
+  if run_id and run_id ~= "" then
+    return run_id
+  end
+  return nil
+end
+
 local function current_context_item_id()
   local current = item_id_from_buffer_name(buffer_name(vim.api.nvim_get_current_buf()))
   if current then
@@ -239,6 +247,10 @@ local function current_context_item_id()
     return M.state.item_id
   end
   return nil
+end
+
+local function current_context_run_id()
+  return run_id_from_buffer_name(buffer_name(vim.api.nvim_get_current_buf()))
 end
 
 local function valid_decision(decision)
@@ -786,6 +798,18 @@ local function run_detail_lines(detail)
   return lines
 end
 
+local function show_run_detail(run_id, detail)
+  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
+    vim.api.nvim_set_current_win(inspector.winid)
+  else
+    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-run://" .. run_id)
+  end
+  vim.bo[inspector.bufnr].modifiable = true
+  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-run://" .. run_id)
+  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, run_detail_lines(detail))
+  vim.bo[inspector.bufnr].modifiable = false
+end
+
 local function generic_entity_lines(entity_type, detail)
   if entity_type == "place" then
     local lines = {
@@ -890,16 +914,7 @@ local function inspect_run(run_id)
     notify("inspect run decode failed", vim.log.levels.ERROR)
     return
   end
-
-  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
-    vim.api.nvim_set_current_win(inspector.winid)
-  else
-    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-run://" .. run_id)
-  end
-  vim.bo[inspector.bufnr].modifiable = true
-  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-run://" .. run_id)
-  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, run_detail_lines(decoded))
-  vim.bo[inspector.bufnr].modifiable = false
+  show_run_detail(run_id, decoded)
   notify("inspected run " .. run_id)
 end
 
@@ -1069,6 +1084,16 @@ local function refresh_after_item_approval(item_id, detail)
   show_item_detail(item_id, detail)
 end
 
+local function refresh_after_run_approval(run_id, detail)
+  local current_name = buffer_name(vim.api.nvim_get_current_buf())
+  local inspector_name = buffer_name(inspector.bufnr)
+  if current_name == "oks-pending://review" or inspector_name == "oks-pending://review" then
+    M.pending()
+    return
+  end
+  show_run_detail(run_id, detail)
+end
+
 -- Intent: Let terminal-first reviewers approve the current item from Neovim
 -- through the existing revision-aware item approval API, while refreshing the
 -- relevant live, inspect, or pending-review surface afterward. Source: DI-vamor
@@ -1139,6 +1164,63 @@ function M.approve_item(command_args)
   end
   refresh_after_item_approval(item_id, approved)
   notify("approved item " .. item_id .. " as " .. decision)
+end
+
+-- Intent: Let terminal-first reviewers approve the current run from Neovim
+-- through the existing run approval API, while refreshing the relevant
+-- inspect or pending-review surface afterward. Source: DI-bafor
+function M.approve_run(command_args)
+  local args = vim.split(vim.trim(command_args or ""), "%s+", { trimempty = true })
+  local run_id = current_context_run_id()
+  local role
+  local decision
+  local notes = ""
+
+  if run_id and #args >= 2 then
+    role = args[1]
+    decision = args[2]
+    notes = table.concat(args, " ", 3)
+  elseif #args >= 3 then
+    run_id = args[1]
+    role = args[2]
+    decision = args[3]
+    notes = table.concat(args, " ", 4)
+  else
+    notify("usage: :OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]", vim.log.levels.WARN)
+    return
+  end
+
+  if not valid_decision(decision) then
+    notify("decision must be approved, rejected, or noted", vim.log.levels.WARN)
+    return
+  end
+
+  local status, body, err = request("POST", "/api/runs/" .. run_id .. "/approvals", {
+    actor = M.config.display_name,
+    revision = 0,
+    role = role,
+    decision = decision,
+    notes = notes,
+  })
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    local message = vim.trim(body or "")
+    if message == "" then
+      message = tostring(status)
+    end
+    notify("run approval failed: " .. message, vim.log.levels.ERROR)
+    return
+  end
+  local approved = json_decode(body)
+  if not approved then
+    notify("run approval decode failed", vim.log.levels.ERROR)
+    return
+  end
+  refresh_after_run_approval(run_id, approved)
+  notify("approved run " .. run_id .. " as " .. decision)
 end
 
 -- Intent: Let the headless regression harness seed inspector state without
@@ -1261,6 +1343,9 @@ function M.setup(opts)
   end, {})
   vim.api.nvim_create_user_command("OksApproveItem", function(command)
     M.approve_item(command.args)
+  end, { nargs = "+" })
+  vim.api.nvim_create_user_command("OksApproveRun", function(command)
+    M.approve_run(command.args)
   end, { nargs = "+" })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()

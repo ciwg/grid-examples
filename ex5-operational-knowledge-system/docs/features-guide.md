@@ -144,6 +144,7 @@ It is intentionally narrower than the browser surface:
 - search grouped projected records with `:OksSearch QUERY`
 - open a grouped pending-review buffer with `:OksPending`
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
+- approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 Cursor and presence reporting now stay anchored to the live-draft window
@@ -195,6 +196,13 @@ then refreshes the relevant live, inspector, or pending-review context. That
 keeps the action small and revision-safe instead of inventing a broader editor
 workflow all at once. Source: `DI-vamor`.
 
+The next follow-on after that adds the matching run-side action. Neovim run
+approval posts directly through the existing run approval endpoint, uses the
+current inspected run when possible, and then refreshes the run inspector or
+pending-review queue. That gives terminal reviewers a direct next step after
+finding run work in `:OksPending` without opening a broader editor workflow.
+Source: `DI-bafor`.
+
 ### Terminal-first behavior
 
 The current terminal behavior is intentionally split between CLI and Neovim
@@ -213,6 +221,7 @@ Neovim behavior today:
 - grouped search and browse over the operational graph
 - grouped pending-review browsing for draft items and review-worthy runs
 - limited item approval for the current or specified item
+- limited run approval for the current or specified run
 
 That means terminal-first work in `ex5` currently follows a practical pattern:
 

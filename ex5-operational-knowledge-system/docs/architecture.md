@@ -62,6 +62,7 @@ The first-phase Neovim embodiment owns:
   run-review slices from the same search projection family
 - posting limited item approvals by reading the current item projection first
   and then using the existing item approval route
+- posting limited run approvals through the existing run approval route
 
 Together, those two terminal embodiments now form a staged terminal-first
 surface:
@@ -168,7 +169,8 @@ Pending review extends it to filtered and unfiltered `/api/search` reads for
 draft items plus run-review slices. Item approval extends it to one small
 write-side action that still depends on the same `GET /api/items/{id}` truth
 and the existing `POST /api/items/{id}/approvals` route. Source: `DI-fudok`;
-`DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`; `DI-vamor`.
+`DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`; `DI-vamor`;
+`DI-bafor`.
 
 ## Current implementation note
 
