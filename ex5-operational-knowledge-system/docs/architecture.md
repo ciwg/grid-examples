@@ -208,15 +208,18 @@ The code currently implements:
 - participant presence on the current draft
 - durable versioned document bodies inside knowledge-item revisions
 - one shared local HTTP embodiment adapter for browser, CLI, and Neovim
+- one signed-envelope runtime slice for durable knowledge-item create/revision/lifecycle events
+- one frozen `knowledge-item` `pCID` selected from the shipped protocol bytes
 
 It still does **not** yet implement:
 
 - websocket-based collaboration transport
 - relay-visible peer exchange
-- signed grid envelopes on the wire
-- frozen runtime behavior selected by a shipped `pCID`
+- signed grid envelopes on the wire for the remaining ex5 families
+- frozen runtime behavior selected by a shipped `pCID` for the remaining ex5 families
 
 So in current ex5, protocol-family and `pCID` language are part of the shipped
-PromiseGrid framing, but they are not a statement that the local runtime is
-already emitting or consuming full PromiseGrid wire artifacts. For the explicit current
+PromiseGrid framing, and the `knowledge-item` family now also has a real
+runtime/wire implementation. The remaining families are still on the staged
+bridge layer. For the explicit current
 claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

@@ -1,7 +1,8 @@
 # TODO
 
 ## Open / Planned
-- [ ] 093 - Decide whether ex5 should open a real PromiseGrid wire-level implementation slice - `TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`
+- [x] 094 - Choose and freeze the first ex5 PromiseGrid protocol family before any wire/runtime slice - `TODO/TODO-mibor-ex5-first-frozen-protocol-family.md`
+- [x] 093 - Decide whether ex5 should open a real PromiseGrid wire-level implementation slice - `TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`
 - [x] 092 - Align ex5 technical docs to the shipped PromiseGrid boundary and add implementation claims - `TODO/TODO-sobek-ex5-promisegrid-doc-honesty-and-claims.md`
 - [x] 088 - Align ex5 browser search behavior and wording with the shipped search contract - `TODO/TODO-ralek-ex5-browser-search-contract-honesty.md`
 - [x] 089 - Reduce ex5 browser Review-to-Author leakage and duplicate live-draft loading - `TODO/TODO-suvor-ex5-browser-review-author-mode-leakage.md`

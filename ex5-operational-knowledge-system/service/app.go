@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
 const defaultTeam = "OPS"
@@ -29,7 +31,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +56,9 @@ func NewApp(dataRoot string) (*App, error) {
 			app.nextSequence = event.Sequence
 		}
 	}
+	if err := verifySignedKnowledgeItemRecords(events, knowledgeItemRecords); err != nil {
+		return nil, fmt.Errorf("verify knowledge-item envelopes: %w", err)
+	}
 	drafts, err := store.LoadDrafts()
 	if err != nil {
 		return nil, err
@@ -77,6 +82,7 @@ func (app *App) Meta() Meta {
 		RunKinds:          []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
 		ApprovalDecisions: []string{DecisionApproved, DecisionRejected, DecisionNoted},
 		ItemStatuses:      []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
+		KnowledgeItemPCID: protocols.KnowledgeItemProfile.CID.String(),
 	}
 }
 
@@ -1016,6 +1022,20 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 	app.nextSequence++
 	event.Sequence = app.nextSequence
 	event.Timestamp = time.Now().Format(time.RFC3339)
+	itemRecord, hasItemRecord, err := buildSignedKnowledgeItemRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
+	if hasItemRecord {
+		// Intent: Persist the first PromiseGrid-native knowledge-item artifact
+		// before the compatibility event log so ex5 never claims a new signed item
+		// event that the runtime failed to materialize. Source: DI-mibor
+		if err := app.store.AppendSignedKnowledgeItemRecord(itemRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
 	if err := app.store.AppendEvent(event); err != nil {
 		app.nextSequence--
 		return err

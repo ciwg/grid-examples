@@ -34,6 +34,7 @@ type Meta struct {
 	RunKinds          []string `json:"run_kinds"`
 	ApprovalDecisions []string `json:"approval_decisions"`
 	ItemStatuses      []string `json:"item_statuses"`
+	KnowledgeItemPCID string   `json:"knowledge_item_pcid"`
 }
 
 type Place struct {

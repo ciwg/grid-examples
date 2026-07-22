@@ -1,10 +1,13 @@
 package service
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
 func TestAppCreatesResponsibilitiesItemsRunsAndEvidence(t *testing.T) {
@@ -227,6 +230,114 @@ func TestAppReplaysLargeKnowledgeBodiesAfterRestart(t *testing.T) {
 	}
 	if reloadedItem.Revisions[1].Body != revisionBody {
 		t.Fatalf("revised large body did not replay correctly: got %d want %d", len(reloadedItem.Revisions[1].Body), len(revisionBody))
+	}
+}
+
+func TestAppWritesAndReplaysSignedKnowledgeItemRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", []string{"startup"}, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	item, err = app.AddRevision("alice", item.ID, "Start line", "Startup flow v2", "# Start line\n\nv2", []string{"startup", "v2"})
+	if err != nil {
+		t.Fatalf("add revision: %v", err)
+	}
+	if err := app.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
+		t.Fatalf("approve item: %v", err)
+	}
+
+	meta := app.Meta()
+	if meta.KnowledgeItemPCID != protocols.KnowledgeItemProfile.CID.String() {
+		t.Fatalf("unexpected knowledge-item pCID in meta: got %q want %q", meta.KnowledgeItemPCID, protocols.KnowledgeItemProfile.CID.String())
+	}
+
+	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-item-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read knowledge-item messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 signed knowledge-item records, got %d", len(lines))
+	}
+	var firstRecord SignedKnowledgeItemRecord
+	if err := json.Unmarshal([]byte(lines[0]), &firstRecord); err != nil {
+		t.Fatalf("decode first record: %v", err)
+	}
+	if firstRecord.PCID != protocols.KnowledgeItemProfile.CID.String() {
+		t.Fatalf("unexpected record pCID: got %q want %q", firstRecord.PCID, protocols.KnowledgeItemProfile.CID.String())
+	}
+	if firstRecord.EventType != "knowledge_item_created" {
+		t.Fatalf("unexpected first record event type %q", firstRecord.EventType)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedItem, err := reloaded.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get reloaded item: %v", err)
+	}
+	if reloadedItem.Status != ItemStatusApproved {
+		t.Fatalf("unexpected item status after signed replay verification: %s", reloadedItem.Status)
+	}
+	if reloadedItem.CurrentRevision != 2 {
+		t.Fatalf("unexpected revision after signed replay verification: %d", reloadedItem.CurrentRevision)
+	}
+}
+
+func TestAppRejectsTamperedSignedKnowledgeItemRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if _, err := app.AddRevision("alice", item.ID, "Start line", "Startup flow v2", "# Start line\n\nv2", nil); err != nil {
+		t.Fatalf("add revision: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "knowledge-item-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read knowledge-item messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed knowledge-item record")
+	}
+	var record SignedKnowledgeItemRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreitampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	tampered := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(recordPath, []byte(tampered), 0o644); err != nil {
+		t.Fatalf("rewrite tampered record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "envelope cid mismatch") {
+		t.Fatalf("expected envelope cid mismatch after tampering, got %v", err)
 	}
 }
 

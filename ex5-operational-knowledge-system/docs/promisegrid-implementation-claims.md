@@ -14,8 +14,9 @@ blurring together:
 
 ## Current status
 
-`ex5` ships as part of the PromiseGrid example set, but it is not yet
-PromiseGrid-complete at the runtime/wire layer. Source: `DI-sobek`.
+`ex5` ships as part of the PromiseGrid example set, and it now has its first
+PromiseGrid-native runtime family, but not yet across the whole operational
+model. Source: `DI-sobek`; `DI-mibor`.
 
 Today it ships:
 
@@ -24,13 +25,20 @@ Today it ships:
 - local durable draft and attachment storage
 - projected read/query views over that history
 - browser, CLI, and Neovim embodiments over the same local HTTP adapter
+- one frozen `knowledge-item` profile selected from the exact shipped protocol
+  bytes
+- one local signed-envelope runtime slice for durable knowledge-item
+  create/revision/lifecycle events
+- startup verification of the signed knowledge-item envelope log against the
+  replayed item event history
 
 Today it does **not** yet ship:
 
-- wire-visible `grid([42(pCID), payload, proof])` envelopes
-- frozen runtime behavior selected by a shipped `pCID`
 - relay-visible peer exchange
-- signing/verification behavior as part of the ex5 operational workflow
+- frozen runtime behavior for approval, evidence, link, responsibility, and
+  search-metadata families
+- relay transport or CAS-backed envelope storage as part of the ex5
+  operational workflow
 
 ## What the shipped implementation does promise
 
@@ -53,30 +61,55 @@ Durable revisions, runs, approvals, evidence, and typed links are distinct
 from transient working state such as draft presence, current filters, or local
 UI focus. Source: `DI-lusov`; `DI-zoruk`; `DI-dazim`; `DI-sobek`.
 
-### 4. The local HTTP API is an embodiment adapter
+### 4. The local HTTP API is still the embodiment adapter
 
 `GET /api/*` and `POST /api/*` routes are the shipped local adapter surface for
 browser, CLI, and Neovim. They are the current implementation contract for
-those embodiments, but they are not claimed as the final PromiseGrid peer
-contract. Source: `DI-sobek`.
+those embodiments, but the durable `knowledge-item` family underneath them is
+now also written as signed PromiseGrid-style envelopes in the local runtime.
+Source: `DI-sobek`; `DI-mibor`.
 
-### 5. Protocol-family language is shipped PromiseGrid framing, not yet a frozen wire promise
+### 5. `knowledge-item` is the first frozen family
 
-References to protocol families, protocol docs, and `pCID`-selected meaning
-are part of the shipped PromiseGrid framing for ex5. They do not yet mean that
-the current runtime emits or consumes frozen PromiseGrid wire artifacts.
-Source: `DI-sobek`.
+`knowledge-item` is now the first ex5 family where exact shipped spec bytes
+select runtime behavior through a computed `pCID`, and where the runtime signs
+and verifies durable family artifacts. The other named ex5 families remain
+documented framing and staged migration targets for now. Source: `DI-mibor`.
 
 ## What the shipped implementation does not yet promise
 
 The current shipped ex5 runtime does not yet promise:
 
-- that a specific frozen protocol document is the runtime-selected source of
-  public wire meaning
-- that envelopes are signed or verified as part of the ex5 workflow
-- that the local HTTP route names are a stable PromiseGrid peer contract
+- that all ex5 durable families are already frozen and PromiseGrid-native at
+  runtime
+- that the local HTTP route names are the PromiseGrid peer contract
 - that relay transport, peer exchange, or CAS-backed envelope storage are
-  already implemented
+  already implemented for ex5
+
+## Done now vs. remaining
+
+Done now:
+
+- `knowledge-item` is frozen as the first ex5 family
+- the runtime computes its `pCID` from the exact shipped spec bytes
+- the runtime signs and verifies durable knowledge-item create/revision/status
+  artifacts
+- the browser, CLI, and Neovim embodiments still project through the current
+  local HTTP adapter on top of that first signed family
+
+Remaining:
+
+- freeze and claim `knowledge-approval`
+- freeze and claim `knowledge-evidence`
+- freeze and claim `knowledge-link`
+- freeze and claim `knowledge-responsibility`
+- freeze and claim `knowledge-search-metadata`
+- decide and implement any later relay-visible exchange layer
+
+## Current implementation claim
+
+The current ex5 implementation claim lives in
+[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`.
 
 ## How to read the other ex5 docs
 
@@ -91,10 +124,8 @@ The current shipped ex5 runtime does not yet promise:
   shipped PromiseGrid reference spec prose for ex5, not the fully implemented
   wire contract
 
-## Follow-on decision
+## Follow-on work
 
-The next real PromiseGrid implementation question is tracked separately in
-[TODO ragup](../TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md): if
-and when ex5 should begin a real wire-level slice around frozen `pCID`
-handling, signed envelopes, and related runtime/storage behavior. Source:
-`DI-ragup`; `DI-sobek`.
+The next staged PromiseGrid work is the next family freeze after
+`knowledge-item`, not reopening the already settled “should we begin the real
+wire slice at all?” question. Source: `DI-mibor`.

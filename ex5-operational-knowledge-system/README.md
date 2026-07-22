@@ -144,13 +144,18 @@ What the current runtime actually implements today:
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
   editing
+- one frozen `knowledge-item` PromiseGrid profile computed from the shipped
+  protocol bytes
+- one local signed-envelope runtime slice for durable knowledge-item
+  create/revision/lifecycle events
 
 What is not yet implemented in the shipped runtime:
 
 - websocket-based collaboration transport
 - peer-to-peer relay exchange
-- signed grid envelopes on the wire
-- frozen runtime behavior selected by a shipped `pCID`
+- signed grid envelopes for the remaining ex5 families
+- frozen runtime behavior selected by shipped `pCID`s for the remaining ex5
+  families
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
