@@ -39,6 +39,10 @@ type Meta struct {
 	KnowledgeEvidencePCID       string   `json:"knowledge_evidence_pcid"`
 	KnowledgeLinkPCID           string   `json:"knowledge_link_pcid"`
 	KnowledgeResponsibilityPCID string   `json:"knowledge_responsibility_pcid"`
+	PeerExchangeFormat          string   `json:"peer_exchange_format"`
+	PeerExchangeFamilies        []string `json:"peer_exchange_families"`
+	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
+	CASAttachmentBlobsEnabled   bool     `json:"cas_attachment_blobs_enabled"`
 }
 
 type PeerExchangeBundle struct {
@@ -176,6 +180,7 @@ type Evidence struct {
 	Facts          map[string]string `json:"facts"`
 	AttachmentName string            `json:"attachment_name"`
 	AttachmentPath string            `json:"attachment_path"`
+	AttachmentCID  string            `json:"attachment_cid"`
 	AttachmentSize int64             `json:"attachment_size"`
 	Actor          string            `json:"actor"`
 	CreatedAt      string            `json:"created_at"`
@@ -304,6 +309,7 @@ type OperationalEvent struct {
 	Location          string            `json:"location"`
 	AttachmentName    string            `json:"attachment_name"`
 	AttachmentPath    string            `json:"attachment_path"`
+	AttachmentCID     string            `json:"attachment_cid"`
 	AttachmentSize    int64             `json:"attachment_size"`
 	EvidenceID        string            `json:"evidence_id"`
 	Facts             map[string]string `json:"facts"`

@@ -1,7 +1,7 @@
 # ex5 PromiseGrid CAS staging
 
-This note records how `ex5` should introduce CAS-backed storage without
-breaking the current local durable runtime. Source: `DI-ribek`.
+This note records the first shipped CAS-backed storage step in `ex5`. Source:
+`DI-ribek`; `DI-lavuz`.
 
 ## First CAS step
 
@@ -13,6 +13,14 @@ The first CAS step is additive, not replacing:
   `attachments/` tree as compatibility/manifests during migration
 
 Source: `DI-ribek`.
+
+This now ships in the runtime:
+
+- signed family envelopes are dual-written into CAS by envelope CID
+- copied evidence blobs are dual-written into CAS by blob CID
+- compatibility logs and attachment paths remain the active read model
+
+Source: `DI-lavuz`.
 
 ## Why the first step is additive
 

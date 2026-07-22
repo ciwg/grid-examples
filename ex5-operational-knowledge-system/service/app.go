@@ -99,6 +99,15 @@ func (app *App) Meta() Meta {
 		KnowledgeEvidencePCID:       protocols.KnowledgeEvidenceProfile.CID.String(),
 		KnowledgeLinkPCID:           protocols.KnowledgeLinkProfile.CID.String(),
 		KnowledgeResponsibilityPCID: protocols.KnowledgeResponsibilityProfile.CID.String(),
+		PeerExchangeFormat:          peerExchangeBundleFormat,
+		PeerExchangeFamilies: []string{
+			"knowledge-item",
+			"knowledge-approval",
+			"knowledge-link",
+			"knowledge-responsibility",
+		},
+		CASObjectsEnabled:         true,
+		CASAttachmentBlobsEnabled: true,
 	}
 }
 
@@ -595,12 +604,13 @@ func (app *App) AddEvidence(actor string, runID string, summary string, facts ma
 		Facts:      normalizeFacts(facts),
 	}
 	if len(attachmentBody) > 0 {
-		path, size, err := app.store.SaveAttachment(runID, attachmentName, attachmentBody)
+		path, cid, size, err := app.store.SaveAttachment(runID, attachmentName, attachmentBody)
 		if err != nil {
 			return RunRecord{}, err
 		}
 		event.AttachmentName = filepath.Base(attachmentName)
 		event.AttachmentPath = path
+		event.AttachmentCID = cid
 		event.AttachmentSize = size
 	}
 	if err := app.appendEventLocked(event); err != nil {
@@ -1272,6 +1282,7 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			Facts:          cloneFacts(event.Facts),
 			AttachmentName: event.AttachmentName,
 			AttachmentPath: event.AttachmentPath,
+			AttachmentCID:  event.AttachmentCID,
 			AttachmentSize: event.AttachmentSize,
 			Actor:          event.Actor,
 			CreatedAt:      event.Timestamp,

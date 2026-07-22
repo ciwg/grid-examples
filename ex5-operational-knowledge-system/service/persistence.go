@@ -2,12 +2,16 @@ package service
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
 const maxEventLineBytes = 1 << 20
@@ -27,6 +31,7 @@ type Store struct {
 	knowledgeLinkPath               string
 	knowledgeResponsibilityPath     string
 	draftPath                       string
+	casRoot                         string
 	identity                        *RuntimeIdentity
 }
 
@@ -45,6 +50,9 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "attachments"), 0o755); err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cas", "objects"), 0o755); err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "drafts"), 0o755); err != nil {
@@ -141,6 +149,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		knowledgeLinkPath:               knowledgeLinkPath,
 		knowledgeResponsibilityPath:     knowledgeResponsibilityPath,
 		draftPath:                       filepath.Join(root, "drafts"),
+		casRoot:                         filepath.Join(root, "cas", "objects"),
 		identity:                        identity,
 	}, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, nil
 }
@@ -218,6 +227,9 @@ func readSignedKnowledgeItemRecords(file *os.File) (records []SignedKnowledgeIte
 }
 
 func (store *Store) AppendSignedKnowledgeItemRecord(record SignedKnowledgeItemRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
 	body, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -258,6 +270,9 @@ func readSignedKnowledgeApprovalRecords(file *os.File) (records []SignedKnowledg
 }
 
 func (store *Store) AppendSignedKnowledgeApprovalRecord(record SignedKnowledgeApprovalRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
 	body, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -298,6 +313,9 @@ func readSignedKnowledgeEvidenceRecords(file *os.File) (records []SignedKnowledg
 }
 
 func (store *Store) AppendSignedKnowledgeEvidenceRecord(record SignedKnowledgeEvidenceRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
 	body, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -338,6 +356,9 @@ func readSignedKnowledgeLinkRecords(file *os.File) (records []SignedKnowledgeLin
 }
 
 func (store *Store) AppendSignedKnowledgeLinkRecord(record SignedKnowledgeLinkRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
 	body, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -378,6 +399,9 @@ func readSignedKnowledgeResponsibilityRecords(file *os.File) (records []SignedKn
 }
 
 func (store *Store) AppendSignedKnowledgeResponsibilityRecord(record SignedKnowledgeResponsibilityRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
 	body, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -390,11 +414,13 @@ func (store *Store) AppendSignedKnowledgeResponsibilityRecord(record SignedKnowl
 
 // Intent: Preserve evidence attachment history by storing each uploaded file at
 // a unique immutable path instead of overwriting earlier evidence bytes when a
-// later upload reuses the same filename. Source: DI-busor
-func (store *Store) SaveAttachment(entityID string, filename string, data []byte) (string, int64, error) {
+// later upload reuses the same filename, while also dual-writing the same
+// bytes into the staged CAS sidecar for later portable blob exchange. Source:
+// DI-busor; DI-ribek
+func (store *Store) SaveAttachment(entityID string, filename string, data []byte) (string, string, int64, error) {
 	dir := filepath.Join(store.root, "attachments", entityID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 	base := filepath.Base(strings.TrimSpace(filename))
 	if base == "" || base == "." {
@@ -402,16 +428,92 @@ func (store *Store) SaveAttachment(entityID string, filename string, data []byte
 	}
 	tempFile, err := os.CreateTemp(dir, "evidence-*-"+base)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 	target := tempFile.Name()
 	if _, err := tempFile.Write(data); err != nil {
-		return "", 0, errors.Join(err, tempFile.Close())
+		return "", "", 0, errors.Join(err, tempFile.Close())
 	}
 	if err := tempFile.Close(); err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
-	return target, int64(len(data)), nil
+	cid, err := store.writeCASObject(data)
+	if err != nil {
+		return "", "", 0, err
+	}
+	return target, cid, int64(len(data)), nil
+}
+
+func (store *Store) writeEnvelopeCAS(expectedCID string, envelopeBase64 string) error {
+	envelopeBytes, err := base64.StdEncoding.DecodeString(envelopeBase64)
+	if err != nil {
+		return fmt.Errorf("decode envelope base64: %w", err)
+	}
+	cid, err := store.writeCASObject(envelopeBytes)
+	if err != nil {
+		return err
+	}
+	if cid != expectedCID {
+		return fmt.Errorf("envelope CAS cid mismatch: got %q want %q", cid, expectedCID)
+	}
+	return nil
+}
+
+func (store *Store) writeCASObject(data []byte) (string, error) {
+	cid, err := protocols.CIDForBytes(data)
+	if err != nil {
+		return "", fmt.Errorf("cid cas object: %w", err)
+	}
+	target := store.casObjectPath(cid.String())
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return "", err
+	}
+	existing, err := os.ReadFile(target)
+	if err == nil {
+		if !bytes.Equal(existing, data) {
+			return "", fmt.Errorf("cas object %q already exists with different bytes", cid.String())
+		}
+		return cid.String(), nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	tempFile, err := os.CreateTemp(filepath.Dir(target), "cas-*")
+	if err != nil {
+		return "", err
+	}
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		return "", errors.Join(err, tempFile.Close(), os.Remove(tempPath))
+	}
+	if err := tempFile.Close(); err != nil {
+		return "", errors.Join(err, os.Remove(tempPath))
+	}
+	if err := os.Rename(tempPath, target); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			existing, readErr := os.ReadFile(target)
+			if readErr != nil {
+				return "", errors.Join(err, readErr)
+			}
+			if !bytes.Equal(existing, data) {
+				return "", fmt.Errorf("cas object %q already exists with different bytes", cid.String())
+			}
+			if removeErr := os.Remove(tempPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				return "", removeErr
+			}
+			return cid.String(), nil
+		}
+		return "", errors.Join(err, os.Remove(tempPath))
+	}
+	return cid.String(), nil
+}
+
+func (store *Store) casObjectPath(cid string) string {
+	prefix := cid
+	if len(prefix) > 2 {
+		prefix = prefix[:2]
+	}
+	return filepath.Join(store.casRoot, prefix, cid)
 }
 
 // Intent: Restore the shared browser working bodies on startup without mixing

@@ -37,6 +37,31 @@ func TestServerCreatesAndListsKnowledgeItems(t *testing.T) {
 	}
 }
 
+func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/meta", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected meta status: %d %s", response.Code, response.Body.String())
+	}
+	var meta Meta
+	if err := json.Unmarshal(response.Body.Bytes(), &meta); err != nil {
+		t.Fatalf("decode meta: %v", err)
+	}
+	if meta.PeerExchangeFormat != peerExchangeBundleFormat {
+		t.Fatalf("unexpected peer exchange format in meta: %+v", meta)
+	}
+	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled {
+		t.Fatalf("expected CAS capability flags in meta: %+v", meta)
+	}
+}
+
 func TestServerUploadsEvidenceAttachment(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
@@ -88,6 +113,9 @@ func TestServerUploadsEvidenceAttachment(t *testing.T) {
 	}
 	if len(decoded.Evidence) != 1 || decoded.Evidence[0].AttachmentName != "evidence.txt" {
 		t.Fatalf("unexpected evidence payload: %+v", decoded)
+	}
+	if decoded.Evidence[0].AttachmentCID == "" {
+		t.Fatalf("expected attachment CID in evidence payload: %+v", decoded.Evidence[0])
 	}
 }
 

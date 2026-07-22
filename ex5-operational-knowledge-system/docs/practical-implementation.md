@@ -231,9 +231,15 @@ signed family envelopes and copied evidence blobs into content-addressed
 storage while keeping the current family logs and attachment tree during
 migration. Source: `DI-ribek`.
 
-Embodiment wording does not tighten in the same phase. Browser, CLI, and
-Neovim remain described through the current local HTTP adapter until those
-peer/storage layers are implemented, not merely planned. Source: `DI-vabek`.
+That CAS pass now ships. Evidence records keep their compatibility attachment
+paths, and they now also carry blob CIDs so later peer-visible evidence
+exchange can bind to portable blob identity without losing the current read
+model. Source: `DI-lavuz`.
+
+Embodiment wording now tightens one step as well. Browser, CLI, and Neovim
+remain adapter-delivered, but the adapter now exposes the shipped peer-exchange
+format and CAS capability through runtime metadata and is described as an
+adapter over that broader runtime. Source: `DI-vabek`; `DI-rovuz`.
 
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and

@@ -45,6 +45,11 @@ Today it ships:
 - one local signed-envelope runtime slice for durable typed links
 - one local signed-envelope runtime slice for first-class responsibility
   records
+- additive CAS-backed sidecar storage for signed family envelopes by envelope
+  CID
+- additive CAS-backed sidecar storage for copied evidence blobs by blob CID
+- runtime capability metadata exposing the shipped peer-exchange format and CAS
+  support through `Meta`
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
 - startup verification of the signed knowledge-approval envelope log against
@@ -143,12 +148,10 @@ Done now:
 
 Remaining:
 
-- implement additive CAS-backed storage for signed envelopes and copied
-  evidence blobs
 - add peer-visible `knowledge-evidence` exchange once portable blob carriage
   exists
-- tighten embodiment/runtime language only after those peer/storage layers are
-  implemented
+- decide whether later embodiments should ever bypass the local HTTP adapter
+  instead of using it as the delivery surface over the richer runtime
 
 ## Current implementation claim
 
@@ -177,8 +180,8 @@ projection state, so the next work is the peer/storage layer backlog that
 follows the frozen operational families. The first relay-visible slice now
 ships as whole-family bootstrap export/import for the four attachment-free
 families, while peer-visible evidence still waits for the later
-storage/carriage decision. CAS is now staged as an additive sidecar for signed
+storage/carriage decision. CAS now ships as an additive sidecar for signed
 envelopes and copied evidence blobs rather than a log replacement rewrite, and
-embodiment tightening is staged after those runtime layers are implemented
-rather than before. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`;
-`DI-vabek`.
+the first embodiment-tightening step now ships through capability metadata plus
+adapter-over-runtime doc updates. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`;
+`DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`.

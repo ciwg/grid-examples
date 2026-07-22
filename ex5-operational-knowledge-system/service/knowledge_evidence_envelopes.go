@@ -30,6 +30,7 @@ type knowledgeEvidencePayload struct {
 	Facts          map[string]string `cbor:"facts,omitempty"`
 	AttachmentName string            `cbor:"attachment_name,omitempty"`
 	AttachmentPath string            `cbor:"attachment_path,omitempty"`
+	AttachmentCID  string            `cbor:"attachment_cid,omitempty"`
 	AttachmentSize int64             `cbor:"attachment_size,omitempty"`
 }
 
@@ -48,6 +49,7 @@ func knowledgeEvidencePayloadForEvent(event OperationalEvent) (knowledgeEvidence
 		Facts:          cloneFacts(event.Facts),
 		AttachmentName: event.AttachmentName,
 		AttachmentPath: event.AttachmentPath,
+		AttachmentCID:  event.AttachmentCID,
 		AttachmentSize: event.AttachmentSize,
 	}, true
 }
@@ -170,6 +172,8 @@ func compareKnowledgeEvidencePayload(expected knowledgeEvidencePayload, got know
 		return fmt.Errorf("attachment_name mismatch")
 	case expected.AttachmentPath != got.AttachmentPath:
 		return fmt.Errorf("attachment_path mismatch")
+	case expected.AttachmentCID != got.AttachmentCID:
+		return fmt.Errorf("attachment_cid mismatch")
 	case expected.AttachmentSize != got.AttachmentSize:
 		return fmt.Errorf("attachment_size mismatch")
 	}

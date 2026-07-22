@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -483,6 +484,9 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 	if meta.KnowledgeEvidencePCID != protocols.KnowledgeEvidenceProfile.CID.String() {
 		t.Fatalf("unexpected knowledge-evidence pCID in meta: got %q want %q", meta.KnowledgeEvidencePCID, protocols.KnowledgeEvidenceProfile.CID.String())
 	}
+	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled {
+		t.Fatalf("expected CAS capability flags in meta, got %+v", meta)
+	}
 
 	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-evidence-messages.jsonl"))
 	if err != nil {
@@ -520,7 +524,7 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 	if reloadedRun.Evidence[0].ID != run.Evidence[0].ID {
 		t.Fatalf("expected stable evidence id after replay, got %q want %q", reloadedRun.Evidence[0].ID, run.Evidence[0].ID)
 	}
-	if reloadedRun.Evidence[0].AttachmentPath == "" || reloadedRun.Evidence[0].AttachmentSize != int64(len([]byte("ok"))) {
+	if reloadedRun.Evidence[0].AttachmentPath == "" || reloadedRun.Evidence[0].AttachmentCID == "" || reloadedRun.Evidence[0].AttachmentSize != int64(len([]byte("ok"))) {
 		t.Fatalf("unexpected attachment reference after replay: %+v", reloadedRun.Evidence[0])
 	}
 }
@@ -572,6 +576,119 @@ func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
 
 	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-evidence") || !strings.Contains(err.Error(), "envelope cid mismatch") {
 		t.Fatalf("expected knowledge-evidence envelope cid mismatch after tampering, got %v", err)
+	}
+}
+
+func TestAppDualWritesCASObjectsForSignedFamiliesAndEvidenceBlobs(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "Dock bin", "Holds inbound parts", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	responsibility, err := app.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := app.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
+		t.Fatalf("approve item: %v", err)
+	}
+	run, err := app.RecordRun("carol", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("carol", run.ID, "Receiving inspection", map[string]string{"variance": "-2"}, "photo.txt", []byte("ok"))
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if run.Evidence[0].AttachmentCID == "" {
+		t.Fatalf("expected attachment CID on evidence: %+v", run.Evidence[0])
+	}
+	if err := app.AddLink("alice", "resource", resource.ID, "knowledge_item", item.ID, "used_by", "Dock bin supports check"); err != nil {
+		t.Fatalf("add link: %v", err)
+	}
+
+	checkSignedRecordCAS := func(path string, decode func([]byte) (string, string)) {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read signed records %s: %v", path, err)
+		}
+		lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+		if len(lines) == 0 {
+			t.Fatalf("expected signed records in %s", path)
+		}
+		cid, envelopeBase64 := decode([]byte(lines[0]))
+		envelopeBytes, err := base64.StdEncoding.DecodeString(envelopeBase64)
+		if err != nil {
+			t.Fatalf("decode envelope base64 for %s: %v", path, err)
+		}
+		casBytes, err := os.ReadFile(app.store.casObjectPath(cid))
+		if err != nil {
+			t.Fatalf("read cas object for %s: %v", cid, err)
+		}
+		if string(casBytes) != string(envelopeBytes) {
+			t.Fatalf("cas envelope bytes mismatch for %s", cid)
+		}
+	}
+
+	checkSignedRecordCAS(filepath.Join(root, "knowledge-item-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedKnowledgeItemRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode knowledge-item record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+	checkSignedRecordCAS(filepath.Join(root, "knowledge-approval-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedKnowledgeApprovalRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode knowledge-approval record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+	checkSignedRecordCAS(filepath.Join(root, "knowledge-evidence-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedKnowledgeEvidenceRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode knowledge-evidence record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+	checkSignedRecordCAS(filepath.Join(root, "knowledge-link-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedKnowledgeLinkRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode knowledge-link record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+	checkSignedRecordCAS(filepath.Join(root, "knowledge-responsibility-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedKnowledgeResponsibilityRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode knowledge-responsibility record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+
+	attachmentBytes, err := os.ReadFile(run.Evidence[0].AttachmentPath)
+	if err != nil {
+		t.Fatalf("read compatibility attachment: %v", err)
+	}
+	casAttachmentBytes, err := os.ReadFile(app.store.casObjectPath(run.Evidence[0].AttachmentCID))
+	if err != nil {
+		t.Fatalf("read cas attachment: %v", err)
+	}
+	if string(attachmentBytes) != string(casAttachmentBytes) {
+		t.Fatalf("cas attachment bytes mismatch")
 	}
 }
 
@@ -1486,6 +1603,9 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 	}
 	if got := meta.RunKinds[3]; got != RunKindReceiving {
 		t.Fatalf("expected receiving run kind in meta, got %+v", meta.RunKinds)
+	}
+	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 4 {
+		t.Fatalf("unexpected peer-exchange meta: %+v", meta)
 	}
 
 	dashboard := app.Dashboard()

@@ -44,9 +44,16 @@ sidecar for signed envelopes and copied evidence blobs, while the current
 family logs and copied attachment paths remain during migration. Source:
 `DI-ribek`.
 
-The embodiment contract stays adapter-first until those peer/storage layers are
-implemented. Browser, CLI, and Neovim are not yet restated as direct-runtime
-peers before that milestone. Source: `DI-vabek`.
+That CAS sidecar now ships in implemented form. Signed family envelopes are
+dual-written by envelope CID, copied evidence blobs are dual-written by blob
+CID, and compatibility reads still use the current logs and attachment paths.
+Source: `DI-lavuz`.
+
+The embodiment contract also tightens one step at that milestone: browser, CLI,
+and Neovim still use the local HTTP adapter, but the adapter now exposes
+peer-exchange and CAS runtime capability metadata and is described as an
+adapter over the richer runtime contract instead of only a local app surface.
+Source: `DI-vabek`; `DI-rovuz`.
 
 The runtime owns:
 

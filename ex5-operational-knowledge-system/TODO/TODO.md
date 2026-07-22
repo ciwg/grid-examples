@@ -1,6 +1,10 @@
 # TODO
 
 ## Open / Planned
+- none currently; see deferred items below.
+
+## Completed
+
 - [x] 102 - Stage embodiment-contract tightening after peer-exchange and additive CAS implementation - `TODO/TODO-zidor-ex5-embodiment-contract-tightening.md`
 - [x] 101 - Stage additive CAS-backed storage for signed envelopes and copied evidence blobs - `TODO/TODO-nobek-ex5-cas-envelope-storage.md`
 - [x] 100 - Stage the first relay-visible ex5 peer-exchange slice around attachment-free families - `TODO/TODO-fativ-ex5-relay-visible-peer-exchange.md`
@@ -12,20 +16,20 @@
 - [x] 094 - Choose and freeze the first ex5 PromiseGrid protocol family before any wire/runtime slice - `TODO/TODO-mibor-ex5-first-frozen-protocol-family.md`
 - [x] 093 - Decide whether ex5 should open a real PromiseGrid wire-level implementation slice - `TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`
 - [x] 092 - Align ex5 technical docs to the shipped PromiseGrid boundary and add implementation claims - `TODO/TODO-sobek-ex5-promisegrid-doc-honesty-and-claims.md`
-- [x] 088 - Align ex5 browser search behavior and wording with the shipped search contract - `TODO/TODO-ralek-ex5-browser-search-contract-honesty.md`
-- [x] 089 - Reduce ex5 browser Review-to-Author leakage and duplicate live-draft loading - `TODO/TODO-suvor-ex5-browser-review-author-mode-leakage.md`
-- [x] 090 - Add stronger ex5 browser success-path integration coverage - `TODO/TODO-fanok-ex5-browser-success-path-coverage.md`
 - [x] 091 - Reduce remaining ex5 browser clutter in advanced search and operate surfaces - `TODO/TODO-zovuk-ex5-browser-advanced-surface-clutter.md`
-- [x] 083 - Reduce ex5 browser simultaneous surface clutter - `TODO/TODO-rabok-ex5-browser-surface-clutter-reduction.md`
-- [x] 084 - Strengthen ex5 browser mode separation into clearer working states - `TODO/TODO-lutav-ex5-browser-clearer-working-states.md`
-- [x] 085 - Make ex5 browser review the unmistakable home path - `TODO/TODO-javik-ex5-browser-review-home-path.md`
-- [x] 086 - Stage ex5 browser operate flows behind clearer action choices - `TODO/TODO-zumor-ex5-browser-staged-operate-flows.md`
+- [x] 090 - Add stronger ex5 browser success-path integration coverage - `TODO/TODO-fanok-ex5-browser-success-path-coverage.md`
+- [x] 089 - Reduce ex5 browser Review-to-Author leakage and duplicate live-draft loading - `TODO/TODO-suvor-ex5-browser-review-author-mode-leakage.md`
+- [x] 088 - Align ex5 browser search behavior and wording with the shipped search contract - `TODO/TODO-ralek-ex5-browser-search-contract-honesty.md`
 - [x] 087 - Make ex5 browser authoring feel quieter and more writing-centered - `TODO/TODO-farok-ex5-browser-writing-centered-authoring.md`
-- [x] 078 - Make ex5 browser operate flows more intent-driven and less schema-driven - `TODO/TODO-matub-ex5-browser-intent-driven-operations.md`
-- [x] 079 - Turn ex5 browser search into a more task-first discovery surface - `TODO/TODO-rovak-ex5-browser-task-first-search.md`
-- [x] 080 - Strengthen ex5 browser mode behavior beyond visual dimming - `TODO/TODO-nabek-ex5-browser-stronger-mode-behavior.md`
-- [x] 081 - Clarify ex5 browser landing job and dominant review path - `TODO/TODO-pafur-ex5-browser-dominant-review-path.md`
+- [x] 086 - Stage ex5 browser operate flows behind clearer action choices - `TODO/TODO-zumor-ex5-browser-staged-operate-flows.md`
+- [x] 085 - Make ex5 browser review the unmistakable home path - `TODO/TODO-javik-ex5-browser-review-home-path.md`
+- [x] 084 - Strengthen ex5 browser mode separation into clearer working states - `TODO/TODO-lutav-ex5-browser-clearer-working-states.md`
+- [x] 083 - Reduce ex5 browser simultaneous surface clutter - `TODO/TODO-rabok-ex5-browser-surface-clutter-reduction.md`
 - [x] 082 - Push ex5 browser authoring toward a more focused writing environment - `TODO/TODO-tavul-ex5-browser-writing-environment.md`
+- [x] 081 - Clarify ex5 browser landing job and dominant review path - `TODO/TODO-pafur-ex5-browser-dominant-review-path.md`
+- [x] 080 - Strengthen ex5 browser mode behavior beyond visual dimming - `TODO/TODO-nabek-ex5-browser-stronger-mode-behavior.md`
+- [x] 079 - Turn ex5 browser search into a more task-first discovery surface - `TODO/TODO-rovak-ex5-browser-task-first-search.md`
+- [x] 078 - Make ex5 browser operate flows more intent-driven and less schema-driven - `TODO/TODO-matub-ex5-browser-intent-driven-operations.md`
 - [x] 077 - Make ex5 browser operation flows more context-driven - `TODO/TODO-mitav-ex5-browser-context-driven-operations.md`
 - [x] 076 - Clarify the ex5 browser primary action flow - `TODO/TODO-sorik-ex5-browser-primary-flow.md`
 - [x] 075 - Shift ex5 browser controls toward clearer task language - `TODO/TODO-vazut-ex5-browser-task-language.md`
@@ -37,10 +41,10 @@
 - [x] 060 - Add ex5 Neovim structured search filters - `TODO/TODO-fanub-ex5-neovim-structured-search-filters.md`
 - [x] 059 - Add ex5 Neovim grouped problem-review phase - `TODO/TODO-sivok-ex5-neovim-problem-review-phase.md`
 - [x] 058 - Add ex5 Neovim related-run handoff hints across inspectors - `TODO/TODO-josav-ex5-neovim-related-run-handoffs.md`
+- [x] 057 - Add ex5 user-facing documentation set with overview, guide, and terminal matrix - `TODO/TODO-movar-ex5-user-documentation-pass.md`
 - [x] 056 - Add real behavior tests for ex5 Neovim inspect commands - `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
 - [x] 055 - Bring ex5 architecture docs up to current terminal surface - `TODO/TODO-bafek-ex5-architecture-terminal-drift.md`
 - [x] 054 - Add better terminal run-context handoffs in ex5 CLI and Neovim - `TODO/TODO-vunep-ex5-run-context-handoffs.md`
-- [x] 057 - Add ex5 user-facing documentation set with overview, guide, and terminal matrix - `TODO/TODO-movar-ex5-user-documentation-pass.md`
 - [x] 053 - Make ex5 terminal review queues reject missing approvals fields - `TODO/TODO-davur-ex5-review-queue-approvals-contract.md`
 - [x] 052 - Render ex5 CLI pending and problem review queues as terminal summaries - `TODO/TODO-ravum-ex5-cli-review-queue-rendering.md`
 - [x] 051 - Define the next concrete ex5 terminal slice under TODO 016 - `TODO/TODO-zovam-ex5-terminal-followon-slice-definition.md`
@@ -58,13 +62,11 @@
 - [x] 039 - Add ex5 Neovim item approval phase - `TODO/TODO-vamor-ex5-neovim-item-approval-phase.md`
 - [x] 038 - Add ex5 Neovim pending review phase - `TODO/TODO-lorav-ex5-neovim-pending-review-phase.md`
 - [x] 037 - Add ex5 Neovim search and browse phase - `TODO/TODO-givot-ex5-neovim-search-browse-phase.md`
-- [x] 032 - Fix ex5 Neovim `:OksClose` session teardown behavior - `TODO/TODO-mabek-ex5-neovim-close-session-teardown.md`
-- [x] 033 - Harden ex5 browser form and search error handling - `TODO/TODO-ruvot-ex5-browser-error-handling.md`
-- [x] 034 - URL-encode ex5 CLI search queries correctly - `TODO/TODO-sifeg-ex5-cli-search-query-encoding.md`
-- [x] 035 - Correct ex5 browser/CLI embodiment-equality overstatement in docs - `TODO/TODO-pobud-ex5-embodiment-doc-honesty.md`
 - [x] 036 - Correct ex5 browser smoke coverage overstatement in docs/tests - `TODO/TODO-lanis-ex5-browser-smoke-doc-honesty.md`
-
-## Completed
+- [x] 035 - Correct ex5 browser/CLI embodiment-equality overstatement in docs - `TODO/TODO-pobud-ex5-embodiment-doc-honesty.md`
+- [x] 034 - URL-encode ex5 CLI search queries correctly - `TODO/TODO-sifeg-ex5-cli-search-query-encoding.md`
+- [x] 033 - Harden ex5 browser form and search error handling - `TODO/TODO-ruvot-ex5-browser-error-handling.md`
+- [x] 032 - Fix ex5 Neovim `:OksClose` session teardown behavior - `TODO/TODO-mabek-ex5-neovim-close-session-teardown.md`
 
 - [x] 072 - Reorganize ex5 browser into a review-first workspace without removing functionality - `TODO/TODO-lafor-ex5-browser-review-first-workspace.md`
 - [x] 071 - Add ex5 browser UI guide with section-by-section and field-by-field usage notes - `TODO/TODO-nalor-ex5-browser-ui-guide.md`

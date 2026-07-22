@@ -1,29 +1,35 @@
 # ex5 PromiseGrid embodiment staging
 
-This note records when `ex5` should tighten embodiment language beyond the
-current local HTTP adapter. Source: `DI-vabek`.
+This note records the first shipped embodiment-contract tightening step in
+`ex5`. Source: `DI-vabek`; `DI-rovuz`.
 
 ## Current state
 
 Browser, CLI, and Neovim still share one runtime through the current local HTTP
-adapter. That remains the honest shipped embodiment contract today. Source:
-`DI-sobek`; `DI-vabek`.
+adapter. That remains the delivery surface today, but the adapter now exposes
+runtime capability metadata for peer exchange and CAS through `Meta`. Source:
+`DI-sobek`; `DI-vabek`; `DI-rovuz`.
 
 ## Tightening trigger
 
-Embodiment-contract tightening should wait until both of these runtime layers
-exist in implemented form:
+The first tightening trigger was both runtime layers landing in implemented
+form:
 
 - the first relay-visible exchange layer
 - the additive CAS-backed storage layer
 
-Only after those exist should `ex5` restate embodiments as binding more
-directly to the shipped PromiseGrid runtime contract. Source: `DI-vabek`.
+That first tightening step now ships as:
+
+- adapter-visible runtime capability metadata
+- doc wording that describes HTTP as an adapter over a peer/CAS-capable
+  runtime, not only as a local app surface
+
+Source: `DI-vabek`; `DI-rovuz`.
 
 ## What not to do yet
 
-- do not rewrite current browser, CLI, or Neovim docs as if they already speak
-  a direct peer/runtime contract
-- do not couple embodiment wording changes to planning-only peer/storage docs
+- do not rewrite current browser, CLI, or Neovim as if they bypass the adapter
+- do not confuse adapter-visible capability metadata with a finished transport
+  migration
 
-Source: `DI-vabek`.
+Source: `DI-vabek`; `DI-rovuz`.
