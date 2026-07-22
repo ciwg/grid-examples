@@ -13,6 +13,9 @@ var knowledgeItemSpec []byte
 //go:embed knowledge-approval.md
 var knowledgeApprovalSpec []byte
 
+//go:embed knowledge-evidence.md
+var knowledgeEvidenceSpec []byte
+
 type Profile struct {
 	Name string
 	Spec []byte
@@ -28,6 +31,10 @@ var (
 	// shipped knowledge-approval spec bytes rather than a handwritten constant.
 	// Source: DI-vosul
 	KnowledgeApprovalProfile = mustProfile("knowledge-approval", knowledgeApprovalSpec)
+	// Intent: Bind the third ex5 PromiseGrid-native runtime slice to the exact
+	// shipped knowledge-evidence spec bytes rather than a handwritten constant.
+	// Source: DI-kavup
+	KnowledgeEvidenceProfile = mustProfile("knowledge-evidence", knowledgeEvidenceSpec)
 )
 
 func mustProfile(name string, spec []byte) Profile {
@@ -39,7 +46,7 @@ func mustProfile(name string, spec []byte) Profile {
 }
 
 func ProfileByCIDText(cidText string) (Profile, error) {
-	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile} {
+	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile, KnowledgeEvidenceProfile} {
 		if profile.CID.String() == cidText {
 			return profile, nil
 		}

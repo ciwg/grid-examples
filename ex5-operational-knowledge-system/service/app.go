@@ -31,7 +31,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, knowledgeApprovalRecords, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +62,9 @@ func NewApp(dataRoot string) (*App, error) {
 	if err := verifySignedKnowledgeApprovalRecords(events, knowledgeApprovalRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-approval envelopes: %w", err)
 	}
+	if err := verifySignedKnowledgeEvidenceRecords(events, knowledgeEvidenceRecords); err != nil {
+		return nil, fmt.Errorf("verify knowledge-evidence envelopes: %w", err)
+	}
 	drafts, err := store.LoadDrafts()
 	if err != nil {
 		return nil, err
@@ -87,6 +90,7 @@ func (app *App) Meta() Meta {
 		ItemStatuses:          []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
 		KnowledgeItemPCID:     protocols.KnowledgeItemProfile.CID.String(),
 		KnowledgeApprovalPCID: protocols.KnowledgeApprovalProfile.CID.String(),
+		KnowledgeEvidencePCID: protocols.KnowledgeEvidenceProfile.CID.String(),
 	}
 }
 
@@ -572,10 +576,12 @@ func (app *App) AddEvidence(actor string, runID string, summary string, facts ma
 	if !ok {
 		return RunRecord{}, fmt.Errorf("run %q not found", runID)
 	}
+	evidenceID := app.nextIDLocked("EVID")
 	event := OperationalEvent{
 		EntityType: "run",
 		EntityID:   runID,
 		Type:       "evidence_added",
+		EvidenceID: evidenceID,
 		Actor:      actor,
 		Summary:    strings.TrimSpace(summary),
 		Facts:      normalizeFacts(facts),
@@ -1036,6 +1042,11 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		app.nextSequence--
 		return err
 	}
+	evidenceRecord, hasEvidenceRecord, err := buildSignedKnowledgeEvidenceRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
 	if hasItemRecord {
 		// Intent: Persist the first PromiseGrid-native knowledge-item artifact
 		// before the compatibility event log so ex5 never claims a new signed item
@@ -1050,6 +1061,16 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		// artifact before the compatibility event log so ex5 never claims a new
 		// signed approval that the runtime failed to materialize. Source: DI-vosul
 		if err := app.store.AppendSignedKnowledgeApprovalRecord(approvalRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
+	if hasEvidenceRecord {
+		// Intent: Persist the third PromiseGrid-native knowledge-evidence
+		// artifact before the compatibility event log so ex5 never claims a new
+		// signed evidence record that the runtime failed to materialize. Source:
+		// DI-kavup; DI-ribof
+		if err := app.store.AppendSignedKnowledgeEvidenceRecord(evidenceRecord); err != nil {
 			app.nextSequence--
 			return err
 		}
@@ -1204,7 +1225,10 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 		if !ok {
 			return fmt.Errorf("run %q not found for evidence", event.EntityID)
 		}
-		id := app.nextDerivedIDLocked("EVID")
+		id := event.EvidenceID
+		if strings.TrimSpace(id) == "" {
+			id = app.nextDerivedIDLocked("EVID")
+		}
 		run.Evidence = append(run.Evidence, Evidence{
 			ID:             id,
 			Summary:        event.Summary,

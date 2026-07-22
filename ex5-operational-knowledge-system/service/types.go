@@ -36,6 +36,7 @@ type Meta struct {
 	ItemStatuses          []string `json:"item_statuses"`
 	KnowledgeItemPCID     string   `json:"knowledge_item_pcid"`
 	KnowledgeApprovalPCID string   `json:"knowledge_approval_pcid"`
+	KnowledgeEvidencePCID string   `json:"knowledge_evidence_pcid"`
 }
 
 type Place struct {
@@ -272,6 +273,7 @@ type OperationalEvent struct {
 	AttachmentName    string            `json:"attachment_name"`
 	AttachmentPath    string            `json:"attachment_path"`
 	AttachmentSize    int64             `json:"attachment_size"`
+	EvidenceID        string            `json:"evidence_id"`
 	Facts             map[string]string `json:"facts"`
 	TargetType        string            `json:"target_type"`
 	TargetID          string            `json:"target_id"`

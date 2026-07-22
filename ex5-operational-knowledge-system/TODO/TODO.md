@@ -1,6 +1,7 @@
 # TODO
 
 ## Open / Planned
+- [x] 096 - Freeze and claim the third ex5 PromiseGrid protocol family - `TODO/TODO-kavup-ex5-third-frozen-protocol-family.md`
 - [x] 095 - Freeze and claim the second ex5 PromiseGrid protocol family - `TODO/TODO-vosul-ex5-second-frozen-protocol-family.md`
 - [x] 094 - Choose and freeze the first ex5 PromiseGrid protocol family before any wire/runtime slice - `TODO/TODO-mibor-ex5-first-frozen-protocol-family.md`
 - [x] 093 - Decide whether ex5 should open a real PromiseGrid wire-level implementation slice - `TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`

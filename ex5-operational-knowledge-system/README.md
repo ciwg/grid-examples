@@ -54,9 +54,10 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - append-only performed run records linked to exact revisions
 - structured evidence with optional immutable attachment upload up to 8 MiB
 - named-role approvals with local team policy left outside the durable record
-- two frozen PromiseGrid-native runtime families so far:
+- three frozen PromiseGrid-native runtime families so far:
   - `knowledge-item`
   - `knowledge-approval`
+  - `knowledge-evidence`
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms

@@ -15,3 +15,11 @@ spec:            bafkreibdxszozhrp335vpi5v4hxaoqwp46q2xd22n4iwbniabhu6nfykau
 scope:           local-runtime signed envelopes for `approval_recorded`, covering both knowledge-item and run approvals while browser/CLI/Neovim still use the local HTTP adapter and the remaining ex5 families still bridged
 breaking-change: false
 notes:           This is the second PromiseGrid-native runtime slice in ex5. It freezes `knowledge-approval` as one durable family for named-role review outcomes while keeping lifecycle status changes in `knowledge-item`.
+
+## knowledge-evidence
+
+claim:           partially-implements
+spec:            bafkreidyre7waqivwh7ef5hb35rlzogpp3lbt4sdprygoi2ii47vaxh7h4
+scope:           local-runtime signed envelopes for `evidence_added`, covering evidence metadata plus attachment name/path/size references while browser/CLI/Neovim still use the local HTTP adapter and copied attachment bytes remain on current runtime storage
+breaking-change: false
+notes:           This is the third PromiseGrid-native runtime slice in ex5. It freezes `knowledge-evidence` around structured evidence plus attachment references while leaving attachment bytes outside the family.

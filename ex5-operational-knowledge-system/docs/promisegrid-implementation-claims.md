@@ -14,9 +14,9 @@ blurring together:
 
 ## Current status
 
-`ex5` ships as part of the PromiseGrid example set, and it now has two
+`ex5` ships as part of the PromiseGrid example set, and it now has three
 PromiseGrid-native runtime families, but not yet across the whole operational
-model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`.
+model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`.
 
 Today it ships:
 
@@ -29,19 +29,25 @@ Today it ships:
   bytes
 - one frozen `knowledge-approval` profile selected from the exact shipped
   protocol bytes
+- one frozen `knowledge-evidence` profile selected from the exact shipped
+  protocol bytes
 - one local signed-envelope runtime slice for durable knowledge-item
   create/revision/lifecycle events
 - one local signed-envelope runtime slice for durable knowledge-item and run
   approval artifacts
+- one local signed-envelope runtime slice for durable evidence metadata plus
+  attachment references
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
 - startup verification of the signed knowledge-approval envelope log against
   the replayed approval event history
+- startup verification of the signed knowledge-evidence envelope log against
+  the replayed evidence event history
 
 Today it does **not** yet ship:
 
 - relay-visible peer exchange
-- frozen runtime behavior for evidence, link, responsibility, and
+- frozen runtime behavior for link, responsibility, and
   search-metadata families
 - relay transport or CAS-backed envelope storage as part of the ex5
   operational workflow
@@ -75,12 +81,13 @@ those embodiments, but the durable `knowledge-item` family underneath them is
 now also written as signed PromiseGrid-style envelopes in the local runtime.
 Source: `DI-sobek`; `DI-mibor`.
 
-### 5. `knowledge-item` and `knowledge-approval` are the current frozen families
+### 5. `knowledge-item`, `knowledge-approval`, and `knowledge-evidence` are the current frozen families
 
-`knowledge-item` and `knowledge-approval` now select runtime behavior through
-their computed `pCID`s, and the runtime signs and verifies durable artifacts
-for both families. The other named ex5 families remain documented framing and
-staged migration targets for now. Source: `DI-mibor`; `DI-vosul`.
+`knowledge-item`, `knowledge-approval`, and `knowledge-evidence` now select
+runtime behavior through their computed `pCID`s, and the runtime signs and
+verifies durable artifacts for all three families. The other named ex5
+families remain documented framing and staged migration targets for now.
+Source: `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`.
 
 ## What the shipped implementation does not yet promise
 
@@ -98,17 +105,19 @@ Done now:
 
 - `knowledge-item` is frozen as the first ex5 family
 - `knowledge-approval` is frozen as the second ex5 family
-- the runtime computes both `pCID`s from the exact shipped spec bytes
+- `knowledge-evidence` is frozen as the third ex5 family
+- the runtime computes all three `pCID`s from the exact shipped spec bytes
 - the runtime signs and verifies durable knowledge-item create/revision/status
   artifacts
 - the runtime signs and verifies durable knowledge-item and run approval
   artifacts
+- the runtime signs and verifies durable evidence metadata plus attachment
+  references
 - the browser, CLI, and Neovim embodiments still project through the current
   local HTTP adapter on top of those signed families
 
 Remaining:
 
-- freeze and claim `knowledge-evidence`
 - freeze and claim `knowledge-link`
 - freeze and claim `knowledge-responsibility`
 - freeze and claim `knowledge-search-metadata`
@@ -117,7 +126,7 @@ Remaining:
 ## Current implementation claim
 
 The current ex5 implementation claims live in
-[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`.
+[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`; `DI-kavup`.
 
 ## How to read the other ex5 docs
 
@@ -135,5 +144,5 @@ The current ex5 implementation claims live in
 ## Follow-on work
 
 The next staged PromiseGrid work is the next family freeze after
-`knowledge-approval`, not reopening the already settled “should we begin the
-real wire slice at all?” question. Source: `DI-vosul`.
+`knowledge-evidence`, not reopening the already settled “should we begin the
+real wire slice at all?” question. Source: `DI-kavup`.

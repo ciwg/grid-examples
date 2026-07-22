@@ -456,6 +456,125 @@ func TestAppRejectsTamperedSignedKnowledgeApprovalRecords(t *testing.T) {
 	}
 }
 
+func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{"variance": "-2", "condition": "wrap torn"}, "photo.txt", []byte("ok"))
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if len(run.Evidence) != 1 || run.Evidence[0].ID == "" {
+		t.Fatalf("expected stable evidence id, got %+v", run.Evidence)
+	}
+
+	meta := app.Meta()
+	if meta.KnowledgeEvidencePCID != protocols.KnowledgeEvidenceProfile.CID.String() {
+		t.Fatalf("unexpected knowledge-evidence pCID in meta: got %q want %q", meta.KnowledgeEvidencePCID, protocols.KnowledgeEvidenceProfile.CID.String())
+	}
+
+	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-evidence-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read knowledge-evidence messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 signed knowledge-evidence record, got %d", len(lines))
+	}
+	var record SignedKnowledgeEvidenceRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode evidence record: %v", err)
+	}
+	if record.PCID != protocols.KnowledgeEvidenceProfile.CID.String() {
+		t.Fatalf("unexpected evidence record pCID: got %q want %q", record.PCID, protocols.KnowledgeEvidenceProfile.CID.String())
+	}
+	if record.EvidenceID != run.Evidence[0].ID {
+		t.Fatalf("unexpected evidence id in record: got %q want %q", record.EvidenceID, run.Evidence[0].ID)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedRun, err := reloaded.GetRun(run.ID)
+	if err != nil {
+		t.Fatalf("get reloaded run: %v", err)
+	}
+	if len(reloadedRun.Evidence) != 1 {
+		t.Fatalf("unexpected evidence after signed replay verification: %+v", reloadedRun.Evidence)
+	}
+	if reloadedRun.Evidence[0].ID != run.Evidence[0].ID {
+		t.Fatalf("expected stable evidence id after replay, got %q want %q", reloadedRun.Evidence[0].ID, run.Evidence[0].ID)
+	}
+	if reloadedRun.Evidence[0].AttachmentPath == "" || reloadedRun.Evidence[0].AttachmentSize != int64(len([]byte("ok"))) {
+		t.Fatalf("unexpected attachment reference after replay: %+v", reloadedRun.Evidence[0])
+	}
+}
+
+func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if _, err := app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{"variance": "-2"}, "photo.txt", []byte("ok")); err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "knowledge-evidence-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read knowledge-evidence messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed knowledge-evidence record")
+	}
+	var record SignedKnowledgeEvidenceRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode evidence record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreievidencetampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered evidence record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	tampered := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(recordPath, []byte(tampered), 0o644); err != nil {
+		t.Fatalf("rewrite tampered evidence record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "knowledge-evidence") || !strings.Contains(err.Error(), "envelope cid mismatch") {
+		t.Fatalf("expected knowledge-evidence envelope cid mismatch after tampering, got %v", err)
+	}
+}
+
 func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
