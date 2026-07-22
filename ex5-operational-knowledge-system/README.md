@@ -59,6 +59,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - browser dashboard and forms
 - browser search filters by kind, status, place, resource, and responsibility
 - browser search filters by kind, status, outcome, place, resource, and responsibility
+- browser free-text search now reaches run evidence facts and approval notes
 - browser record inspector with summary cards and timelines
 - browser review panels for item revisions, run evidence, and approvals
 - item detail drilldown into the runs that used that item

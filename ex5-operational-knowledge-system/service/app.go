@@ -731,15 +731,7 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 		}
 	}
 	for _, record := range app.runs {
-		searchBlob := record.Outcome + " " + record.Notes + " " + record.Machine + " " + record.Location
-		if place, ok := app.places[record.PlaceID]; ok {
-			searchBlob += " " + place.Name + " " + place.Summary + " " + place.Kind
-		}
-		for _, resourceID := range record.ResourceIDs {
-			if resource, ok := app.resources[resourceID]; ok {
-				searchBlob += " " + resource.Name + " " + resource.Summary + " " + resource.Kind
-			}
-		}
+		searchBlob := runSearchBlob(record, app.places, app.resources)
 		if matchesRunSearch(record, searchBlob, options) {
 			runs = append(runs, cloneRun(record))
 		}
@@ -842,6 +834,32 @@ func matchesRunSearch(record *RunRecord, searchBlob string, options SearchOption
 		return false
 	}
 	return matchesQuery(searchBlob, options.Query)
+}
+
+// Intent: Keep ex5 free-text search aligned with the operational-memory story
+// by indexing evidence summaries/facts and approval review notes alongside the
+// basic run fields. Source: DI-farun
+func runSearchBlob(record *RunRecord, places map[string]*Place, resources map[string]*Resource) string {
+	var parts []string
+	parts = append(parts, record.Outcome, record.Notes, record.Machine, record.Location)
+	if place, ok := places[record.PlaceID]; ok {
+		parts = append(parts, place.Name, place.Summary, place.Kind)
+	}
+	for _, resourceID := range record.ResourceIDs {
+		if resource, ok := resources[resourceID]; ok {
+			parts = append(parts, resource.Name, resource.Summary, resource.Kind)
+		}
+	}
+	for _, evidence := range record.Evidence {
+		parts = append(parts, evidence.Summary, evidence.Actor, evidence.AttachmentName)
+		for key, value := range evidence.Facts {
+			parts = append(parts, key, value)
+		}
+	}
+	for _, approval := range record.Approvals {
+		parts = append(parts, approval.Actor, approval.Role, approval.Decision, approval.Notes)
+	}
+	return strings.Join(parts, " ")
 }
 
 func matchesQuery(value string, query string) bool {

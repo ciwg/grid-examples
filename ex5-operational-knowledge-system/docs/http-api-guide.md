@@ -481,3 +481,12 @@ Returns mixed projected results across:
 - responsibilities
 - items
 - runs
+
+Run free-text matching includes:
+
+- run outcome, notes, machine, and location
+- linked place and resource names/summaries
+- evidence summaries and fact key/value text
+- approval actor/role/decision/notes text
+
+Source: `DI-farun`.

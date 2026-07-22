@@ -26,10 +26,10 @@ captured and what follow-up happened.
 
 ## Tasks
 
-- [ ] farun.1 Expand run search indexing so evidence summaries/facts and approval notes participate in free-text search.
-- [ ] farun.2 Add service/API regression coverage and update docs to describe the searchable history surface accurately.
+- [x] farun.1 Expand run search indexing so evidence summaries/facts and approval notes participate in free-text search.
+- [x] farun.2 Add service/API regression coverage and update docs to describe the searchable history surface accurately.
 
 ## Status
 
-- open
+- done
 - derived from the 2026-07-21 deep ex5 review

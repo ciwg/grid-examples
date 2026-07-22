@@ -532,6 +532,54 @@ func TestServerSearchAcceptsStructuredFilters(t *testing.T) {
 	}
 }
 
+func TestServerSearchIncludesRunEvidenceAndApprovalHistory(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
+		"supplier":     "Acme Parts",
+		"packing_slip": "PS-1234",
+		"condition":    "wrap torn",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if err := app.RecordApproval("boss", "run", run.ID, 0, "reviewer", DecisionApproved, "Reviewed at dock"); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+
+	server := NewServer(app)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/search?q=Acme%20Parts", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("evidence search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), run.ID) || !strings.Contains(response.Body.String(), `"supplier":"Acme Parts"`) {
+		t.Fatalf("evidence search missing run or evidence facts: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/search?q=Reviewed%20at%20dock", nil)
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("approval search status: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), run.ID) || !strings.Contains(response.Body.String(), `"notes":"Reviewed at dock"`) {
+		t.Fatalf("approval search missing run or approval notes: %s", response.Body.String())
+	}
+}
+
 func TestServerItemDetailIncludesRelatedRuns(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

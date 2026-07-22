@@ -221,6 +221,11 @@ Those problem drilldowns now use the same receiving/inventory problem logic as
 the grouped hotspot review, rather than filtering only one receiving outcome.
 Source: `DI-vemur`.
 
+Run search now also reaches evidence summaries, evidence facts, and approval
+notes. That means later operators can find runs by details like supplier names,
+packing-slip identifiers, discrepancy facts, or recorded review notes instead
+of only outcome and freeform run notes. Source: `DI-farun`.
+
 The browser startup path is also hardened for restrictive/private environments.
 If `localStorage` access is blocked or `crypto.randomUUID()` is unavailable,
 the UI falls back to an in-memory participant identity instead of failing to

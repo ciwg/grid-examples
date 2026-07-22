@@ -2,10 +2,11 @@
 
 ## Open / Planned
 
-- [ ] 030 - Expand ex5 search so evidence and approval history is actually searchable - `TODO/TODO-farun-ex5-search-evidence-and-approval-history.md`
+- none
 
 ## Completed
 
+- [x] 030 - Expand ex5 search so evidence and approval history is actually searchable - `TODO/TODO-farun-ex5-search-evidence-and-approval-history.md`
 - [x] 029 - Harden ex5 browser participant identity startup in restricted storage environments - `TODO/TODO-mitob-ex5-browser-participant-identity-hardening.md`
 - [x] 028 - Fix ex5 Neovim live-draft cursor reporting against the wrong window - `TODO/TODO-pazud-ex5-neovim-cursor-window-correctness.md`
 - [x] 027 - Enforce ex5 evidence attachment size limits - `TODO/TODO-navos-ex5-evidence-attachment-size-enforcement.md`

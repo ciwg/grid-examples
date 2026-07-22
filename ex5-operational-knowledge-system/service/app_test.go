@@ -624,6 +624,44 @@ func TestAppSearchWithStructuredFilters(t *testing.T) {
 	}
 }
 
+func TestAppSearchIncludesRunEvidenceAndApprovalHistory(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindReceiving, item.ID, 1, "accepted_with_notes", "Outer wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	run, err = app.AddEvidence("bob", run.ID, "Receiving inspection", map[string]string{
+		"supplier":     "Acme Parts",
+		"packing_slip": "PS-1234",
+		"condition":    "wrap torn",
+	}, "", nil)
+	if err != nil {
+		t.Fatalf("add evidence: %v", err)
+	}
+	if err := app.RecordApproval("boss", "run", run.ID, 0, "reviewer", DecisionApproved, "Reviewed at dock"); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+
+	evidenceSearch := app.SearchWithOptions(SearchOptions{Query: "acme parts"})
+	evidenceRuns := evidenceSearch["runs"].([]RunRecord)
+	if len(evidenceRuns) != 1 || evidenceRuns[0].ID != run.ID {
+		t.Fatalf("expected evidence search to find run by facts, got %+v", evidenceRuns)
+	}
+
+	approvalSearch := app.SearchWithOptions(SearchOptions{Query: "reviewed at dock"})
+	approvalRuns := approvalSearch["runs"].([]RunRecord)
+	if len(approvalRuns) != 1 || approvalRuns[0].ID != run.ID {
+		t.Fatalf("expected approval search to find run by approval notes, got %+v", approvalRuns)
+	}
+}
+
 func TestGetKnowledgeItemIncludesRelatedRuns(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
