@@ -98,9 +98,10 @@ func TestNeovimApproveItemUsesCurrentRevisionAndRefreshesInspector(t *testing.T)
 vim.env.OKS_BASE_URL = %q
 vim.env.OKS_DISPLAY_NAME = "Boss"
 local oks = require("oks")
+oks.setup()
 
-oks.inspect("ITEM-0001")
-oks.approve_item("reviewer approved ready for use")
+vim.cmd("OksInspect ITEM-0001")
+vim.cmd("OksApproveItem reviewer approved ready for use")
 
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local body = table.concat(lines, "\n")

@@ -37,6 +37,9 @@
 
 ## Completed
 
+- [x] 066 - Clarify ex5 terminal authoring handoff docs - `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`
+- [x] 065 - Add direct headless coverage for ex5 Neovim write-side Ex commands - `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`
+- [x] 064 - Add ex5 Neovim durable revision snapshot phase - `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`
 - [x] 031 - Clean up ex5 pre-existing errcheck debt - `TODO/TODO-zuvom-ex5-errcheck-cleanup.md`
 - [x] 030 - Expand ex5 search so evidence and approval history is actually searchable - `TODO/TODO-farun-ex5-search-evidence-and-approval-history.md`
 - [x] 029 - Harden ex5 browser participant identity startup in restricted storage environments - `TODO/TODO-mitob-ex5-browser-participant-identity-hardening.md`

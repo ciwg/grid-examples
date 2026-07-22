@@ -389,6 +389,11 @@ for responsibility records too. Source: `DI-luzaf`.
 
 Creates a durable new revision snapshot.
 
+Neovim `:OksSnapshot` now reuses this route directly after flushing the
+current live draft body through `/api/items/{id}/live`. That keeps durable
+authoring on the shared HTTP model instead of inventing an editor-only
+snapshot path. Source: `DI-jabup`.
+
 Payload fields:
 
 - `actor`

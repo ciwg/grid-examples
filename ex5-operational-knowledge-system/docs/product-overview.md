@@ -56,9 +56,9 @@ runtime:
   inspection, contextual drilldowns, and grouped review panels.
 - CLI: shell-first creation, inspection, search, evidence upload, approvals,
   and review queues.
-- Neovim: live draft editing, structured search, grouped problem review,
-  pending review, item/run approval, item supersede, and linked inspection
-  inside one editor session.
+- Neovim: live draft editing, durable revision snapshots, structured search,
+  grouped problem review, pending review, item/run approval, item supersede,
+  and linked inspection inside one editor session.
 
 These are not separate backends. They all read and write the same projected
 state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;
@@ -75,6 +75,11 @@ state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;
 
 The current focus is durable local operational memory with strong browser,
 terminal, and Neovim workflows. Source: `DI-tabiv`; `DI-ranor`; `DI-fudok`.
+
+Terminal authoring is now split more clearly too. Neovim can carry an item
+from live draft editing into a durable revision snapshot without leaving the
+editor, but broader create/run/evidence workflows still live in the browser or
+CLI. Source: `DI-jabup`; `DI-vogar`.
 
 ## Where To Read Next
 

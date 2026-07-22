@@ -332,7 +332,7 @@ end
 -- Source: DI-fudok
 local function push_body()
   if not M.state.item_id or not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
-    return
+    return false
   end
   local cursor = current_cursor_offset()
   local status, body, err = request("POST", "/api/items/" .. M.state.item_id .. "/live", {
@@ -348,7 +348,7 @@ local function push_body()
   })
   if err then
     notify(err, vim.log.levels.ERROR)
-    return
+    return false
   end
   local decoded = json_decode(body)
   if status == 409 then
@@ -360,14 +360,15 @@ local function push_body()
       M.state.title = decoded.state.title or M.state.title
     end
     notify("live draft conflict; refresh or merge before retrying", vim.log.levels.WARN)
-    return
+    return false
   end
   if status ~= 200 or not decoded then
     notify("push failed: " .. tostring(status), vim.log.levels.ERROR)
-    return
+    return false
   end
   apply_live_state(decoded, true)
   notify("pushed " .. M.state.item_id)
+  return true
 end
 
 local function stop_poll_loop()
@@ -1350,6 +1351,27 @@ local function refresh_after_item_supersede(item_id, detail)
   show_item_detail(item_id, detail)
 end
 
+-- Intent: Advance the durable revision metadata after a successful snapshot
+-- without clobbering the already-pushed live draft body, while still
+-- refreshing any visible item inspector state. Source: DI-jabup
+local function refresh_after_revision_snapshot(item_id, detail)
+  local current_name = buffer_name(vim.api.nvim_get_current_buf())
+  local inspector_name = buffer_name(inspector.bufnr)
+  if current_name == "oks-pending://review" or inspector_name == "oks-pending://review" then
+    M.pending()
+    return
+  end
+  if M.state.item_id == item_id and M.state.bufnr and vim.api.nvim_buf_is_valid(M.state.bufnr) then
+    M.state.title = detail.title or M.state.title
+    M.state.status = detail.status or M.state.status
+    M.state.current_revision = detail.current_revision or M.state.current_revision
+    vim.bo[M.state.bufnr].modified = false
+  end
+  if current_name == "oks-inspect://" .. item_id or inspector_name == "oks-inspect://" .. item_id then
+    show_item_detail(item_id, detail)
+  end
+end
+
 local function refresh_after_run_approval(run_id, detail)
   local current_name = buffer_name(vim.api.nvim_get_current_buf())
   local inspector_name = buffer_name(inspector.bufnr)
@@ -1537,6 +1559,64 @@ function M.supersede_item(command_args)
   notify("superseded item " .. item_id)
 end
 
+-- Intent: Let terminal-first authors cut a durable revision from the current
+-- live-draft session through the existing item revision API, while keeping the
+-- local live-draft and optional inspector state in sync afterward. Source:
+-- DI-jabup
+function M.snapshot()
+  if not M.state.item_id or not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
+    notify("open a live draft before snapshotting", vim.log.levels.WARN)
+    return
+  end
+
+  if not push_body() then
+    return
+  end
+
+  local item_id = M.state.item_id
+  local status, body, err = request("GET", "/api/items/" .. item_id)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("load item for snapshot failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local item = json_decode(body)
+  if not item then
+    notify("snapshot preflight decode failed", vim.log.levels.ERROR)
+    return
+  end
+
+  status, body, err = request("POST", "/api/items/" .. item_id .. "/revisions", {
+    actor = M.config.display_name,
+    title = item.title,
+    summary = item.summary,
+    body = current_body(),
+    tags = item.tags or {},
+  })
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    local message = vim.trim(body or "")
+    if message == "" then
+      message = tostring(status)
+    end
+    notify("snapshot failed: " .. message, vim.log.levels.ERROR)
+    return
+  end
+  local updated = json_decode(body)
+  if not updated then
+    notify("snapshot decode failed", vim.log.levels.ERROR)
+    return
+  end
+  refresh_after_revision_snapshot(item_id, updated)
+  notify("snapshot created as revision " .. tostring(updated.current_revision or "?"))
+end
+
 -- Intent: Let the headless regression harness seed inspector state without
 -- going through HTTP-backed inspect flows, so :OksClose teardown can be
 -- validated locally. Source: DI-mabek
@@ -1660,6 +1740,9 @@ function M.setup(opts)
   end, {})
   vim.api.nvim_create_user_command("OksProblemReview", function()
     M.problem_review()
+  end, {})
+  vim.api.nvim_create_user_command("OksSnapshot", function()
+    M.snapshot()
   end, {})
   vim.api.nvim_create_user_command("OksApproveItem", function(command)
     M.approve_item(command.args)

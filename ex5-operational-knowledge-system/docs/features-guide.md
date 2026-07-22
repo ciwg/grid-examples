@@ -144,6 +144,7 @@ It is intentionally narrower than the browser surface:
 - search grouped projected records with `:OksSearch QUERY`
 - open a grouped pending-review buffer with `:OksPending`
 - open a grouped hotspot review buffer with `:OksProblemReview`
+- snapshot the current live draft into a durable revision with `:OksSnapshot`
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - supersede the current or specified item with `:OksSupersedeItem [ITEM_ID] [NOTES...]`
@@ -202,6 +203,13 @@ into one read-only buffer with direct handoffs into the existing run and
 entity inspectors, instead of inventing a second editor-only review API.
 Source: `DI-sivok`.
 
+Neovim revision snapshot now follows the same staged rule too. `:OksSnapshot`
+requires an open live draft, flushes the current buffer through the existing
+live-draft endpoint, and then posts to the existing item revision endpoint.
+That closes the biggest remaining terminal authoring gap without widening the
+editor into a second create/run/evidence surface. Source: `DI-jabup`;
+`DI-vogar`.
+
 Neovim item approval resolves the current revision from the existing item
 detail API, posts the approval through the existing item approval endpoint, and
 then refreshes the relevant live, inspector, or pending-review context. That
@@ -244,6 +252,7 @@ CLI behavior today:
 Neovim behavior today:
 
 - live draft editing for one knowledge item
+- durable revision snapshot creation from the current live draft
 - read-only item/run/entity inspection
 - direct `:OksInspectRun` handoffs from any related-run section inside those inspectors
 - grouped search and browse over the operational graph

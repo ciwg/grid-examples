@@ -45,6 +45,9 @@ phase 1.
 - [x] nuvok.16 Define the next richer Neovim workflow follow-on after structured search filters as a real `:OksSearch` command-surface repair under `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`.
 - [x] nuvok.17 Define the adjacent terminal test-hardening slice as direct Ex-command coverage under `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`.
 - [x] nuvok.18 Define the adjacent high-level doc cleanup slice under `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`.
+- [x] nuvok.19 Define the next richer Neovim authoring follow-on as durable revision snapshot creation under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`.
+- [x] nuvok.20 Define the adjacent write-side command coverage slice under `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`.
+- [x] nuvok.21 Define the adjacent terminal authoring-handoff doc slice under `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`.
 
 ## Status
 
@@ -61,6 +64,8 @@ phase 1.
 - grouped problem review now exists as a dedicated Neovim hotspot view under `TODO/TODO-sivok-ex5-neovim-problem-review-phase.md`
 - Neovim search now supports the same shared structured-filter vocabulary the CLI already uses under `TODO/TODO-fanub-ex5-neovim-structured-search-filters.md`
 - the next Neovim follow-ons are now split into explicit child TODOs for `:OksSearch` command-surface repair, direct Ex-command coverage, and high-level terminal-doc drift under `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`, `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`, and `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
+- the next Neovim follow-ons are now split into explicit child TODOs for durable revision snapshots, write-side Ex-command coverage, and terminal authoring-handoff docs under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md`, `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`, and `TODO/TODO-vogar-ex5-terminal-authoring-handoff-docs.md`
+- durable revision snapshots now exist inside the Neovim live-draft embodiment, and the direct write-side `:Oks...` commands now have headless command-path coverage under `TODO/TODO-jabup-ex5-neovim-revision-snapshot-phase.md` and `TODO/TODO-zafot-ex5-neovim-write-command-coverage.md`
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API

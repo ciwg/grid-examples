@@ -92,6 +92,7 @@ Neovim phase 1:
 - extends that same search buffer with trailing shared `key=value` filters over `/api/search`
 - opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
 - opens a read-only grouped problem-review buffer over `/api/problem-review`
+- posts durable item revision snapshots with `POST /api/items/{id}/revisions`
 - posts limited item approvals by resolving current revision from `GET /api/items/{id}` and then using `POST /api/items/{id}/approvals`
 - posts limited run approvals with `POST /api/runs/{id}/approvals`
 - posts limited item supersede actions with `POST /api/items/{id}/supersede`
@@ -99,7 +100,8 @@ Neovim phase 1:
 In practice, that gives `ex5` a real terminal-first operating mode:
 
 - CLI for direct command execution and mutation
-- Neovim for continuous text work, review, browsing, and pending-work triage
+- Neovim for continuous text work, durable item snapshots, review, browsing,
+  and pending-work triage
 
 The CLI evidence path now reuses the same multipart run-evidence route as the
 browser. That keeps terminal-side evidence entry honest: it is not a second
@@ -131,6 +133,12 @@ The Neovim grouped problem-review path now follows the same rule too. It
 reuses `/api/problem-review` to render place and resource hotspot groups with
 direct run and entity handoffs, instead of inventing an editor-only grouped
 review backend. Source: `DI-sivok`.
+
+The Neovim revision-snapshot path now follows the same rule too. It reuses
+`POST /api/items/{id}/revisions` directly after flushing the current live-draft
+body through `/api/items/{id}/live`. That keeps durable authoring inside the
+editor without inventing a separate snapshot-only transport or schema. Source:
+`DI-jabup`.
 
 That queue path now also treats an omitted run `approvals` field as a shared
 projection contract error instead of silently reclassifying the run as genuine

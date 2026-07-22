@@ -12,7 +12,7 @@ today. Source: `DI-movar`.
 | Create knowledge items | Yes | Yes | No |
 | Edit live draft body | Yes | No | Yes |
 | Refresh live draft | Yes | No | Yes |
-| Snapshot revision | Yes | No | No |
+| Snapshot revision | Yes | No | Yes |
 | Inspect item detail | Yes | Yes | Yes |
 | Inspect run detail | Yes | Yes | Yes |
 | Inspect place/resource/responsibility detail | Yes | Yes | Yes |
@@ -32,7 +32,7 @@ today. Source: `DI-movar`.
 The matrix reflects current shipped behavior, not planned parity. CLI and
 Neovim are already strong terminal surfaces, but they are intentionally staged
 and still not perfectly symmetric with the browser. Source: `DI-fudok`;
-`DI-ravum`; `DI-salup`; `DI-lorav`.
+`DI-ravum`; `DI-salup`; `DI-lorav`; `DI-jabup`; `DI-vogar`.
 
 ## Terminal-First Summary
 
@@ -49,6 +49,7 @@ Source: `DI-zanub`; `DI-vuteg`; `DI-ravum`; `DI-salup`.
 ### Neovim is strongest for
 
 - live draft editing
+- durable revision snapshots from the current live draft
 - staying inside one editor session
 - inspecting items, runs, and linked entities
 - structured search and grouped problem review without leaving the editor

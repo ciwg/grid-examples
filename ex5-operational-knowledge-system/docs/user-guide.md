@@ -114,13 +114,16 @@ go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff rec
 
 Neovim:
 
+- `:OksSnapshot`
 - `:OksApproveItem`
 - `:OksApproveRun`
 - `:OksSupersedeItem`
 
-Approval and supersede actions stay on the existing shared HTTP API and refresh
-the relevant terminal view afterward. Source: `DI-vamor`; `DI-bafor`;
-`DI-pudor`; `DI-dazim`.
+Snapshot, approval, and supersede actions stay on the existing shared HTTP API
+and refresh the relevant terminal view afterward. `:OksSnapshot` requires an
+open live draft and cuts a durable revision from the current editor body using
+the item's existing title, summary, and tags. Source: `DI-jabup`; `DI-vamor`;
+`DI-bafor`; `DI-pudor`; `DI-dazim`.
 
 ## Common Workflow 6: Search And Triage
 
@@ -165,9 +168,14 @@ Use the CLI when you want:
 Use Neovim when you want:
 
 - live draft editing
+- durable revision snapshots from the current draft
 - in-editor record inspection
 - pending-review browsing
 - approval or supersede actions without leaving the editor
+
+Neovim is now enough for continuous item authoring and review, but browser/CLI
+still own the broader create-run-evidence workflows. Source: `DI-jabup`;
+`DI-vogar`.
 
 Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-ravum`.
 

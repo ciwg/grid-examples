@@ -230,7 +230,7 @@ go run ./cmd/oks-cli runs
 
 - the CLI for direct create/list/show/approve/search commands
 - Neovim for live draft editing, staged review/browse surfaces, and a small set
-  of direct review actions
+  of direct authoring and review actions
 
 The intended terminal behavior today is:
 
@@ -260,6 +260,7 @@ The intended terminal behavior today is:
   - searching across the operational graph with shared structured filters
   - reviewing grouped hotspot problems
   - opening a pending-review queue for draft items and runs that need attention
+  - cutting a durable revision snapshot from the current live draft
   - approving items or runs
   - superseding an item
 
@@ -295,6 +296,7 @@ What it supports now:
 - `:OksSearch QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]`
 - `:OksPending`
 - `:OksProblemReview`
+- `:OksSnapshot`
 - `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - `:OksSupersedeItem [ITEM_ID] [NOTES...]`
@@ -354,25 +356,38 @@ And it now supports a read-only grouped problem-review buffer over the shared
 - grouped resource hotspots
 - direct inspect hints for places, resources, and runs inside each hotspot
 
-And it now includes a narrow set of write-side review actions over the existing
-HTTP runtime:
+It now includes a small durable authoring action too:
 
+- `:OksSnapshot`
+
+That command requires an open live draft, flushes the current buffer body
+through the shared live-draft endpoint, and then reuses
+`POST /api/items/{id}/revisions` with the item's existing title, summary, and
+tags. That lets a terminal-first author cut the durable revision without
+leaving Neovim, while broader record creation, run entry, and evidence upload
+still stay in the browser or CLI. Source: `DI-jabup`; `DI-vogar`.
+
+And it now includes a narrow set of write-side authoring and review actions
+over the existing HTTP runtime:
+
+- `:OksSnapshot`
 - `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - `:OksSupersedeItem [ITEM_ID] [NOTES...]`
 
 Those actions stay intentionally small:
 
+- revision snapshot reuses the existing item revision endpoint directly
 - item approval resolves the current revision before posting approval
 - run approval reuses the existing run approval endpoint directly
 - item supersede reuses the existing item supersede endpoint directly
 - each action refreshes the relevant live, inspector, or pending-review view afterward
 
-All three use the configured Neovim display name as the `actor`, and the item
+All four use the configured Neovim display name as the `actor`, and the item
 commands can omit the item ID when you are already on the current live draft or
 item inspector. `:OksApproveRun` can omit the run ID when you are already on a
-run inspector. Source: `DI-givot`; `DI-lorav`; `DI-vamor`; `DI-bafor`;
-`DI-pudor`.
+run inspector. Source: `DI-givot`; `DI-lorav`; `DI-jabup`; `DI-vamor`;
+`DI-bafor`; `DI-pudor`.
 
 Start it against a running server with:
 
