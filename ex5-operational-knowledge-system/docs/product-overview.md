@@ -98,6 +98,9 @@ What is still not shipped in that layer:
   layer
 - direct non-HTTP embodiment contracts
 
+Those are now future-scope choices rather than missing pieces inside the
+current shipped `ex5` PromiseGrid slice. Source: `DI-lavek`.
+
 For the technical claims list, see
 [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
 

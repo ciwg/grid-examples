@@ -179,6 +179,8 @@ What is not yet implemented in the shipped runtime:
 
 That distinction is intentional in the docs: this README describes the actual
 implemented ex5 runtime layer, not runtime behavior that has not shipped yet.
+Within that scoped definition, `ex5` is now complete for its current
+PromiseGrid-aligned runtime slice. Source: `DI-lavek`.
 
 For the explicit technical statement of the current PromiseGrid boundary, see
 [PromiseGrid Implementation Claims](docs/promisegrid-implementation-claims.md).

@@ -19,6 +19,10 @@ PromiseGrid-native runtime families, but not yet across the whole operational
 model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`;
 `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-faruv`.
 
+Within the current shipped scope, that runtime slice is now complete: the
+remaining gaps are explicit future-scope choices, not hidden migration debt.
+Source: `DI-lavek`.
+
 Today it ships:
 
 - one local Go runtime
