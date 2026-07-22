@@ -2,10 +2,12 @@
 
 ## Current storage and projection model
 
-The `ex5` foundation uses one append-only `events.jsonl` file plus an
-`attachments/` directory, plus a `drafts/` directory for browser-shared working
-bodies. The service replays the event log at startup, overlays any saved live
-draft bodies, and projects current query views for:
+The `ex5` foundation uses one append-only `events.jsonl` file plus
+`knowledge-item-messages.jsonl`, `knowledge-approval-messages.jsonl`, an
+`attachments/` directory, and a `drafts/` directory for browser-shared working
+bodies. The service replays the event log at startup, verifies the signed
+knowledge-item and knowledge-approval logs against that replay, overlays any
+saved live draft bodies, and projects current query views for:
 
 - places
 - resources

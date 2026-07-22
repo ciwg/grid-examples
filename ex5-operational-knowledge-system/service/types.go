@@ -29,12 +29,13 @@ const (
 )
 
 type Meta struct {
-	DataRoot          string   `json:"data_root"`
-	KnowledgeKinds    []string `json:"knowledge_kinds"`
-	RunKinds          []string `json:"run_kinds"`
-	ApprovalDecisions []string `json:"approval_decisions"`
-	ItemStatuses      []string `json:"item_statuses"`
-	KnowledgeItemPCID string   `json:"knowledge_item_pcid"`
+	DataRoot              string   `json:"data_root"`
+	KnowledgeKinds        []string `json:"knowledge_kinds"`
+	RunKinds              []string `json:"run_kinds"`
+	ApprovalDecisions     []string `json:"approval_decisions"`
+	ItemStatuses          []string `json:"item_statuses"`
+	KnowledgeItemPCID     string   `json:"knowledge_item_pcid"`
+	KnowledgeApprovalPCID string   `json:"knowledge_approval_pcid"`
 }
 
 type Place struct {

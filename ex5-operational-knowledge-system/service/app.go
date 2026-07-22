@@ -31,7 +31,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +59,9 @@ func NewApp(dataRoot string) (*App, error) {
 	if err := verifySignedKnowledgeItemRecords(events, knowledgeItemRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-item envelopes: %w", err)
 	}
+	if err := verifySignedKnowledgeApprovalRecords(events, knowledgeApprovalRecords); err != nil {
+		return nil, fmt.Errorf("verify knowledge-approval envelopes: %w", err)
+	}
 	drafts, err := store.LoadDrafts()
 	if err != nil {
 		return nil, err
@@ -77,12 +80,13 @@ func NewApp(dataRoot string) (*App, error) {
 
 func (app *App) Meta() Meta {
 	return Meta{
-		DataRoot:          app.dataRoot,
-		KnowledgeKinds:    []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
-		RunKinds:          []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
-		ApprovalDecisions: []string{DecisionApproved, DecisionRejected, DecisionNoted},
-		ItemStatuses:      []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
-		KnowledgeItemPCID: protocols.KnowledgeItemProfile.CID.String(),
+		DataRoot:              app.dataRoot,
+		KnowledgeKinds:        []string{KnowledgeKindProcedure, KnowledgeKindTraining, KnowledgeKindMaintenance, KnowledgeKindReceiving, KnowledgeKindInventory},
+		RunKinds:              []string{RunKindProcedure, RunKindTraining, RunKindMaintenance, RunKindReceiving, RunKindInventory},
+		ApprovalDecisions:     []string{DecisionApproved, DecisionRejected, DecisionNoted},
+		ItemStatuses:          []string{ItemStatusDraft, ItemStatusApproved, ItemStatusSuperseded},
+		KnowledgeItemPCID:     protocols.KnowledgeItemProfile.CID.String(),
+		KnowledgeApprovalPCID: protocols.KnowledgeApprovalProfile.CID.String(),
 	}
 }
 
@@ -1027,11 +1031,25 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		app.nextSequence--
 		return err
 	}
+	approvalRecord, hasApprovalRecord, err := buildSignedKnowledgeApprovalRecord(app.store.identity, event)
+	if err != nil {
+		app.nextSequence--
+		return err
+	}
 	if hasItemRecord {
 		// Intent: Persist the first PromiseGrid-native knowledge-item artifact
 		// before the compatibility event log so ex5 never claims a new signed item
 		// event that the runtime failed to materialize. Source: DI-mibor
 		if err := app.store.AppendSignedKnowledgeItemRecord(itemRecord); err != nil {
+			app.nextSequence--
+			return err
+		}
+	}
+	if hasApprovalRecord {
+		// Intent: Persist the second PromiseGrid-native knowledge-approval
+		// artifact before the compatibility event log so ex5 never claims a new
+		// signed approval that the runtime failed to materialize. Source: DI-vosul
+		if err := app.store.AppendSignedKnowledgeApprovalRecord(approvalRecord); err != nil {
 			app.nextSequence--
 			return err
 		}

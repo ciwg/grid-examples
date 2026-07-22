@@ -14,9 +14,9 @@ blurring together:
 
 ## Current status
 
-`ex5` ships as part of the PromiseGrid example set, and it now has its first
-PromiseGrid-native runtime family, but not yet across the whole operational
-model. Source: `DI-sobek`; `DI-mibor`.
+`ex5` ships as part of the PromiseGrid example set, and it now has two
+PromiseGrid-native runtime families, but not yet across the whole operational
+model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`.
 
 Today it ships:
 
@@ -27,15 +27,21 @@ Today it ships:
 - browser, CLI, and Neovim embodiments over the same local HTTP adapter
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
   bytes
+- one frozen `knowledge-approval` profile selected from the exact shipped
+  protocol bytes
 - one local signed-envelope runtime slice for durable knowledge-item
   create/revision/lifecycle events
+- one local signed-envelope runtime slice for durable knowledge-item and run
+  approval artifacts
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
+- startup verification of the signed knowledge-approval envelope log against
+  the replayed approval event history
 
 Today it does **not** yet ship:
 
 - relay-visible peer exchange
-- frozen runtime behavior for approval, evidence, link, responsibility, and
+- frozen runtime behavior for evidence, link, responsibility, and
   search-metadata families
 - relay transport or CAS-backed envelope storage as part of the ex5
   operational workflow
@@ -69,12 +75,12 @@ those embodiments, but the durable `knowledge-item` family underneath them is
 now also written as signed PromiseGrid-style envelopes in the local runtime.
 Source: `DI-sobek`; `DI-mibor`.
 
-### 5. `knowledge-item` is the first frozen family
+### 5. `knowledge-item` and `knowledge-approval` are the current frozen families
 
-`knowledge-item` is now the first ex5 family where exact shipped spec bytes
-select runtime behavior through a computed `pCID`, and where the runtime signs
-and verifies durable family artifacts. The other named ex5 families remain
-documented framing and staged migration targets for now. Source: `DI-mibor`.
+`knowledge-item` and `knowledge-approval` now select runtime behavior through
+their computed `pCID`s, and the runtime signs and verifies durable artifacts
+for both families. The other named ex5 families remain documented framing and
+staged migration targets for now. Source: `DI-mibor`; `DI-vosul`.
 
 ## What the shipped implementation does not yet promise
 
@@ -91,15 +97,17 @@ The current shipped ex5 runtime does not yet promise:
 Done now:
 
 - `knowledge-item` is frozen as the first ex5 family
-- the runtime computes its `pCID` from the exact shipped spec bytes
+- `knowledge-approval` is frozen as the second ex5 family
+- the runtime computes both `pCID`s from the exact shipped spec bytes
 - the runtime signs and verifies durable knowledge-item create/revision/status
   artifacts
+- the runtime signs and verifies durable knowledge-item and run approval
+  artifacts
 - the browser, CLI, and Neovim embodiments still project through the current
-  local HTTP adapter on top of that first signed family
+  local HTTP adapter on top of those signed families
 
 Remaining:
 
-- freeze and claim `knowledge-approval`
 - freeze and claim `knowledge-evidence`
 - freeze and claim `knowledge-link`
 - freeze and claim `knowledge-responsibility`
@@ -108,8 +116,8 @@ Remaining:
 
 ## Current implementation claim
 
-The current ex5 implementation claim lives in
-[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`.
+The current ex5 implementation claims live in
+[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`.
 
 ## How to read the other ex5 docs
 
@@ -127,5 +135,5 @@ The current ex5 implementation claim lives in
 ## Follow-on work
 
 The next staged PromiseGrid work is the next family freeze after
-`knowledge-item`, not reopening the already settled “should we begin the real
-wire slice at all?” question. Source: `DI-mibor`.
+`knowledge-approval`, not reopening the already settled “should we begin the
+real wire slice at all?” question. Source: `DI-vosul`.

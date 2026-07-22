@@ -22,10 +22,11 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
 ```
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
-shipped runtime already uses append-only events and shared embodiments, but it
-does not yet implement the full wire-level layer of that framing through
-runtime-selected frozen `pCID` documents or signed grid envelopes. Source:
-`DI-sobek`.
+shipped runtime already uses append-only events and shared embodiments, and it
+now implements two runtime-selected frozen `pCID` documents with signed grid
+envelopes for `knowledge-item` and `knowledge-approval`. It still does not yet
+implement that full wire-level layer for the remaining ex5 families. Source:
+`DI-sobek`; `DI-mibor`; `DI-vosul`.
 
 The runtime owns:
 
