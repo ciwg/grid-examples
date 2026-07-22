@@ -71,7 +71,11 @@ CLI:
 - creates responsibilities and knowledge items
 - records runs
 - records approvals with explicit actor identity
+- creates typed links over validated existing record endpoints
 - uploads run evidence with optional facts JSON and optional copied attachment
+- reuses structured and `problem=true` search filters over the shared search projection
+- reads grouped problem hotspots over the shared problem-review projection
+- reads projected responsibility detail over the shared responsibility route
 - shows individual items and runs
 
 Neovim phase 1:
@@ -99,6 +103,16 @@ The CLI evidence path now reuses the same multipart run-evidence route as the
 browser. That keeps terminal-side evidence entry honest: it is not a second
 schema or a special shell-only shortcut, just a narrower embodiment of the
 same durable evidence contract. Source: `DI-zanub`.
+
+The CLI typed-link path follows the same rule. It reuses the existing
+`POST /api/links` contract and surfaces the same server-side endpoint
+validation errors instead of inventing a special shell-only graph mutation
+path. Source: `DI-vuteg`.
+
+The richer CLI search path follows that same rule too. It reuses the same
+`GET /api/search` query params the browser and Neovim already depend on,
+including `problem=true`, instead of inventing a second terminal-only review
+surface. Source: `DI-mifot`.
 
 The important behavior point is that these are not separate backends. They are
 two terminal-facing views over the same local runtime and projected state, so a

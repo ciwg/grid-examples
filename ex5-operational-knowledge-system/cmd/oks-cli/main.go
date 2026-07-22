@@ -38,6 +38,8 @@ func (cli *CLI) run(args []string) (int, error) {
 	switch args[0] {
 	case "dashboard":
 		err = cli.Dashboard()
+	case "problem-review":
+		err = cli.ProblemReview()
 	case "places":
 		err = cli.Places()
 	case "new-place":
@@ -72,6 +74,11 @@ func (cli *CLI) run(args []string) (int, error) {
 		err = cli.Show("/api/resources/" + args[1])
 	case "responsibilities":
 		err = cli.Responsibilities()
+	case "show-responsibility":
+		if len(args) != 2 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		err = cli.Show("/api/responsibilities/" + args[1])
 	case "new-responsibility":
 		if len(args) < 4 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -144,6 +151,15 @@ func (cli *CLI) run(args []string) (int, error) {
 			return 2, fmt.Errorf("%s", usageText)
 		}
 		err = cli.Approve("/api/runs/"+args[1]+"/approvals", args[2], 0, args[3], args[4], strings.Join(args[5:], " "))
+	case "add-link":
+		if len(args) < 7 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		notes := ""
+		if len(args) > 7 {
+			notes = strings.Join(args[7:], " ")
+		}
+		err = cli.AddLink(args[1], args[2], args[3], args[4], args[5], args[6], notes)
 	case "add-evidence":
 		if len(args) < 4 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -161,10 +177,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) < 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		// Intent: Encode CLI search queries before they hit the HTTP adapter so
-		// spaces and reserved URL characters survive the embodiment boundary.
-		// Source: DI-sifeg
-		err = cli.Show("/api/search?q=" + url.QueryEscape(args[1]))
+		err = cli.Search(args[1], args[2:])
 	default:
 		return 2, fmt.Errorf("%s", usageText)
 	}
@@ -174,13 +187,24 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY"
+const usageText = "usage: oks-cli dashboard|problem-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
 
 type CLI struct {
 	ServerURL string
 }
 
+var allowedSearchFilters = map[string]struct{}{
+	"kind":              {},
+	"status":            {},
+	"outcome":           {},
+	"place_id":          {},
+	"resource_id":       {},
+	"responsibility_id": {},
+	"problem":           {},
+}
+
 func (cli *CLI) Dashboard() error        { return cli.Show("/api/dashboard") }
+func (cli *CLI) ProblemReview() error    { return cli.Show("/api/problem-review") }
 func (cli *CLI) Places() error           { return cli.Show("/api/places") }
 func (cli *CLI) Resources() error        { return cli.Show("/api/resources") }
 func (cli *CLI) Responsibilities() error { return cli.Show("/api/responsibilities") }
@@ -237,6 +261,21 @@ func (cli *CLI) RecordRun(actor string, kind string, itemID string, revision int
 		"notes":        notes,
 		"place_id":     placeID,
 		"resource_ids": resourceIDs,
+	})
+}
+
+// Intent: Let shell-first operators build typed operational context over the
+// same validated graph contract the browser already uses, without inventing a
+// second terminal-only link schema. Source: DI-vuteg
+func (cli *CLI) AddLink(actor string, fromType string, fromID string, toType string, toID string, relation string, notes string) error {
+	return cli.post("/api/links", map[string]any{
+		"actor":     actor,
+		"from_type": fromType,
+		"from_id":   fromID,
+		"to_type":   toType,
+		"to_id":     toID,
+		"relation":  relation,
+		"notes":     notes,
 	})
 }
 
@@ -297,6 +336,17 @@ func (cli *CLI) AddEvidence(runID string, actor string, summary string, factsJSO
 	}
 	fmt.Println(string(message))
 	return nil
+}
+
+// Intent: Keep CLI search on the shared `/api/search` projection while letting
+// shell-first operators use the same structured filters and problem-only view
+// that already power browser and Neovim drilldowns. Source: DI-mifot
+func (cli *CLI) Search(query string, filters []string) error {
+	path, err := buildSearchPath(query, filters)
+	if err != nil {
+		return err
+	}
+	return cli.Show(path)
 }
 
 // Intent: Preserve trustworthy approval history by making the CLI carry the
@@ -377,4 +427,29 @@ func splitCSV(input string) []string {
 		}
 	}
 	return out
+}
+
+func buildSearchPath(query string, filters []string) (string, error) {
+	values := url.Values{}
+	values.Set("q", query)
+	for _, filter := range filters {
+		key, value, ok := strings.Cut(filter, "=")
+		if !ok || strings.TrimSpace(key) == "" {
+			return "", fmt.Errorf("invalid search filter %q; expected key=value", filter)
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if _, ok := allowedSearchFilters[key]; !ok {
+			return "", fmt.Errorf("unsupported search filter %q", key)
+		}
+		if value == "" {
+			return "", fmt.Errorf("search filter %q requires a value", key)
+		}
+		values.Set(key, value)
+	}
+	// Intent: Encode CLI search queries and structured filters before they hit
+	// the HTTP adapter so spaces and reserved URL characters survive the
+	// embodiment boundary without inventing a second search contract. Source:
+	// DI-sifeg; DI-mifot
+	return "/api/search?" + values.Encode(), nil
 }

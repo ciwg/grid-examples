@@ -65,6 +65,50 @@ func TestRunRecordCommandParsesItemRevisionOutcomeNotesAndContext(t *testing.T) 
 	}
 }
 
+func TestProblemReviewCommandUsesExpectedRoute(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"place_groups":[],"resource_groups":[],"problem_runs":[]}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"problem-review"})
+	if err != nil {
+		t.Fatalf("problem-review command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/problem-review" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+}
+
+func TestShowResponsibilityCommandUsesExpectedRoute(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"id":"RESP-0001","title":"Line lead","links":[]}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"show-responsibility", "RESP-0001"})
+	if err != nil {
+		t.Fatalf("show-responsibility command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/responsibilities/RESP-0001" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+}
+
 func TestRunSearchRequiresQuery(t *testing.T) {
 	cli := &CLI{ServerURL: "http://127.0.0.1:7045"}
 	exitCode, err := cli.run([]string{"search"})
@@ -105,6 +149,45 @@ func TestSearchCommandEncodesQueryString(t *testing.T) {
 	}
 	if !strings.Contains(rawQuery, "q=supplier%3A+Acme+Parts+%26+variance%3D-2") {
 		t.Fatalf("unexpected raw query: %q", rawQuery)
+	}
+}
+
+func TestSearchCommandAddsStructuredFilters(t *testing.T) {
+	var values map[string]string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		values = map[string]string{
+			"q":                 request.URL.Query().Get("q"),
+			"kind":              request.URL.Query().Get("kind"),
+			"place_id":          request.URL.Query().Get("place_id"),
+			"responsibility_id": request.URL.Query().Get("responsibility_id"),
+			"problem":           request.URL.Query().Get("problem"),
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"search", "dock discrepancy", "kind=inventory_audit", "place_id=PLACE-0001", "responsibility_id=RESP-0001", "problem=true"})
+	if err != nil {
+		t.Fatalf("search with filters: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if values["q"] != "dock discrepancy" || values["kind"] != "inventory_audit" || values["place_id"] != "PLACE-0001" || values["responsibility_id"] != "RESP-0001" || values["problem"] != "true" {
+		t.Fatalf("unexpected search query values: %#v", values)
+	}
+}
+
+func TestSearchCommandRejectsUnsupportedFilterKey(t *testing.T) {
+	cli := &CLI{ServerURL: "http://127.0.0.1:7045"}
+	exitCode, err := cli.run([]string{"search", "dock discrepancy", "owner=alice"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), `unsupported search filter "owner"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -207,6 +290,56 @@ func TestApproveRunCommandUsesExplicitActor(t *testing.T) {
 	}
 	if received["notes"] != "handoff recorded" {
 		t.Fatalf("unexpected approve-run notes: %#v", received["notes"])
+	}
+}
+
+func TestAddLinkCommandEmitsExpectedPayload(t *testing.T) {
+	var (
+		received map[string]any
+		path     string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		if err := json.NewDecoder(request.Body).Decode(&received); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"add-link", "alice", "responsibility", "RESP-0001", "knowledge_item", "ITEM-0001", "uses", "startup ownership"})
+	if err != nil {
+		t.Fatalf("add-link command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/links" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	if received["actor"] != "alice" || received["from_type"] != "responsibility" || received["from_id"] != "RESP-0001" || received["to_type"] != "knowledge_item" || received["to_id"] != "ITEM-0001" || received["relation"] != "uses" {
+		t.Fatalf("unexpected add-link payload: %#v", received)
+	}
+	if received["notes"] != "startup ownership" {
+		t.Fatalf("unexpected add-link notes: %#v", received["notes"])
+	}
+}
+
+func TestAddLinkCommandSurfacesServerValidationFailures(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Error(writer, "to endpoint invalid: knowledge_item \"ITEM-9999\" not found", http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"add-link", "alice", "responsibility", "RESP-0001", "knowledge_item", "ITEM-9999", "uses"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), `to endpoint invalid: knowledge_item "ITEM-9999" not found`) {
+		t.Fatalf("unexpected add-link error: %v", err)
 	}
 }
 

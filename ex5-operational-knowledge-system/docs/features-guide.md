@@ -220,8 +220,11 @@ CLI behavior today:
 
 - fast shell-oriented create/list/show commands
 - explicit record-run and approval actions
+- explicit typed-link creation over validated existing graph endpoints
 - explicit run evidence upload with optional facts JSON and optional attachment
-- direct free-text search
+- direct free-text search plus structured and `problem=true` filters
+- grouped hotspot review over the shared problem-review surface
+- projected responsibility detail inspection over the shared responsibility route
 
 Neovim behavior today:
 
@@ -302,6 +305,11 @@ Run search now also reaches evidence summaries, evidence facts, and approval
 notes. That means later operators can find runs by details like supplier names,
 packing-slip identifiers, discrepancy facts, or recorded review notes instead
 of only outcome and freeform run notes. Source: `DI-farun`.
+
+That same search surface is now practical from the CLI too. Shell users can
+reuse the existing `kind=...`, `status=...`, `outcome=...`, `place_id=...`,
+`resource_id=...`, `responsibility_id=...`, and `problem=true` filters instead
+of falling back to one plain free-text query. Source: `DI-mifot`.
 
 The browser startup path is also hardened for restrictive/private environments.
 If `localStorage` access is blocked or `crypto.randomUUID()` is unavailable,
@@ -441,6 +449,11 @@ The link write path is now stricter too. A typed link must name a supported
 endpoint type and an existing record ID, and responsibility detail now projects
 its own `links` array the same way place, resource, item, and run detail
 already do. Source: `DI-luzaf`.
+
+That same typed-link write path is now practical from a shell-first workflow
+too. Terminal users can create one validated graph edge at a time through the
+CLI and see the same server-side endpoint rejection the browser would see if a
+type or record ID is wrong. Source: `DI-vuteg`.
 
 ### Equal embodiments
 

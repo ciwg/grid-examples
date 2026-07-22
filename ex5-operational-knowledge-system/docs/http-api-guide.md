@@ -53,6 +53,12 @@ Returns the current projected counts for:
 
 Returns grouped receiving/count problem hotspots for the browser review panel.
 
+The CLI now reuses this same route directly:
+
+- `oks-cli problem-review`
+
+Source: `DI-nuvaz`.
+
 The response includes:
 
 - `problem_runs`
@@ -98,6 +104,13 @@ Supported endpoint types today:
 The write is now validated on both ends. Unsupported endpoint types or missing
 record IDs return `400` instead of entering the append-only history as dangling
 graph edges. Source: `DI-luzaf`.
+
+The CLI now reuses this same JSON route directly:
+
+- `oks-cli add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION`
+- `oks-cli add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION NOTES...`
+
+Source: `DI-vuteg`.
 
 ## Search
 
@@ -145,6 +158,16 @@ The Neovim pending-review view also reuses this route. `:OksPending` combines
 `/api/search?status=draft`, `/api/search`, and `/api/search?problem=true` to
 assemble draft-item, unreviewed-run, and problem-run queues without requiring
 a new terminal-specific API. Source: `DI-lorav`.
+
+The CLI now reuses this same route too:
+
+- `oks-cli search QUERY`
+- `oks-cli search QUERY kind=... status=... outcome=...`
+- `oks-cli search QUERY place_id=... resource_id=... responsibility_id=...`
+- `oks-cli search QUERY problem=true`
+
+Unsupported or malformed filter tokens are rejected locally instead of being
+silently dropped. Source: `DI-mifot`.
 
 Neovim item approval reuses the item detail and item approval routes together:
 it reads `GET /api/items/{id}` to resolve the current revision, then posts to
@@ -230,6 +253,12 @@ Payload fields:
 ### `GET /api/responsibilities/{id}`
 
 Returns one responsibility with linked items/runs and its timeline.
+
+The CLI now reuses this same route directly:
+
+- `oks-cli show-responsibility RESPONSIBILITY_ID`
+
+Source: `DI-jubav`.
 
 ## Knowledge items
 

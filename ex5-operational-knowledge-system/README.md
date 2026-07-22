@@ -72,7 +72,9 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - one-click place/resource/responsibility problem drilldowns that now use the same classification logic as grouped problem review
 - grouped problem review that highlights repeated receiving and count issues by place and resource
 - CLI inspection and creation commands
+- CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment
+- CLI structured search filters and problem-only review over the shared search projection
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
@@ -192,6 +194,7 @@ go run ./cmd/oks-cli new-place alice area Receiving "Inbound receiving and count
 go run ./cmd/oks-cli resources
 go run ./cmd/oks-cli new-resource alice container "RJ45 Bin" "Connectors bin" PLACE-0001
 go run ./cmd/oks-cli responsibilities
+go run ./cmd/oks-cli show-responsibility RESP-0001
 go run ./cmd/oks-cli new-responsibility alice "Line lead" "Owns startup and approval routing"
 go run ./cmd/oks-cli items
 go run ./cmd/oks-cli new-item alice procedure "Start line A" "Startup procedure" "# Start line A"
@@ -201,8 +204,10 @@ go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_no
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
 go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
 go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
+go run ./cmd/oks-cli add-link alice responsibility RESP-0001 knowledge_item PROC-0001 owns "Primary startup procedure"
 go run ./cmd/oks-cli add-evidence RUN-0001 dave "Dock photo" '{"result":"ok"}' ./evidence.txt
-go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2"
+go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2" kind=receiving_check problem=true place_id=PLACE-0001
+go run ./cmd/oks-cli problem-review
 go run ./cmd/oks-cli runs
 ```
 
@@ -216,8 +221,14 @@ go run ./cmd/oks-cli runs
 The intended terminal behavior today is:
 
 - use the CLI for fast shell-oriented creation and direct inspection
+- use the CLI when you need one-shot typed-link creation over validated
+  existing records
 - use the CLI when you need one-shot run evidence upload with optional facts
   JSON and optional copied file attachments
+- use the CLI when you need the same structured or `problem=true` search
+  slices that already drive browser and Neovim review views
+- use the CLI when you need grouped hotspot review or projected responsibility
+  detail from the same routes the browser and Neovim embodiments already read
 - use Neovim when you want to stay inside one editor session while:
   - editing a live draft
   - reviewing item and run detail
