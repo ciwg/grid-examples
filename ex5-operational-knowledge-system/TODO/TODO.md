@@ -1,7 +1,9 @@
 # TODO
 
 ## Open / Planned
-- none
+- [ ] 110 - Make place and resource context peer-visible in ex5 - `TODO/TODO-pivok-ex5-peer-visible-place-resource-families.md`
+- [ ] 111 - Extend CAS authority beyond the six frozen families in ex5 - `TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
+- [ ] 112 - Tighten the ex5 embodiment contract beyond the current HTTP adapter - `TODO/TODO-lurog-ex5-embodiment-contract-tightening-beyond-http.md`
 
 ## Completed
 
