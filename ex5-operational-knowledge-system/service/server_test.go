@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestServerCreatesAndListsKnowledgeItems(t *testing.T) {
@@ -166,6 +167,58 @@ func TestServerLiveSocketReportsConflicts(t *testing.T) {
 	if conflict.State.Body != "# Start\n\nRemote change" || conflict.State.Version != 2 {
 		t.Fatalf("unexpected conflict state: %+v", conflict.State)
 	}
+}
+
+func TestServerLiveSocketRemovesParticipantOnClose(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	server := httptest.NewServer(NewServer(app).Handler())
+	defer server.Close()
+
+	socket := dialLiveWebSocket(t, server, "/api/items/"+item.ID+"/live/socket")
+	_ = readLiveSocketEnvelope(t, socket)
+	if err := socket.WriteJSON(map[string]any{
+		"type":           "live-update",
+		"participant_id": "browser-a",
+		"display_name":   "Alice",
+		"color":          "#123456",
+		"cursor":         5,
+		"head":           5,
+		"typing":         true,
+		"base_version":   1,
+		"update_body":    false,
+		"body":           "",
+	}); err != nil {
+		t.Fatalf("write live socket presence update: %v", err)
+	}
+	updated := readLiveSocketEnvelope(t, socket)
+	if len(updated.State.Participants) != 1 {
+		t.Fatalf("expected 1 participant before socket close, got %+v", updated.State.Participants)
+	}
+	closeSocket(socket)
+
+	for i := 0; i < 20; i++ {
+		state, err := app.LiveItemState(item.ID)
+		if err != nil {
+			t.Fatalf("read live item state: %v", err)
+		}
+		if len(state.Participants) == 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	state, err := app.LiveItemState(item.ID)
+	if err != nil {
+		t.Fatalf("read live item state after close: %v", err)
+	}
+	t.Fatalf("expected participant cleanup after socket close, got %+v", state.Participants)
 }
 
 func dialLiveWebSocket(t *testing.T, server *httptest.Server, path string) *websocketConn {

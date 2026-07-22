@@ -331,9 +331,11 @@ Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vabok`; `DI-muvok`.
 
 The first Neovim phase is intentionally thin.
 
-It reuses the same `GET/POST /api/items/{id}/live` surface as the browser live
-draft studio instead of inventing a separate transport or porting the full
-`ex3` websocket stack into `ex5`. Source: `DI-tabiv`; `DI-fudok`.
+It reuses the same shared live-draft semantics as the browser live draft
+studio. Neovim now prefers `GET /api/items/{id}/live/socket` for live carriage
+and falls back to `GET/POST /api/items/{id}/live` for bootstrap fetch and
+compatibility instead of inventing a second editor-only runtime. Source:
+`DI-tabiv`; `DI-fudok`; `DI-noruv`.
 
 What it supports now:
 
@@ -480,8 +482,8 @@ What it does not try to do yet:
 
 ## Current direction
 
-- keep websocket as live-draft carriage under the existing local adapter instead of porting the full `ex3` websocket collaboration stack into `ex5`
-- treat collaborative editing as optional rather than core to the product
+- keep websocket-preferred live-draft carriage under the existing local adapter instead of porting the full `ex3` collaboration stack into `ex5`
+- treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
 - dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests

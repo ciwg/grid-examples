@@ -153,7 +153,7 @@ It is intentionally narrower than the browser surface:
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - supersede the current or specified item with `:OksSupersedeItem [ITEM_ID] [NOTES...]`
-- publish presence and typing heartbeats over the same local HTTP live endpoint
+- prefer websocket live-draft carriage and fall back to the same local HTTP live endpoint for bootstrap fetch and compatibility
 
 Cursor and presence reporting now stay anchored to the live-draft window
 instead of whichever split is currently focused, so opening inspectors does not
@@ -164,10 +164,12 @@ wiping the live-draft buffer and any open read-only inspector buffer, so the
 editor does not leave a detached `acwrite` buffer behind after the session
 hooks are gone. Source: `DI-mabek`.
 
-This phase deliberately reuses the existing live-draft API rather than adding a
-separate websocket sidecar or remote-cursor renderer. The point is to give
-Neovim-heavy teams a real operational embodiment now without reopening the
-larger transport decision. Source: `DI-tabiv`; `DI-fudok`.
+This phase deliberately reuses the existing live-draft semantics and local
+adapter rather than inventing a second editor-only runtime. It now prefers the
+same websocket live-draft carriage as the browser while keeping the existing
+HTTP live routes as bootstrap and fallback paths. That gives Neovim-heavy teams
+the same shared drafting transport without reopening the durable-family
+boundary. Source: `DI-tabiv`; `DI-fudok`; `DI-noruv`.
 
 The first richer follow-on stays read-only on purpose. The inspector reads the
 same item detail projection as the browser and CLI, so Neovim users can review
@@ -579,6 +581,6 @@ problem and gives it one durable local history.
 
 The current product direction is now:
 
-- do not port the full `ex3` websocket collaboration model into `ex5`
-- treat collaborative editing as optional rather than core
+- keep websocket-preferred live-draft carriage under the existing local adapter instead of porting the full `ex3` collaboration stack into `ex5`
+- treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment as a desirable follow-on because many real teams operate there

@@ -101,6 +101,11 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 	required := []string{
 		"editor-item-id",
 		"/api/items/${editorState.itemID}/live",
+		"/api/items/${itemID}/live/socket",
+		"startLiveTransport",
+		"connectLiveSocket",
+		"sendLiveSocketUpdate",
+		"scheduleLiveReconnect",
 		"editor-snapshot",
 		"renderPlaces",
 		"renderSearchResults",
@@ -166,6 +171,7 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"createMemoryStorage",
 		"createParticipantID",
 		"randomUUID",
+		"liveSocketURL",
 		"runHandled",
 	}
 	for _, marker := range required {

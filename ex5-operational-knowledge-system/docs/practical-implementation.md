@@ -95,9 +95,9 @@ CLI:
 Neovim phase 1:
 
 - opens a knowledge item live draft by item ID
-- polls the same live-draft HTTP endpoint for refresh
+- prefers websocket live-draft carriage and falls back to the shared HTTP live endpoint when bootstrap fetch or compatibility requires it
 - pushes the current body with `:write`
-- sends presence/typing heartbeats through the live-draft HTTP endpoint
+- sends presence/typing updates over websocket when connected, with the live-draft HTTP endpoint kept as fallback
 - exposes local status/participant inspection commands
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
@@ -295,17 +295,20 @@ The foundation still does not yet include:
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
-embodiment, a thinner CLI embodiment, and a browser-only shared draft surface.
+embodiment, a thinner CLI embodiment, and a shared draft surface that now spans
+browser and Neovim over websocket-preferred carriage.
 
-The current product direction is to keep that live-draft surface optional,
-rather than making collaborative editing the core of the tool, and to revisit a
-future richer Neovim embodiment later without porting the full `ex3`
-websocket stack into `ex5` now. The current phase now uses websocket-preferred
-live-draft carriage plus HTTP fallback, alongside read-only item/run/entity
-inspection and search/browse over projected detail. It now also includes a
-read-only pending-review queue over the same shared search projections plus a
-narrow set of revision-safe item/run approval and item supersede actions over
-the same local HTTP runtime the CLI and browser already use. Source:
+The current product direction is to keep that live-draft surface inside the
+existing local adapter instead of porting the full `ex3` collaboration stack
+into `ex5`, while treating shared live drafting as the real-time collaboration
+transport and keeping the broader create/run/evidence workflow surface
+concentrated in the browser, CLI, and targeted Neovim actions. The current
+phase now uses websocket-preferred live-draft carriage plus HTTP fallback,
+alongside read-only item/run/entity inspection and search/browse over projected
+detail. It now also includes a read-only pending-review queue over the same
+shared search projections plus a narrow set of revision-safe item/run approval
+and item supersede actions over the same local HTTP runtime the CLI and browser
+already use. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
 `DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`; `DI-noruv`.
 
