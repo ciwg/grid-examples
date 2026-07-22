@@ -146,6 +146,11 @@ The Neovim pending-review view also reuses this route. `:OksPending` combines
 assemble draft-item, unreviewed-run, and problem-run queues without requiring
 a new terminal-specific API. Source: `DI-lorav`.
 
+Neovim item approval reuses the item detail and item approval routes together:
+it reads `GET /api/items/{id}` to resolve the current revision, then posts to
+`POST /api/items/{id}/approvals` with the configured Neovim display name as
+the approval actor. Source: `DI-vamor`.
+
 ## Places and resources
 
 ### `GET /api/places`

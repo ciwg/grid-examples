@@ -143,6 +143,7 @@ It is intentionally narrower than the browser surface:
 - inspect linked entities directly with `:OksInspectEntity TYPE ID`
 - search grouped projected records with `:OksSearch QUERY`
 - open a grouped pending-review buffer with `:OksPending`
+- approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 Cursor and presence reporting now stay anchored to the live-draft window
@@ -187,6 +188,13 @@ unreviewed runs, and problem runs into one “what should I inspect next”
 buffer, with direct hints for the existing inspectors. It improves reviewer
 flow without adding write-side approval actions yet. Source: `DI-lorav`.
 
+The next follow-on after that adds the first small write-side review action.
+Neovim item approval resolves the current revision from the existing item
+detail API, posts the approval through the existing item approval endpoint, and
+then refreshes the relevant live, inspector, or pending-review context. That
+keeps the action small and revision-safe instead of inventing a broader editor
+workflow all at once. Source: `DI-vamor`.
+
 ### Terminal-first behavior
 
 The current terminal behavior is intentionally split between CLI and Neovim
@@ -204,6 +212,7 @@ Neovim behavior today:
 - read-only item/run/entity inspection
 - grouped search and browse over the operational graph
 - grouped pending-review browsing for draft items and review-worthy runs
+- limited item approval for the current or specified item
 
 That means terminal-first work in `ex5` currently follows a practical pattern:
 

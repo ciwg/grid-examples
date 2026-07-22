@@ -85,6 +85,7 @@ Neovim phase 1:
 - opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
 - opens a read-only grouped search buffer over `/api/search` for discovery and browse handoff into the existing inspectors
 - opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
+- posts limited item approvals by resolving current revision from `GET /api/items/{id}` and then using `POST /api/items/{id}/approvals`
 
 In practice, that gives `ex5` a real terminal-first operating mode:
 
@@ -164,8 +165,11 @@ websocket stack into `ex5` now. The current phase is intentionally a thin HTTP
 live-draft client plus read-only item/run/entity inspection and search/browse
 over projected detail. The next terminal-first step now adds a read-only
 pending-review queue over the same search projections, still before any
-write-side approval actions are added to the editor. Source: `DI-tabiv`;
-`DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`.
+write-side approval actions are added to the editor. The next small step now
+adds one revision-safe item approval action, still using the same local HTTP
+runtime and item approval semantics as the CLI and browser. Source:
+`DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
+`DI-lorav`; `DI-vamor`.
 
 ## Current verification shape
 

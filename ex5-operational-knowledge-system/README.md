@@ -79,6 +79,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
 - Neovim search/browse over grouped `/api/search` results with direct inspect hints
 - Neovim pending-review view for draft items, unreviewed runs, and problem runs
+- Neovim item approval action over the existing item approval API
 - stub-backed headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -248,6 +249,7 @@ What it supports now:
 - `:OksInspectEntity TYPE ID`
 - `:OksSearch QUERY`
 - `:OksPending`
+- `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
 
@@ -296,6 +298,16 @@ The next terminal-first review phase adds:
 
 It still keeps approval actions themselves out of Neovim for now. Source:
 `DI-lorav`.
+
+The next small write-side phase adds:
+
+- one item approval action over the existing item approval API
+- current-revision lookup before the approval is posted
+- refresh of the current live, inspector, or pending-review context afterward
+
+`OksApproveItem` uses the configured Neovim display name as the approval
+`actor`. If you are on a live draft or item inspector, you can omit the item
+ID and approve the current item directly. Source: `DI-vamor`.
 
 Start it against a running server with:
 

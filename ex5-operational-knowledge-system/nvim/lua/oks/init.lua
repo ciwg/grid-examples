@@ -211,6 +211,40 @@ local function wipe_buffer(bufnr)
   pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
 end
 
+local function buffer_name(bufnr)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return ""
+  end
+  return vim.api.nvim_buf_get_name(bufnr)
+end
+
+local function item_id_from_buffer_name(name)
+  local item_id = name:match("^oks%-inspect://(.+)$")
+  if item_id and item_id ~= "" then
+    return item_id
+  end
+  item_id = name:match("^oks://(.+)$")
+  if item_id and item_id ~= "" then
+    return item_id
+  end
+  return nil
+end
+
+local function current_context_item_id()
+  local current = item_id_from_buffer_name(buffer_name(vim.api.nvim_get_current_buf()))
+  if current then
+    return current
+  end
+  if M.state.item_id and M.state.item_id ~= "" then
+    return M.state.item_id
+  end
+  return nil
+end
+
+local function valid_decision(decision)
+  return decision == "approved" or decision == "rejected" or decision == "noted"
+end
+
 local function refresh_live_state(force)
   if not M.state.item_id then
     return false
@@ -657,6 +691,18 @@ local function item_detail_lines(detail)
   return lines
 end
 
+local function show_item_detail(item_id, detail)
+  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
+    vim.api.nvim_set_current_win(inspector.winid)
+  else
+    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-inspect://" .. item_id)
+  end
+  vim.bo[inspector.bufnr].modifiable = true
+  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-inspect://" .. item_id)
+  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, item_detail_lines(detail))
+  vim.bo[inspector.bufnr].modifiable = false
+end
+
 -- Intent: Reuse the existing item detail projection for Neovim inspection so
 -- the editor sees the same revision, approval, and related-run truth as the
 -- browser and CLI. Source: DI-lonuk
@@ -680,16 +726,7 @@ local function inspect_item(item_id)
     notify("inspect decode failed", vim.log.levels.ERROR)
     return
   end
-
-  if inspector.winid and vim.api.nvim_win_is_valid(inspector.winid) and inspector.bufnr and vim.api.nvim_buf_is_valid(inspector.bufnr) then
-    vim.api.nvim_set_current_win(inspector.winid)
-  else
-    inspector.bufnr, inspector.winid = open_scratch_buffer("oks-inspect://" .. item_id)
-  end
-  vim.bo[inspector.bufnr].modifiable = true
-  vim.api.nvim_buf_set_name(inspector.bufnr, "oks-inspect://" .. item_id)
-  vim.api.nvim_buf_set_lines(inspector.bufnr, 0, -1, false, item_detail_lines(decoded))
-  vim.bo[inspector.bufnr].modifiable = false
+  show_item_detail(item_id, decoded)
   notify("inspected " .. item_id)
 end
 
@@ -1015,6 +1052,95 @@ function M.pending()
   notify("opened pending review")
 end
 
+local function refresh_after_item_approval(item_id, detail)
+  local current_name = buffer_name(vim.api.nvim_get_current_buf())
+  local inspector_name = buffer_name(inspector.bufnr)
+  if current_name == "oks-pending://review" or inspector_name == "oks-pending://review" then
+    M.pending()
+    return
+  end
+  if M.state.item_id == item_id and M.state.bufnr and vim.api.nvim_buf_is_valid(M.state.bufnr) then
+    M.state.title = detail.title or M.state.title
+    M.state.status = detail.status or M.state.status
+    M.state.current_revision = detail.current_revision or M.state.current_revision
+    refresh_live_state(true)
+    return
+  end
+  show_item_detail(item_id, detail)
+end
+
+-- Intent: Let terminal-first reviewers approve the current item from Neovim
+-- through the existing revision-aware item approval API, while refreshing the
+-- relevant live, inspect, or pending-review surface afterward. Source: DI-vamor
+function M.approve_item(command_args)
+  local args = vim.split(vim.trim(command_args or ""), "%s+", { trimempty = true })
+  local item_id = current_context_item_id()
+  local role
+  local decision
+  local notes = ""
+
+  if item_id and #args >= 2 then
+    role = args[1]
+    decision = args[2]
+    notes = table.concat(args, " ", 3)
+  elseif #args >= 3 then
+    item_id = args[1]
+    role = args[2]
+    decision = args[3]
+    notes = table.concat(args, " ", 4)
+  else
+    notify("usage: :OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]", vim.log.levels.WARN)
+    return
+  end
+
+  if not valid_decision(decision) then
+    notify("decision must be approved, rejected, or noted", vim.log.levels.WARN)
+    return
+  end
+
+  local status, body, err = request("GET", "/api/items/" .. item_id)
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    notify("load item for approval failed: " .. tostring(status), vim.log.levels.ERROR)
+    return
+  end
+  local item = json_decode(body)
+  if not item then
+    notify("item approval preflight decode failed", vim.log.levels.ERROR)
+    return
+  end
+
+  status, body, err = request("POST", "/api/items/" .. item_id .. "/approvals", {
+    actor = M.config.display_name,
+    revision = item.current_revision,
+    role = role,
+    decision = decision,
+    notes = notes,
+  })
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    local message = vim.trim(body or "")
+    if message == "" then
+      message = tostring(status)
+    end
+    notify("item approval failed: " .. message, vim.log.levels.ERROR)
+    return
+  end
+  local approved = json_decode(body)
+  if not approved then
+    notify("item approval decode failed", vim.log.levels.ERROR)
+    return
+  end
+  refresh_after_item_approval(item_id, approved)
+  notify("approved item " .. item_id .. " as " .. decision)
+end
+
 -- Intent: Let the headless regression harness seed inspector state without
 -- going through HTTP-backed inspect flows, so :OksClose teardown can be
 -- validated locally. Source: DI-mabek
@@ -1133,6 +1259,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksPending", function()
     M.pending()
   end, {})
+  vim.api.nvim_create_user_command("OksApproveItem", function(command)
+    M.approve_item(command.args)
+  end, { nargs = "+" })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})
