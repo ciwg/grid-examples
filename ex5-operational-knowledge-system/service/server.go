@@ -22,9 +22,9 @@ func NewServer(app *App) *Server {
 }
 
 // Intent: Expose the shared operational model through a local HTTP adapter so
-// the browser and CLI can be equal embodiments over one runtime without making
-// HTTP itself the durable PromiseGrid-facing contract. Source: DI-radok;
-// DI-zuvob
+// the browser keeps one stable embodiment surface while CLI and Neovim can use
+// direct local transports without making HTTP itself the durable
+// PromiseGrid-facing contract. Source: DI-radok; DI-zuvob; DI-favel
 func (server *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", server.handleIndex)

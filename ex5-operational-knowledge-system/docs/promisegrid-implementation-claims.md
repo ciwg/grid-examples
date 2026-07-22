@@ -29,10 +29,13 @@ Today it ships:
 - append-only operational event history
 - local durable draft manifests plus CAS-backed draft bodies, and durable
   attachment storage
-- websocket-preferred shared live-draft carriage for browser and Neovim, with
-  the existing HTTP live routes preserved as fallback and compatibility paths
+- websocket-preferred shared live-draft carriage for the browser, with the
+  existing HTTP live routes preserved as compatibility paths
+- direct local Unix-socket embodiment contracts for CLI and Neovim, with HTTP
+  kept as fallback and compatibility
 - projected read/query views over that history
-- browser, CLI, and Neovim embodiments over the same local HTTP adapter
+- browser over the local HTTP adapter, plus CLI and Neovim over a direct local
+  Unix-socket contract
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
   bytes
 - one frozen `knowledge-approval` profile selected from the exact shipped
@@ -88,19 +91,19 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- direct non-HTTP embodiment contracts for browser, CLI, or Neovim
+- a browser-side direct non-HTTP embodiment contract
 
 ## What the shipped implementation does promise
 
 ### 1. One shared local runtime contract
 
-Browser, CLI, and Neovim all read and write one shared ex5 runtime model
-through the same local HTTP surface. The embodiments are not separate durable
-systems. HTTP remains the sole embodiment adapter for now, even though the
-runtime underneath it is now richer than when that adapter first shipped.
-Live drafting now prefers websocket carriage under that same adapter for the
-browser and first-phase Neovim embodiment. Source: `DI-fudok`; `DI-ravum`;
-`DI-sobek`; `DI-bavuk`; `DI-noruv`.
+Browser, CLI, and Neovim all read and write one shared ex5 runtime model. The
+embodiments are not separate durable systems. The browser still projects
+through the local HTTP adapter, while CLI and Neovim now prefer a direct local
+Unix-socket contract over that same runtime. Browser live drafting still
+prefers websocket carriage under the HTTP adapter, while Neovim live drafting
+prefers the local socket and keeps HTTP as fallback. Source: `DI-fudok`;
+`DI-ravum`; `DI-sobek`; `DI-bavuk`; `DI-noruv`; `DI-favel`.
 
 ### 1a. One dedicated remote relay surface
 
@@ -123,14 +126,14 @@ Durable revisions, runs, approvals, evidence, and typed links are distinct
 from transient working state such as draft presence, current filters, or local
 UI focus. Source: `DI-lusov`; `DI-zoruk`; `DI-dazim`; `DI-sobek`.
 
-### 4. The local HTTP API is still the embodiment adapter
+### 4. The local HTTP API is still the browser adapter and compatibility surface
 
-`GET /api/*` and `POST /api/*` routes are the shipped local adapter surface for
-browser, CLI, and Neovim. They are the current implementation contract for
-those embodiments, but the durable frozen families underneath them are now also
-written as signed PromiseGrid-style envelopes in the local runtime. Source:
-`DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`;
-`DI-vamok`; `DI-faruv`.
+`GET /api/*` and `POST /api/*` routes are the shipped browser adapter surface
+and the compatibility fallback for CLI and Neovim. The durable frozen families
+underneath them are now also reachable through the direct local Unix-socket
+contract used by the two terminal embodiments. Source: `DI-sobek`;
+`DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`;
+`DI-faruv`; `DI-favel`.
 
 ### 5. `knowledge-item`, `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, `operational-run`, `operational-place`, and `operational-resource` are the current frozen families
 
@@ -151,7 +154,7 @@ The current shipped ex5 runtime does not yet promise:
 - that all ex5 durable families are already frozen and PromiseGrid-native at
   runtime
 - that the local HTTP route names are the PromiseGrid peer contract
-- that browser, CLI, or Neovim already bypass the local HTTP adapter
+- that the browser already bypasses the local HTTP adapter
 - that ephemeral presence or derived projections are durable PromiseGrid
   families
 
@@ -206,13 +209,14 @@ Done now:
   re-materializes them into a local compatibility attachment path on import
 - ongoing relay-feed exchange now requires evidence blobs to be staged into
   local CAS by CID before evidence-bearing feed batches import successfully
-- the browser, CLI, and Neovim embodiments still project through the current
-  local HTTP adapter on top of those signed families
+- the browser still projects through the current local HTTP adapter, while CLI
+  and Neovim now project through the local Unix-socket contract on top of
+  those signed families
 
 Remaining:
 
-- keep embodiment/runtime language honest while direct non-HTTP embodiment
-  contracts and other deferred product follow-on work remain outside the
+- keep embodiment/runtime language honest while browser-side non-HTTP
+  embodiment work and other deferred product follow-on work remain outside the
   current PromiseGrid slice
 
 ## Current implementation claim

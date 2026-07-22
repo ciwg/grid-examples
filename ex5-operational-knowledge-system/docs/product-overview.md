@@ -62,8 +62,10 @@ runtime:
   and linked inspection inside one editor session.
 
 These are not separate backends. They all read and write the same projected
-state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;
-`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-ravum`.
+state through one shared local runtime, with the browser staying on the HTTP
+adapter while CLI and Neovim now prefer the direct local Unix-socket contract.
+Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vamor`; `DI-bafor`;
+`DI-pudor`; `DI-ravum`; `DI-favel`.
 
 ## Current Boundaries
 
@@ -94,7 +96,7 @@ What that means in practice:
 
 What is still not shipped in that layer:
 
-- direct non-HTTP embodiment contracts
+- a browser-side non-HTTP embodiment contract
 
 Those are now future-scope choices rather than missing pieces inside the
 current shipped `ex5` PromiseGrid slice. Source: `DI-lavek`.

@@ -1,7 +1,10 @@
 package nvim
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/service"
 )
 
 func TestNeovimInspectItemRendersProjectedDetail(t *testing.T) {
@@ -17,13 +23,11 @@ func TestNeovimInspectItemRendersProjectedDetail(t *testing.T) {
 		t.Skip("nvim not available")
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/api/items/ITEM-0001" {
-			http.NotFound(response, request)
-			return
-		}
-		response.Header().Set("Content-Type", "application/json")
-		if _, err := fmt.Fprint(response, `{
+	socketPath := filepath.Join(t.TempDir(), "embodiment.sock")
+	go serveSingleNvimSocketResponse(t, socketPath, service.LocalEmbodimentResponse{
+		Type:   "response",
+		Status: 200,
+		Body: `{
 			"id":"ITEM-0001",
 			"kind":"procedure",
 			"status":"approved",
@@ -36,15 +40,13 @@ func TestNeovimInspectItemRendersProjectedDetail(t *testing.T) {
 			"approvals":[{"decision":"approved","actor":"carol","role":"reviewer","revision":2,"notes":"Ready for operators"}],
 			"related_runs":[{"id":"RUN-0001","kind":"procedure","revision":2,"outcome":"completed","notes":"Shift startup finished","place_id":"PLACE-0001","resource_ids":["RES-0001"],"evidence":[{"facts":{"result":"ok"}}]}],
 			"links":[{"from_type":"knowledge_item","from_id":"ITEM-0001","to_type":"resource","to_id":"RES-0001","relation":"uses","notes":"References startup key rack"}]
-		}`); err != nil {
-			t.Fatalf("write item response: %v", err)
-		}
-	}))
-	defer server.Close()
+		}`,
+	})
+	waitForNvimUnixSocket(t, socketPath)
 
 	script := filepath.Join(t.TempDir(), "inspect_item.lua")
 	scriptBody := fmt.Sprintf(`
-vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET_PATH = %q
 local oks = require("oks")
 oks.setup()
 
@@ -74,7 +76,7 @@ if not string.find(vim.api.nvim_buf_get_name(0), "oks-inspect://ITEM-0001", 1, t
   error("unexpected item buffer name: " .. vim.api.nvim_buf_get_name(0))
 end
 vim.cmd("qa!")
-`, server.URL)
+`, socketPath)
 	if err := os.WriteFile(script, []byte(scriptBody), 0o644); err != nil {
 		t.Fatalf("write script: %v", err)
 	}
@@ -257,4 +259,44 @@ vim.cmd("qa!")
 	if strings.Contains(string(output), "missing ") || strings.Contains(string(output), "unexpected responsibility buffer name") {
 		t.Fatalf("unexpected inspect entity output: %s", string(output))
 	}
+}
+
+func serveSingleNvimSocketResponse(t *testing.T, socketPath string, response service.LocalEmbodimentResponse) {
+	t.Helper()
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("listen unix socket: %v", err)
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+	conn, err := listener.Accept()
+	if err != nil {
+		t.Fatalf("accept unix socket: %v", err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+	var request service.LocalEmbodimentRequest
+	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&request); err != nil {
+		t.Fatalf("decode unix socket request: %v", err)
+	}
+	if request.Type != "request" {
+		t.Fatalf("unexpected socket request type: %+v", request)
+	}
+	if err := json.NewEncoder(conn).Encode(response); err != nil {
+		t.Fatalf("encode unix socket response: %v", err)
+	}
+}
+
+func waitForNvimUnixSocket(t *testing.T, socketPath string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(socketPath); err == nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("socket did not become ready: %s", socketPath)
 }

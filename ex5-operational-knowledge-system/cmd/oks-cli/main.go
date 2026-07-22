@@ -18,9 +18,13 @@ import (
 )
 
 func main() {
+	socketPath := flag.String("socket", filepath.Join(".operational-knowledge-system", "embodiment.sock"), "local unix socket path")
 	serverURL := flag.String("server", "http://127.0.0.1:7045", "server URL")
 	flag.Parse()
-	cli := &CLI{ServerURL: strings.TrimRight(*serverURL, "/")}
+	cli := &CLI{
+		ServerURL:  strings.TrimRight(*serverURL, "/"),
+		SocketPath: *socketPath,
+	}
 	exitCode, err := cli.run(flag.Args())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -198,7 +202,8 @@ func (cli *CLI) run(args []string) (int, error) {
 const usageText = "usage: oks-cli dashboard|problem-review|pending-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|snapshot-item ITEM_ID ACTOR BODY|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
 
 type CLI struct {
-	ServerURL string
+	ServerURL  string
+	SocketPath string
 }
 
 type cliLink struct {
@@ -659,20 +664,11 @@ func (cli *CLI) AddEvidence(runID string, actor string, summary string, factsJSO
 		return err
 	}
 
-	request, err := http.NewRequest(http.MethodPost, cli.ServerURL+"/api/runs/"+runID+"/evidence", &body)
+	status, message, err := cli.roundTrip("POST", "/api/runs/"+runID+"/evidence", writer.FormDataContentType(), body.Bytes())
 	if err != nil {
 		return err
 	}
-	request.Header.Set("Content-Type", writer.FormDataContentType())
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	message, err := readResponseBody(response)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode >= 300 {
+	if status >= 300 {
 		return fmt.Errorf("%s", strings.TrimSpace(string(message)))
 	}
 	var indented bytes.Buffer
@@ -721,30 +717,22 @@ func (cli *CLI) post(path string, payload any) error {
 	if err != nil {
 		return err
 	}
-	response, err := http.Post(cli.ServerURL+path, "application/json", bytes.NewReader(body))
+	status, message, err := cli.roundTrip("POST", path, "application/json", body)
 	if err != nil {
 		return err
 	}
-	message, err := readResponseBody(response)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode >= 300 {
+	if status >= 300 {
 		return fmt.Errorf("%s", strings.TrimSpace(string(message)))
 	}
 	return printJSONBytes(message)
 }
 
 func (cli *CLI) get(path string) ([]byte, error) {
-	response, err := http.Get(cli.ServerURL + path)
+	status, body, err := cli.roundTrip("GET", path, "", nil)
 	if err != nil {
 		return nil, err
 	}
-	body, err := readResponseBody(response)
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode >= 300 {
+	if status >= 300 {
 		return nil, fmt.Errorf("%s", strings.TrimSpace(string(body)))
 	}
 	return body, nil

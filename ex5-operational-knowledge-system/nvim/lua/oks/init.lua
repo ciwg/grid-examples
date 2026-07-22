@@ -21,6 +21,7 @@ end
 
 M.config = {
   repo_root = default_repo_root(),
+  socket_path = vim.env.OKS_SOCKET_PATH or ".operational-knowledge-system/embodiment.sock",
   base_url = vim.env.OKS_BASE_URL or "http://127.0.0.1:7045",
   display_name = vim.env.OKS_DISPLAY_NAME or "Neovim User",
   color = vim.env.OKS_COLOR or "#d66f1d",
@@ -53,6 +54,10 @@ local inspector = {
   bufnr = nil,
   winid = nil,
 }
+
+local apply_live_state
+local stop_poll_loop
+local start_poll_loop
 
 local function notify(message, level)
   vim.notify("oks: " .. message, level or vim.log.levels.INFO)
@@ -153,6 +158,26 @@ local function websocket_url(path)
     return "ws://" .. base:sub(#("http://") + 1) .. path
   end
   return nil
+end
+
+local function socket_path_available()
+  return M.config.socket_path and M.config.socket_path ~= "" and uv.fs_stat(M.config.socket_path) ~= nil
+end
+
+local function split_json_lines(buffer)
+  local messages = {}
+  while true do
+    local newline = buffer:find("\n", 1, true)
+    if not newline then
+      break
+    end
+    local line = vim.trim(buffer:sub(1, newline - 1))
+    buffer = buffer:sub(newline + 1)
+    if line ~= "" then
+      table.insert(messages, line)
+    end
+  end
+  return messages, buffer
 end
 
 local function parse_websocket_url(url)
@@ -256,10 +281,83 @@ local allowed_search_filters = {
   problem = true,
 }
 
--- Intent: Reuse the existing ex5 live-draft HTTP surface from Neovim instead
--- of inventing a separate transport for the first embodiment phase. Source:
--- DI-fudok
+local function socket_request(method, path, payload)
+  local pipe = uv.new_pipe(false)
+  local done = false
+  local response_text = ""
+  local connect_err = nil
+  local write_err = nil
+  local request = {
+    type = "request",
+    method = method,
+    path = path,
+  }
+  if payload ~= nil then
+    request.body = json_encode(payload)
+    request.headers = { ["Content-Type"] = "application/json" }
+  end
+  pipe:connect(M.config.socket_path, function(err)
+    if err then
+      connect_err = err
+      done = true
+      return
+    end
+    pipe:write(json_encode(request) .. "\n", function(write_error)
+      if write_error then
+        write_err = write_error
+        done = true
+        return
+      end
+      pipe:shutdown(function()
+      end)
+    end)
+    pipe:read_start(function(read_err, chunk)
+      if read_err then
+        connect_err = read_err
+        done = true
+        return
+      end
+      if not chunk then
+        done = true
+        return
+      end
+      response_text = response_text .. chunk
+    end)
+  end)
+  local finished = vim.wait(5000, function()
+    return done
+  end, 10)
+  pcall(pipe.read_stop, pipe)
+  pcall(pipe.close, pipe)
+  if not finished then
+    return nil, nil, "socket request timed out"
+  end
+  if connect_err then
+    return nil, nil, "socket request failed: " .. tostring(connect_err)
+  end
+  if write_err then
+    return nil, nil, "socket write failed: " .. tostring(write_err)
+  end
+  local decoded = json_decode(response_text)
+  if not decoded then
+    return nil, nil, "socket response decode failed"
+  end
+  if decoded.type == "error" then
+    return nil, nil, decoded.message or "socket request failed"
+  end
+  return decoded.status, decoded.body or "", nil
+end
+
+-- Intent: Prefer the direct local Unix-socket embodiment contract for
+-- Neovim requests while preserving HTTP fallback so editor workflows stay
+-- operable when only the browser adapter is available. Source: DI-favel
 local function request(method, path, payload)
+  if socket_path_available() then
+    local status, body, err = socket_request(method, path, payload)
+    if err == nil then
+      return status, body, nil
+    end
+  end
   local argv = {
     "curl",
     "-sS",
@@ -315,7 +413,7 @@ local function apply_socket_live_state(decoded, conflict)
   apply_live_state(state, not vim.bo[M.state.bufnr].modified)
 end
 
-local function apply_live_state(state, force)
+apply_live_state = function(state, force)
   M.state.title = state.title or M.state.title
   M.state.status = state.status or M.state.status
   M.state.version = state.version or M.state.version
@@ -456,7 +554,7 @@ local function handle_live_socket_payload(payload)
     return
   end
   if decoded.type == "error" then
-    notify(decoded.message or "live websocket error", vim.log.levels.WARN)
+    notify(decoded.message or "live transport error", vim.log.levels.WARN)
     return
   end
   if decoded.type == "live-conflict" then
@@ -495,16 +593,58 @@ local function send_live_socket_update(update_body, typing)
     update_body = update_body,
     body = update_body and current_body() or "",
   })
-  local frame, err = encode_websocket_text_frame(payload)
-  if err then
-    notify(err, vim.log.levels.WARN)
-    return false
-  end
-  M.state.socket:write(frame)
+  M.state.socket:write(payload .. "\n")
   return true
 end
 
 function M.connect_live_socket(item_id)
+  if socket_path_available() then
+    local generation = M.state.socket_generation + 1
+    M.state.socket_generation = generation
+    close_live_socket()
+    local socket = uv.new_pipe(false)
+    M.state.socket = socket
+    socket:connect(M.config.socket_path, vim.schedule_wrap(function(err)
+      if err then
+        close_live_socket()
+        start_poll_loop()
+        schedule_socket_reconnect(item_id, generation)
+        return
+      end
+      socket:write(json_encode({
+        type = "live-open",
+        item_id = item_id,
+        participant_id = M.state.participant_id,
+        display_name = M.config.display_name,
+        color = M.config.color,
+        cursor = current_cursor_offset(),
+        head = current_cursor_offset(),
+        typing = false,
+      }) .. "\n")
+      socket:read_start(vim.schedule_wrap(function(read_err, chunk)
+        if generation ~= M.state.socket_generation then
+          return
+        end
+        if read_err or not chunk then
+          close_live_socket()
+          start_poll_loop()
+          schedule_socket_reconnect(item_id, generation)
+          return
+        end
+        M.state.socket_connected = true
+        M.state.transport = "local-socket"
+        clear_reconnect_loop()
+        stop_poll_loop()
+        M.state.socket_buffer = (M.state.socket_buffer or "") .. chunk
+        local messages, rest = split_json_lines(M.state.socket_buffer)
+        M.state.socket_buffer = rest or ""
+        for _, message in ipairs(messages) do
+          handle_live_socket_payload(message)
+        end
+      end))
+    end))
+    return
+  end
   local parsed, parse_err = parse_websocket_url(websocket_url("/api/items/" .. item_id .. "/live/socket"))
   if parse_err or not parsed or parsed.scheme ~= "ws" then
     start_poll_loop()
@@ -665,7 +805,7 @@ local function push_body()
   return true
 end
 
-local function stop_poll_loop()
+stop_poll_loop = function()
   if M.state.poll_timer then
     M.state.poll_timer:stop()
     M.state.poll_timer:close()
@@ -684,7 +824,7 @@ end
 -- Intent: Keep the first Neovim phase close to the browser draft studio by
 -- polling the same runtime state and refreshing presence on a short interval.
 -- Source: DI-fudok
-local function start_poll_loop()
+start_poll_loop = function()
   stop_poll_loop()
   M.state.poll_timer = uv.new_timer()
   M.state.poll_timer:start(M.config.poll_ms, M.config.poll_ms, function()
@@ -716,9 +856,9 @@ end
 local function start_live_transport()
   stop_poll_loop()
   start_heartbeat_loop()
-  -- Intent: Make the first Neovim authoring embodiment share the same
-  -- websocket-preferred live-draft carriage as the browser while preserving
-  -- HTTP fallback inside the existing adapter. Source: DI-noruv
+  -- Intent: Make Neovim prefer the direct Unix-socket live-draft contract
+  -- while preserving HTTP polling fallback when the local socket surface is
+  -- unavailable. Source: DI-favel
   M.connect_live_socket(M.state.item_id)
 end
 
@@ -731,6 +871,7 @@ local function session_lines()
     "version: " .. tostring(M.state.version or 0),
     "revision: " .. tostring(M.state.current_revision or 0),
     "participant: " .. M.state.participant_id,
+    "socket_path: " .. (M.config.socket_path or "-"),
     "base_url: " .. M.config.base_url,
     "participants:",
   }

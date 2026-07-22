@@ -170,7 +170,10 @@ func (app *App) Meta() Meta {
 		CASDraftBodiesEnabled:       true,
 		RelayBlobTransferEnabled:    true,
 		LiveDraftWebSocketEnabled:   true,
-		LiveDraftPreferredTransport: "websocket",
+		LiveDraftPreferredTransport: "local_unix_socket",
+		LocalUnixSocketEnabled:      true,
+		LocalUnixSocketPath:         EmbodimentSocketPath(app.dataRoot),
+		TerminalEmbodimentAdapter:   "local_unix_socket",
 		PrimaryEmbodimentAdapter:    "local_http",
 	}
 }

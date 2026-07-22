@@ -1,7 +1,8 @@
 # ex5 HTTP API guide
 
-This guide documents the local HTTP adapter that the browser, CLI, and
-first-phase Neovim embodiment all use.
+This guide documents the local HTTP adapter that the browser still uses as its
+primary embodiment surface, and that CLI/Neovim still keep as compatibility
+fallback.
 
 The dedicated remote relay service is documented separately in
 [Relay API Guide](./relay-api-guide.md).
@@ -10,10 +11,10 @@ It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.
 
-In current ex5, these HTTP routes are the shipped embodiment contract for the
-browser, CLI, and Neovim surfaces. They are not yet a signed PromiseGrid peer
-contract, and route names should not be read as frozen `pCID`-selected public
-wire meaning. Source: `DI-sobek`.
+In current ex5, these HTTP routes are the shipped browser embodiment contract
+and the compatibility fallback for CLI and Neovim. They are not the signed
+PromiseGrid peer contract, and route names should not be read as frozen
+`pCID`-selected public wire meaning. Source: `DI-sobek`; `DI-favel`.
 
 The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `go.mod`, matching the current patch-level default used across the other
@@ -56,6 +57,9 @@ The response now includes, for example:
 - `cas_draft_bodies_enabled`
 - `live_draft_websocket_enabled`
 - `live_draft_preferred_transport`
+- `local_unix_socket_enabled`
+- `local_unix_socket_path`
+- `terminal_embodiment_adapter`
 - `primary_embodiment_adapter`
 
 Those capability fields are the current shipped way for embodiments to confirm
@@ -63,10 +67,11 @@ which local adapter/runtime features are present without treating the HTTP
 route names themselves as the PromiseGrid peer contract. Source: `DI-bavuk`;
 `DI-zunep`.
 
-In the current runtime, `primary_embodiment_adapter` is `local_http`, meaning
-browser, CLI, and Neovim still all route through this adapter surface even
-though the runtime underneath it now has richer peer-exchange and CAS-backed
-behavior. Source: `DI-bavuk`.
+In the current runtime, `primary_embodiment_adapter` is `local_http` because
+the browser still projects through this adapter. `terminal_embodiment_adapter`
+is `local_unix_socket`, meaning CLI and Neovim now prefer the direct local
+socket contract while keeping this HTTP surface available as compatibility.
+Source: `DI-bavuk`; `DI-favel`.
 
 ## Peer exchange
 

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +15,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/service"
 )
 
 func TestRunRecordCommandParsesItemRevisionOutcomeNotesAndContext(t *testing.T) {
@@ -64,6 +69,37 @@ func TestRunRecordCommandParsesItemRevisionOutcomeNotesAndContext(t *testing.T) 
 	resourceIDs, ok := received["resource_ids"].([]any)
 	if !ok || len(resourceIDs) != 2 || resourceIDs[0] != "RES-0001" || resourceIDs[1] != "RES-0002" {
 		t.Fatalf("unexpected resource_ids: %#v", received["resource_ids"])
+	}
+}
+
+func TestCLIUsesLocalSocketTransportWhenAvailable(t *testing.T) {
+	socketPath := filepath.Join(t.TempDir(), "embodiment.sock")
+	requests := make(chan service.LocalEmbodimentRequest, 1)
+	go serveSingleLocalSocketRequest(t, socketPath, requests, service.LocalEmbodimentResponse{
+		Type:   "response",
+		Status: 200,
+		Body:   `{"ok":true}`,
+	})
+	waitForCLIUnixSocket(t, socketPath)
+
+	cli := &CLI{SocketPath: socketPath, ServerURL: "http://127.0.0.1:7045"}
+	exitCode, err := cli.run([]string{"record-run", "bob", "procedure", "PROC-0001", "1", "completed", "Completed startup cleanly", "PLACE-0001", "RES-0001,RES-0002"})
+	if err != nil {
+		t.Fatalf("run command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	request := <-requests
+	if request.Type != "request" || request.Method != "POST" || request.Path != "/api/runs" {
+		t.Fatalf("unexpected local socket request: %+v", request)
+	}
+	var received map[string]any
+	if err := json.Unmarshal([]byte(request.Body), &received); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if got := received["item_id"]; got != "PROC-0001" {
+		t.Fatalf("unexpected item_id: %#v", got)
 	}
 }
 
@@ -302,6 +338,44 @@ func TestShowResponsibilityCommandRendersDrilldownSummary(t *testing.T) {
 		!strings.Contains(output, "uses responsibility RESP-0001 -> knowledge_item ITEM-0001") {
 		t.Fatalf("unexpected show-responsibility output: %s", output)
 	}
+}
+
+func serveSingleLocalSocketRequest(t *testing.T, socketPath string, requests chan<- service.LocalEmbodimentRequest, response service.LocalEmbodimentResponse) {
+	t.Helper()
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("listen unix socket: %v", err)
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+	conn, err := listener.Accept()
+	if err != nil {
+		t.Fatalf("accept unix socket: %v", err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+	var request service.LocalEmbodimentRequest
+	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&request); err != nil {
+		t.Fatalf("decode unix socket request: %v", err)
+	}
+	requests <- request
+	if err := json.NewEncoder(conn).Encode(response); err != nil {
+		t.Fatalf("encode unix socket response: %v", err)
+	}
+}
+
+func waitForCLIUnixSocket(t *testing.T, socketPath string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(socketPath); err == nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("socket did not become ready: %s", socketPath)
 }
 
 func TestShowPlaceCommandRendersDrilldownSummary(t *testing.T) {

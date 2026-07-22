@@ -46,7 +46,7 @@ func TestNeovimPluginIncludesLiveDraftCommands(t *testing.T) {
 		"start_live_transport",
 		"schedule_socket_reconnect",
 		"send_live_socket_update",
-		"websocket-preferred live-draft carriage",
+		"direct Unix-socket live-draft contract",
 		"## Links",
 		"linked_item_ids",
 		"related_runs",
@@ -89,6 +89,7 @@ func TestNeovimLauncherOpensItemThroughRuntimePath(t *testing.T) {
 		"runtimepath+=",
 		"OksOpen",
 		"OKS_BASE_URL",
+		"OKS_SOCKET_PATH",
 		"OKS_DISPLAY_NAME",
 		"OKS_COLOR",
 	}

@@ -46,7 +46,8 @@ signed evidence payload. Source: `DI-faruv`.
 
 ## Current browser, CLI, and Neovim shape
 
-All current embodiments talk to the same local HTTP surface.
+All current embodiments talk to the same local runtime, but not through only
+one transport anymore.
 
 The current `ex5` module now pins Go 1.24.13, which matches the other
 `grid-examples` modules and avoids a separate patch-level Go requirement when
@@ -80,6 +81,7 @@ Browser:
 
 CLI:
 
+- prefers the direct local Unix-socket contract, with HTTP kept as compatibility fallback
 - prints dashboard counts
 - creates and lists places and resources
 - creates responsibilities and knowledge items
@@ -95,7 +97,7 @@ CLI:
 Neovim phase 1:
 
 - opens a knowledge item live draft by item ID
-- prefers websocket live-draft carriage and falls back to the shared HTTP live endpoint when bootstrap fetch or compatibility requires it
+- prefers the direct local Unix-socket contract for both request/response and live-draft streaming, and falls back to the shared HTTP live endpoint when compatibility requires it
 - pushes the current body with `:write`
 - sends presence/typing updates over websocket when connected, with the live-draft HTTP endpoint kept as fallback
 - exposes local status/participant inspection commands
@@ -188,9 +190,11 @@ The matching CLI queue pass follows the same rule too. It keeps
 terminal-friendly summaries instead of raw JSON. Source: `DI-ravum`.
 
 The important behavior point is that these are not separate backends. They are
-two terminal-facing views over the same local runtime and projected state, so a
-user can mix shell commands and Neovim inspection without crossing embodiment
-boundaries or losing context. Source: `DI-fudok`; `DI-givot`; `DI-lorav`.
+two terminal-facing views over the same local runtime and projected state, now
+sharing one direct local Unix-socket contract while the browser stays on the
+HTTP adapter. A user can mix shell commands and Neovim inspection without
+crossing embodiment boundaries or losing context. Source: `DI-fudok`;
+`DI-givot`; `DI-lorav`; `DI-favel`.
 
 The plugin now tracks the live-draft window explicitly so Neovim presence and
 body pushes continue to report cursor/head against the draft buffer even after

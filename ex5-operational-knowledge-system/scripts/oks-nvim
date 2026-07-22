@@ -9,9 +9,10 @@ if [ -z "${item_id}" ]; then
   exit 1
 fi
 
-# Intent: Keep the first ex5 Neovim entry path on the existing local HTTP
-# runtime instead of inventing a separate transport just for the editor
-# embodiment. Source: DI-fudok
+# Intent: Prefer the direct local Unix-socket embodiment contract for Neovim
+# while preserving the older HTTP adapter as explicit compatibility fallback.
+# Source: DI-favel
+export OKS_SOCKET_PATH="${OKS_SOCKET_PATH:-.operational-knowledge-system/embodiment.sock}"
 export OKS_BASE_URL="${OKS_BASE_URL:-http://127.0.0.1:7045}"
 export OKS_DISPLAY_NAME="${OKS_DISPLAY_NAME:-Neovim User}"
 export OKS_COLOR="${OKS_COLOR:-#d66f1d}"

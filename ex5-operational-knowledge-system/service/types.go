@@ -53,6 +53,9 @@ type Meta struct {
 	RelayBlobTransferEnabled    bool     `json:"relay_blob_transfer_enabled"`
 	LiveDraftWebSocketEnabled   bool     `json:"live_draft_websocket_enabled"`
 	LiveDraftPreferredTransport string   `json:"live_draft_preferred_transport"`
+	LocalUnixSocketEnabled      bool     `json:"local_unix_socket_enabled"`
+	LocalUnixSocketPath         string   `json:"local_unix_socket_path"`
+	TerminalEmbodimentAdapter   string   `json:"terminal_embodiment_adapter"`
 	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
 }
 

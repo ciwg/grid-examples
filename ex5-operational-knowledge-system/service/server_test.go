@@ -72,8 +72,14 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if !meta.RelayBlobTransferEnabled {
 		t.Fatalf("expected relay blob transfer capability metadata in meta: %+v", meta)
 	}
-	if !meta.LiveDraftWebSocketEnabled || meta.LiveDraftPreferredTransport != "websocket" {
-		t.Fatalf("expected websocket live-draft capability metadata in meta: %+v", meta)
+	if !meta.LiveDraftWebSocketEnabled || meta.LiveDraftPreferredTransport != "local_unix_socket" {
+		t.Fatalf("expected local unix socket live-draft capability metadata in meta: %+v", meta)
+	}
+	if !meta.LocalUnixSocketEnabled || !strings.HasSuffix(meta.LocalUnixSocketPath, "/embodiment.sock") {
+		t.Fatalf("expected local unix socket metadata in meta: %+v", meta)
+	}
+	if meta.TerminalEmbodimentAdapter != "local_unix_socket" {
+		t.Fatalf("expected terminal local unix socket adapter in meta: %+v", meta)
 	}
 	if meta.PrimaryEmbodimentAdapter != "local_http" {
 		t.Fatalf("expected local_http embodiment adapter in meta: %+v", meta)

@@ -153,7 +153,7 @@ What the current runtime actually implements today:
 - generic place hierarchy and resource records
 - local HTTP API
 - browser UI over that API, including shared working drafts for knowledge items
-- CLI over that API, including place/resource commands
+- CLI over a direct local Unix-socket contract, with HTTP kept as compatibility fallback
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
   editing
@@ -175,7 +175,6 @@ What the current runtime actually implements today:
 
 What is not yet implemented in the shipped runtime:
 
-- direct non-HTTP embodiment contracts
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
@@ -495,4 +494,4 @@ What it does not try to do yet:
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, create-envelope-CID durable IDs plus preserved short aliases, bootstrap inline evidence blobs, and incremental relay-feed plus CID blob transfer
 - dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, replay the eight frozen family envelopes authoritatively from CAS, and reload shared draft bodies authoritatively from CAS through local manifests
 - expose peer-exchange, CAS, shared-draft, websocket-live-transport, and embodiment-adapter capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing the broader transport family
-- ship a dedicated `operational-relay` remote deployment alongside the local adapter while treating direct non-HTTP embodiment contracts and deferred product follow-on work as the remaining PromiseGrid-adjacent backlog
+- ship a dedicated `operational-relay` remote deployment alongside the local adapter while treating broader browser-side transport follow-on work and deferred product work as the remaining PromiseGrid-adjacent backlog
