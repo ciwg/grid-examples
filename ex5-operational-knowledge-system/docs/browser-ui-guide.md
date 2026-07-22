@@ -54,6 +54,36 @@ The screenshots in this guide were captured from the live local browser surface
 using the shipped UI, not mockups. They show the main top-level work areas in
 their current form.
 
+## Screenshot Gallery
+
+Review home and draft queue:
+
+![Review home with hero stats and draft queue](./browser-ui-shots/review-drafts.png)
+
+Review hotspots:
+
+![Review workspace problem hotspots](./browser-ui-shots/review-hotspots.png)
+
+Review search:
+
+![Review workspace known-record search](./browser-ui-shots/review-search.png)
+
+Author workspace:
+
+![Author workspace](./browser-ui-shots/author.png)
+
+Operate workspace:
+
+![Operate workspace](./browser-ui-shots/operate.png)
+
+Create workspace:
+
+![Create workspace](./browser-ui-shots/create.png)
+
+Browse Collections workspace:
+
+![Browse Collections workspace](./browser-ui-shots/browse.png)
+
 ## Hero And Dashboard Stats
 
 ### What it does
