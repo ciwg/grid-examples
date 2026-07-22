@@ -223,6 +223,8 @@ CLI behavior today:
 - contextual place/resource drilldowns with related runs and links over the shared detail routes
 - projected run/item/responsibility drilldowns over the shared detail routes,
   including related runs, approvals, evidence, and typed links
+- projected run drilldowns now also include direct terminal handoff hints into
+  related item, place, resource, and responsibility context
 - grouped pending-review aggregation over the same search-route family Neovim already uses, rendered as a terminal summary
 - strict review-queue contract checks so omitted run `approvals` fields fail terminal triage instead of being misread as genuine unreviewed work
 
@@ -233,6 +235,7 @@ Neovim behavior today:
 - grouped search and browse over the operational graph
 - grouped pending-review browsing for draft items and review-worthy runs
 - strict pending-review contract checks so omitted run `approvals` fields stop the queue instead of inventing fake review work
+- run inspection with direct handoff hints into item/place/resource/responsibility context
 - limited item approval for the current or specified item
 - limited run approval for the current or specified run
 - limited item supersede for the current or specified item

@@ -77,6 +77,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - CLI structured search filters and problem-only review over the shared search projection
 - CLI pending-review and problem-review terminal summaries for draft items, unreviewed runs, problem runs, and grouped hotspots
 - CLI place/resource drilldown summaries over the shared context detail routes
+- CLI run drilldowns with direct handoffs into related item, place, resource, and responsibility context
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
@@ -84,6 +85,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim typed-link browsing over linked items, runs, places, resources, and responsibilities
 - Neovim search/browse over grouped `/api/search` results with direct inspect hints
 - Neovim pending-review view for draft items, unreviewed runs, and problem runs
+- Neovim run inspector handoffs into related item, place, resource, and responsibility inspectors
 - Neovim item approval action over the existing item approval API
 - Neovim run approval action over the existing run approval API
 - Neovim item supersede action over the existing item supersede API

@@ -136,6 +136,12 @@ and renders approvals, evidence, revisions, related runs, and typed links in
 terminal-friendly summaries instead of falling back to raw JSON. Source:
 `DI-salup`.
 
+The next drilldown refinement follows that same rule too. It keeps run review
+on the existing run-detail projection, but adds terminal handoff hints from the
+run back into related item, place, resource, and responsibility context so
+queue-driven review can keep walking the same projected model instead of
+stopping at one record. Source: `DI-vunep`.
+
 The matching CLI queue pass follows the same rule too. It keeps
 `problem-review` on the existing grouped hotspot route and keeps
 `pending-review` on the existing shared search projections, but renders both as

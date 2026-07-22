@@ -42,8 +42,16 @@ The browser owns:
 
 The CLI owns:
 
-- operator-oriented creation and inspection commands
-- shell-friendly JSON/text output
+- operator-oriented creation and mutation commands
+- run evidence upload over the shared multipart evidence route
+- typed-link creation over the shared validated graph route
+- structured search and `problem=true` review over the shared search route
+- pending-review and problem-review terminal summaries
+- terminal drilldowns for place, resource, responsibility, item, and run detail
+
+The current CLI surface is broad, but it is still not browser parity. It is a
+terminal-first operational surface built from shared projected routes rather
+than a second backend. Source: `DI-ravum`; `DI-salup`; `DI-zanub`; `DI-vuteg`.
 
 The first-phase Neovim embodiment owns:
 
@@ -69,12 +77,15 @@ Together, those two terminal embodiments now form a staged terminal-first
 surface:
 
 - CLI handles direct command-style mutation and shell inspection
-- CLI can also assemble a shell-facing pending-review queue from the same
-  shared search projections Neovim already uses
-- Neovim handles text editing, review, browse, and pending-work triage
+- CLI also assembles shell-facing pending and problem review summaries from the
+  same shared projections Neovim already uses
+- Neovim handles text editing, review, browse, pending-work triage, limited
+  approval actions, and limited supersede action
+- both surfaces now provide deeper contextual drilldown from run and queue work
+  into related item, place, resource, and responsibility records
 
 They still share one runtime and one projection layer. Source: `DI-fudok`;
-`DI-givot`; `DI-lorav`; `DI-vabok`.
+`DI-givot`; `DI-lorav`; `DI-vabok`; `DI-vunep`.
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.

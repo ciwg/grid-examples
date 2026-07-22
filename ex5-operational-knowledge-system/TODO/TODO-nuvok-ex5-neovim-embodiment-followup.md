@@ -51,6 +51,7 @@ phase 1.
 - direct run inspection now exists for evidence and approval review over projected run detail
 - typed-link browsing now exists over item, run, place, resource, and responsibility detail
 - terminal review queues now reject omitted run `approvals` fields instead of silently inventing fake unreviewed work under `TODO/TODO-davur-ex5-review-queue-approvals-contract.md`
+- terminal run review now hands off into related item, place, resource, and responsibility context, and the older inspect commands now have headless behavior coverage under `TODO/TODO-vunep-ex5-run-context-handoffs.md` and `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API

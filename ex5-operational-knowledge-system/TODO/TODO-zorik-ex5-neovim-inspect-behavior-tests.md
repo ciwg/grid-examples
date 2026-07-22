@@ -21,6 +21,6 @@ Add real behavior coverage for Neovim inspect flows.
 
 ## Tasks
 
-- [ ] zorik.1 Identify which inspect surfaces still rely only on marker tests.
-- [ ] zorik.2 Add headless behavior tests for the missing inspect flows.
-- [ ] zorik.3 Keep the lighter asset test only as a shipped-command backstop.
+- [x] zorik.1 Identify which inspect surfaces still rely only on marker tests.
+- [x] zorik.2 Add headless behavior tests for the missing inspect flows.
+- [x] zorik.3 Keep the lighter asset test only as a shipped-command backstop.

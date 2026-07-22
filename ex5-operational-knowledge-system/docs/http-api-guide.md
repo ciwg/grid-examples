@@ -514,14 +514,18 @@ summary of context, evidence, approvals, and typed links:
 
 - `oks-cli show-run RUN_ID`
 
-Source: `DI-salup`.
+The CLI and Neovim run inspectors now also use the same run detail projection
+to hand terminal users back into related item, place, resource, and
+responsibility context without inventing a second terminal-only route.
+Source: `DI-salup`; `DI-vunep`.
 
 For a `receiving_check` run, the browser uses the evidence facts from this
 response to render the `Receiving review` panel.
 
 The current Neovim run inspector also reuses this response shape for a
-read-only split that shows run context, evidence summaries, and approvals.
-Source: `DI-ravok`.
+read-only split that shows run context, evidence summaries, approvals, and
+direct handoff hints into related context inspectors. Source: `DI-ravok`;
+`DI-vunep`.
 
 It also reads the run `links` array for typed-link browsing. Source: `DI-zalor`.
 

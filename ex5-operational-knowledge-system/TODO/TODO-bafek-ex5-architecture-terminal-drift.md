@@ -21,5 +21,5 @@ Make the architecture doc match the current terminal surface.
 
 ## Tasks
 
-- [ ] bafek.1 Identify the missing terminal-surface details in architecture docs.
-- [ ] bafek.2 Rewrite the terminal embodiment summary to match current capabilities.
+- [x] bafek.1 Identify the missing terminal-surface details in architecture docs.
+- [x] bafek.2 Rewrite the terminal embodiment summary to match current capabilities.

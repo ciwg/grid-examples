@@ -883,6 +883,21 @@ func renderRunDetail(run cliRunDetail) string {
 	lines = append(lines, "resources: "+joinOrNone(run.ResourceIDs))
 	lines = append(lines, "responsibilities: "+joinOrNone(run.ResponsibilityIDs))
 	lines = append(lines, "show item: oks-cli show-item "+safeText(run.ItemID, "-"))
+	if strings.TrimSpace(run.PlaceID) != "" {
+		lines = append(lines, "show place: oks-cli show-place "+run.PlaceID)
+	}
+	for _, resourceID := range run.ResourceIDs {
+		if strings.TrimSpace(resourceID) == "" {
+			continue
+		}
+		lines = append(lines, "show resource: oks-cli show-resource "+resourceID)
+	}
+	for _, responsibilityID := range run.ResponsibilityIDs {
+		if strings.TrimSpace(responsibilityID) == "" {
+			continue
+		}
+		lines = append(lines, "show responsibility: oks-cli show-responsibility "+responsibilityID)
+	}
 	lines = append(lines, "")
 	lines = append(lines, "evidence:")
 	lines = append(lines, renderEvidenceLines(run.Evidence)...)

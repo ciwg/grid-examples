@@ -22,7 +22,7 @@ surfaces.
 
 ## Tasks
 
-- [ ] vunep.1 Define the desired run-context handoff hints for CLI and Neovim.
-- [ ] vunep.2 Add the CLI run drilldown handoffs.
-- [ ] vunep.3 Add the Neovim run inspector handoffs.
-- [ ] vunep.4 Add regression coverage and docs.
+- [x] vunep.1 Define the desired run-context handoff hints for CLI and Neovim.
+- [x] vunep.2 Add the CLI run drilldown handoffs.
+- [x] vunep.3 Add the Neovim run inspector handoffs.
+- [x] vunep.4 Add regression coverage and docs.

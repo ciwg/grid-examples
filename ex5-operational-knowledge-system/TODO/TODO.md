@@ -2,9 +2,9 @@
 
 ## Open / Planned
 
-- [ ] 056 - Add real behavior tests for ex5 Neovim inspect commands - `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
-- [ ] 055 - Bring ex5 architecture docs up to current terminal surface - `TODO/TODO-bafek-ex5-architecture-terminal-drift.md`
-- [ ] 054 - Add better terminal run-context handoffs in ex5 CLI and Neovim - `TODO/TODO-vunep-ex5-run-context-handoffs.md`
+- [x] 056 - Add real behavior tests for ex5 Neovim inspect commands - `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
+- [x] 055 - Bring ex5 architecture docs up to current terminal surface - `TODO/TODO-bafek-ex5-architecture-terminal-drift.md`
+- [x] 054 - Add better terminal run-context handoffs in ex5 CLI and Neovim - `TODO/TODO-vunep-ex5-run-context-handoffs.md`
 - [x] 057 - Add ex5 user-facing documentation set with overview, guide, and terminal matrix - `TODO/TODO-movar-ex5-user-documentation-pass.md`
 - [x] 053 - Make ex5 terminal review queues reject missing approvals fields - `TODO/TODO-davur-ex5-review-queue-approvals-contract.md`
 - [x] 052 - Render ex5 CLI pending and problem review queues as terminal summaries - `TODO/TODO-ravum-ex5-cli-review-queue-rendering.md`

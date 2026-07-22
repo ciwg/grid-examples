@@ -452,6 +452,36 @@ local function append_links(lines, links)
   end
 end
 
+local function append_inspect_handoff(lines, label, command)
+  table.insert(lines, "- " .. label .. ": " .. command)
+end
+
+-- Intent: Keep terminal run review flowing into the surrounding operational
+-- context instead of stranding the user at one run record after triage.
+-- Source: DI-vunep
+local function append_run_context_handoffs(lines, detail)
+  table.insert(lines, "")
+  table.insert(lines, "## Handoffs")
+  append_inspect_handoff(lines, "item", ":OksInspect " .. (detail.item_id or "-"))
+  if detail.place_id and detail.place_id ~= "" then
+    append_inspect_handoff(lines, "place", ":OksInspectEntity place " .. detail.place_id)
+  end
+  if detail.resource_ids and #detail.resource_ids > 0 then
+    for _, resource_id in ipairs(detail.resource_ids) do
+      if resource_id and resource_id ~= "" then
+        append_inspect_handoff(lines, "resource", ":OksInspectEntity resource " .. resource_id)
+      end
+    end
+  end
+  if detail.responsibility_ids and #detail.responsibility_ids > 0 then
+    for _, responsibility_id in ipairs(detail.responsibility_ids) do
+      if responsibility_id and responsibility_id ~= "" then
+        append_inspect_handoff(lines, "responsibility", ":OksInspectEntity responsibility " .. responsibility_id)
+      end
+    end
+  end
+end
+
 local function append_filter_summary(lines, filters)
   table.insert(lines, "")
   table.insert(lines, "## Filters")
@@ -821,6 +851,7 @@ local function run_detail_lines(detail)
     end
   end
 
+  append_run_context_handoffs(lines, detail)
   append_links(lines, detail.links)
 
   return lines

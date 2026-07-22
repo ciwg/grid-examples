@@ -492,6 +492,9 @@ func TestShowRunCommandRendersDrilldownSummary(t *testing.T) {
 	if !strings.Contains(output, "# Run RUN-0005") ||
 		!strings.Contains(output, "place: PLACE-0001") ||
 		!strings.Contains(output, "show item: oks-cli show-item ITEM-0003") ||
+		!strings.Contains(output, "show place: oks-cli show-place PLACE-0001") ||
+		!strings.Contains(output, "show resource: oks-cli show-resource RES-0003") ||
+		!strings.Contains(output, "show responsibility: oks-cli show-responsibility RESP-0002") ||
 		!strings.Contains(output, "facts: supplier=Acme, variance=-2") ||
 		!strings.Contains(output, "attachment: dock.jpg") ||
 		!strings.Contains(output, "role=reviewer decision=noted actor=ellen") ||
