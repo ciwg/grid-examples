@@ -40,6 +40,11 @@ phase 1.
 - [x] nuvok.11 Define the next richer terminal-first follow-on after item supersede as CLI evidence upload, typed-link creation, structured/problem search, grouped problem review, and responsibility detail parity under `TODO/TODO-zanub-ex5-cli-evidence-upload.md`, `TODO/TODO-vuteg-ex5-cli-typed-link-creation.md`, `TODO/TODO-mifot-ex5-cli-structured-search-filters.md`, `TODO/TODO-nuvaz-ex5-cli-problem-review.md`, and `TODO/TODO-jubav-ex5-cli-responsibility-detail.md`.
 - [x] nuvok.12 Define the next richer terminal-first follow-on after that as CLI pending-review aggregation under `TODO/TODO-vabok-ex5-cli-pending-review.md`.
 - [x] nuvok.13 Define the next richer terminal-first follow-on after CLI pending review under `TODO/TODO-zovam-ex5-terminal-followon-slice-definition.md`, with the adjacent doc cleanup in `TODO/TODO-fudab-ex5-terminal-doc-current-state-cleanup.md` and the next concrete slice recorded as `TODO/TODO-ravum-ex5-cli-review-queue-rendering.md`.
+- [x] nuvok.14 Define the next richer Neovim workflow surface after related-run handoffs as a grouped problem-review view under `TODO/TODO-sivok-ex5-neovim-problem-review-phase.md`.
+- [x] nuvok.15 Define the next richer Neovim workflow surface after grouped problem review as structured search filters under `TODO/TODO-fanub-ex5-neovim-structured-search-filters.md`.
+- [x] nuvok.16 Define the next richer Neovim workflow follow-on after structured search filters as a real `:OksSearch` command-surface repair under `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`.
+- [x] nuvok.17 Define the adjacent terminal test-hardening slice as direct Ex-command coverage under `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`.
+- [x] nuvok.18 Define the adjacent high-level doc cleanup slice under `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`.
 
 ## Status
 
@@ -53,6 +58,9 @@ phase 1.
 - terminal review queues now reject omitted run `approvals` fields instead of silently inventing fake unreviewed work under `TODO/TODO-davur-ex5-review-queue-approvals-contract.md`
 - terminal run review now hands off into related item, place, resource, and responsibility context, and the older inspect commands now have headless behavior coverage under `TODO/TODO-vunep-ex5-run-context-handoffs.md` and `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
 - related-run sections inside the older Neovim inspectors now emit direct `:OksInspectRun` handoffs under `TODO/TODO-josav-ex5-neovim-related-run-handoffs.md`
+- grouped problem review now exists as a dedicated Neovim hotspot view under `TODO/TODO-sivok-ex5-neovim-problem-review-phase.md`
+- Neovim search now supports the same shared structured-filter vocabulary the CLI already uses under `TODO/TODO-fanub-ex5-neovim-structured-search-filters.md`
+- the next Neovim follow-ons are now split into explicit child TODOs for `:OksSearch` command-surface repair, direct Ex-command coverage, and high-level terminal-doc drift under `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`, `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`, and `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
 - read-only search and browse now exists over the shared `/api/search` projection
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API

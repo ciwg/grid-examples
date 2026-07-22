@@ -72,8 +72,9 @@ func TestNeovimPendingRendersDraftAndReviewQueues(t *testing.T) {
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
 local oks = require("oks")
+oks.setup()
 
-oks.pending()
+vim.cmd("OksPending")
 
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local body = table.concat(lines, "\n")
@@ -159,8 +160,9 @@ vim.notify = function(message, level)
   table.insert(notices, message)
 end
 local oks = require("oks")
+oks.setup()
 
-oks.pending()
+vim.cmd("OksPending")
 
 local joined = table.concat(notices, "\n")
 if not string.find(joined, '/api/search runs[1] missing "approvals" array', 1, true) then

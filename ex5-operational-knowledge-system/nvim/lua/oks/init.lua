@@ -136,6 +136,16 @@ local function url_encode(value)
   end))
 end
 
+local allowed_search_filters = {
+  kind = true,
+  status = true,
+  outcome = true,
+  place_id = true,
+  resource_id = true,
+  responsibility_id = true,
+  problem = true,
+}
+
 -- Intent: Reuse the existing ex5 live-draft HTTP surface from Neovim instead
 -- of inventing a separate transport for the first embodiment phase. Source:
 -- DI-fudok
@@ -516,7 +526,7 @@ local function search_result_lines(query, decoded)
   local lines = {
     "# Search",
     "",
-    "- query: " .. query,
+    "- query: " .. ((query and query ~= "") and query or "(filters only)"),
   }
 
   append_filter_summary(lines, decoded.filters)
@@ -580,6 +590,59 @@ local function search_result_lines(query, decoded)
   end)
 
   return lines
+end
+
+-- Intent: Keep Neovim search on the shared `/api/search` contract while
+-- adding the same structured-filter vocabulary the CLI and browser already
+-- use, instead of inventing a second editor-only search shape. Source:
+-- DI-fanub
+local function build_search_request(command_args)
+  local tokens = vim.split(vim.trim(command_args or ""), "%s+", { trimempty = true })
+  if #tokens == 0 then
+    return nil, nil, "search query or filter is required"
+  end
+
+  local query_tokens = {}
+  local filters = {}
+  local saw_filter = false
+
+  for _, token in ipairs(tokens) do
+    local key, value = token:match("^([%a_][%w_]*)=(.*)$")
+    if key ~= nil then
+      saw_filter = true
+      if not allowed_search_filters[key] then
+        return nil, nil, 'unsupported search filter "' .. key .. '"'
+      end
+      filters[key] = value
+    else
+      if saw_filter then
+        return nil, nil, "free-text query words must come before key=value filters"
+      end
+      table.insert(query_tokens, token)
+    end
+  end
+
+  local query = table.concat(query_tokens, " ")
+  if query == "" and next(filters) == nil then
+    return nil, nil, "search query or filter is required"
+  end
+
+  local params = {}
+  if query ~= "" then
+    table.insert(params, "q=" .. url_encode(query))
+  end
+  for _, key in ipairs({ "kind", "status", "outcome", "place_id", "resource_id", "responsibility_id", "problem" }) do
+    local value = filters[key]
+    if value ~= nil and value ~= "" then
+      table.insert(params, key .. "=" .. url_encode(value))
+    end
+  end
+
+  local path = "/api/search"
+  if #params > 0 then
+    path = path .. "?" .. table.concat(params, "&")
+  end
+  return path, query, nil
 end
 
 local function search_projection(path, failure_prefix)
@@ -658,6 +721,59 @@ local function pending_review_lines(draft_items, all_runs, problem_runs)
   return lines
 end
 
+local function append_problem_group_section(lines, heading, group_type, groups)
+  table.insert(lines, "")
+  table.insert(lines, "## " .. heading)
+  if not groups or #groups == 0 then
+    table.insert(lines, "- none")
+    return
+  end
+  for _, group in ipairs(groups) do
+    table.insert(lines, string.format(
+      "- %s kind=%s name=%s problems=%d receiving=%d inventory=%d",
+      group.group_id or "-",
+      group.kind or "-",
+      group.name or "-",
+      group.problem_count or 0,
+      group.receiving_problems or 0,
+      group.inventory_problems or 0
+    ))
+    table.insert(lines, "  inspect: :OksInspectEntity " .. group_type .. " " .. (group.group_id or "-"))
+    if group.highlights and #group.highlights > 0 then
+      table.insert(lines, "  highlights: " .. table.concat(group.highlights, " | "))
+    end
+    table.insert(lines, "  runs:")
+    if not group.runs or #group.runs == 0 then
+      table.insert(lines, "  - none")
+    else
+      for _, run in ipairs(group.runs) do
+        table.insert(lines, string.format("  - %s kind=%s outcome=%s item=%s", run.id or "-", run.kind or "-", run.outcome or "-", run.item_id or "-"))
+        table.insert(lines, "    inspect: :OksInspectRun " .. (run.id or "-"))
+        if run.notes and run.notes ~= "" then
+          table.insert(lines, "    " .. run.notes)
+        end
+        if run.resource_ids and #run.resource_ids > 0 then
+          table.insert(lines, "    resources: " .. table.concat(run.resource_ids, ", "))
+        end
+      end
+    end
+  end
+end
+
+local function problem_review_lines(review)
+  local lines = {
+    "# Problem review",
+    "",
+    "- grouped receiving and inventory hotspots over /api/problem-review",
+    "- problem runs: " .. tostring(review.problem_runs or 0),
+  }
+
+  append_problem_group_section(lines, "Place groups", "place", review.place_groups)
+  append_problem_group_section(lines, "Resource groups", "resource", review.resource_groups)
+
+  return lines
+end
+
 -- Intent: Treat missing approvals arrays in shared pending-review run payloads
 -- as contract drift so terminal review queues fail loudly instead of inventing
 -- fake unreviewed work from omitted fields. Source: DI-davur
@@ -680,6 +796,39 @@ local function validate_pending_runs(runs, label)
     end
     if type(run.approvals) ~= "table" or not vim.tbl_islist(run.approvals) then
       notify(string.format('%s[%d] "approvals" field is not an array', label, index), vim.log.levels.ERROR)
+      return false
+    end
+  end
+  return true
+end
+
+-- Intent: Keep the Neovim grouped problem-review view aligned with the shared
+-- hotspot projection by rejecting malformed group payloads instead of silently
+-- dropping grouped review context. Source: DI-sivok
+local function validate_problem_groups(groups, label)
+  if groups == nil then
+    notify(label .. ' missing array', vim.log.levels.ERROR)
+    return false
+  end
+  if type(groups) ~= "table" or not vim.tbl_islist(groups) then
+    notify(label .. " is not an array", vim.log.levels.ERROR)
+    return false
+  end
+  for index, group in ipairs(groups) do
+    if type(group) ~= "table" then
+      notify(string.format("%s[%d] is not an object", label, index), vim.log.levels.ERROR)
+      return false
+    end
+    if group.runs == nil then
+      notify(string.format('%s[%d] missing "runs" array', label, index), vim.log.levels.ERROR)
+      return false
+    end
+    if type(group.runs) ~= "table" or not vim.tbl_islist(group.runs) then
+      notify(string.format('%s[%d] "runs" field is not an array', label, index), vim.log.levels.ERROR)
+      return false
+    end
+    if group.highlights ~= nil and (type(group.highlights) ~= "table" or not vim.tbl_islist(group.highlights)) then
+      notify(string.format('%s[%d] "highlights" field is not an array', label, index), vim.log.levels.ERROR)
       return false
     end
   end
@@ -1097,14 +1246,14 @@ end
 -- search projection as the browser and CLI, while keeping the editor-side
 -- surface read-only and routed into the existing inspectors for deeper
 -- browsing. Source: DI-givot
-function M.search(query)
-  query = vim.trim(query or "")
-  if query == "" then
-    notify("search query is required", vim.log.levels.WARN)
+function M.search(command_args)
+  local path, query, build_err = build_search_request(command_args)
+  if build_err then
+    notify(build_err, vim.log.levels.WARN)
     return
   end
 
-  local status, body, err = request("GET", "/api/search?q=" .. url_encode(query))
+  local status, body, err = request("GET", path)
   if err then
     notify(err, vim.log.levels.ERROR)
     return
@@ -1118,8 +1267,9 @@ function M.search(query)
     notify("search decode failed", vim.log.levels.ERROR)
     return
   end
-  inspect_buffer("oks-search://" .. url_encode(query), search_result_lines(query, decoded))
-  notify("searched " .. query)
+  local suffix = query ~= "" and url_encode(query) or "filters"
+  inspect_buffer("oks-search://" .. suffix, search_result_lines(query, decoded))
+  notify("searched " .. ((query ~= "") and query or "filters"))
 end
 
 -- Intent: Give terminal users a compact “what needs attention next” surface
@@ -1146,6 +1296,24 @@ function M.pending()
   end
   inspect_buffer("oks-pending://review", pending_review_lines(draft.items or {}, all.runs or {}, problems.runs or {}))
   notify("opened pending review")
+end
+
+-- Intent: Close the biggest remaining terminal-side grouped-review gap by
+-- giving Neovim the same hotspot projection the browser and CLI already use,
+-- without adding a separate editor-only review API. Source: DI-sivok
+function M.problem_review()
+  local review = search_projection("/api/problem-review", "problem review failed")
+  if not review then
+    return
+  end
+  if not validate_problem_groups(review.place_groups, "/api/problem-review place_groups") then
+    return
+  end
+  if not validate_problem_groups(review.resource_groups, "/api/problem-review resource_groups") then
+    return
+  end
+  inspect_buffer("oks-problem-review://review", problem_review_lines(review))
+  notify("opened problem review")
 end
 
 local function refresh_after_item_approval(item_id, detail)
@@ -1481,11 +1649,17 @@ function M.setup(opts)
     local args = vim.split(vim.trim(command.args), "%s+", { trimempty = true })
     M.inspect_entity(args[1], args[2])
   end, { nargs = "+" })
+  -- Intent: Let the shipped :OksSearch command accept the documented
+  -- multi-token query-plus-filter syntax instead of truncating input at a
+  -- single Ex argument before the shared search parser runs. Source: DI-lavup
   vim.api.nvim_create_user_command("OksSearch", function(command)
     M.search(command.args)
-  end, { nargs = 1 })
+  end, { nargs = "+" })
   vim.api.nvim_create_user_command("OksPending", function()
     M.pending()
+  end, {})
+  vim.api.nvim_create_user_command("OksProblemReview", function()
+    M.problem_review()
   end, {})
   vim.api.nvim_create_user_command("OksApproveItem", function(command)
     M.approve_item(command.args)

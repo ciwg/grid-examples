@@ -143,6 +143,7 @@ It is intentionally narrower than the browser surface:
 - inspect linked entities directly with `:OksInspectEntity TYPE ID`
 - search grouped projected records with `:OksSearch QUERY`
 - open a grouped pending-review buffer with `:OksPending`
+- open a grouped hotspot review buffer with `:OksProblemReview`
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - supersede the current or specified item with `:OksSupersedeItem [ITEM_ID] [NOTES...]`
@@ -184,10 +185,22 @@ with explicit hints for the inspect commands that already exist. It improves
 discovery inside the editor without adding write-side workflow actions. Source:
 `DI-givot`.
 
+Neovim structured search filters now stay on that same rule too. `:OksSearch`
+accepts the same trailing `key=value` filters the CLI already uses for the
+shared `/api/search` route, as long as free-text query words come first. That
+extends terminal-side search parity without adding a second editor-only search
+entrypoint. Source: `DI-fanub`.
+
 Neovim pending review reuses the same search projections to group draft items,
 unreviewed runs, and problem runs into one “what should I inspect next”
 buffer, with direct hints for the existing inspectors. It improves reviewer
 flow without adding write-side approval actions yet. Source: `DI-lorav`.
+
+Neovim grouped problem review follows the same staged rule too. It reuses the
+existing `/api/problem-review` projection to group place and resource hotspots
+into one read-only buffer with direct handoffs into the existing run and
+entity inspectors, instead of inventing a second editor-only review API.
+Source: `DI-sivok`.
 
 Neovim item approval resolves the current revision from the existing item
 detail API, posts the approval through the existing item approval endpoint, and

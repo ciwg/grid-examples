@@ -229,7 +229,8 @@ go run ./cmd/oks-cli runs
 `ex5` now has two terminal-facing embodiments over the same local runtime:
 
 - the CLI for direct create/list/show/approve/search commands
-- Neovim for live draft editing plus read-only review and browse flows
+- Neovim for live draft editing, staged review/browse surfaces, and a small set
+  of direct review actions
 
 The intended terminal behavior today is:
 
@@ -242,6 +243,8 @@ The intended terminal behavior today is:
   slices that already drive browser and Neovim review views
 - use the CLI when you need grouped hotspot review or projected responsibility
   detail from the same routes the browser and Neovim embodiments already read
+- use Neovim when you want the same grouped hotspot review inside an editor
+  scratch buffer with direct inspect handoffs for places, resources, and runs
 - use the CLI when you need pending-review and problem-review queues rendered as
   terminal summaries instead of raw JSON
 - use the CLI and Neovim review queues only against the shared search payloads
@@ -254,13 +257,16 @@ The intended terminal behavior today is:
   - editing a live draft
   - reviewing item and run detail
   - browsing linked entities
-  - searching across the operational graph
+  - searching across the operational graph with shared structured filters
+  - reviewing grouped hotspot problems
   - opening a pending-review queue for draft items and runs that need attention
+  - approving items or runs
+  - superseding an item
 
 The terminal surface is intentionally staged, not fully symmetric yet:
 
 - the CLI is better for direct command-style mutation
-- Neovim is better for text work, read-only browsing, and reviewer flow
+- Neovim is better for text work, staged review surfaces, and reviewer flow
 - both talk to the same `ex5` runtime and see the same projected state
 
 That means a terminal-heavy operator can already do a large amount of real work
@@ -286,7 +292,9 @@ What it supports now:
 - `:OksInspectRun`
 - `:OksInspectEntity TYPE ID`
 - `:OksSearch QUERY`
+- `:OksSearch QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]`
 - `:OksPending`
+- `:OksProblemReview`
 - `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
 - `:OksSupersedeItem [ITEM_ID] [NOTES...]`
@@ -326,6 +334,8 @@ Neovim also supports read-only search and browse over the shared
 `/api/search` projection:
 
 - grouped places, resources, responsibilities, items, and runs
+- trailing shared `key=value` filters for `kind`, `status`, `outcome`,
+  `place_id`, `resource_id`, `responsibility_id`, and `problem=true`
 - direct inspect hints for the existing inspector commands
 - a read-only `oks-search://...` buffer so discovery can stay inside the editor
 
@@ -336,6 +346,13 @@ projections:
 - unreviewed runs
 - problem runs
 - direct inspect hints so the next step stays inside the existing inspectors
+
+And it now supports a read-only grouped problem-review buffer over the shared
+`/api/problem-review` projection:
+
+- grouped place hotspots
+- grouped resource hotspots
+- direct inspect hints for places, resources, and runs inside each hotspot
 
 And it now includes a narrow set of write-side review actions over the existing
 HTTP runtime:

@@ -89,7 +89,9 @@ Neovim phase 1:
 - opens a read-only projected run inspector for evidence and approvals
 - opens a generic read-only entity inspector for linked places, resources, responsibilities, items, and runs
 - opens a read-only grouped search buffer over `/api/search` for discovery and browse handoff into the existing inspectors
+- extends that same search buffer with trailing shared `key=value` filters over `/api/search`
 - opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
+- opens a read-only grouped problem-review buffer over `/api/problem-review`
 - posts limited item approvals by resolving current revision from `GET /api/items/{id}` and then using `POST /api/items/{id}/approvals`
 - posts limited run approvals with `POST /api/runs/{id}/approvals`
 - posts limited item supersede actions with `POST /api/items/{id}/supersede`
@@ -114,11 +116,21 @@ The richer CLI search path follows that same rule too. It reuses the same
 including `problem=true`, instead of inventing a second terminal-only review
 surface. Source: `DI-mifot`.
 
+The Neovim structured-search follow-on now follows the same rule too. It keeps
+` :OksSearch` on the same `/api/search` route and the same filter vocabulary as
+the CLI, instead of adding a second editor-only search command or backend
+shape. Source: `DI-fanub`.
+
 The CLI pending-review path follows the same rule again. It reuses
 `/api/search?status=draft`, `/api/search`, and `/api/search?problem=true` to
 build one shell-facing summary for draft items, review queue runs, and problem
 runs instead of inventing a terminal-only aggregation endpoint. Source:
 `DI-vabok`; `DI-ravum`.
+
+The Neovim grouped problem-review path now follows the same rule too. It
+reuses `/api/problem-review` to render place and resource hotspot groups with
+direct run and entity handoffs, instead of inventing an editor-only grouped
+review backend. Source: `DI-sivok`.
 
 That queue path now also treats an omitted run `approvals` field as a shared
 projection contract error instead of silently reclassifying the run as genuine

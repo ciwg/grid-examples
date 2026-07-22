@@ -24,9 +24,9 @@ today. Source: `DI-movar`.
 | Approve run | Yes | Yes | Yes |
 | Supersede item | Yes | No direct command today | Yes |
 | Free-text search | Yes | Yes | Yes |
-| Structured search filters | Yes | Yes | Limited to existing commands |
+| Structured search filters | Yes | Yes | Yes |
 | Pending-review queue | Yes | Yes | Yes |
-| Grouped problem review | Yes | Yes | No dedicated grouped hotspot command |
+| Grouped problem review | Yes | Yes | Yes |
 | Context drilldowns from place/resource/responsibility | Yes | Yes | Partial via inspectors |
 
 The matrix reflects current shipped behavior, not planned parity. CLI and
@@ -51,6 +51,7 @@ Source: `DI-zanub`; `DI-vuteg`; `DI-ravum`; `DI-salup`.
 - live draft editing
 - staying inside one editor session
 - inspecting items, runs, and linked entities
+- structured search and grouped problem review without leaving the editor
 - pending-review browsing
 - item/run approval and item supersede actions
 

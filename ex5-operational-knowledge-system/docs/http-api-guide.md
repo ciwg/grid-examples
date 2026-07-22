@@ -57,7 +57,11 @@ The CLI now reuses this same route directly for a terminal hotspot summary:
 
 - `oks-cli problem-review`
 
-Source: `DI-nuvaz`; `DI-ravum`.
+Neovim now reuses it too:
+
+- `:OksProblemReview`
+
+Source: `DI-nuvaz`; `DI-ravum`; `DI-sivok`.
 
 Terminal review surfaces also assume each run record that participates in
 pending/problem review carries an explicit `approvals` array. The CLI and
@@ -158,6 +162,15 @@ hardcoded receiving outcome. Source: `DI-vemur`.
 This is now also the Neovim search/browse surface. `:OksSearch QUERY` reads the
 same response and renders grouped read-only result sections with inspect hints
 for the existing item, run, and generic entity inspectors. Source: `DI-givot`.
+
+Neovim now also reuses the shared structured filters on that same route:
+
+- `:OksSearch QUERY kind=... status=... outcome=...`
+- `:OksSearch QUERY place_id=... resource_id=... responsibility_id=...`
+- `:OksSearch QUERY problem=true`
+
+Unsupported filter keys are rejected in-editor instead of being silently
+dropped. Source: `DI-fanub`.
 
 The Neovim pending-review view also reuses this route. `:OksPending` combines
 `/api/search?status=draft`, `/api/search`, and `/api/search?problem=true` to

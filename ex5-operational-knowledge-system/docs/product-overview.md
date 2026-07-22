@@ -56,8 +56,9 @@ runtime:
   inspection, contextual drilldowns, and grouped review panels.
 - CLI: shell-first creation, inspection, search, evidence upload, approvals,
   and review queues.
-- Neovim: live draft editing, read-only browsing, pending review, item/run
-  approval, and item supersede inside one editor session.
+- Neovim: live draft editing, structured search, grouped problem review,
+  pending review, item/run approval, item supersede, and linked inspection
+  inside one editor session.
 
 These are not separate backends. They all read and write the same projected
 state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;

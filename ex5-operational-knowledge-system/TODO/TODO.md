@@ -2,6 +2,11 @@
 
 ## Open / Planned
 
+- [x] 063 - Clean up ex5 high-level terminal doc surface drift - `TODO/TODO-dorun-ex5-terminal-doc-surface-drift.md`
+- [x] 062 - Add direct headless coverage for ex5 Neovim Ex commands - `TODO/TODO-rozaf-ex5-neovim-ex-command-coverage.md`
+- [x] 061 - Fix ex5 Neovim `:OksSearch` command arity and documented syntax mismatch - `TODO/TODO-lavup-ex5-neovim-search-command-arity.md`
+- [x] 060 - Add ex5 Neovim structured search filters - `TODO/TODO-fanub-ex5-neovim-structured-search-filters.md`
+- [x] 059 - Add ex5 Neovim grouped problem-review phase - `TODO/TODO-sivok-ex5-neovim-problem-review-phase.md`
 - [x] 058 - Add ex5 Neovim related-run handoff hints across inspectors - `TODO/TODO-josav-ex5-neovim-related-run-handoffs.md`
 - [x] 056 - Add real behavior tests for ex5 Neovim inspect commands - `TODO/TODO-zorik-ex5-neovim-inspect-behavior-tests.md`
 - [x] 055 - Bring ex5 architecture docs up to current terminal surface - `TODO/TODO-bafek-ex5-architecture-terminal-drift.md`

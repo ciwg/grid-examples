@@ -134,8 +134,9 @@ go run ./cmd/oks-cli problem-review
 
 Use Neovim for the same staged review shape:
 
-- `:OksSearch <query>`
+- `:OksSearch <query> [kind=...] [status=...] [outcome=...] [place_id=...] [resource_id=...] [responsibility_id=...] [problem=true]`
 - `:OksPending`
+- `:OksProblemReview`
 - `:OksInspect`
 - `:OksInspectRun`
 - `:OksInspectEntity`
