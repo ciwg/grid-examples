@@ -543,11 +543,11 @@ function renderRuns(items) {
 // Source: DI-lafor
 function refreshActionCatalog() {
   renderSelect(resourcePlaceSelectEl, catalogState.places, "Select a place", (place) => `${place.id} · ${place.name}`);
-  renderSelect(itemResponsibilitySelectEl, catalogState.responsibilities, "Optional responsibility", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
-  renderSelect(runItemSelectEl, catalogState.items, "Select a knowledge item", (item) => `${item.id} · ${item.title}`);
+  renderSelect(itemResponsibilitySelectEl, catalogState.responsibilities, "Optional owner or review role", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
+  renderSelect(runItemSelectEl, catalogState.items, "Select a procedure or checklist", (item) => `${item.id} · ${item.title}`);
   renderSelect(runPlaceSelectEl, catalogState.places, "Optional place", (place) => `${place.id} · ${place.name}`);
-  renderSelect(runResourceSelectEl, catalogState.resources, "Optional primary resource", (resource) => `${resource.id} · ${resource.name}`);
-  renderSelect(runResponsibilitySelectEl, catalogState.responsibilities, "Optional primary responsibility", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
+  renderSelect(runResourceSelectEl, catalogState.resources, "Optional main tool or resource", (resource) => `${resource.id} · ${resource.name}`);
+  renderSelect(runResponsibilitySelectEl, catalogState.responsibilities, "Optional owning role", (responsibility) => `${responsibility.id} · ${responsibility.title}`);
   renderSelect(evidenceRunSelectEl, catalogState.runs, "Select a run", (run) => `${run.id} · ${run.item_id} · ${run.outcome || "-"}`);
   renderApprovalTargetOptions();
 }
@@ -577,7 +577,7 @@ function renderApprovalTargetOptions() {
   const formatter = targetType === "run"
     ? (run) => `${run.id} · ${run.item_id} · ${run.outcome || "-"}`
     : (item) => `${item.id} · ${item.title} · rev ${item.current_revision}`;
-  renderSelect(approvalTargetSelectEl, items, `Select a ${targetType === "run" ? "run" : "knowledge item"}`, formatter);
+  renderSelect(approvalTargetSelectEl, items, `Select a ${targetType === "run" ? "run" : "procedure or checklist"}`, formatter);
   syncApprovalDefaults();
 }
 
@@ -600,7 +600,7 @@ function syncApprovalDefaults() {
   const selected = approvalTargetSelectEl.selectedOptions[0];
   approvalTargetSummaryEl.textContent = selected && approvalTargetSelectEl.value
     ? selected.textContent
-    : `Choose a ${form.target_type.value === "run" ? "run" : "knowledge item"} to load matching records.`;
+    : `Choose the ${form.target_type.value === "run" ? "run" : "procedure or checklist"} you are reviewing.`;
 }
 
 // Intent: Let browser operators jump from the current inspected or searched
@@ -1483,7 +1483,7 @@ async function loadEditorItem(itemID) {
   editorState.itemID = itemID;
   editorItemIDEl.value = itemID;
   if (!itemID) {
-    editorMetaEl.textContent = "Select a knowledge item to load its live draft.";
+    editorMetaEl.textContent = "Select a draft item to load its live draft.";
     editorParticipantsEl.innerHTML = "";
     editorBodyEl.value = "";
     clearPollLoop();

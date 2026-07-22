@@ -74,6 +74,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - grouped problem review that highlights repeated receiving and count issues by place and resource
 - context-driven browser operate actions that launch run recording, evidence capture, and approvals from the current item, run, place, resource, or responsibility
 - a browser primary-flow layer that now points operators toward hotspots, draft review, and record-specific next steps instead of giving every surface equal weight
+- browser task-oriented labels that reduce visible ontology in the main forms while keeping the same underlying records and IDs
 - CLI inspection and creation commands
 - CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment

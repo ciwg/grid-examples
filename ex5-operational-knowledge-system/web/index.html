@@ -81,9 +81,9 @@
                   </select>
                 </label>
                 <label>Outcome <input name="outcome" id="search-outcome" placeholder="completed"></label>
-                <label>Place ID <input name="place_id" placeholder="PLACE-0001"></label>
-                <label>Resource ID <input name="resource_id" placeholder="RES-0001"></label>
-                <label>Responsibility ID <input name="responsibility_id" placeholder="RESP-0001"></label>
+                <label>At Place <input name="place_id" placeholder="PLACE-0001"></label>
+                <label>Using Resource <input name="resource_id" placeholder="RES-0001"></label>
+                <label>Owned By Role <input name="responsibility_id" placeholder="RESP-0001"></label>
               </div>
             </form>
             <div id="search-active" class="meta">No active search filters.</div>
@@ -95,8 +95,8 @@
           </section>
 
           <section class="panel detail-panel">
-            <h3>Record Inspector</h3>
-            <div id="detail-meta" class="meta">Select a place, resource, responsibility, item, run, or search result to inspect it here.</div>
+            <h3>Current Record</h3>
+            <div id="detail-meta" class="meta">Open a record from review, search, or browse to inspect it here.</div>
             <div id="detail-summary" class="detail-summary"></div>
             <div id="detail-primary" class="detail-primary"></div>
             <div id="detail-actions" class="detail-actions"></div>
@@ -123,7 +123,7 @@
         <section class="panel editor-panel">
           <h3>Live Draft Studio</h3>
           <div class="editor-toolbar">
-            <label>Knowledge Item
+            <label>Draft Item
               <select id="editor-item-id"></select>
             </label>
             <label>Actor
@@ -137,7 +137,7 @@
             </label>
           </div>
           <div class="editor-summary">
-            <div id="editor-meta" class="meta">Select a knowledge item to load its live draft.</div>
+            <div id="editor-meta" class="meta">Select a draft item to load its live draft.</div>
             <div id="editor-participants" class="participant-list"></div>
           </div>
           <label>Working Body
@@ -149,7 +149,7 @@
             <button id="editor-approve" type="button">Approve Current Revision</button>
             <button id="editor-supersede" type="button">Supersede Item</button>
           </div>
-          <p class="meta">This editor keeps a shared working draft for the selected knowledge item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
+          <p class="meta">This editor keeps a shared working draft for the selected item. Revisions remain explicit snapshots, and approvals still apply to durable revisions rather than cursor presence or unsaved local UI state.</p>
         </section>
       </section>
 
@@ -162,10 +162,10 @@
         </div>
         <div class="workspace-grid operate-grid">
           <section class="panel">
-            <h3>Record Run</h3>
+            <h3>Log Work Performed</h3>
             <form id="run-form">
               <label>Actor <input name="actor" value="bob"></label>
-              <label>Kind
+              <label>Work Type
                 <select name="kind">
                   <option value="procedure">procedure</option>
                   <option value="training">training</option>
@@ -174,64 +174,64 @@
                   <option value="inventory_audit">inventory_audit</option>
                 </select>
               </label>
-              <label>Knowledge Item
+              <label>Procedure / Checklist
                 <select id="run-item-select" name="item_id_select"></select>
               </label>
-              <label>Manual Item ID Override <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
-              <label>Revision <input name="revision" type="number" min="1" value="1"></label>
+              <label>Or Enter Item ID <input id="run-item-id" name="item_id" placeholder="ITEM-0001"></label>
+              <label>Revision Used <input name="revision" type="number" min="1" value="1"></label>
               <label>Outcome <input name="outcome" placeholder="completed"></label>
               <label>Machine <input name="machine"></label>
               <label>Location <input name="location"></label>
-              <label>Place
+              <label>Main Place
                 <select id="run-place-select" name="place_id_select"></select>
               </label>
-              <label>Manual Place ID Override <input name="place_id" placeholder="PLACE-0001"></label>
-              <label>Primary Resource
+              <label>Or Enter Place ID <input name="place_id" placeholder="PLACE-0001"></label>
+              <label>Main Tool / Resource
                 <select id="run-resource-select" name="resource_id_select"></select>
               </label>
-              <label>Additional Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
-              <label>Primary Responsibility
+              <label>Other Resource IDs <input name="resource_ids" placeholder="RES-0001,RES-0002"></label>
+              <label>Owning Role
                 <select id="run-responsibility-select" name="responsibility_id_select"></select>
               </label>
-              <label>Additional Responsibility IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
-              <label>Notes <textarea name="notes"></textarea></label>
-              <button type="submit">Record Run</button>
+              <label>Other Role IDs <input name="responsibility_ids" placeholder="RESP-0001"></label>
+              <label>What Happened <textarea name="notes"></textarea></label>
+              <button type="submit">Save Run</button>
             </form>
           </section>
 
           <section class="panel">
-            <h3>Add Evidence</h3>
+            <h3>Attach Evidence</h3>
             <form id="evidence-form" enctype="multipart/form-data">
               <label>Actor <input name="actor" value="bob"></label>
-              <label>Run
+              <label>Evidence For Run
                 <select id="evidence-run-select" name="run_id_select"></select>
               </label>
-              <label>Manual Run ID Override <input name="run_id" placeholder="RUN-0001"></label>
-              <label>Summary <input name="summary" required></label>
-              <label>Facts JSON <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
-              <label>Attachment <input name="attachment" type="file"></label>
-              <button type="submit">Add Evidence</button>
+              <label>Or Enter Run ID <input name="run_id" placeholder="RUN-0001"></label>
+              <label>Evidence Summary <input name="summary" required></label>
+              <label>Structured Facts (JSON) <textarea name="facts_json" placeholder='{"result":"ok"}'></textarea></label>
+              <label>File Attachment <input name="attachment" type="file"></label>
+              <button type="submit">Save Evidence</button>
             </form>
           </section>
 
           <section class="panel">
-            <h3>Record Approval</h3>
+            <h3>Capture Review Decision</h3>
             <form id="approval-form">
               <label>Actor <input name="actor" value="boss"></label>
-              <label>Target Type
+              <label>Reviewing
                 <select name="target_type">
-                  <option value="knowledge_item">knowledge_item</option>
+                  <option value="knowledge_item">procedure / checklist</option>
                   <option value="run">run</option>
                 </select>
               </label>
-              <label>Target
+              <label>Review This Record
                 <select id="approval-target-select" name="target_id_select"></select>
               </label>
-              <label>Manual Target ID Override <input name="target_id" placeholder="ITEM-0001"></label>
-              <div id="approval-target-summary" class="meta">Choose a target type to load matching records.</div>
-              <label>Revision <input name="revision" type="number" min="0" value="0"></label>
-              <label>Role <input name="role" placeholder="reviewer"></label>
-              <label>Decision
+              <label>Or Enter Record ID <input name="target_id" placeholder="ITEM-0001"></label>
+              <div id="approval-target-summary" class="meta">Choose what you are reviewing to load matching records.</div>
+              <label>Revision Being Reviewed <input name="revision" type="number" min="0" value="0"></label>
+              <label>Reviewer Role <input name="role" placeholder="reviewer"></label>
+              <label>Review Decision
                 <select name="decision">
                   <option value="approved">approved</option>
                   <option value="rejected">rejected</option>
@@ -239,7 +239,7 @@
                 </select>
               </label>
               <label>Notes <textarea name="notes"></textarea></label>
-              <button type="submit">Record Approval</button>
+              <button type="submit">Save Decision</button>
             </form>
           </section>
         </div>

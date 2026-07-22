@@ -18,7 +18,6 @@ system ontology.
 
 ## Tasks
 
-- [ ] vazut.1 Identify the browser labels and controls that still expose too much record-model vocabulary.
-- [ ] vazut.2 Define clearer task-oriented wording and visible control shapes.
-- [ ] vazut.3 Update the browser and docs while preserving the same capabilities and meanings.
-
+- [x] vazut.1 Identify the browser labels and controls that still expose too much record-model vocabulary.
+- [x] vazut.2 Define clearer task-oriented wording and visible control shapes.
+- [x] vazut.3 Update the browser and docs while preserving the same capabilities and meanings.

@@ -20,7 +20,7 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"Problem Review",
 		"Primary Flow",
 		"focus-drafts",
-		"Record Inspector",
+		"Current Record",
 		"detail-primary",
 		"search-clear",
 		"search-debug",
@@ -36,7 +36,15 @@ func TestEmbeddedIndexIncludesOperationalWorkflowSections(t *testing.T) {
 		"Runs",
 		"receiving_check",
 		"inventory_audit",
-		"Record Run",
+		"Log Work Performed",
+		"Capture Review Decision",
+		"Attach Evidence",
+		"Draft Item",
+		"Procedure / Checklist",
+		"Review This Record",
+		"Save Run",
+		"Save Evidence",
+		"Save Decision",
 	}
 	for _, marker := range required {
 		if !strings.Contains(index, marker) {

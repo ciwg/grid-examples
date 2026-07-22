@@ -6,6 +6,12 @@ leads who want to use the browser without guessing what each panel, field, or
 review area means. It describes the current UI as implemented in
 `web/index.html` and `web/app.js`. Source: `DI-nalor`.
 
+The browser now intentionally uses more task-oriented wording in the busiest
+forms. Labels like `Procedure / Checklist`, `Review This Record`, and `Owning
+Role` appear in the UI even though the underlying APIs and stored records still
+use the existing item, run, place, resource, and responsibility model. Source:
+`DI-vazut`.
+
 ## What The Browser Is For
 
 The browser is the broadest operational surface in `ex5`. It combines:
@@ -308,16 +314,16 @@ instead of retyping IDs. Source: `DI-mitav`.
 
 - `Actor`
   - who performed or recorded the run
-- `Kind`
+- `Work Type`
   - the run category
   - important because it should match the operational shape of the work
-- `Knowledge Item`
+- `Procedure / Checklist`
   - helper select for the item used
   - important because it reduces raw ID entry during the common run-recording path
-- `Manual Item ID Override`
+- `Or Enter Item ID`
   - optional direct item ID entry
   - important because it preserves the original manual path
-- `Revision`
+- `Revision Used`
   - the exact revision used
   - critical because revision-specific history is one of the main product goals
 - `Outcome`
@@ -326,19 +332,19 @@ instead of retyping IDs. Source: `DI-mitav`.
   - optional machine context
 - `Location`
   - optional free-text location context
-- `Place`
+- `Main Place`
   - optional helper select for the main place anchor
-- `Manual Place ID Override`
+- `Or Enter Place ID`
   - optional direct place ID entry
-- `Primary Resource`
+- `Main Tool / Resource`
   - optional helper select for the main resource
-- `Additional Resource IDs`
+- `Other Resource IDs`
   - optional comma-separated resource IDs
-- `Primary Responsibility`
-  - optional helper select for the main responsibility
-- `Additional Responsibility IDs`
-  - optional comma-separated responsibility IDs
-- `Notes`
+- `Owning Role`
+  - optional helper select for the main owner or review role
+- `Other Role IDs`
+  - optional comma-separated role IDs
+- `What Happened`
   - human explanation of what happened
 
 ## Add Evidence
@@ -360,25 +366,25 @@ from the reviewed run instead of a separate lookup task. Source: `DI-mitav`.
 
 - `Actor`
   - who is attaching the evidence
-- `Run`
+- `Evidence For Run`
   - helper select for the run receiving the evidence
-- `Manual Run ID Override`
+- `Or Enter Run ID`
   - optional direct run ID entry
-- `Summary`
+- `Evidence Summary`
   - short label for the evidence entry
-- `Facts JSON`
+- `Structured Facts (JSON)`
   - structured fact object such as `{"result":"ok"}` or discrepancy details
   - important because later review panels and search surfaces use these facts
-- `Attachment`
+- `File Attachment`
   - optional file upload
   - important when the evidence includes a photo, log, or other artifact
 
-## Record Approval
+## Capture Review Decision
 
 ### What it does
 
-Use this form to attach an approval or review decision to a knowledge item or a
-run.
+Use this form to attach an approval or review decision to a procedure,
+checklist, or run.
 
 ### Why it matters
 
@@ -393,18 +399,18 @@ override fields remain available. Source: `DI-mitav`.
 
 - `Actor`
   - who is making the review decision
-- `Target Type`
-  - whether the approval is for a `knowledge_item` or a `run`
-- `Target`
+- `Reviewing`
+  - whether the approval is for a procedure / checklist or a run
+- `Review This Record`
   - helper select for the exact item or run being reviewed
-- `Manual Target ID Override`
+- `Or Enter Record ID`
   - optional direct item or run ID entry
-- `Revision`
-  - revision number when approving a knowledge item
+- `Revision Being Reviewed`
+  - revision number when approving a procedure / checklist
   - important because item approvals must target the durable revision being reviewed
-- `Role`
+- `Reviewer Role`
   - review role such as `reviewer` or `approver`
-- `Decision`
+- `Review Decision`
   - `approved`, `rejected`, or `noted`
 - `Notes`
   - optional explanation for the review outcome
@@ -465,12 +471,12 @@ or filter to the correct record without manually browsing every list.
   - narrows item search by lifecycle state
 - `Outcome`
   - narrows run search by result
-- `Place ID`
+- `At Place`
   - narrows search to one place
-- `Resource ID`
+- `Using Resource`
   - narrows search to one resource
-- `Responsibility ID`
-  - narrows search to one responsibility
+- `Owned By Role`
+  - narrows search to one responsibility or review role
 
 ### Supporting Areas
 
