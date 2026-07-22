@@ -20,6 +20,15 @@ Intent: Make the docs honest that `ex5` now has a real first Neovim phase while 
 Constraints: Follow-on scope remains separate from inventory TODO `007`; later Neovim work must stay aligned with the current local HTTP live-draft model unless a new decision changes that.
 Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-fudok-ex5-neovim-live-draft-phase1.md`, `ex5-operational-knowledge-system/TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/features-guide.md`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`
 
+ID: DI-tuzok
+Date: 2026-07-22 12:24:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Close TODO `016` as a completed historical umbrella instead of leaving it open once all concrete child slices are shipped.
+Intent: Keep the ex5 backlog honest by removing a phantom “still open” embodiment project when the tracked Neovim follow-ons listed here are already complete.
+Constraints: Future Neovim work should reopen as new concrete TODOs rather than by keeping this umbrella artificially open.
+Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
+
 ## Goal
 
 Track future Neovim embodiment work for `ex5` beyond the implemented live-draft
@@ -86,3 +95,10 @@ phase 1.
 - CLI grouped problem review now exists over the shared problem-review route
 - CLI responsibility detail now exists over the shared responsibility route
 - CLI pending-review aggregation now exists over the same shared search projections as `:OksPending`
+- no concrete unfinished child slices remain under this umbrella; later Neovim follow-on work should file new focused TODOs instead of keeping TODO `016` open. Source: `DI-tuzok`.
+
+## Result
+
+TODO `016` now serves as the historical umbrella for the Neovim embodiment
+wave that shipped across its child TODOs. It is complete and should no longer
+appear as active backlog. Source: `DI-tuzok`.

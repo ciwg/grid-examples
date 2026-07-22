@@ -1,10 +1,11 @@
 # TODO
 
 ## Open / Planned
-- [ ] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
+- none currently
 
 ## Completed
 
+- [x] 016 - Neovim embodiment follow-up - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
 - [x] 005 - Add websocket collaboration transport - `TODO/TODO-masad-ex5-websocket-collaboration-transport.md`
 - [x] 114 - Correct downstream ex5 PromiseGrid summary doc drift - `TODO/TODO-tasuk-ex5-downstream-promisegrid-doc-drift.md`
 - [x] 113 - Sync the ex5 HTTP API guide with the shipped PromiseGrid adapter contract - `TODO/TODO-vupok-ex5-http-api-promisegrid-contract-drift.md`

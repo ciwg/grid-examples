@@ -2,12 +2,17 @@ package web
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/base64"
+	"encoding/binary"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
@@ -1253,6 +1258,13 @@ const snapshotTimer = setInterval(() => {
   if (!meta.textContent.includes("live v")) {
     return;
   }
+  if (!window.__oksSnapshotReadyAt) {
+    window.__oksSnapshotReadyAt = Date.now() + 1000;
+    return;
+  }
+  if (Date.now() < window.__oksSnapshotReadyAt) {
+    return;
+  }
   snapshot.click();
   clearInterval(snapshotTimer);
 }, 250);
@@ -1262,6 +1274,7 @@ const snapshotTimer = setInterval(() => {
 
 	var livePostBody string
 	var revisionPostBody string
+	liveSocketBodies := make(chan string, 4)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -1315,6 +1328,31 @@ const snapshotTimer = setInterval(() => {
 		}
 		writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":3,"current_revision":2,"participants":[]}`)
 	})
+	mux.HandleFunc("/api/items/ITEM-0001/live/socket", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := acceptTestWebSocket(writer, request)
+		if err != nil {
+			t.Fatalf("accept test websocket: %v", err)
+		}
+		defer func() {
+			_ = socket.Close()
+		}()
+		if err := socket.WriteJSON(`{"type":"live-state","state":{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":3,"current_revision":2,"participants":[]}}`); err != nil {
+			t.Fatalf("write test websocket state: %v", err)
+		}
+		for {
+			payload, err := socket.ReadJSON()
+			if err != nil {
+				return
+			}
+			if strings.Contains(payload, `"update_body":true`) {
+				select {
+				case liveSocketBodies <- payload:
+				default:
+				}
+				return
+			}
+		}
+	})
 	mux.HandleFunc("/api/items/ITEM-0001/revisions", func(writer http.ResponseWriter, request *http.Request) {
 		body := new(bytes.Buffer)
 		_, _ = body.ReadFrom(request.Body)
@@ -1340,8 +1378,16 @@ const snapshotTimer = setInterval(() => {
 	if err != nil {
 		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
 	}
-	if !strings.Contains(livePostBody, `"# Startup checklist"`) {
-		t.Fatalf("snapshot did not flush the live draft body first: %s", livePostBody)
+	if livePostBody != "" {
+		t.Fatalf("snapshot unexpectedly fell back to HTTP live draft push: %s", livePostBody)
+	}
+	select {
+	case payload := <-liveSocketBodies:
+		if !strings.Contains(payload, `"# Startup checklist"`) {
+			t.Fatalf("websocket live draft push did not carry the body first: %s", payload)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("snapshot did not send a websocket live draft update before revision post")
 	}
 	if !strings.Contains(revisionPostBody, `"# Startup checklist"`) || !strings.Contains(revisionPostBody, `"tags":["startup"]`) {
 		t.Fatalf("snapshot did not post the expected durable revision payload: %s", revisionPostBody)
@@ -1356,6 +1402,120 @@ const snapshotTimer = setInterval(() => {
 			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
 		}
 	}
+}
+
+type testWebSocketConn struct {
+	conn  http.Hijacker
+	raw   interface{ Close() error }
+	read  func() (string, error)
+	write func(string) error
+}
+
+func (socket *testWebSocketConn) Close() error {
+	return socket.raw.Close()
+}
+
+func (socket *testWebSocketConn) ReadJSON() (string, error) {
+	return socket.read()
+}
+
+func (socket *testWebSocketConn) WriteJSON(payload string) error {
+	return socket.write(payload)
+}
+
+func acceptTestWebSocket(writer http.ResponseWriter, request *http.Request) (*testWebSocketConn, error) {
+	hijacker, ok := writer.(http.Hijacker)
+	if !ok {
+		return nil, http.ErrNotSupported
+	}
+	conn, buffer, err := hijacker.Hijack()
+	if err != nil {
+		return nil, err
+	}
+	key := request.Header.Get("Sec-WebSocket-Key")
+	sum := sha1.Sum([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+	accept := base64.StdEncoding.EncodeToString(sum[:])
+	response := "HTTP/1.1 101 Switching Protocols\r\n" +
+		"Upgrade: websocket\r\n" +
+		"Connection: Upgrade\r\n" +
+		"Sec-WebSocket-Accept: " + accept + "\r\n\r\n"
+	if _, err := buffer.WriteString(response); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	if err := buffer.Flush(); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return &testWebSocketConn{
+		raw: conn,
+		read: func() (string, error) {
+			return readTestWebSocketFrame(conn)
+		},
+		write: func(payload string) error {
+			return writeTestWebSocketFrame(conn, payload)
+		},
+	}, nil
+}
+
+func readTestWebSocketFrame(conn interface {
+	Read([]byte) (int, error)
+}) (string, error) {
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(conn, header); err != nil {
+		return "", err
+	}
+	length := int(header[1] & 0x7f)
+	if length == 126 {
+		extended := make([]byte, 2)
+		if _, err := io.ReadFull(conn, extended); err != nil {
+			return "", err
+		}
+		length = int(binary.BigEndian.Uint16(extended))
+	} else if length == 127 {
+		extended := make([]byte, 8)
+		if _, err := io.ReadFull(conn, extended); err != nil {
+			return "", err
+		}
+		length = int(binary.BigEndian.Uint64(extended))
+	}
+	masked := header[1]&0x80 != 0
+	maskKey := make([]byte, 4)
+	if masked {
+		if _, err := io.ReadFull(conn, maskKey); err != nil {
+			return "", err
+		}
+	}
+	payload := make([]byte, length)
+	if _, err := io.ReadFull(conn, payload); err != nil {
+		return "", err
+	}
+	if masked {
+		for i := range payload {
+			payload[i] ^= maskKey[i%4]
+		}
+	}
+	return string(payload), nil
+}
+
+func writeTestWebSocketFrame(conn interface {
+	Write([]byte) (int, error)
+}, payload string) error {
+	body := []byte(payload)
+	frame := []byte{0x81}
+	switch {
+	case len(body) < 126:
+		frame = append(frame, byte(len(body)))
+	case len(body) <= 0xffff:
+		frame = append(frame, 126, 0, 0)
+		binary.BigEndian.PutUint16(frame[len(frame)-2:], uint16(len(body)))
+	default:
+		frame = append(frame, 127, 0, 0, 0, 0, 0, 0, 0, 0)
+		binary.BigEndian.PutUint64(frame[len(frame)-8:], uint64(len(body)))
+	}
+	frame = append(frame, body...)
+	_, err := conn.Write(frame)
+	return err
 }
 
 func writeJSON(writer http.ResponseWriter, body string) {

@@ -48,6 +48,8 @@ The response now includes, for example:
 - `cas_objects_enabled`
 - `cas_attachment_blobs_enabled`
 - `cas_draft_bodies_enabled`
+- `live_draft_websocket_enabled`
+- `live_draft_preferred_transport`
 - `primary_embodiment_adapter`
 
 Those capability fields are the current shipped way for embodiments to confirm
