@@ -10,9 +10,10 @@ if [ -z "${item_id}" ]; then
 fi
 
 # Intent: Prefer the direct local Unix-socket embodiment contract for Neovim
-# while preserving the older HTTP adapter as explicit compatibility fallback.
-# Source: DI-favel
-export OKS_SOCKET_PATH="${OKS_SOCKET_PATH:-.operational-knowledge-system/embodiment.sock}"
+# while resolving the default socket path from the repo root so launcher cwd
+# changes do not silently demote the editor back to HTTP compatibility.
+# Source: DI-favel; DI-vorag
+export OKS_SOCKET_PATH="${OKS_SOCKET_PATH:-${repo_root}/.operational-knowledge-system/embodiment.sock}"
 export OKS_BASE_URL="${OKS_BASE_URL:-http://127.0.0.1:7045}"
 export OKS_DISPLAY_NAME="${OKS_DISPLAY_NAME:-Neovim User}"
 export OKS_COLOR="${OKS_COLOR:-#d66f1d}"

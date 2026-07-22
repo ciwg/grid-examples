@@ -1,10 +1,13 @@
 # TODO
 
 ## Open / Planned
-- None right now.
+- none currently
 
 ## Completed
 
+- [x] 120 - Make the ex5 terminal socket path more robust across roots and working directories - `TODO/TODO-pobek-ex5-socket-path-robustness.md`
+- [x] 119 - Make Neovim live-socket writes acknowledge failure before suppressing fallback - `TODO/TODO-tavur-ex5-neovim-socket-write-ack.md`
+- [x] 118 - Prevent socket ownership collisions between local ex5 runtimes - `TODO/TODO-murek-ex5-socket-runtime-ownership.md`
 - [x] 117 - Define direct non-HTTP embodiment contracts for ex5 - `TODO/TODO-tisuk-ex5-non-http-embodiment-contracts.md`
 - [x] 116 - Define dedicated remote relay deployment beyond the current ex5 local-adapter exchange layer - `TODO/TODO-ravel-ex5-remote-relay-deployment.md`
 - [x] 115 - Extend ex5 from local-adapter peer exchange into richer relay-network behavior - `TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`

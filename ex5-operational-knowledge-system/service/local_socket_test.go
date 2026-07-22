@@ -39,6 +39,58 @@ func TestLocalEmbodimentServerHandlesRequestResponse(t *testing.T) {
 	}
 }
 
+func TestLocalEmbodimentServerRejectsSecondActiveRuntimeOnSameSocket(t *testing.T) {
+	socketRoot := filepath.Join(t.TempDir(), "runtime")
+	appA, err := NewApp(filepath.Join(socketRoot, "a"))
+	if err != nil {
+		t.Fatalf("new app A: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(socketRoot)
+	serverA := NewLocalEmbodimentServer(appA, socketPath)
+	firstErr := make(chan error, 1)
+	go func() {
+		firstErr <- serverA.ListenAndServe()
+	}()
+	defer func() {
+		_ = serverA.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	appB, err := NewApp(filepath.Join(socketRoot, "b"))
+	if err != nil {
+		t.Fatalf("new app B: %v", err)
+	}
+	serverB := NewLocalEmbodimentServer(appB, socketPath)
+	secondErr := make(chan error, 1)
+	go func() {
+		secondErr <- serverB.ListenAndServe()
+	}()
+	select {
+	case err := <-secondErr:
+		if err == nil || !strings.Contains(err.Error(), "already owned by an active runtime") {
+			t.Fatalf("unexpected second server error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second server did not fail fast")
+	}
+
+	response := localSocketRequest(t, socketPath, LocalEmbodimentRequest{
+		Type:   "request",
+		Method: "GET",
+		Path:   "/api/meta",
+	})
+	if response.Type != "response" || response.Status != 200 {
+		t.Fatalf("first server no longer reachable after collision attempt: %+v", response)
+	}
+	select {
+	case err := <-firstErr:
+		if err != nil {
+			t.Fatalf("first server exited unexpectedly: %v", err)
+		}
+	default:
+	}
+}
+
 func TestLocalEmbodimentServerStreamsLiveDraftUpdates(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

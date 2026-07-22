@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	socketPath := flag.String("socket", filepath.Join(".operational-knowledge-system", "embodiment.sock"), "local unix socket path")
+	socketPath := flag.String("socket", defaultSocketPath(), "local unix socket path")
 	serverURL := flag.String("server", "http://127.0.0.1:7045", "server URL")
 	flag.Parse()
 	cli := &CLI{
@@ -32,6 +32,29 @@ func main() {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// Intent: Resolve the terminal embodiment socket against the nearest runtime
+// root we can identify so CLI calls do not silently fall back just because the
+// shell started in a different working directory. Source: DI-vorag
+func defaultSocketPath() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return filepath.Join(".operational-knowledge-system", "embodiment.sock")
+	}
+	current := cwd
+	for {
+		runtimeRoot := filepath.Join(current, ".operational-knowledge-system")
+		if info, statErr := os.Stat(runtimeRoot); statErr == nil && info.IsDir() {
+			return filepath.Join(runtimeRoot, "embodiment.sock")
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return filepath.Join(cwd, ".operational-knowledge-system", "embodiment.sock")
 }
 
 // Intent: Keep the CLI embodiment argument handling aligned with the shared run-record model so browser and CLI can create the same durable run records. Source: DI-zuvob

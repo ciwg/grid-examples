@@ -21,7 +21,9 @@ end
 
 M.config = {
   repo_root = default_repo_root(),
-  socket_path = vim.env.OKS_SOCKET_PATH or ".operational-knowledge-system/embodiment.sock",
+  socket_path = vim.env.OKS_SOCKET_PATH
+    or ((vim.fs and vim.fs.joinpath) and vim.fs.joinpath(default_repo_root(), ".operational-knowledge-system", "embodiment.sock")
+      or (default_repo_root() .. "/.operational-knowledge-system/embodiment.sock")),
   base_url = vim.env.OKS_BASE_URL or "http://127.0.0.1:7045",
   display_name = vim.env.OKS_DISPLAY_NAME or "Neovim User",
   color = vim.env.OKS_COLOR or "#d66f1d",
@@ -581,6 +583,11 @@ local function send_live_socket_update(update_body, typing)
   if not M.state.socket_connected or not M.state.socket then
     return false
   end
+  local socket = M.state.socket
+  local generation = M.state.socket_generation
+  -- Intent: Only suppress the HTTP compatibility path after the direct socket
+  -- write callback succeeds, so a broken local transport cannot silently drop
+  -- a live-draft update. Source: DI-sudik
   local payload = json_encode({
     type = "live-update",
     participant_id = M.state.participant_id,
@@ -593,8 +600,29 @@ local function send_live_socket_update(update_body, typing)
     update_body = update_body,
     body = update_body and current_body() or "",
   })
-  M.state.socket:write(payload .. "\n")
-  return true
+  local done = false
+  local write_err = nil
+  socket:write(payload .. "\n", function(err)
+    write_err = err
+    done = true
+  end)
+  local finished = vim.wait(1000, function()
+    return done
+  end, 10)
+  if finished and not write_err then
+    return true
+  end
+  close_live_socket()
+  start_poll_loop()
+  if M.state.item_id and M.state.item_id ~= "" then
+    schedule_socket_reconnect(M.state.item_id, generation)
+  end
+  if write_err then
+    notify("local socket write failed; falling back to compatibility transport", vim.log.levels.WARN)
+  else
+    notify("local socket write timed out; falling back to compatibility transport", vim.log.levels.WARN)
+  end
+  return false
 end
 
 function M.connect_live_socket(item_id)
@@ -2175,7 +2203,24 @@ function M.open(item_id)
 end
 
 function M.setup(opts)
-  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+  opts = opts or {}
+  local explicit_socket_path = opts.socket_path
+  local explicit_repo_root = opts.repo_root
+  M.config = vim.tbl_deep_extend("force", M.config, opts)
+  M.config.repo_root = vim.fs.normalize(M.config.repo_root)
+  -- Intent: Keep the direct socket contract anchored to the repo/runtime root
+  -- instead of the editor's working directory so terminal embodiments connect
+  -- predictably across `:cd` changes and launcher locations. Source: DI-vorag
+  if vim.env.OKS_SOCKET_PATH and vim.env.OKS_SOCKET_PATH ~= "" then
+    M.config.socket_path = vim.fs.normalize(vim.env.OKS_SOCKET_PATH)
+  elseif explicit_socket_path and explicit_socket_path ~= "" then
+    M.config.socket_path = vim.fs.normalize(explicit_socket_path)
+  else
+    local repo_root = explicit_repo_root or M.config.repo_root
+    local normalized_repo_root = vim.fs.normalize(repo_root)
+    M.config.socket_path = ((vim.fs and vim.fs.joinpath) and vim.fs.joinpath(normalized_repo_root, ".operational-knowledge-system", "embodiment.sock")
+      or (normalized_repo_root .. "/.operational-knowledge-system/embodiment.sock"))
+  end
   vim.api.nvim_create_user_command("OksOpen", function(command)
     M.open(command.args)
   end, { nargs = 1 })

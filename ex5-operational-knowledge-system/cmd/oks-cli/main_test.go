@@ -103,6 +103,24 @@ func TestCLIUsesLocalSocketTransportWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestDefaultSocketPathUsesNearestRuntimeRoot(t *testing.T) {
+	root := t.TempDir()
+	runtimeRoot := filepath.Join(root, ".operational-knowledge-system")
+	if err := os.MkdirAll(runtimeRoot, 0o755); err != nil {
+		t.Fatalf("mkdir runtime root: %v", err)
+	}
+	workspace := filepath.Join(root, "nested", "shell")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	t.Chdir(workspace)
+	got := defaultSocketPath()
+	want := filepath.Join(runtimeRoot, "embodiment.sock")
+	if got != want {
+		t.Fatalf("unexpected default socket path: got=%q want=%q", got, want)
+	}
+}
+
 func TestProblemReviewCommandUsesExpectedRoute(t *testing.T) {
 	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

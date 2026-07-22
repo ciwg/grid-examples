@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const embodimentSocketFilename = "embodiment.sock"
@@ -42,13 +43,7 @@ func NewLocalEmbodimentServer(app *App, socketPath string) *LocalEmbodimentServe
 // embodiments without splitting durable runtime ownership away from the
 // existing ex5 process. Source: DI-favel
 func (server *LocalEmbodimentServer) ListenAndServe() error {
-	if err := os.MkdirAll(filepath.Dir(server.socketPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.Remove(server.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	listener, err := net.Listen("unix", server.socketPath)
+	listener, err := ensureOwnedSocketListener(server.socketPath)
 	if err != nil {
 		return err
 	}
@@ -75,6 +70,34 @@ func (server *LocalEmbodimentServer) Close() error {
 		return err
 	}
 	return nil
+}
+
+// Intent: Refuse to steal a live runtime's embodiment socket while still
+// reclaiming clearly stale socket files left behind by earlier exits. Source:
+// DI-fegom
+func ensureOwnedSocketListener(socketPath string) (net.Listener, error) {
+	if err := os.MkdirAll(filepath.Dir(socketPath), 0o755); err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(socketPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		return net.Listen("unix", socketPath)
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return nil, fmt.Errorf("local embodiment socket path exists and is not a socket: %s", socketPath)
+	}
+	conn, err := net.DialTimeout("unix", socketPath, 250*time.Millisecond)
+	if err == nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("local embodiment socket already owned by an active runtime: %s", socketPath)
+	}
+	if err := os.Remove(socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	return net.Listen("unix", socketPath)
 }
 
 func (server *LocalEmbodimentServer) handleConn(conn net.Conn) {
