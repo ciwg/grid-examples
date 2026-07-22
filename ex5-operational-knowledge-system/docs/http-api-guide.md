@@ -156,6 +156,11 @@ the configured Neovim display name as the approval actor and refreshes the
 current run or pending-review view after the write returns. Source:
 `DI-bafor`.
 
+Neovim item supersede reuses `POST /api/items/{id}/supersede` directly. It
+uses the configured Neovim display name as the lifecycle actor and refreshes
+the current live, inspect, or pending-review view after the write returns.
+Source: `DI-pudor`.
+
 ## Places and resources
 
 ### `GET /api/places`
@@ -471,6 +476,14 @@ Fields:
 - `summary`
 - `facts_json`
 - optional `attachment`
+
+The CLI now reuses this same multipart route directly:
+
+- `oks-cli add-evidence RUN_ID ACTOR SUMMARY`
+- `oks-cli add-evidence RUN_ID ACTOR SUMMARY FACTS_JSON`
+- `oks-cli add-evidence RUN_ID ACTOR SUMMARY FACTS_JSON FILE`
+
+Source: `DI-zanub`.
 
 Attachment uploads are limited to 8 MiB. Larger files are rejected with a
 `400 Bad Request` response instead of being truncated into durable evidence.

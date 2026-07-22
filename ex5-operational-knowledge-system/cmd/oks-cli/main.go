@@ -7,9 +7,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -142,6 +144,19 @@ func (cli *CLI) run(args []string) (int, error) {
 			return 2, fmt.Errorf("%s", usageText)
 		}
 		err = cli.Approve("/api/runs/"+args[1]+"/approvals", args[2], 0, args[3], args[4], strings.Join(args[5:], " "))
+	case "add-evidence":
+		if len(args) < 4 {
+			return 2, fmt.Errorf("%s", usageText)
+		}
+		factsJSON := ""
+		attachmentPath := ""
+		if len(args) > 4 {
+			factsJSON = args[4]
+		}
+		if len(args) > 5 {
+			attachmentPath = args[5]
+		}
+		err = cli.AddEvidence(args[1], args[2], args[3], factsJSON, attachmentPath)
 	case "search":
 		if len(args) < 2 {
 			return 2, fmt.Errorf("%s", usageText)
@@ -159,7 +174,7 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|search QUERY"
+const usageText = "usage: oks-cli dashboard|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY"
 
 type CLI struct {
 	ServerURL string
@@ -223,6 +238,65 @@ func (cli *CLI) RecordRun(actor string, kind string, itemID string, revision int
 		"place_id":     placeID,
 		"resource_ids": resourceIDs,
 	})
+}
+
+// Intent: Close the terminal evidence gap by letting shell-first operators use
+// the same run evidence multipart surface the browser already uses, including
+// optional facts JSON and optional copied attachments. Source: DI-zanub
+func (cli *CLI) AddEvidence(runID string, actor string, summary string, factsJSON string, attachmentPath string) error {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("actor", actor); err != nil {
+		return err
+	}
+	if err := writer.WriteField("summary", summary); err != nil {
+		return err
+	}
+	if strings.TrimSpace(factsJSON) != "" {
+		if err := writer.WriteField("facts_json", factsJSON); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(attachmentPath) != "" {
+		attachmentBody, err := os.ReadFile(attachmentPath)
+		if err != nil {
+			return err
+		}
+		part, err := writer.CreateFormFile("attachment", filepath.Base(attachmentPath))
+		if err != nil {
+			return err
+		}
+		if _, err := part.Write(attachmentBody); err != nil {
+			return err
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest(http.MethodPost, cli.ServerURL+"/api/runs/"+runID+"/evidence", &body)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	message, err := readResponseBody(response)
+	if err != nil {
+		return err
+	}
+	if response.StatusCode >= 300 {
+		return fmt.Errorf("%s", strings.TrimSpace(string(message)))
+	}
+	var indented bytes.Buffer
+	if err := json.Indent(&indented, message, "", "  "); err == nil {
+		fmt.Println(indented.String())
+		return nil
+	}
+	fmt.Println(string(message))
+	return nil
 }
 
 // Intent: Preserve trustworthy approval history by making the CLI carry the

@@ -2,6 +2,8 @@
 
 ## Open / Planned
 
+- [x] 042 - Add ex5 CLI evidence upload - `TODO/TODO-zanub-ex5-cli-evidence-upload.md`
+- [x] 041 - Add ex5 Neovim item supersede phase - `TODO/TODO-pudor-ex5-neovim-item-supersede-phase.md`
 - [x] 040 - Add ex5 Neovim run approval phase - `TODO/TODO-bafor-ex5-neovim-run-approval-phase.md`
 - [x] 039 - Add ex5 Neovim item approval phase - `TODO/TODO-vamor-ex5-neovim-item-approval-phase.md`
 - [x] 038 - Add ex5 Neovim pending review phase - `TODO/TODO-lorav-ex5-neovim-pending-review-phase.md`
@@ -62,6 +64,8 @@
 - `DI-lorav`: add a read-only Neovim pending-review view over the existing search projections before attempting write-side approval actions in the editor.
 - `DI-vamor`: add a small Neovim item approval action that resolves the current revision through the existing item API before posting to the existing approval endpoint.
 - `DI-bafor`: add a small Neovim run approval action that reuses the existing run approval endpoint and refreshes the relevant terminal view afterward.
+- `DI-pudor`: add a small Neovim item supersede action that reuses the existing item supersede endpoint and refreshes the relevant terminal view afterward.
+- `DI-zanub`: add a CLI evidence upload command that reuses the existing run evidence multipart API for summary-only, fact-bearing, and attachment-bearing evidence writes.
 - `DI-vurab`: track the 2026-07-21 deep ex5 review findings as an explicit fix backlog covering attachment durability, event replay limits, revision-aware approvals, empty-body drafts, link validation, problem drilldown alignment, and CLI approval identity.
 - `DI-busor`: handle durability and replay hazards before adding more workflow surface area.
 - `DI-dazim`: fix revision and empty-draft correctness so approvals and live collaboration cannot silently misstate current state.

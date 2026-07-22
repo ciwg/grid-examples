@@ -63,6 +63,7 @@ The first-phase Neovim embodiment owns:
 - posting limited item approvals by reading the current item projection first
   and then using the existing item approval route
 - posting limited run approvals through the existing run approval route
+- posting limited item supersede actions through the existing item supersede route
 
 Together, those two terminal embodiments now form a staged terminal-first
 surface:
@@ -170,7 +171,7 @@ draft items plus run-review slices. Item approval extends it to one small
 write-side action that still depends on the same `GET /api/items/{id}` truth
 and the existing `POST /api/items/{id}/approvals` route. Source: `DI-fudok`;
 `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`; `DI-vamor`;
-`DI-bafor`.
+`DI-bafor`; `DI-pudor`.
 
 ## Current implementation note
 

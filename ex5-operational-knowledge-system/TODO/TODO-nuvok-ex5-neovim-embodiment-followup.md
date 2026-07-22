@@ -36,7 +36,8 @@ phase 1.
 - [x] nuvok.7 Define the next richer Neovim workflow surface after search/browse as a read-only pending-review view under `TODO/TODO-lorav-ex5-neovim-pending-review-phase.md`.
 - [x] nuvok.8 Define the next richer Neovim workflow surface after pending review as a small item approval action under `TODO/TODO-vamor-ex5-neovim-item-approval-phase.md`.
 - [x] nuvok.9 Define the next richer Neovim workflow surface after item approval as a small run approval action under `TODO/TODO-bafor-ex5-neovim-run-approval-phase.md`.
-- [ ] nuvok.10 Define the next richer Neovim workflow surface after run approval, such as item supersede actions.
+- [x] nuvok.10 Define the next richer Neovim workflow surface after run approval as a small item supersede action under `TODO/TODO-pudor-ex5-neovim-item-supersede-phase.md`.
+- [ ] nuvok.11 Define the next richer Neovim workflow surface after item supersede, such as CLI evidence upload or typed-link creation parity.
 
 ## Status
 
@@ -51,3 +52,4 @@ phase 1.
 - read-only pending review now exists over draft-item and run-review slices from the shared search projections
 - a small item approval action now exists over the existing item approval API
 - a small run approval action now exists over the existing run approval API
+- a small item supersede action now exists over the existing item supersede API

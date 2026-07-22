@@ -145,6 +145,7 @@ It is intentionally narrower than the browser surface:
 - open a grouped pending-review buffer with `:OksPending`
 - approve the current or specified item with `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - approve the current or specified run with `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
+- supersede the current or specified item with `:OksSupersedeItem [ITEM_ID] [NOTES...]`
 - publish presence and typing heartbeats over the same local HTTP live endpoint
 
 Cursor and presence reporting now stay anchored to the live-draft window
@@ -203,6 +204,13 @@ pending-review queue. That gives terminal reviewers a direct next step after
 finding run work in `:OksPending` without opening a broader editor workflow.
 Source: `DI-bafor`.
 
+The next follow-on after that adds the matching item lifecycle action. Neovim
+item supersede posts through the existing item supersede endpoint, uses the
+current item context when possible, and then refreshes the live draft,
+inspector, or pending-review queue. That gives terminal reviewers the next
+obvious item-state change without widening the editor into a broad mutation
+surface. Source: `DI-pudor`.
+
 ### Terminal-first behavior
 
 The current terminal behavior is intentionally split between CLI and Neovim
@@ -212,6 +220,7 @@ CLI behavior today:
 
 - fast shell-oriented create/list/show commands
 - explicit record-run and approval actions
+- explicit run evidence upload with optional facts JSON and optional attachment
 - direct free-text search
 
 Neovim behavior today:
@@ -222,6 +231,7 @@ Neovim behavior today:
 - grouped pending-review browsing for draft items and review-worthy runs
 - limited item approval for the current or specified item
 - limited run approval for the current or specified run
+- limited item supersede for the current or specified item
 
 That means terminal-first work in `ex5` currently follows a practical pattern:
 
@@ -387,11 +397,18 @@ Current implementation supports:
 - structured fact maps
 - optional copied file attachments
 - browser upload flow
+- CLI upload flow for summary-only, summary-plus-facts, and
+  summary-plus-facts-plus-attachment evidence entry
 - durable attachment path under the local runtime root
 
 Attachment uploads are enforced at the HTTP boundary: files larger than 8 MiB
 are rejected instead of being partially accepted as evidence. Source:
 `DI-navos`.
+
+That same evidence route is now practical from a terminal-first workflow too.
+Shell users can attach evidence with just a summary, with summary plus facts
+JSON, or with summary plus facts JSON plus a copied attachment file without
+opening the browser. Source: `DI-zanub`.
 
 ### Approvals
 

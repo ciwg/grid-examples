@@ -2,8 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -202,6 +207,136 @@ func TestApproveRunCommandUsesExplicitActor(t *testing.T) {
 	}
 	if received["notes"] != "handoff recorded" {
 		t.Fatalf("unexpected approve-run notes: %#v", received["notes"])
+	}
+}
+
+func TestAddEvidenceCommandSupportsFactsAndAttachment(t *testing.T) {
+	var (
+		path           string
+		contentType    string
+		fields         map[string]string
+		attachmentName string
+		attachmentBody string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		contentType = request.Header.Get("Content-Type")
+		mediaType, params, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			t.Fatalf("parse content type: %v", err)
+		}
+		if mediaType != "multipart/form-data" {
+			t.Fatalf("unexpected media type: %s", mediaType)
+		}
+		reader := multipart.NewReader(request.Body, params["boundary"])
+		fields = map[string]string{}
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read multipart part: %v", err)
+			}
+			body, err := io.ReadAll(part)
+			if err != nil {
+				t.Fatalf("read part body: %v", err)
+			}
+			if part.FormName() == "attachment" {
+				attachmentName = part.FileName()
+				attachmentBody = string(body)
+				continue
+			}
+			fields[part.FormName()] = string(body)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	tempDir := t.TempDir()
+	attachmentPath := filepath.Join(tempDir, "evidence.txt")
+	if err := os.WriteFile(attachmentPath, []byte("hello evidence"), 0o644); err != nil {
+		t.Fatalf("write attachment: %v", err)
+	}
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"add-evidence", "RUN-0001", "dave", "dock photo", `{"result":"ok"}`, attachmentPath})
+	if err != nil {
+		t.Fatalf("add-evidence command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/runs/RUN-0001/evidence" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	if fields["actor"] != "dave" || fields["summary"] != "dock photo" || fields["facts_json"] != `{"result":"ok"}` {
+		t.Fatalf("unexpected multipart fields: %#v", fields)
+	}
+	if attachmentName != "evidence.txt" || attachmentBody != "hello evidence" {
+		t.Fatalf("unexpected attachment payload: %q %q", attachmentName, attachmentBody)
+	}
+}
+
+func TestAddEvidenceCommandSupportsSummaryOnly(t *testing.T) {
+	var (
+		path           string
+		fields         map[string]string
+		attachmentSeen bool
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		mediaType, params, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+		if err != nil {
+			t.Fatalf("parse content type: %v", err)
+		}
+		if mediaType != "multipart/form-data" {
+			t.Fatalf("unexpected media type: %s", mediaType)
+		}
+		reader := multipart.NewReader(request.Body, params["boundary"])
+		fields = map[string]string{}
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read multipart part: %v", err)
+			}
+			body, err := io.ReadAll(part)
+			if err != nil {
+				t.Fatalf("read part body: %v", err)
+			}
+			if part.FormName() == "attachment" {
+				attachmentSeen = true
+			}
+			fields[part.FormName()] = string(body)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"add-evidence", "RUN-0002", "alice", "verbal handoff"})
+	if err != nil {
+		t.Fatalf("add-evidence summary-only command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if path != "/api/runs/RUN-0002/evidence" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	if fields["actor"] != "alice" || fields["summary"] != "verbal handoff" {
+		t.Fatalf("unexpected fields: %#v", fields)
+	}
+	if _, ok := fields["facts_json"]; ok {
+		t.Fatalf("did not expect facts_json field: %#v", fields)
+	}
+	if attachmentSeen {
+		t.Fatalf("did not expect attachment part")
 	}
 }
 

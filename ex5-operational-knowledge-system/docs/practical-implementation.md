@@ -71,6 +71,7 @@ CLI:
 - creates responsibilities and knowledge items
 - records runs
 - records approvals with explicit actor identity
+- uploads run evidence with optional facts JSON and optional copied attachment
 - shows individual items and runs
 
 Neovim phase 1:
@@ -87,11 +88,17 @@ Neovim phase 1:
 - opens a read-only pending-review buffer by combining draft-item, all-run, and problem-run search slices from the same projection layer
 - posts limited item approvals by resolving current revision from `GET /api/items/{id}` and then using `POST /api/items/{id}/approvals`
 - posts limited run approvals with `POST /api/runs/{id}/approvals`
+- posts limited item supersede actions with `POST /api/items/{id}/supersede`
 
 In practice, that gives `ex5` a real terminal-first operating mode:
 
 - CLI for direct command execution and mutation
 - Neovim for continuous text work, review, browsing, and pending-work triage
+
+The CLI evidence path now reuses the same multipart run-evidence route as the
+browser. That keeps terminal-side evidence entry honest: it is not a second
+schema or a special shell-only shortcut, just a narrower embodiment of the
+same durable evidence contract. Source: `DI-zanub`.
 
 The important behavior point is that these are not separate backends. They are
 two terminal-facing views over the same local runtime and projected state, so a
@@ -170,7 +177,7 @@ write-side approval actions are added to the editor. The next small step now
 adds one revision-safe item approval action, still using the same local HTTP
 runtime and item approval semantics as the CLI and browser. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
-`DI-lorav`; `DI-vamor`; `DI-bafor`.
+`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`.
 
 ## Current verification shape
 

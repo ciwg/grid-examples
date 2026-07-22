@@ -1084,6 +1084,23 @@ local function refresh_after_item_approval(item_id, detail)
   show_item_detail(item_id, detail)
 end
 
+local function refresh_after_item_supersede(item_id, detail)
+  local current_name = buffer_name(vim.api.nvim_get_current_buf())
+  local inspector_name = buffer_name(inspector.bufnr)
+  if current_name == "oks-pending://review" or inspector_name == "oks-pending://review" then
+    M.pending()
+    return
+  end
+  if M.state.item_id == item_id and M.state.bufnr and vim.api.nvim_buf_is_valid(M.state.bufnr) then
+    M.state.title = detail.title or M.state.title
+    M.state.status = detail.status or M.state.status
+    M.state.current_revision = detail.current_revision or M.state.current_revision
+    refresh_live_state(true)
+    return
+  end
+  show_item_detail(item_id, detail)
+end
+
 local function refresh_after_run_approval(run_id, detail)
   local current_name = buffer_name(vim.api.nvim_get_current_buf())
   local inspector_name = buffer_name(inspector.bufnr)
@@ -1223,6 +1240,54 @@ function M.approve_run(command_args)
   notify("approved run " .. run_id .. " as " .. decision)
 end
 
+-- Intent: Let terminal-first reviewers supersede the current item from Neovim
+-- through the existing item supersede API, while refreshing the relevant
+-- live, inspect, or pending-review surface afterward. Source: DI-pudor
+function M.supersede_item(command_args)
+  local args = vim.split(vim.trim(command_args or ""), "%s+", { trimempty = true })
+  local item_id = current_context_item_id()
+  local notes = ""
+
+  if item_id and #args >= 0 then
+    notes = table.concat(args, " ")
+  elseif #args >= 1 then
+    item_id = args[1]
+    notes = table.concat(args, " ", 2)
+  else
+    notify("usage: :OksSupersedeItem [ITEM_ID] [NOTES...]", vim.log.levels.WARN)
+    return
+  end
+
+  if not item_id or item_id == "" then
+    notify("usage: :OksSupersedeItem [ITEM_ID] [NOTES...]", vim.log.levels.WARN)
+    return
+  end
+
+  local status, body, err = request("POST", "/api/items/" .. item_id .. "/supersede", {
+    actor = M.config.display_name,
+    notes = notes,
+  })
+  if err then
+    notify(err, vim.log.levels.ERROR)
+    return
+  end
+  if status ~= 200 then
+    local message = vim.trim(body or "")
+    if message == "" then
+      message = tostring(status)
+    end
+    notify("item supersede failed: " .. message, vim.log.levels.ERROR)
+    return
+  end
+  local superseded = json_decode(body)
+  if not superseded then
+    notify("item supersede decode failed", vim.log.levels.ERROR)
+    return
+  end
+  refresh_after_item_supersede(item_id, superseded)
+  notify("superseded item " .. item_id)
+end
+
 -- Intent: Let the headless regression harness seed inspector state without
 -- going through HTTP-backed inspect flows, so :OksClose teardown can be
 -- validated locally. Source: DI-mabek
@@ -1347,6 +1412,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("OksApproveRun", function(command)
     M.approve_run(command.args)
   end, { nargs = "+" })
+  vim.api.nvim_create_user_command("OksSupersedeItem", function(command)
+    M.supersede_item(command.args)
+  end, { nargs = "*" })
   vim.api.nvim_create_user_command("OksClose", function()
     M.close()
   end, {})

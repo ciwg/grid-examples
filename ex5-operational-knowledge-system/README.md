@@ -72,6 +72,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - one-click place/resource/responsibility problem drilldowns that now use the same classification logic as grouped problem review
 - grouped problem review that highlights repeated receiving and count issues by place and resource
 - CLI inspection and creation commands
+- CLI evidence upload for runs, with optional facts JSON and optional file attachment
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
@@ -81,6 +82,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - Neovim pending-review view for draft items, unreviewed runs, and problem runs
 - Neovim item approval action over the existing item approval API
 - Neovim run approval action over the existing run approval API
+- Neovim item supersede action over the existing item supersede API
 - stub-backed headless browser smoke coverage for the shipped UI
 
 For the longer feature walkthrough, see
@@ -199,6 +201,7 @@ go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_no
 go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
 go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
 go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
+go run ./cmd/oks-cli add-evidence RUN-0001 dave "Dock photo" '{"result":"ok"}' ./evidence.txt
 go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2"
 go run ./cmd/oks-cli runs
 ```
@@ -213,6 +216,8 @@ go run ./cmd/oks-cli runs
 The intended terminal behavior today is:
 
 - use the CLI for fast shell-oriented creation and direct inspection
+- use the CLI when you need one-shot run evidence upload with optional facts
+  JSON and optional copied file attachments
 - use Neovim when you want to stay inside one editor session while:
   - editing a live draft
   - reviewing item and run detail
@@ -252,6 +257,7 @@ What it supports now:
 - `:OksPending`
 - `:OksApproveItem [ITEM_ID] ROLE DECISION [NOTES...]`
 - `:OksApproveRun [RUN_ID] ROLE DECISION [NOTES...]`
+- `:OksSupersedeItem [ITEM_ID] [NOTES...]`
 - `:OksClose`
 - `:write` pushes the current buffer body through the live-draft API
 
@@ -320,6 +326,17 @@ The next matching phase adds:
 `OksApproveRun` also uses the configured Neovim display name as the approval
 `actor`. If you are on a run inspector, you can omit the run ID and approve
 the current run directly. Source: `DI-bafor`.
+
+The next lifecycle phase adds:
+
+- one item supersede action over the existing item supersede API
+- direct use from the current live draft or item inspector, or from an explicit
+  item ID
+- refresh of the current live, inspector, or pending-review view afterward
+
+`OksSupersedeItem` uses the configured Neovim display name as the lifecycle
+`actor`. If you are on a live draft or item inspector, you can omit the item
+ID and supersede the current item directly. Source: `DI-pudor`.
 
 Start it against a running server with:
 
