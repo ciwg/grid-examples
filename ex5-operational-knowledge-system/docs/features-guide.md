@@ -17,6 +17,11 @@ views over the same runtime. The embodiments are intentionally uneven today:
 the browser is deeper, the CLI is thinner, and both read/write the same
 durable model. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`.
 
+PromiseGrid note: the current feature set ships inside the PromiseGrid example
+set and follows that model, but the shipped implementation here is still the
+local runtime plus local embodiment adapters, not the full signed-envelope /
+relay layer. Source: `DI-sobek`.
+
 It now also keeps a browser-shared working draft for each knowledge item,
 separate from the durable revision history. That lets operators collaborate on
 the current body text without pretending that live cursor state is itself the

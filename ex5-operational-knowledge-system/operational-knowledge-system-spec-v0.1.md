@@ -4,6 +4,12 @@
 
 **Status:** Draft 0.1
 
+**Status note:** This document is part of the shipped PromiseGrid framing for
+`ex5`. The current ex5 runtime still implements the local HTTP/event layer with
+shared browser, CLI, and Neovim embodiments. Frozen `pCID`-selected behavior,
+signed wire envelopes, and relay-visible peer exchange are not yet implemented
+in that runtime layer. Source: `DI-sobek`.
+
 **Primary Language:** Go
 
 **Interfaces**

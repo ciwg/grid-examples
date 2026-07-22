@@ -77,6 +77,24 @@ state through the same local HTTP runtime. Source: `DI-fudok`; `DI-givot`;
 The current focus is durable local operational memory with strong browser,
 terminal, and Neovim workflows. Source: `DI-tabiv`; `DI-ranor`; `DI-fudok`.
 
+## PromiseGrid Boundary
+
+`ex5` ships with the PromiseGrid examples and follows that model, but the
+shipped product currently implements the local runtime and local embodiment
+layer rather than the full signed-envelope / relay layer. Source: `DI-sobek`.
+
+What that means in practice:
+
+- the current local HTTP API is the shipped embodiment adapter
+- append-only operational history is real and durable today
+- protocol-family and `pCID` language are part of the shipped PromiseGrid
+  framing for ex5
+- signed grid envelopes, frozen `pCID`-selected runtime behavior, and
+  relay-visible peer exchange are not yet shipped behavior
+
+For the technical claims list, see
+[PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
+
 Terminal authoring is now split more clearly too. Neovim can carry an item
 from live draft editing into a durable revision snapshot without leaving the
 editor, but broader create/run/evidence workflows still live in the browser or

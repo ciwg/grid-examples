@@ -7,6 +7,11 @@ It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.
 
+In current ex5, these HTTP routes are the shipped embodiment contract for the
+browser, CLI, and Neovim surfaces. They are not yet a signed PromiseGrid peer
+contract, and route names should not be read as frozen `pCID`-selected public
+wire meaning. Source: `DI-sobek`.
+
 The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `go.mod`, matching the current patch-level default used across the other
 `grid-examples` modules.

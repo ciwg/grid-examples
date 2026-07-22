@@ -7,7 +7,7 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
 ## Topology
 
 ```text
-                 protocol docs / pCID-selected meaning
+             protocol docs / PromiseGrid public meaning
                                   │
                        append-only operational events
                                   │
@@ -20,6 +20,12 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
                       │
                  Neovim live-draft client
 ```
+
+That top line is part of the PromiseGrid framing that ships with ex5. The
+shipped runtime already uses append-only events and shared embodiments, but it
+does not yet implement the full wire-level layer of that framing through
+runtime-selected frozen `pCID` documents or signed grid envelopes. Source:
+`DI-sobek`.
 
 The runtime owns:
 
@@ -201,9 +207,16 @@ The code currently implements:
 - live shared drafting through the local HTTP runtime
 - participant presence on the current draft
 - durable versioned document bodies inside knowledge-item revisions
+- one shared local HTTP embodiment adapter for browser, CLI, and Neovim
 
 It still does **not** yet implement:
 
 - websocket-based collaboration transport
 - relay-visible peer exchange
 - signed grid envelopes on the wire
+- frozen runtime behavior selected by a shipped `pCID`
+
+So in current ex5, protocol-family and `pCID` language are part of the shipped
+PromiseGrid framing, but they are not a statement that the local runtime is
+already emitting or consuming full PromiseGrid wire artifacts. For the explicit current
+claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

@@ -121,7 +121,12 @@ For operator-facing docs that describe the current product directly, see:
 
 ## Current PromiseGrid Shape
 
-The implemented foundation already follows the repo's actual grid direction:
+The implemented foundation ships with the PromiseGrid examples and dev guide,
+and it follows that development model. The current ex5 runtime is still the
+local-runtime layer of that model rather than the full signed-envelope / relay
+layer. Source: `DI-sobek`.
+
+What is already true today:
 
 - the durable contract is intended to live in protocol docs under
   `protocols/`
@@ -129,7 +134,7 @@ The implemented foundation already follows the repo's actual grid direction:
   surfaces
 - the browser and CLI are embodiments over the same shared operational state
 
-What is implemented today:
+What the current runtime actually implements today:
 
 - durable event history
 - generic place hierarchy and resource records
@@ -140,15 +145,19 @@ What is implemented today:
 - local shared-draft persistence and live participant presence for browser
   editing
 
-What is not yet implemented in this foundation:
+What is not yet implemented in the shipped runtime:
 
 - websocket-based collaboration transport
 - peer-to-peer relay exchange
 - signed grid envelopes on the wire
+- frozen runtime behavior selected by a shipped `pCID`
 - ERP-style inventory quantities, reservations, or planning logic
 
-That omission is intentional in the docs: this README describes the actual
-implemented state, not the longer-term aspiration.
+That distinction is intentional in the docs: this README describes the actual
+implemented ex5 runtime layer, not runtime behavior that has not shipped yet.
+
+For the explicit technical statement of the current PromiseGrid boundary, see
+[PromiseGrid Implementation Claims](docs/promisegrid-implementation-claims.md).
 
 ## Runtime
 

@@ -199,8 +199,15 @@ The implementation already organizes the model around protocol-family seams:
 - `knowledge-search-metadata`
 
 The current Go code does not yet emit signed grid envelopes for those families,
-but the seams are intentionally visible in the data model so the example can
-move there without a total rewrite.
+does not yet freeze runtime behavior by shipped `pCID`, and does not yet treat
+the local HTTP adapter as the full PromiseGrid peer contract. Those protocol
+families are already part of the shipped ex5 PromiseGrid framing; the missing
+piece is the wire-level runtime behavior, not the relevance of the framing.
+Source: `DI-sobek`.
+
+For the explicit statement of current shipped promises versus future
+PromiseGrid-facing work, see
+[PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
 
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and
@@ -234,6 +241,7 @@ The foundation still does not yet include:
 - websocket transport
 - relay-visible peer exchange
 - signed grid envelopes on the wire
+- frozen runtime behavior selected by a shipped `pCID`
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
