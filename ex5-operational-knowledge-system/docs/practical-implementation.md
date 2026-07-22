@@ -114,6 +114,12 @@ The richer CLI search path follows that same rule too. It reuses the same
 including `problem=true`, instead of inventing a second terminal-only review
 surface. Source: `DI-mifot`.
 
+The CLI pending-review path follows the same rule again. It reuses
+`/api/search?status=draft`, `/api/search`, and `/api/search?problem=true` to
+build one shell-facing queue for draft items, review queue runs, and problem
+runs instead of inventing a terminal-only aggregation endpoint. Source:
+`DI-vabok`.
+
 The important behavior point is that these are not separate backends. They are
 two terminal-facing views over the same local runtime and projected state, so a
 user can mix shell commands and Neovim inspection without crossing embodiment

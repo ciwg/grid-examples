@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"mime"
@@ -9,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -84,6 +86,109 @@ func TestProblemReviewCommandUsesExpectedRoute(t *testing.T) {
 	}
 	if path != "/api/problem-review" {
 		t.Fatalf("unexpected path: %s", path)
+	}
+}
+
+func TestPendingReviewCommandUsesSharedSearchRoutes(t *testing.T) {
+	paths := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		paths = append(paths, request.URL.RequestURI())
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.RawQuery {
+		case "status=draft":
+			_, _ = writer.Write([]byte(`{"items":[{"id":"ITEM-0001"}]}`))
+		case "":
+			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0001","approvals":[]},{"id":"RUN-0009","approvals":[{"actor":"carol"}]}]}`))
+		case "problem=true":
+			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0002"}]}`))
+		default:
+			t.Fatalf("unexpected query: %q", request.URL.RawQuery)
+		}
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+
+	exitCode, runErr := cli.run([]string{"pending-review"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("pending-review command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	expected := []string{
+		"/api/search?status=draft",
+		"/api/search",
+		"/api/search?problem=true",
+	}
+	if !slices.Equal(paths, expected) {
+		t.Fatalf("unexpected paths: got=%#v want=%#v", paths, expected)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"draft_items"`) || !strings.Contains(output, `"unreviewed_runs"`) || !strings.Contains(output, `"problem_runs"`) {
+		t.Fatalf("unexpected output: %s", output)
+	}
+	if !strings.Contains(output, `"RUN-0001"`) || strings.Contains(output, `"RUN-0009"`) {
+		t.Fatalf("unexpected unreviewed run output: %s", output)
+	}
+}
+
+func TestPendingReviewCommandRejectsMalformedRunApprovals(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.RawQuery {
+		case "status=draft":
+			_, _ = writer.Write([]byte(`{"items":[]}`))
+		case "":
+			_, _ = writer.Write([]byte(`{"runs":[{"id":"RUN-0001","approvals":{"actor":"carol"}}]}`))
+		case "problem=true":
+			_, _ = writer.Write([]byte(`{"runs":[]}`))
+		default:
+			t.Fatalf("unexpected query: %q", request.URL.RawQuery)
+		}
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"pending-review"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), `/api/search runs entry "approvals" field is not an array`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPendingReviewCommandReportsFailingSharedRoute(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.RawQuery {
+		case "status=draft":
+			_, _ = writer.Write([]byte(`{"items":[]}`))
+		case "":
+			http.Error(writer, "search unavailable", http.StatusServiceUnavailable)
+		case "problem=true":
+			_, _ = writer.Write([]byte(`{"runs":[]}`))
+		default:
+			t.Fatalf("unexpected query: %q", request.URL.RawQuery)
+		}
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	exitCode, err := cli.run([]string{"pending-review"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "search unavailable") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -189,6 +294,23 @@ func TestSearchCommandRejectsUnsupportedFilterKey(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), `unsupported search filter "owner"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func captureStdout(t *testing.T) (*bytes.Buffer, func(), error) {
+	t.Helper()
+	originalStdout := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	os.Stdout = writer
+	buffer := &bytes.Buffer{}
+	return buffer, func() {
+		_ = writer.Close()
+		_, _ = io.Copy(buffer, reader)
+		_ = reader.Close()
+		os.Stdout = originalStdout
+	}, nil
 }
 
 func TestNewPlaceAndResourceCommandsEmitExpectedPayloads(t *testing.T) {

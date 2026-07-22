@@ -165,6 +165,12 @@ The CLI now reuses this same route too:
 - `oks-cli search QUERY kind=... status=... outcome=...`
 - `oks-cli search QUERY place_id=... resource_id=... responsibility_id=...`
 - `oks-cli search QUERY problem=true`
+- `oks-cli pending-review`
+
+`oks-cli pending-review` reuses the same three route reads as `:OksPending`:
+`/api/search?status=draft`, `/api/search`, and `/api/search?problem=true`. It
+assembles one shell-facing pending-review payload instead of requiring a new
+terminal-specific aggregation API. Source: `DI-vabok`.
 
 Unsupported or malformed filter tokens are rejected locally instead of being
 silently dropped. Source: `DI-mifot`.

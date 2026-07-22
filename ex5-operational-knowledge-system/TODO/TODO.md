@@ -2,6 +2,7 @@
 
 ## Open / Planned
 
+- [x] 047 - Add ex5 CLI pending-review aggregation - `TODO/TODO-vabok-ex5-cli-pending-review.md`
 - [x] 046 - Add ex5 CLI responsibility detail inspection - `TODO/TODO-jubav-ex5-cli-responsibility-detail.md`
 - [x] 045 - Add ex5 CLI problem review command - `TODO/TODO-nuvaz-ex5-cli-problem-review.md`
 - [x] 044 - Add ex5 CLI structured and problem search filters - `TODO/TODO-mifot-ex5-cli-structured-search-filters.md`
@@ -74,6 +75,8 @@
 - `DI-mifot`: extend the existing CLI search command with structured and problem-only filter arguments so terminal search stays on the shared `/api/search` projection instead of inventing a separate CLI-only search path.
 - `DI-nuvaz`: add a CLI problem-review command that reuses the existing grouped hotspot endpoint so terminal users can inspect repeated receiving and count problems without opening the browser.
 - `DI-jubav`: add a CLI show-responsibility command so terminal users can inspect responsibility detail and typed-link context without switching embodiments.
+- `DI-vabok`: add a CLI pending-review command that reuses the same draft-item, all-run, and problem-run search projections as `:OksPending` so shell-first reviewers can triage work without leaving the terminal.
+- `DI-vabop`: make CLI pending-review fail loudly on malformed shared-search projections instead of silently hiding contract drift, while keeping its unreviewed-run semantics aligned with `:OksPending`.
 - `DI-vurab`: track the 2026-07-21 deep ex5 review findings as an explicit fix backlog covering attachment durability, event replay limits, revision-aware approvals, empty-body drafts, link validation, problem drilldown alignment, and CLI approval identity.
 - `DI-busor`: handle durability and replay hazards before adding more workflow surface area.
 - `DI-dazim`: fix revision and empty-draft correctness so approvals and live collaboration cannot silently misstate current state.

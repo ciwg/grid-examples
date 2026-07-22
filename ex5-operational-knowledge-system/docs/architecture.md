@@ -69,10 +69,12 @@ Together, those two terminal embodiments now form a staged terminal-first
 surface:
 
 - CLI handles direct command-style mutation and shell inspection
+- CLI can also assemble a shell-facing pending-review queue from the same
+  shared search projections Neovim already uses
 - Neovim handles text editing, review, browse, and pending-work triage
 
 They still share one runtime and one projection layer. Source: `DI-fudok`;
-`DI-givot`; `DI-lorav`.
+`DI-givot`; `DI-lorav`; `DI-vabok`.
 
 It deliberately does not own a separate transport, remote cursor rendering, or
 full workflow review surface in this phase. Source: `DI-fudok`.

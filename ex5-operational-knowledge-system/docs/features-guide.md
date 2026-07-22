@@ -225,6 +225,7 @@ CLI behavior today:
 - direct free-text search plus structured and `problem=true` filters
 - grouped hotspot review over the shared problem-review surface
 - projected responsibility detail inspection over the shared responsibility route
+- grouped pending-review aggregation over the same search-route family Neovim already uses
 
 Neovim behavior today:
 
@@ -243,7 +244,7 @@ That means terminal-first work in `ex5` currently follows a practical pattern:
   review work inside one editor session
 
 This is a deliberate staged embodiment strategy, not an accident. Source:
-`DI-fudok`; `DI-givot`; `DI-lorav`.
+`DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vabok`.
 
 ### Record inspector and contextual navigation
 

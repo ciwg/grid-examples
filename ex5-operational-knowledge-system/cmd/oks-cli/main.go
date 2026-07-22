@@ -40,6 +40,8 @@ func (cli *CLI) run(args []string) (int, error) {
 		err = cli.Dashboard()
 	case "problem-review":
 		err = cli.ProblemReview()
+	case "pending-review":
+		err = cli.PendingReview()
 	case "places":
 		err = cli.Places()
 	case "new-place":
@@ -187,7 +189,7 @@ func (cli *CLI) run(args []string) (int, error) {
 	return 0, nil
 }
 
-const usageText = "usage: oks-cli dashboard|problem-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
+const usageText = "usage: oks-cli dashboard|problem-review|pending-review|places|new-place ACTOR KIND NAME SUMMARY [PARENT_ID]|show-place ID|resources|new-resource ACTOR KIND NAME SUMMARY [PLACE_ID]|show-resource ID|responsibilities|show-responsibility ID|new-responsibility ACTOR TITLE SUMMARY|items [kind]|new-item ACTOR KIND TITLE SUMMARY BODY|show-item ID|runs [kind]|record-run ACTOR KIND ITEM_ID REVISION OUTCOME NOTES [PLACE_ID] [RESOURCE_IDS_CSV]|show-run ID|approve-item ITEM_ID REVISION ACTOR ROLE DECISION NOTES|supersede-item ITEM_ID ACTOR [NOTES]|approve-run RUN_ID ACTOR ROLE DECISION NOTES|add-link ACTOR FROM_TYPE FROM_ID TO_TYPE TO_ID RELATION [NOTES]|add-evidence RUN_ID ACTOR SUMMARY [FACTS_JSON] [FILE]|search QUERY [kind=VALUE] [status=VALUE] [outcome=VALUE] [place_id=VALUE] [resource_id=VALUE] [responsibility_id=VALUE] [problem=true]"
 
 type CLI struct {
 	ServerURL string
@@ -203,8 +205,46 @@ var allowedSearchFilters = map[string]struct{}{
 	"problem":           {},
 }
 
-func (cli *CLI) Dashboard() error        { return cli.Show("/api/dashboard") }
-func (cli *CLI) ProblemReview() error    { return cli.Show("/api/problem-review") }
+func (cli *CLI) Dashboard() error     { return cli.Show("/api/dashboard") }
+func (cli *CLI) ProblemReview() error { return cli.Show("/api/problem-review") }
+
+// Intent: Keep the shell-first pending-review queue on the same projection
+// family Neovim already uses so terminal triage does not invent a separate
+// review endpoint or drift away from the staged editor workflow. Source:
+// DI-vabok
+func (cli *CLI) PendingReview() error {
+	draftItems, err := cli.getSearchArray("/api/search?status=draft", "items")
+	if err != nil {
+		return err
+	}
+	allRuns, err := cli.getSearchArray("/api/search", "runs")
+	if err != nil {
+		return err
+	}
+	problemRuns, err := cli.getSearchArray("/api/search?problem=true", "runs")
+	if err != nil {
+		return err
+	}
+	unreviewedRuns := []map[string]any{}
+	for _, raw := range allRuns {
+		run, err := requireJSONObject(raw, "/api/search runs entry")
+		if err != nil {
+			return err
+		}
+		approvals, err := requireJSONArray(run, "approvals", "/api/search runs entry")
+		if err != nil {
+			return err
+		}
+		if len(approvals) == 0 {
+			unreviewedRuns = append(unreviewedRuns, run)
+		}
+	}
+	return printJSON(map[string]any{
+		"draft_items":     draftItems,
+		"unreviewed_runs": unreviewedRuns,
+		"problem_runs":    problemRuns,
+	})
+}
 func (cli *CLI) Places() error           { return cli.Show("/api/places") }
 func (cli *CLI) Resources() error        { return cli.Show("/api/resources") }
 func (cli *CLI) Responsibilities() error { return cli.Show("/api/responsibilities") }
@@ -363,24 +403,11 @@ func (cli *CLI) Approve(path string, actor string, revision int, role string, de
 }
 
 func (cli *CLI) Show(path string) error {
-	response, err := http.Get(cli.ServerURL + path)
+	body, err := cli.get(path)
 	if err != nil {
 		return err
 	}
-	body, err := readResponseBody(response)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode >= 300 {
-		return fmt.Errorf("%s", strings.TrimSpace(string(body)))
-	}
-	var indented bytes.Buffer
-	if err := json.Indent(&indented, body, "", "  "); err == nil {
-		fmt.Println(indented.String())
-		return nil
-	}
-	fmt.Println(string(body))
-	return nil
+	return printJSONBytes(body)
 }
 
 func (cli *CLI) post(path string, payload any) error {
@@ -399,13 +426,83 @@ func (cli *CLI) post(path string, payload any) error {
 	if response.StatusCode >= 300 {
 		return fmt.Errorf("%s", strings.TrimSpace(string(message)))
 	}
+	return printJSONBytes(message)
+}
+
+func (cli *CLI) get(path string) ([]byte, error) {
+	response, err := http.Get(cli.ServerURL + path)
+	if err != nil {
+		return nil, err
+	}
+	body, err := readResponseBody(response)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode >= 300 {
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(body)))
+	}
+	return body, nil
+}
+
+func (cli *CLI) getJSON(path string) (map[string]any, error) {
+	body, err := cli.get(path)
+	if err != nil {
+		return nil, err
+	}
+	var projection map[string]any
+	if err := json.Unmarshal(body, &projection); err != nil {
+		return nil, err
+	}
+	return projection, nil
+}
+
+func (cli *CLI) getSearchArray(path string, field string) ([]any, error) {
+	projection, err := cli.getJSON(path)
+	if err != nil {
+		return nil, err
+	}
+	return requireJSONArray(projection, field, path)
+}
+
+func printJSON(value any) error {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return printJSONBytes(body)
+}
+
+func printJSONBytes(body []byte) error {
 	var indented bytes.Buffer
-	if err := json.Indent(&indented, message, "", "  "); err == nil {
+	if err := json.Indent(&indented, body, "", "  "); err == nil {
 		fmt.Println(indented.String())
 		return nil
 	}
-	fmt.Println(string(message))
+	fmt.Println(string(body))
 	return nil
+}
+
+func requireJSONArray(object map[string]any, field string, context string) ([]any, error) {
+	value, ok := object[field]
+	if !ok {
+		return nil, fmt.Errorf("%s missing %q array", context, field)
+	}
+	items, ok := value.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%s %q field is not an array", context, field)
+	}
+	return items, nil
+}
+
+func requireJSONObject(value any, context string) (map[string]any, error) {
+	if value == nil {
+		return nil, fmt.Errorf("%s is null", context)
+	}
+	object, ok := value.(map[string]any)
+	if !ok || object == nil {
+		return nil, fmt.Errorf("%s is not an object", context)
+	}
+	return object, nil
 }
 
 func readResponseBody(response *http.Response) ([]byte, error) {

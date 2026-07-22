@@ -75,6 +75,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - CLI typed-link creation over the validated operational graph
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment
 - CLI structured search filters and problem-only review over the shared search projection
+- CLI pending-review aggregation for draft items, unreviewed runs, and problem runs
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
@@ -208,6 +209,7 @@ go run ./cmd/oks-cli add-link alice responsibility RESP-0001 knowledge_item PROC
 go run ./cmd/oks-cli add-evidence RUN-0001 dave "Dock photo" '{"result":"ok"}' ./evidence.txt
 go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2" kind=receiving_check problem=true place_id=PLACE-0001
 go run ./cmd/oks-cli problem-review
+go run ./cmd/oks-cli pending-review
 go run ./cmd/oks-cli runs
 ```
 
@@ -229,6 +231,8 @@ The intended terminal behavior today is:
   slices that already drive browser and Neovim review views
 - use the CLI when you need grouped hotspot review or projected responsibility
   detail from the same routes the browser and Neovim embodiments already read
+- use the CLI when you need one pending-review queue for draft items, review
+  queue runs, and problem runs without opening the editor
 - use Neovim when you want to stay inside one editor session while:
   - editing a live draft
   - reviewing item and run detail
@@ -245,7 +249,7 @@ The terminal surface is intentionally staged, not fully symmetric yet:
 That means a terminal-heavy operator can already do a large amount of real work
 without opening the browser, while later follow-ons can still add narrower
 workflow actions instead of trying to duplicate the whole browser at once.
-Source: `DI-fudok`; `DI-givot`; `DI-lorav`.
+Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vabok`.
 
 ## Neovim
 

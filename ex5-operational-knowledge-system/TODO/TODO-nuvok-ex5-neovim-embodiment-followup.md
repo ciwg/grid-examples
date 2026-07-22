@@ -37,7 +37,9 @@ phase 1.
 - [x] nuvok.8 Define the next richer Neovim workflow surface after pending review as a small item approval action under `TODO/TODO-vamor-ex5-neovim-item-approval-phase.md`.
 - [x] nuvok.9 Define the next richer Neovim workflow surface after item approval as a small run approval action under `TODO/TODO-bafor-ex5-neovim-run-approval-phase.md`.
 - [x] nuvok.10 Define the next richer Neovim workflow surface after run approval as a small item supersede action under `TODO/TODO-pudor-ex5-neovim-item-supersede-phase.md`.
-- [ ] nuvok.11 Define the next richer Neovim workflow surface after item supersede, such as CLI evidence upload or typed-link creation parity.
+- [x] nuvok.11 Define the next richer terminal-first follow-on after item supersede as CLI evidence upload, typed-link creation, structured/problem search, grouped problem review, and responsibility detail parity under `TODO/TODO-zanub-ex5-cli-evidence-upload.md`, `TODO/TODO-vuteg-ex5-cli-typed-link-creation.md`, `TODO/TODO-mifot-ex5-cli-structured-search-filters.md`, `TODO/TODO-nuvaz-ex5-cli-problem-review.md`, and `TODO/TODO-jubav-ex5-cli-responsibility-detail.md`.
+- [x] nuvok.12 Define the next richer terminal-first follow-on after that as CLI pending-review aggregation under `TODO/TODO-vabok-ex5-cli-pending-review.md`.
+- [ ] nuvok.13 Define the next richer terminal-first follow-on after CLI pending review.
 
 ## Status
 
@@ -53,3 +55,9 @@ phase 1.
 - a small item approval action now exists over the existing item approval API
 - a small run approval action now exists over the existing run approval API
 - a small item supersede action now exists over the existing item supersede API
+- CLI evidence upload now exists over the shared run evidence route
+- CLI typed-link creation now exists over the shared link route
+- CLI structured/problem search now exists over the shared search route
+- CLI grouped problem review now exists over the shared problem-review route
+- CLI responsibility detail now exists over the shared responsibility route
+- CLI pending-review aggregation now exists over the same shared search projections as `:OksPending`
