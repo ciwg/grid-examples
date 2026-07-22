@@ -54,15 +54,19 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - append-only performed run records linked to exact revisions
 - structured evidence with optional immutable attachment upload up to 8 MiB
 - named-role approvals with local team policy left outside the durable record
-- six frozen PromiseGrid-native runtime families so far:
+- eight frozen PromiseGrid-native runtime families so far:
   - `knowledge-item`
   - `knowledge-approval`
   - `knowledge-evidence`
   - `knowledge-link`
   - `knowledge-responsibility`
   - `operational-run`
+  - `operational-place`
+  - `operational-resource`
 - origin-aware peer exchange that now imports unseen history into non-empty
   runtimes and dedupes it by peer-stable origin tuple
+- peer-visible place/resource context carried as first-class durable families
+  instead of unresolved run/link references
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms
@@ -153,18 +157,23 @@ What the current runtime actually implements today:
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
   editing
-- one frozen `knowledge-item` PromiseGrid profile computed from the shipped
-  protocol bytes
-- one local signed-envelope runtime slice for durable knowledge-item
-  create/revision/lifecycle events
+- eight frozen PromiseGrid profiles computed from the shipped protocol bytes:
+  `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
+  `knowledge-link`, `knowledge-responsibility`, `operational-run`,
+  `operational-place`, and `operational-resource`
+- local signed-envelope runtime slices for all eight of those durable family
+  logs
+- ongoing peer exchange over the local adapter with origin-aware dedupe and
+  create-envelope CID durable identity
+- CAS-authoritative replay/export for the eight frozen family envelopes
+- inline CID-keyed evidence blob carriage during peer exchange
 
 What is not yet implemented in the shipped runtime:
 
 - websocket-based collaboration transport
-- peer-to-peer relay exchange
-- signed grid envelopes for the remaining ex5 families
-- frozen runtime behavior selected by shipped `pCID`s for the remaining ex5
-  families
+- full relay network behavior beyond the current local-adapter exchange layer
+- CAS-authoritative replay/read for the still-unfrozen runtime state outside
+  those eight families
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
@@ -468,6 +477,8 @@ What it does not try to do yet:
 - [Knowledge link protocol](protocols/knowledge-link.md)
 - [Knowledge responsibility protocol](protocols/knowledge-responsibility.md)
 - [Operational run protocol](protocols/operational-run.md)
+- [Operational place protocol](protocols/operational-place.md)
+- [Operational resource protocol](protocols/operational-resource.md)
 - [Knowledge search metadata note](protocols/knowledge-search-metadata.md)
 
 ## Current direction
@@ -475,7 +486,7 @@ What it does not try to do yet:
 - keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
-- ship PromiseGrid peer exchange for the six signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
-- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the six frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
+- ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, inline evidence blobs, and create-envelope-CID durable IDs plus preserved short aliases
+- dual-write signed envelopes and copied evidence blobs into additive CAS sidecar storage, and now replay the eight frozen family envelopes authoritatively from CAS while keeping compatibility state for the rest
 - expose peer-exchange and CAS runtime capability metadata through the existing adapter so embodiments reflect the broader runtime contract without changing transport yet
 - treat broader place/resource peer visibility, stronger CAS-backed replay/read for unfrozen state, and optional later embodiment tightening as the remaining PromiseGrid follow-on work

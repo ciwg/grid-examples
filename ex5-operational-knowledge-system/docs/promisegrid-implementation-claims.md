@@ -14,7 +14,7 @@ blurring together:
 
 ## Current status
 
-`ex5` ships as part of the PromiseGrid example set, and it now has six
+`ex5` ships as part of the PromiseGrid example set, and it now has eight
 PromiseGrid-native runtime families, but not yet across the whole operational
 model. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`;
 `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-faruv`.
@@ -38,6 +38,10 @@ Today it ships:
   protocol bytes
 - one frozen `operational-run` profile selected from the exact shipped
   protocol bytes
+- one frozen `operational-place` profile selected from the exact shipped
+  protocol bytes
+- one frozen `operational-resource` profile selected from the exact shipped
+  protocol bytes
 - one local signed-envelope runtime slice for durable knowledge-item
   create/revision/lifecycle events
 - one local signed-envelope runtime slice for durable knowledge-item and run
@@ -45,13 +49,16 @@ Today it ships:
 - one local signed-envelope runtime slice for durable evidence metadata plus
   attachment references
 - one local signed-envelope runtime slice for durable performed run records
+- one local signed-envelope runtime slice for durable operational place records
+- one local signed-envelope runtime slice for durable operational resource
+  records
 - one local signed-envelope runtime slice for durable typed links
 - one local signed-envelope runtime slice for first-class responsibility
   records
 - additive CAS-backed sidecar storage for signed family envelopes by envelope
   CID
 - additive CAS-backed sidecar storage for copied evidence blobs by blob CID
-- authoritative CAS-backed replay/export envelope bytes for the six frozen
+- authoritative CAS-backed replay/export envelope bytes for the eight frozen
   families, with one-time manifest backfill for older runtimes
 - runtime capability metadata exposing the shipped peer-exchange format and CAS
   support through `Meta`
@@ -63,6 +70,10 @@ Today it ships:
   the replayed evidence event history
 - startup verification of the signed operational-run envelope log against the
   replayed run event history
+- startup verification of the signed operational-place envelope log against the
+  replayed place event history
+- startup verification of the signed operational-resource envelope log against
+  the replayed resource event history
 - startup verification of the signed knowledge-link envelope log against the
   replayed link event history
 - startup verification of the signed knowledge-responsibility envelope log
@@ -71,7 +82,7 @@ Today it ships:
 Today it does **not** yet ship:
 
 - authoritative CAS-backed replay/read paths for the still-unfrozen runtime
-  state outside the six frozen families
+  state outside the eight frozen families
 
 ## What the shipped implementation does promise
 
@@ -103,16 +114,17 @@ written as signed PromiseGrid-style envelopes in the local runtime. Source:
 `DI-sobek`; `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`;
 `DI-vamok`; `DI-faruv`.
 
-### 5. `knowledge-item`, `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, and `operational-run` are the current frozen families
+### 5. `knowledge-item`, `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, `operational-run`, `operational-place`, and `operational-resource` are the current frozen families
 
 `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
-`knowledge-link`, `knowledge-responsibility`, and `operational-run` now select
-runtime behavior through their computed `pCID`s, and the runtime signs and
-verifies durable artifacts for all six families. The other named ex5 families
-remain documented framing and staged migration targets for now. Search
-metadata remains derived projection state instead of a separate durable
-family. Source: `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`;
-`DI-sarib`; `DI-vamok`; `DI-fusok`.
+`knowledge-link`, `knowledge-responsibility`, `operational-run`,
+`operational-place`, and `operational-resource` now select runtime behavior
+through their computed `pCID`s, and the runtime signs and verifies durable
+artifacts for all eight families. The other named ex5 families remain
+documented framing and staged migration targets for now. Search metadata
+remains derived projection state instead of a separate durable family. Source:
+`DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`; `DI-sarib`;
+`DI-vamok`; `DI-fusok`; `DI-pivul`.
 
 ## What the shipped implementation does not yet promise
 
@@ -123,8 +135,8 @@ The current shipped ex5 runtime does not yet promise:
 - that the local HTTP route names are the PromiseGrid peer contract
 - that CAS is already the authoritative replay/read source instead of an
   additive sidecar
-- that exchanged place/resource references are already backed by their own
-  peer-visible families
+- that the remaining unfrozen projection/runtime state is already fully
+  peer-visible and PromiseGrid-native
 
 ## Done now vs. remaining
 
@@ -136,18 +148,19 @@ Done now:
 - `knowledge-link` is frozen as the fourth ex5 family
 - `knowledge-responsibility` is frozen as the fifth ex5 family
 - `operational-run` is frozen as the sixth ex5 family
+- `operational-place` is frozen as the seventh ex5 family
+- `operational-resource` is frozen as the eighth ex5 family
 - the runtime exports and bootstrap-imports whole-family signed
   `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
-  `knowledge-link`, `knowledge-responsibility`, and `operational-run` records
-  plus their compatibility events over the local HTTP adapter
+  `knowledge-link`, `knowledge-responsibility`, `operational-run`,
+  `operational-place`, and `operational-resource` records plus their
+  compatibility events over the local HTTP adapter
 - the runtime now also imports origin-aware unseen peer history for those
   families into non-empty runtimes and dedupes it by
   `(origin_peer_id, origin_sequence)`
 - canonical durable IDs for those peer-visible entities now come from the
   create-event envelope CID, and the old short IDs are preserved only as
   aliases for display, replay compatibility, and embodiment transition
-- import preserves unresolved place/resource references in runs and links
-  explicitly instead of trimming the family logs
 - search metadata remains derived projection state over those families, not a
   sixth signed family
 - the runtime computes all six `pCID`s from the exact shipped spec bytes
@@ -158,9 +171,11 @@ Done now:
 - the runtime signs and verifies durable evidence metadata plus attachment
   references
 - the runtime signs and verifies durable performed run artifacts
+- the runtime signs and verifies durable place artifacts
+- the runtime signs and verifies durable resource artifacts
 - the runtime signs and verifies durable typed-link artifacts
 - the runtime signs and verifies durable responsibility-creation artifacts
-- the runtime now rehydrates the six frozen family envelopes from CAS
+- the runtime now rehydrates the eight frozen family envelopes from CAS
   authoritatively during replay/export, while keeping compatibility event
   replay for still-unfrozen state
 - bootstrap peer exchange now carries inline CID-keyed evidence blobs and
@@ -171,9 +186,7 @@ Done now:
 Remaining:
 
 - adopt authoritative CAS-backed replay/read paths for the still-unfrozen
-  runtime state outside the six frozen families
-- decide how place/resource references become first-class peer-visible durable
-  families or otherwise resolve cleanly across peers
+  runtime state outside the eight frozen families
 - decide whether later embodiments should ever bypass the local HTTP adapter
   instead of using it as the delivery surface over the richer runtime
 
@@ -203,7 +216,8 @@ The next staged PromiseGrid work is no longer a sixth durable
 projection state, so the next work is the peer/storage layer backlog that
 follows the frozen operational families. The relay-visible slice now ships as
 whole-family bootstrap export/import for items, approvals, evidence, runs,
-links, and responsibilities, with inline CID-keyed evidence blob carriage.
+places, resources, links, and responsibilities, with inline CID-keyed
+evidence blob carriage.
 CAS now ships as an additive sidecar for signed envelopes and copied evidence
 blobs rather than a log replacement rewrite, and the first
 embodiment-tightening step now ships through capability metadata plus
@@ -213,4 +227,4 @@ for ongoing import, and its peer-visible entities now use create-envelope CIDs
 as the durable IDs while preserving the old short IDs as aliases. Source:
 `DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`;
 `DI-rovuz`; `DI-tivor`; `DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`;
-`DI-loruk`.
+`DI-loruk`; `DI-pivul`.

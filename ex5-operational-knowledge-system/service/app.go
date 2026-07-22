@@ -35,7 +35,7 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, operationalPlaceRecords, operationalResourceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +60,8 @@ func NewApp(dataRoot string) (*App, error) {
 	knowledgeApprovalRecords = normalizeKnowledgeApprovalRecordOrigins(knowledgeApprovalRecords, events)
 	knowledgeEvidenceRecords = normalizeKnowledgeEvidenceRecordOrigins(knowledgeEvidenceRecords, events)
 	operationalRunRecords = normalizeOperationalRunRecordOrigins(operationalRunRecords, events)
+	operationalPlaceRecords = normalizeOperationalPlaceRecordOrigins(operationalPlaceRecords, events)
+	operationalResourceRecords = normalizeOperationalResourceRecordOrigins(operationalResourceRecords, events)
 	knowledgeLinkRecords = normalizeKnowledgeLinkRecordOrigins(knowledgeLinkRecords, events)
 	knowledgeResponsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(knowledgeResponsibilityRecords, events)
 	events = decoratePeerVisibleEventCanonicalIDs(
@@ -68,6 +70,8 @@ func NewApp(dataRoot string) (*App, error) {
 		knowledgeApprovalRecords,
 		knowledgeEvidenceRecords,
 		operationalRunRecords,
+		operationalPlaceRecords,
+		operationalResourceRecords,
 		knowledgeLinkRecords,
 		knowledgeResponsibilityRecords,
 	)
@@ -91,6 +95,12 @@ func NewApp(dataRoot string) (*App, error) {
 	}
 	if err := verifySignedOperationalRunRecords(events, operationalRunRecords); err != nil {
 		return nil, fmt.Errorf("verify operational-run envelopes: %w", err)
+	}
+	if err := verifySignedOperationalPlaceRecords(events, operationalPlaceRecords); err != nil {
+		return nil, fmt.Errorf("verify operational-place envelopes: %w", err)
+	}
+	if err := verifySignedOperationalResourceRecords(events, operationalResourceRecords); err != nil {
+		return nil, fmt.Errorf("verify operational-resource envelopes: %w", err)
 	}
 	if err := verifySignedKnowledgeLinkRecords(events, knowledgeLinkRecords); err != nil {
 		return nil, fmt.Errorf("verify knowledge-link envelopes: %w", err)
@@ -129,12 +139,16 @@ func (app *App) Meta() Meta {
 		KnowledgeLinkPCID:           protocols.KnowledgeLinkProfile.CID.String(),
 		KnowledgeResponsibilityPCID: protocols.KnowledgeResponsibilityProfile.CID.String(),
 		OperationalRunPCID:          protocols.OperationalRunProfile.CID.String(),
+		OperationalPlacePCID:        protocols.OperationalPlaceProfile.CID.String(),
+		OperationalResourcePCID:     protocols.OperationalResourceProfile.CID.String(),
 		PeerExchangeFormat:          peerExchangeBundleFormat,
 		PeerExchangeFamilies: []string{
 			"knowledge-item",
 			"knowledge-approval",
 			"knowledge-evidence",
 			"operational-run",
+			"operational-place",
+			"operational-resource",
 			"knowledge-link",
 			"knowledge-responsibility",
 		},
@@ -251,6 +265,7 @@ func (app *App) ListPlaces() []Place {
 func (app *App) GetPlace(id string) (Place, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	id = app.resolveLocalInputIDLocked("place", id)
 	place, ok := app.places[id]
 	if !ok {
 		return Place{}, fmt.Errorf("place %q not found", id)
@@ -274,7 +289,7 @@ func (app *App) CreatePlace(actor string, kind string, name string, summary stri
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	parentID = strings.TrimSpace(parentID)
+	parentID = app.resolveLocalInputIDLocked("place", strings.TrimSpace(parentID))
 	if parentID != "" {
 		if _, ok := app.places[parentID]; !ok {
 			return Place{}, fmt.Errorf("parent place %q not found", parentID)
@@ -295,7 +310,8 @@ func (app *App) CreatePlace(actor string, kind string, name string, summary stri
 	if err := app.appendEventLocked(event); err != nil {
 		return Place{}, err
 	}
-	return clonePlace(app.places[id]), nil
+	canonicalID := app.resolveLocalInputIDLocked("place", id)
+	return clonePlace(app.places[canonicalID]), nil
 }
 
 func (app *App) ListResources() []Resource {
@@ -312,6 +328,7 @@ func (app *App) ListResources() []Resource {
 func (app *App) GetResource(id string) (Resource, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	id = app.resolveLocalInputIDLocked("resource", id)
 	resource, ok := app.resources[id]
 	if !ok {
 		return Resource{}, fmt.Errorf("resource %q not found", id)
@@ -334,7 +351,7 @@ func (app *App) CreateResource(actor string, kind string, name string, summary s
 	}
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	placeID = strings.TrimSpace(placeID)
+	placeID = app.resolveLocalInputIDLocked("place", strings.TrimSpace(placeID))
 	if placeID != "" {
 		if _, ok := app.places[placeID]; !ok {
 			return Resource{}, fmt.Errorf("place %q not found", placeID)
@@ -355,7 +372,8 @@ func (app *App) CreateResource(actor string, kind string, name string, summary s
 	if err := app.appendEventLocked(event); err != nil {
 		return Resource{}, err
 	}
-	return cloneResource(app.resources[id]), nil
+	canonicalID := app.resolveLocalInputIDLocked("resource", id)
+	return cloneResource(app.resources[canonicalID]), nil
 }
 
 func (app *App) ListResponsibilities() []Responsibility {
@@ -590,6 +608,8 @@ func (app *App) RecordRun(actor string, kind string, itemID string, revision int
 		return RunRecord{}, fmt.Errorf("revision %d not found for %s", revision, itemID)
 	}
 	responsibilityIDs = app.resolveLocalPeerVisibleIDsLocked("responsibility", responsibilityIDs)
+	placeID = app.resolveLocalInputIDLocked("place", placeID)
+	resourceIDs = app.resolveLocalPeerVisibleIDsLocked("resource", resourceIDs)
 	if err := app.validateResponsibilitiesLocked(responsibilityIDs); err != nil {
 		return RunRecord{}, err
 	}
@@ -610,7 +630,7 @@ func (app *App) RecordRun(actor string, kind string, itemID string, revision int
 		Revision:          revision,
 		Outcome:           strings.TrimSpace(outcome),
 		Notes:             strings.TrimSpace(notes),
-		PlaceID:           strings.TrimSpace(placeID),
+		PlaceID:           placeID,
 		ResourceIDs:       normalizeStrings(resourceIDs),
 		Machine:           strings.TrimSpace(machine),
 		Location:          strings.TrimSpace(location),
@@ -784,6 +804,8 @@ func (app *App) SearchWithOptions(options SearchOptions) map[string]any {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	options = normalizeSearchOptions(options)
+	options.PlaceID = app.resolveLocalInputIDLocked("place", options.PlaceID)
+	options.ResourceID = app.resolveLocalInputIDLocked("resource", options.ResourceID)
 	options.ResponsibilityID = app.resolveLocalInputIDLocked("responsibility", options.ResponsibilityID)
 	problemContext := app.problemSearchContextLocked(options)
 	places := []Place{}
@@ -928,7 +950,7 @@ func matchesPlaceSearch(record *Place, options SearchOptions) bool {
 	if options.PlaceID != "" && record.ID != options.PlaceID {
 		return false
 	}
-	return matchesQuery(record.ID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+	return matchesQuery(record.ID+" "+record.AliasID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
 }
 
 func matchesResourceSearch(record *Resource, options SearchOptions) bool {
@@ -941,7 +963,7 @@ func matchesResourceSearch(record *Resource, options SearchOptions) bool {
 	if options.ResourceID != "" && record.ID != options.ResourceID {
 		return false
 	}
-	return matchesQuery(record.ID+" "+record.PlaceID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
+	return matchesQuery(record.ID+" "+record.AliasID+" "+record.PlaceID+" "+record.Name+" "+record.Summary+" "+record.Kind, options.Query)
 }
 
 func matchesResponsibilitySearch(record *Responsibility, options SearchOptions) bool {
@@ -1007,11 +1029,11 @@ func runSearchBlob(record *RunRecord, places map[string]*Place, resources map[st
 	var parts []string
 	parts = append(parts, record.ID, record.AliasID, record.ItemID, record.PlaceID, record.Outcome, record.Notes, record.Machine, record.Location, strings.Join(record.ResourceIDs, " "), strings.Join(record.ResponsibilityIDs, " "))
 	if place, ok := places[record.PlaceID]; ok {
-		parts = append(parts, place.ID, place.Name, place.Summary, place.Kind)
+		parts = append(parts, place.ID, place.AliasID, place.Name, place.Summary, place.Kind)
 	}
 	for _, resourceID := range record.ResourceIDs {
 		if resource, ok := resources[resourceID]; ok {
-			parts = append(parts, resource.ID, resource.Name, resource.Summary, resource.Kind)
+			parts = append(parts, resource.ID, resource.AliasID, resource.Name, resource.Summary, resource.Kind)
 		}
 	}
 	for _, evidence := range record.Evidence {
@@ -1124,6 +1146,14 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 	if err != nil {
 		return err
 	}
+	operationalPlaceRecord, hasOperationalPlaceRecord, err := buildSignedOperationalPlaceRecord(app.store.identity, event)
+	if err != nil {
+		return err
+	}
+	operationalResourceRecord, hasOperationalResourceRecord, err := buildSignedOperationalResourceRecord(app.store.identity, event)
+	if err != nil {
+		return err
+	}
 	linkRecord, hasLinkRecord, err := buildSignedKnowledgeLinkRecord(app.store.identity, event)
 	if err != nil {
 		return err
@@ -1133,7 +1163,7 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		return err
 	}
 	switch event.Type {
-	case "knowledge_item_created", "responsibility_created", "run_recorded", "approval_recorded", "link_added":
+	case "place_created", "resource_created", "knowledge_item_created", "responsibility_created", "run_recorded", "approval_recorded", "link_added":
 		if strings.TrimSpace(event.DisplayID) == "" {
 			event.DisplayID = event.EntityID
 		}
@@ -1151,6 +1181,10 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 		event.CanonicalID = evidenceRecord.EnvelopeCID
 	case hasOperationalRunRecord:
 		event.CanonicalID = operationalRunRecord.EnvelopeCID
+	case hasOperationalPlaceRecord:
+		event.CanonicalID = operationalPlaceRecord.EnvelopeCID
+	case hasOperationalResourceRecord:
+		event.CanonicalID = operationalResourceRecord.EnvelopeCID
 	case hasLinkRecord:
 		event.CanonicalID = linkRecord.EnvelopeCID
 	case hasResponsibilityRecord:
@@ -1189,6 +1223,24 @@ func (app *App) appendEventLocked(event OperationalEvent) error {
 			return err
 		}
 	}
+	if hasOperationalPlaceRecord {
+		// Intent: Persist the seventh PromiseGrid-native operational-place
+		// artifact before the compatibility event log so ex5 never claims a new
+		// signed place record that the runtime failed to materialize. Source:
+		// DI-pivul
+		if err := app.store.AppendSignedOperationalPlaceRecord(operationalPlaceRecord); err != nil {
+			return err
+		}
+	}
+	if hasOperationalResourceRecord {
+		// Intent: Persist the eighth PromiseGrid-native operational-resource
+		// artifact before the compatibility event log so ex5 never claims a new
+		// signed resource record that the runtime failed to materialize. Source:
+		// DI-pivul
+		if err := app.store.AppendSignedOperationalResourceRecord(operationalResourceRecord); err != nil {
+			return err
+		}
+	}
 	if hasLinkRecord {
 		// Intent: Persist the fourth PromiseGrid-native knowledge-link artifact
 		// before the compatibility event log so ex5 never claims a new signed
@@ -1219,12 +1271,17 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 	displayAlias := eventDisplayAlias(event)
 	switch event.Type {
 	case "place_created":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		parentID := app.resolvePeerVisibleIDLocked("place", eventPeerID, event.ParentID)
 		place := &Place{
-			ID:            event.EntityID,
+			ID:            entityID,
+			AliasID:       displayAlias,
 			Kind:          event.Kind,
 			Name:          event.Name,
 			Summary:       event.Summary,
-			ParentID:      event.ParentID,
+			ParentID:      parentID,
 			Tags:          append([]string(nil), event.Tags...),
 			CreatedAt:     event.Timestamp,
 			UpdatedAt:     event.Timestamp,
@@ -1232,26 +1289,33 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			ChildPlaceIDs: []string{},
 			ResourceIDs:   []string{},
 		}
-		app.places[event.EntityID] = place
-		if parent, ok := app.places[event.ParentID]; ok {
-			parent.ChildPlaceIDs = appendUnique(parent.ChildPlaceIDs, event.EntityID)
+		app.places[entityID] = place
+		app.registerPeerAliasLocked("place", eventPeerID, displayAlias, entityID)
+		if parent, ok := app.places[parentID]; ok {
+			parent.ChildPlaceIDs = appendUnique(parent.ChildPlaceIDs, entityID)
 			parent.UpdatedAt = event.Timestamp
 		}
 	case "resource_created":
+		if strings.TrimSpace(entityID) == "" {
+			entityID = event.EntityID
+		}
+		placeID := app.resolvePeerVisibleIDLocked("place", eventPeerID, event.PlaceID)
 		resource := &Resource{
-			ID:        event.EntityID,
+			ID:        entityID,
+			AliasID:   displayAlias,
 			Kind:      event.Kind,
 			Name:      event.Name,
 			Summary:   event.Summary,
-			PlaceID:   event.PlaceID,
+			PlaceID:   placeID,
 			Tags:      append([]string(nil), event.Tags...),
 			CreatedAt: event.Timestamp,
 			UpdatedAt: event.Timestamp,
 			Timeline:  []OperationalEvent{event},
 		}
-		app.resources[event.EntityID] = resource
-		if place, ok := app.places[event.PlaceID]; ok {
-			place.ResourceIDs = appendUnique(place.ResourceIDs, event.EntityID)
+		app.resources[entityID] = resource
+		app.registerPeerAliasLocked("resource", eventPeerID, displayAlias, entityID)
+		if place, ok := app.places[placeID]; ok {
+			place.ResourceIDs = appendUnique(place.ResourceIDs, entityID)
 			place.UpdatedAt = event.Timestamp
 		}
 	case "responsibility_created":
@@ -1362,8 +1426,8 @@ func (app *App) applyEventLocked(event OperationalEvent) error {
 			Actor:             event.Actor,
 			Outcome:           event.Outcome,
 			Notes:             event.Notes,
-			PlaceID:           event.PlaceID,
-			ResourceIDs:       append([]string(nil), event.ResourceIDs...),
+			PlaceID:           app.resolvePeerVisibleIDLocked("place", eventPeerID, event.PlaceID),
+			ResourceIDs:       app.resolvePeerVisibleIDSliceLocked("resource", eventPeerID, event.ResourceIDs),
 			Machine:           event.Machine,
 			Location:          event.Location,
 			ResponsibilityIDs: responsibilityIDs,
@@ -1733,6 +1797,18 @@ func (app *App) resolveLocalPeerVisibleIDsLocked(entityType string, ids []string
 	return normalizeStrings(out)
 }
 
+func (app *App) resolvePeerVisibleIDSliceLocked(entityType string, eventPeerID string, ids []string) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		resolved := app.resolvePeerVisibleIDLocked(entityType, eventPeerID, strings.TrimSpace(id))
+		if resolved == "" {
+			continue
+		}
+		out = append(out, resolved)
+	}
+	return normalizeStrings(out)
+}
+
 func eventEntityCanonicalID(event OperationalEvent) string {
 	if strings.TrimSpace(event.CanonicalID) != "" {
 		return event.CanonicalID
@@ -1763,7 +1839,7 @@ func (app *App) resolvePeerVisibleIDLocked(entityType string, eventPeerID string
 		return ""
 	}
 	switch entityType {
-	case "knowledge_item", "responsibility", "run", "approval", "link", "evidence":
+	case "place", "resource", "knowledge_item", "responsibility", "run", "approval", "link", "evidence":
 		if canonicalID := app.canonicalIDForPeerAliasLocked(entityType, eventPeerID, id); canonicalID != "" {
 			return canonicalID
 		}

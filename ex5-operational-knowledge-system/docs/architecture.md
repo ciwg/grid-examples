@@ -23,10 +23,11 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
 shipped runtime already uses append-only events and shared embodiments, and it
-now implements six runtime-selected frozen `pCID` documents with signed grid
+now implements eight runtime-selected frozen `pCID` documents with signed grid
 envelopes for `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
-`knowledge-link`, `knowledge-responsibility`, and `operational-run`. It now
-also ships the first relay-visible bootstrap peer-exchange slice plus
+`knowledge-link`, `knowledge-responsibility`, `operational-run`,
+`operational-place`, and `operational-resource`. It now also ships the first
+relay-visible bootstrap peer-exchange slice plus
 additive CAS sidecar storage, while search metadata remains derived projection
 state instead of a separate durable family. Source: `DI-sobek`; `DI-mibor`;
 `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-fusok`;
@@ -35,11 +36,11 @@ state instead of a separate durable family. Source: `DI-sobek`; `DI-mibor`;
 The first staged relay-visible exchange slice is now defined more narrowly than
 the full local runtime, but it is no longer attachment-free: `knowledge-item`,
 `knowledge-approval`, `knowledge-evidence`, `knowledge-link`,
-`knowledge-responsibility`, and `operational-run` now ship through bootstrap
-export/import over the current local HTTP adapter. Evidence blobs ride inline
-in that bootstrap bundle by CID, while place/resource references inside runs
-and links still remain outside the current peer-visible slice. Source:
-`DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`.
+`knowledge-responsibility`, `operational-run`, `operational-place`, and
+`operational-resource` now ship through bootstrap export/import over the
+current local HTTP adapter. Evidence blobs ride inline in that bootstrap
+bundle by CID. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`; `DI-faruv`;
+`DI-pivul`.
 
 That peer layer is no longer empty-runtime-only. The runtime now tracks
 `origin_peer_id` plus `origin_sequence` for compatibility events and signed
@@ -56,7 +57,7 @@ family logs and copied attachment paths remain during migration. Source:
 
 That CAS sidecar now ships in implemented form. Signed family envelopes are
 dual-written by envelope CID, copied evidence blobs are dual-written by blob
-CID, and the six frozen families now replay/export their envelope bytes
+CID, and the eight frozen families now replay/export their envelope bytes
 authoritatively from CAS while compatibility events and attachment paths remain
 active for still-unfrozen state. Imported evidence blobs are also materialized
 back into a local compatibility attachment path on demand. Source:
@@ -155,12 +156,16 @@ The current implementation has five central durable record families:
 
 Places are generic hierarchical operational locations. They can represent a
 site, room, area, bench, rack, or bin without splitting the model into
-separate domain-specific hierarchies.
+separate domain-specific hierarchies. `operational-place` is now the signed
+durable family for place creation and parent-reference truth. Source:
+`DI-pivul`.
 
 ### Resources
 
 Resources are the operational things that belong to or move through those
 places: machines, tools, containers, bins, parts, or fixtures.
+`operational-resource` is now the signed durable family for resource creation
+and current place membership truth. Source: `DI-pivul`.
 
 ### Responsibilities
 
@@ -249,25 +254,24 @@ The code currently implements:
 - participant presence on the current draft
 - durable versioned document bodies inside knowledge-item revisions
 - one shared local HTTP embodiment adapter for browser, CLI, and Neovim
-- signed-envelope runtime slices for the five frozen `knowledge-item`,
-  `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, and
-  `knowledge-responsibility` families
-- frozen `pCID`s selected from the shipped protocol bytes for those five
+- signed-envelope runtime slices for the eight frozen `knowledge-item`,
+  `knowledge-approval`, `knowledge-evidence`, `knowledge-link`,
+  `knowledge-responsibility`, `operational-run`, `operational-place`, and
+  `operational-resource` families
+- frozen `pCID`s selected from the shipped protocol bytes for those eight
   families
 
 It still does **not** yet implement:
 
 - websocket-based collaboration transport
-- non-bootstrap peer exchange into already-populated runtimes
-- peer-visible evidence carriage
-- authoritative CAS-backed replay/read behavior
-- signed grid envelopes on the wire for any remaining ex5 families beyond the
-  five frozen ones
-- frozen runtime behavior selected by a shipped `pCID` for any remaining ex5
-  families
+- peer-visible durable families for remaining local-only runtime state beyond
+  the eight shipped signed families
+- CAS-authoritative replay/read behavior for remaining local-only compatibility
+  state beyond the eight shipped signed families
+- embodiment tightening beyond the current local HTTP adapter contract
 
 So in current ex5, protocol-family and `pCID` language are part of the shipped
-PromiseGrid framing, and five families now have real runtime/wire
-implementations. The remaining grid work is now concentrated in peer-exchange
-scope, CAS read-path authority, and evidence portability. For the explicit current
-claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
+PromiseGrid framing, and eight families now have real runtime/wire
+implementations. The remaining grid work is now concentrated in peer-visible
+durability and storage authority for the still-local compatibility state. For
+the explicit current claims list, see [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).

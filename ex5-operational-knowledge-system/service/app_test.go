@@ -781,6 +781,20 @@ func TestAppDualWritesCASObjectsForSignedFamiliesAndEvidenceBlobs(t *testing.T) 
 		}
 		return record.EnvelopeCID, record.EnvelopeBase64
 	})
+	checkSignedRecordCAS(filepath.Join(root, "operational-place-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedOperationalPlaceRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode operational-place record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
+	checkSignedRecordCAS(filepath.Join(root, "operational-resource-messages.jsonl"), func(line []byte) (string, string) {
+		var record SignedOperationalResourceRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatalf("decode operational-resource record: %v", err)
+		}
+		return record.EnvelopeCID, record.EnvelopeBase64
+	})
 	checkSignedRecordCAS(filepath.Join(root, "knowledge-link-messages.jsonl"), func(line []byte) (string, string) {
 		var record SignedKnowledgeLinkRecord
 		if err := json.Unmarshal(line, &record); err != nil {
@@ -861,6 +875,12 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if len(bundle.OperationalRunRecords) != 1 {
 		t.Fatalf("expected 1 operational-run record in bundle, got %d", len(bundle.OperationalRunRecords))
 	}
+	if len(bundle.OperationalPlaceRecords) != 1 {
+		t.Fatalf("expected 1 operational-place record in bundle, got %d", len(bundle.OperationalPlaceRecords))
+	}
+	if len(bundle.OperationalResourceRecords) != 1 {
+		t.Fatalf("expected 1 operational-resource record in bundle, got %d", len(bundle.OperationalResourceRecords))
+	}
 	if len(bundle.KnowledgeLinkRecords) != 2 {
 		t.Fatalf("expected 2 link records in bundle, got %d", len(bundle.KnowledgeLinkRecords))
 	}
@@ -873,17 +893,17 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import bundle: %v", err)
 	}
-	if result.ImportedKnowledgeApprovals != 2 || result.ImportedOperationalRuns != 1 || result.ImportedKnowledgeLinks != 2 {
+	if result.ImportedKnowledgeApprovals != 2 || result.ImportedOperationalRuns != 1 || result.ImportedOperationalPlaces != 1 || result.ImportedOperationalResources != 1 || result.ImportedKnowledgeLinks != 2 {
 		t.Fatalf("unexpected import counts: %+v", result)
 	}
-	if len(result.UnresolvedReferences) != 1 {
-		t.Fatalf("expected 1 unresolved reference, got %+v", result.UnresolvedReferences)
+	if len(result.UnresolvedReferences) != 0 {
+		t.Fatalf("expected no unresolved references, got %+v", result.UnresolvedReferences)
 	}
 	if len(target.items) != 1 || len(target.responsibilities) != 1 {
 		t.Fatalf("expected item and responsibility after import, got items=%d responsibilities=%d", len(target.items), len(target.responsibilities))
 	}
-	if len(target.runs) != 1 || len(target.places) != 0 || len(target.resources) != 0 {
-		t.Fatalf("bootstrap import should materialize runs but not places/resources from this slice: runs=%d places=%d resources=%d", len(target.runs), len(target.places), len(target.resources))
+	if len(target.runs) != 1 || len(target.places) != 1 || len(target.resources) != 1 {
+		t.Fatalf("bootstrap import should materialize runs, places, and resources now: runs=%d places=%d resources=%d", len(target.runs), len(target.places), len(target.resources))
 	}
 	if len(target.approvals) != 2 {
 		t.Fatalf("expected both approvals preserved after import, got %d", len(target.approvals))
@@ -1557,6 +1577,177 @@ func TestAppRejectsTamperedSignedKnowledgeResponsibilityRecords(t *testing.T) {
 	}
 }
 
+func TestAppWritesAndReplaysSignedOperationalPlaceAndResourceRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound area", "", []string{"receiving"})
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := app.CreateResource("alice", "container", "Dock bin", "Holds inbound parts", place.ID, []string{"parts"})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+
+	meta := app.Meta()
+	if meta.OperationalPlacePCID != protocols.OperationalPlaceProfile.CID.String() {
+		t.Fatalf("unexpected operational-place pCID in meta: got %q want %q", meta.OperationalPlacePCID, protocols.OperationalPlaceProfile.CID.String())
+	}
+	if meta.OperationalResourcePCID != protocols.OperationalResourceProfile.CID.String() {
+		t.Fatalf("unexpected operational-resource pCID in meta: got %q want %q", meta.OperationalResourcePCID, protocols.OperationalResourceProfile.CID.String())
+	}
+
+	placeBody, err := os.ReadFile(filepath.Join(root, "operational-place-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read operational-place messages: %v", err)
+	}
+	placeLines := strings.Split(strings.TrimSpace(string(placeBody)), "\n")
+	if len(placeLines) != 1 {
+		t.Fatalf("expected 1 signed operational-place record, got %d", len(placeLines))
+	}
+	var placeRecord SignedOperationalPlaceRecord
+	if err := json.Unmarshal([]byte(placeLines[0]), &placeRecord); err != nil {
+		t.Fatalf("decode place record: %v", err)
+	}
+	if placeRecord.PCID != protocols.OperationalPlaceProfile.CID.String() {
+		t.Fatalf("unexpected place record pCID: got %q want %q", placeRecord.PCID, protocols.OperationalPlaceProfile.CID.String())
+	}
+	if placeRecord.PlaceID != place.AliasID {
+		t.Fatalf("unexpected place alias in record: got %q want %q", placeRecord.PlaceID, place.AliasID)
+	}
+
+	resourceBody, err := os.ReadFile(filepath.Join(root, "operational-resource-messages.jsonl"))
+	if err != nil {
+		t.Fatalf("read operational-resource messages: %v", err)
+	}
+	resourceLines := strings.Split(strings.TrimSpace(string(resourceBody)), "\n")
+	if len(resourceLines) != 1 {
+		t.Fatalf("expected 1 signed operational-resource record, got %d", len(resourceLines))
+	}
+	var resourceRecord SignedOperationalResourceRecord
+	if err := json.Unmarshal([]byte(resourceLines[0]), &resourceRecord); err != nil {
+		t.Fatalf("decode resource record: %v", err)
+	}
+	if resourceRecord.PCID != protocols.OperationalResourceProfile.CID.String() {
+		t.Fatalf("unexpected resource record pCID: got %q want %q", resourceRecord.PCID, protocols.OperationalResourceProfile.CID.String())
+	}
+	if resourceRecord.ResourceID != resource.AliasID {
+		t.Fatalf("unexpected resource alias in record: got %q want %q", resourceRecord.ResourceID, resource.AliasID)
+	}
+
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	reloaded, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("reload app: %v", err)
+	}
+	reloadedPlace, err := reloaded.GetPlace(place.ID)
+	if err != nil {
+		t.Fatalf("get reloaded place: %v", err)
+	}
+	if reloadedPlace.Name != place.Name || reloadedPlace.AliasID != place.AliasID {
+		t.Fatalf("unexpected place after signed replay verification: %+v", reloadedPlace)
+	}
+	reloadedResource, err := reloaded.GetResource(resource.ID)
+	if err != nil {
+		t.Fatalf("get reloaded resource: %v", err)
+	}
+	if reloadedResource.PlaceID != place.ID || reloadedResource.AliasID != resource.AliasID {
+		t.Fatalf("unexpected resource after signed replay verification: %+v", reloadedResource)
+	}
+}
+
+func TestAppRejectsTamperedSignedOperationalPlaceRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.CreatePlace("alice", "area", "Receiving", "Inbound area", "", nil); err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "operational-place-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read operational-place messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed operational-place record")
+	}
+	var record SignedOperationalPlaceRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode place record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreioperationalplacetampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered place record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	if err := os.WriteFile(recordPath, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("rewrite tampered place record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "operational-place") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected operational-place authoritative CAS cid mismatch after tampering, got %v", err)
+	}
+}
+
+func TestAppRejectsTamperedSignedOperationalResourceRecords(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "runtime")
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	place, err := app.CreatePlace("alice", "area", "Receiving", "Inbound area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	if _, err := app.CreateResource("alice", "container", "Dock bin", "Holds inbound parts", place.ID, nil); err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	if err := app.store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	recordPath := filepath.Join(root, "operational-resource-messages.jsonl")
+	recordBody, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatalf("read operational-resource messages: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(recordBody)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("expected at least one signed operational-resource record")
+	}
+	var record SignedOperationalResourceRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatalf("decode resource record: %v", err)
+	}
+	record.EnvelopeCID = "bafkreioperationalresourcetampered"
+	tamperedLine, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("encode tampered resource record: %v", err)
+	}
+	lines[0] = string(tamperedLine)
+	if err := os.WriteFile(recordPath, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("rewrite tampered resource record: %v", err)
+	}
+
+	if _, err := NewApp(root); err == nil || !strings.Contains(err.Error(), "operational-resource") || !strings.Contains(err.Error(), "envelope CAS cid mismatch") {
+		t.Fatalf("expected operational-resource authoritative CAS cid mismatch after tampering, got %v", err)
+	}
+}
+
 func TestAppSearchAndLinkingReflectOperationalFlow(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {
@@ -2134,7 +2325,7 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 	if got := meta.RunKinds[3]; got != RunKindReceiving {
 		t.Fatalf("expected receiving run kind in meta, got %+v", meta.RunKinds)
 	}
-	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 6 {
+	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 8 || meta.OperationalPlacePCID == "" || meta.OperationalResourcePCID == "" {
 		t.Fatalf("unexpected peer-exchange meta: %+v", meta)
 	}
 

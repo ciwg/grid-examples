@@ -12,6 +12,8 @@ func decoratePeerVisibleEventCanonicalIDs(
 	approvalRecords []SignedKnowledgeApprovalRecord,
 	evidenceRecords []SignedKnowledgeEvidenceRecord,
 	runRecords []SignedOperationalRunRecord,
+	placeRecords []SignedOperationalPlaceRecord,
+	resourceRecords []SignedOperationalResourceRecord,
 	linkRecords []SignedKnowledgeLinkRecord,
 	responsibilityRecords []SignedKnowledgeResponsibilityRecord,
 ) []OperationalEvent {
@@ -34,6 +36,14 @@ func decoratePeerVisibleEventCanonicalIDs(
 	for _, record := range runRecords {
 		runCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
+	placeCreateCIDs := map[string]string{}
+	for _, record := range placeRecords {
+		placeCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	}
+	resourceCreateCIDs := map[string]string{}
+	for _, record := range resourceRecords {
+		resourceCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	}
 	linkCreateCIDs := map[string]string{}
 	for _, record := range linkRecords {
 		linkCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
@@ -50,6 +60,8 @@ func decoratePeerVisibleEventCanonicalIDs(
 			approvalCreateCIDs,
 			evidenceCreateCIDs,
 			runCreateCIDs,
+			placeCreateCIDs,
+			resourceCreateCIDs,
 			linkCreateCIDs,
 			responsibilityCreateCIDs,
 		))
@@ -63,11 +75,27 @@ func decoratePeerVisibleEventCanonicalID(
 	approvalCreateCIDs map[string]string,
 	evidenceCreateCIDs map[string]string,
 	runCreateCIDs map[string]string,
+	placeCreateCIDs map[string]string,
+	resourceCreateCIDs map[string]string,
 	linkCreateCIDs map[string]string,
 	responsibilityCreateCIDs map[string]string,
 ) OperationalEvent {
 	key := originEventKey(event.OriginPeerID, event.OriginSequence)
 	switch event.Type {
+	case "place_created":
+		if strings.TrimSpace(event.DisplayID) == "" {
+			event.DisplayID = event.EntityID
+		}
+		if placeCreateCIDs[key] != "" {
+			event.CanonicalID = placeCreateCIDs[key]
+		}
+	case "resource_created":
+		if strings.TrimSpace(event.DisplayID) == "" {
+			event.DisplayID = event.EntityID
+		}
+		if resourceCreateCIDs[key] != "" {
+			event.CanonicalID = resourceCreateCIDs[key]
+		}
 	case "knowledge_item_created":
 		if strings.TrimSpace(event.DisplayID) == "" {
 			event.DisplayID = event.EntityID
@@ -123,6 +151,10 @@ func canonicalOrAliasID(canonicalID string, aliasID string) string {
 
 func peerVisibleEntityTypeForEvent(event OperationalEvent) string {
 	switch event.Type {
+	case "place_created":
+		return "place"
+	case "resource_created":
+		return "resource"
 	case "knowledge_item_created", "revision_added", "knowledge_item_status_changed", "knowledge_item_superseded":
 		return "knowledge_item"
 	case "responsibility_created":

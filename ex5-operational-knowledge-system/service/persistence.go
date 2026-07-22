@@ -23,6 +23,8 @@ type Store struct {
 	knowledgeApprovalMessages       *os.File
 	knowledgeEvidenceMessages       *os.File
 	operationalRunMessages          *os.File
+	operationalPlaceMessages        *os.File
+	operationalResourceMessages     *os.File
 	knowledgeLinkMessages           *os.File
 	knowledgeResponsibilityMessages *os.File
 	eventPath                       string
@@ -30,6 +32,8 @@ type Store struct {
 	knowledgeApprovalPath           string
 	knowledgeEvidencePath           string
 	operationalRunPath              string
+	operationalPlacePath            string
+	operationalResourcePath         string
 	knowledgeLinkPath               string
 	knowledgeResponsibilityPath     string
 	draftPath                       string
@@ -46,107 +50,132 @@ type PersistedDraft struct {
 // Intent: Keep durable operational truth in an ex5-local append-only event log
 // plus the staged signed-family logs and copied attachments so the example can
 // preserve history independently of any browser or CLI session state. Source:
-// DI-radok; DI-zuvob; DI-mibor; DI-vosul; DI-kavup; DI-votek; DI-sarib
-func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRecord, []SignedKnowledgeApprovalRecord, []SignedKnowledgeEvidenceRecord, []SignedOperationalRunRecord, []SignedKnowledgeLinkRecord, []SignedKnowledgeResponsibilityRecord, error) {
+// DI-radok; DI-zuvob; DI-mibor; DI-vosul; DI-kavup; DI-votek; DI-sarib;
+// DI-vamok; DI-pivul
+func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRecord, []SignedKnowledgeApprovalRecord, []SignedKnowledgeEvidenceRecord, []SignedOperationalRunRecord, []SignedOperationalPlaceRecord, []SignedOperationalResourceRecord, []SignedKnowledgeLinkRecord, []SignedKnowledgeResponsibilityRecord, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "attachments"), 0o755); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "cas", "objects"), 0o755); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "drafts"), 0o755); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	identity, err := LoadOrCreateRuntimeIdentity(filepath.Join(root, "identity", "knowledge-item-ed25519.seed"))
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	eventPath := filepath.Join(root, "events.jsonl")
 	eventsFile, err := os.OpenFile(eventPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	events, err := readEvents(eventsFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
 	}
 	knowledgeItemPath := filepath.Join(root, "knowledge-item-messages.jsonl")
 	knowledgeItemFile, err := os.OpenFile(knowledgeItemPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
 	}
 	knowledgeItemRecords, err := readSignedKnowledgeItemRecords(knowledgeItemFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
 	}
 	knowledgeApprovalPath := filepath.Join(root, "knowledge-approval-messages.jsonl")
 	knowledgeApprovalFile, err := os.OpenFile(knowledgeApprovalPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
 	}
 	knowledgeApprovalRecords, err := readSignedKnowledgeApprovalRecords(knowledgeApprovalFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
 	}
 	knowledgeEvidencePath := filepath.Join(root, "knowledge-evidence-messages.jsonl")
 	knowledgeEvidenceFile, err := os.OpenFile(knowledgeEvidencePath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
 	}
 	knowledgeEvidenceRecords, err := readSignedKnowledgeEvidenceRecords(knowledgeEvidenceFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
 	}
 	operationalRunPath := filepath.Join(root, "operational-run-messages.jsonl")
 	operationalRunFile, err := os.OpenFile(operationalRunPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
 	}
 	operationalRunRecords, err := readSignedOperationalRunRecords(operationalRunFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
+	}
+	operationalPlacePath := filepath.Join(root, "operational-place-messages.jsonl")
+	operationalPlaceFile, err := os.OpenFile(operationalPlacePath, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
+	}
+	operationalPlaceRecords, err := readSignedOperationalPlaceRecords(operationalPlaceFile)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close())
+	}
+	operationalResourcePath := filepath.Join(root, "operational-resource-messages.jsonl")
+	operationalResourceFile, err := os.OpenFile(operationalResourcePath, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close())
+	}
+	operationalResourceRecords, err := readSignedOperationalResourceRecords(operationalResourceFile)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close())
 	}
 	knowledgeLinkPath := filepath.Join(root, "knowledge-link-messages.jsonl")
 	knowledgeLinkFile, err := os.OpenFile(knowledgeLinkPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close())
 	}
 	knowledgeLinkRecords, err := readSignedKnowledgeLinkRecords(knowledgeLinkFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close())
 	}
 	knowledgeResponsibilityPath := filepath.Join(root, "knowledge-responsibility-messages.jsonl")
 	knowledgeResponsibilityFile, err := os.OpenFile(knowledgeResponsibilityPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close())
 	}
 	knowledgeResponsibilityRecords, err := readSignedKnowledgeResponsibilityRecords(knowledgeResponsibilityFile)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := eventsFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := knowledgeItemFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := knowledgeApprovalFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := knowledgeEvidenceFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := operationalRunFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+	}
+	if _, err := operationalPlaceFile.Seek(0, os.SEEK_END); err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+	}
+	if _, err := operationalResourceFile.Seek(0, os.SEEK_END); err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := knowledgeLinkFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	if _, err := knowledgeResponsibilityFile.Seek(0, os.SEEK_END); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close(), knowledgeResponsibilityFile.Close())
 	}
 	store := &Store{
 		root:                            root,
@@ -155,6 +184,8 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		knowledgeApprovalMessages:       knowledgeApprovalFile,
 		knowledgeEvidenceMessages:       knowledgeEvidenceFile,
 		operationalRunMessages:          operationalRunFile,
+		operationalPlaceMessages:        operationalPlaceFile,
+		operationalResourceMessages:     operationalResourceFile,
 		knowledgeLinkMessages:           knowledgeLinkFile,
 		knowledgeResponsibilityMessages: knowledgeResponsibilityFile,
 		eventPath:                       eventPath,
@@ -162,6 +193,8 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		knowledgeApprovalPath:           knowledgeApprovalPath,
 		knowledgeEvidencePath:           knowledgeEvidencePath,
 		operationalRunPath:              operationalRunPath,
+		operationalPlacePath:            operationalPlacePath,
+		operationalResourcePath:         operationalResourcePath,
 		knowledgeLinkPath:               knowledgeLinkPath,
 		knowledgeResponsibilityPath:     knowledgeResponsibilityPath,
 		draftPath:                       filepath.Join(root, "drafts"),
@@ -170,29 +203,37 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 	}
 	knowledgeItemRecords, err = store.hydrateSignedKnowledgeItemRecords(knowledgeItemRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	knowledgeApprovalRecords, err = store.hydrateSignedKnowledgeApprovalRecords(knowledgeApprovalRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	knowledgeEvidenceRecords, err = store.hydrateSignedKnowledgeEvidenceRecords(knowledgeEvidenceRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	operationalRunRecords, err = store.hydrateSignedOperationalRunRecords(operationalRunRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+	}
+	operationalPlaceRecords, err = store.hydrateSignedOperationalPlaceRecords(operationalPlaceRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+	}
+	operationalResourceRecords, err = store.hydrateSignedOperationalResourceRecords(operationalResourceRecords)
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	knowledgeLinkRecords, err = store.hydrateSignedKnowledgeLinkRecords(knowledgeLinkRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	knowledgeResponsibilityRecords, err = store.hydrateSignedKnowledgeResponsibilityRecords(knowledgeResponsibilityRecords)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
-	return store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, nil
+	return store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, operationalPlaceRecords, operationalResourceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, nil
 }
 
 func readEvents(file *os.File) (events []OperationalEvent, err error) {
@@ -442,6 +483,108 @@ func (store *Store) LoadSignedOperationalRunRecordsAuthoritative() ([]SignedOper
 	return store.hydrateSignedOperationalRunRecords(records)
 }
 
+func readSignedOperationalPlaceRecords(file *os.File) (records []SignedOperationalPlaceRecord, err error) {
+	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
+			err = errors.Join(err, seekErr)
+		}
+	}()
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
+	records = []SignedOperationalPlaceRecord{}
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var record SignedOperationalPlaceRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, fmt.Errorf("decode operational-place record: %w", err)
+		}
+		records = append(records, record)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (store *Store) AppendSignedOperationalPlaceRecord(record SignedOperationalPlaceRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	if _, err := store.operationalPlaceMessages.Write(append(body, '\n')); err != nil {
+		return err
+	}
+	return store.operationalPlaceMessages.Sync()
+}
+
+func (store *Store) LoadSignedOperationalPlaceRecordsAuthoritative() ([]SignedOperationalPlaceRecord, error) {
+	records, err := readSignedOperationalPlaceRecords(store.operationalPlaceMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedOperationalPlaceRecords(records)
+}
+
+func readSignedOperationalResourceRecords(file *os.File) (records []SignedOperationalResourceRecord, err error) {
+	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
+			err = errors.Join(err, seekErr)
+		}
+	}()
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
+	records = []SignedOperationalResourceRecord{}
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var record SignedOperationalResourceRecord
+		if err := json.Unmarshal(line, &record); err != nil {
+			return nil, fmt.Errorf("decode operational-resource record: %w", err)
+		}
+		records = append(records, record)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (store *Store) AppendSignedOperationalResourceRecord(record SignedOperationalResourceRecord) error {
+	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+		return err
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	if _, err := store.operationalResourceMessages.Write(append(body, '\n')); err != nil {
+		return err
+	}
+	return store.operationalResourceMessages.Sync()
+}
+
+func (store *Store) LoadSignedOperationalResourceRecordsAuthoritative() ([]SignedOperationalResourceRecord, error) {
+	records, err := readSignedOperationalResourceRecords(store.operationalResourceMessages)
+	if err != nil {
+		return nil, err
+	}
+	return store.hydrateSignedOperationalResourceRecords(records)
+}
+
 func readSignedKnowledgeLinkRecords(file *os.File) (records []SignedKnowledgeLinkRecord, err error) {
 	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
 		return nil, err
@@ -628,7 +771,7 @@ func (store *Store) writeEnvelopeCAS(expectedCID string, envelopeBase64 string) 
 	return nil
 }
 
-// Intent: Make CAS authoritative for the six frozen family envelope bytes
+// Intent: Make CAS authoritative for the eight frozen family envelope bytes
 // while allowing one-time backfill from the manifest copy so older runtimes can
 // migrate into the stronger replay path without a destructive cutover. Source:
 // DI-rovud
@@ -773,6 +916,30 @@ func (store *Store) hydrateSignedOperationalRunRecords(records []SignedOperation
 	return out, nil
 }
 
+func (store *Store) hydrateSignedOperationalPlaceRecords(records []SignedOperationalPlaceRecord) ([]SignedOperationalPlaceRecord, error) {
+	out := append([]SignedOperationalPlaceRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative operational-place envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
+func (store *Store) hydrateSignedOperationalResourceRecords(records []SignedOperationalResourceRecord) ([]SignedOperationalResourceRecord, error) {
+	out := append([]SignedOperationalResourceRecord(nil), records...)
+	for i := range out {
+		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
+		if err != nil {
+			return nil, fmt.Errorf("load authoritative operational-resource envelope %d: %w", out[i].Sequence, err)
+		}
+		out[i].EnvelopeBase64 = base64Envelope
+	}
+	return out, nil
+}
+
 func (store *Store) hydrateSignedKnowledgeLinkRecords(records []SignedKnowledgeLinkRecord) ([]SignedKnowledgeLinkRecord, error) {
 	out := append([]SignedKnowledgeLinkRecord(nil), records...)
 	for i := range out {
@@ -839,7 +1006,7 @@ func (store *Store) Close() error {
 	if store == nil {
 		return nil
 	}
-	if store.events == nil && store.knowledgeItemMessages == nil && store.knowledgeApprovalMessages == nil && store.knowledgeEvidenceMessages == nil && store.operationalRunMessages == nil && store.knowledgeLinkMessages == nil && store.knowledgeResponsibilityMessages == nil {
+	if store.events == nil && store.knowledgeItemMessages == nil && store.knowledgeApprovalMessages == nil && store.knowledgeEvidenceMessages == nil && store.operationalRunMessages == nil && store.operationalPlaceMessages == nil && store.operationalResourceMessages == nil && store.knowledgeLinkMessages == nil && store.knowledgeResponsibilityMessages == nil {
 		return nil
 	}
 	var err error
@@ -857,6 +1024,12 @@ func (store *Store) Close() error {
 	}
 	if store.operationalRunMessages != nil {
 		err = errors.Join(err, store.operationalRunMessages.Close())
+	}
+	if store.operationalPlaceMessages != nil {
+		err = errors.Join(err, store.operationalPlaceMessages.Close())
+	}
+	if store.operationalResourceMessages != nil {
+		err = errors.Join(err, store.operationalResourceMessages.Close())
 	}
 	if store.knowledgeLinkMessages != nil {
 		err = errors.Join(err, store.knowledgeLinkMessages.Close())

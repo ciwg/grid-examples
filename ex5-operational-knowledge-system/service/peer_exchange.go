@@ -10,14 +10,15 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
-const peerExchangeBundleFormat = "ex5-peer-exchange-v4"
+const peerExchangeBundleFormat = "ex5-peer-exchange-v5"
 
 // Intent: Expose the current relay-visible ex5 PromiseGrid slice as
 // whole-family peer exchange over the current local HTTP adapter so peers can
-// exchange signed item, approval, evidence, operational-run, link, and
-// responsibility artifacts with origin-aware identity, while preserving the
-// current family history and compatibility projections. Source: DI-voruk;
-// DI-vamok; DI-faruv; DI-ruzok; DI-rumek
+// exchange signed item, approval, evidence, operational-run, operational-
+// place, operational-resource, link, and responsibility artifacts with
+// origin-aware identity, while preserving the current family history and
+// compatibility projections. Source: DI-voruk; DI-vamok; DI-faruv; DI-ruzok;
+// DI-rumek; DI-pivul
 func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -43,6 +44,14 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read operational-run records: %w", err)
 	}
+	placeRecords, err := app.store.LoadSignedOperationalPlaceRecordsAuthoritative()
+	if err != nil {
+		return PeerExchangeBundle{}, fmt.Errorf("read operational-place records: %w", err)
+	}
+	resourceRecords, err := app.store.LoadSignedOperationalResourceRecordsAuthoritative()
+	if err != nil {
+		return PeerExchangeBundle{}, fmt.Errorf("read operational-resource records: %w", err)
+	}
 	linkRecords, err := app.store.LoadSignedKnowledgeLinkRecordsAuthoritative()
 	if err != nil {
 		return PeerExchangeBundle{}, fmt.Errorf("read knowledge-link records: %w", err)
@@ -55,6 +64,8 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	approvalRecords = normalizeKnowledgeApprovalRecordOrigins(approvalRecords, events)
 	evidenceRecords = normalizeKnowledgeEvidenceRecordOrigins(evidenceRecords, events)
 	runRecords = normalizeOperationalRunRecordOrigins(runRecords, events)
+	placeRecords = normalizeOperationalPlaceRecordOrigins(placeRecords, events)
+	resourceRecords = normalizeOperationalResourceRecordOrigins(resourceRecords, events)
 	linkRecords = normalizeKnowledgeLinkRecordOrigins(linkRecords, events)
 	responsibilityRecords = normalizeKnowledgeResponsibilityRecordOrigins(responsibilityRecords, events)
 	events = decoratePeerVisibleEventCanonicalIDs(
@@ -63,6 +74,8 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 		approvalRecords,
 		evidenceRecords,
 		runRecords,
+		placeRecords,
+		resourceRecords,
 		linkRecords,
 		responsibilityRecords,
 	)
@@ -78,6 +91,8 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	sort.Slice(approvalRecords, func(i, j int) bool { return approvalRecords[i].Sequence < approvalRecords[j].Sequence })
 	sort.Slice(evidenceRecords, func(i, j int) bool { return evidenceRecords[i].Sequence < evidenceRecords[j].Sequence })
 	sort.Slice(runRecords, func(i, j int) bool { return runRecords[i].Sequence < runRecords[j].Sequence })
+	sort.Slice(placeRecords, func(i, j int) bool { return placeRecords[i].Sequence < placeRecords[j].Sequence })
+	sort.Slice(resourceRecords, func(i, j int) bool { return resourceRecords[i].Sequence < resourceRecords[j].Sequence })
 	sort.Slice(linkRecords, func(i, j int) bool { return linkRecords[i].Sequence < linkRecords[j].Sequence })
 	sort.Slice(responsibilityRecords, func(i, j int) bool { return responsibilityRecords[i].Sequence < responsibilityRecords[j].Sequence })
 
@@ -104,11 +119,15 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 		KnowledgeLinkPCID:              protocols.KnowledgeLinkProfile.CID.String(),
 		KnowledgeResponsibilityPCID:    protocols.KnowledgeResponsibilityProfile.CID.String(),
 		OperationalRunPCID:             protocols.OperationalRunProfile.CID.String(),
+		OperationalPlacePCID:           protocols.OperationalPlaceProfile.CID.String(),
+		OperationalResourcePCID:        protocols.OperationalResourceProfile.CID.String(),
 		Events:                         filteredEvents,
 		KnowledgeItemRecords:           itemRecords,
 		KnowledgeApprovalRecords:       approvalRecords,
 		KnowledgeEvidenceRecords:       evidenceRecords,
 		OperationalRunRecords:          runRecords,
+		OperationalPlaceRecords:        placeRecords,
+		OperationalResourceRecords:     resourceRecords,
 		KnowledgeLinkRecords:           linkRecords,
 		KnowledgeResponsibilityRecords: responsibilityRecords,
 		CASBlobObjects:                 casBlobObjects,
@@ -119,7 +138,7 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 // runtimes while preserving whole-family signed artifacts, keeping local
 // sequence as a projection order, and relying on create-envelope CIDs instead
 // of local short IDs for peer-visible durable identity. Source: DI-ruzok;
-// DI-rumek; DI-loruk
+// DI-rumek; DI-loruk; DI-pivul
 func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchangeImportResult, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -133,6 +152,8 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 		bundle.KnowledgeApprovalRecords,
 		bundle.KnowledgeEvidenceRecords,
 		bundle.OperationalRunRecords,
+		bundle.OperationalPlaceRecords,
+		bundle.OperationalResourceRecords,
 		bundle.KnowledgeLinkRecords,
 		bundle.KnowledgeResponsibilityRecords,
 	)
@@ -185,6 +206,16 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 			return PeerExchangeImportResult{}, fmt.Errorf("append operational-run record: %w", err)
 		}
 	}
+	for _, record := range filterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys) {
+		if err := app.store.AppendSignedOperationalPlaceRecord(record); err != nil {
+			return PeerExchangeImportResult{}, fmt.Errorf("append operational-place record: %w", err)
+		}
+	}
+	for _, record := range filterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys) {
+		if err := app.store.AppendSignedOperationalResourceRecord(record); err != nil {
+			return PeerExchangeImportResult{}, fmt.Errorf("append operational-resource record: %w", err)
+		}
+	}
 	for _, record := range filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeLinkRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-link record: %w", err)
@@ -213,6 +244,8 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 	result.ImportedKnowledgeApprovals = len(filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys))
 	result.ImportedKnowledgeEvidence = len(filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys))
 	result.ImportedOperationalRuns = len(filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys))
+	result.ImportedOperationalPlaces = len(filterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys))
+	result.ImportedOperationalResources = len(filterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys))
 	result.ImportedKnowledgeLinks = len(filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys))
 	result.ImportedResponsibilities = len(filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys))
 	return result, nil
@@ -221,6 +254,7 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 func peerExchangeSupportsEvent(eventType string) bool {
 	switch eventType {
 	case "knowledge_item_created", "revision_added", "knowledge_item_status_changed", "knowledge_item_superseded",
+		"place_created", "resource_created",
 		"approval_recorded",
 		"evidence_added",
 		"run_recorded",
@@ -248,6 +282,12 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 	if bundle.OperationalRunPCID != protocols.OperationalRunProfile.CID.String() {
 		return fmt.Errorf("operational-run pCID mismatch")
 	}
+	if bundle.OperationalPlacePCID != protocols.OperationalPlaceProfile.CID.String() {
+		return fmt.Errorf("operational-place pCID mismatch")
+	}
+	if bundle.OperationalResourcePCID != protocols.OperationalResourceProfile.CID.String() {
+		return fmt.Errorf("operational-resource pCID mismatch")
+	}
 	if bundle.KnowledgeLinkPCID != protocols.KnowledgeLinkProfile.CID.String() {
 		return fmt.Errorf("knowledge-link pCID mismatch")
 	}
@@ -264,6 +304,8 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 	approvalEventSequences := map[string]bool{}
 	evidenceEventSequences := map[string]bool{}
 	runEventSequences := map[string]bool{}
+	placeEventSequences := map[string]bool{}
+	resourceEventSequences := map[string]bool{}
 	linkEventSequences := map[string]bool{}
 	responsibilityEventSequences := map[string]bool{}
 	for i, event := range bundle.Events {
@@ -298,6 +340,12 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 		if _, ok := operationalRunPayloadForEvent(event); ok {
 			runEventSequences[key] = true
 		}
+		if _, ok := operationalPlacePayloadForEvent(event); ok {
+			placeEventSequences[key] = true
+		}
+		if _, ok := operationalResourcePayloadForEvent(event); ok {
+			resourceEventSequences[key] = true
+		}
 		if _, ok := knowledgeLinkPayloadForEvent(event); ok {
 			linkEventSequences[key] = true
 		}
@@ -325,6 +373,16 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 			return fmt.Errorf("operational-run record %d has no matching event", record.Sequence)
 		}
 	}
+	for _, record := range bundle.OperationalPlaceRecords {
+		if !placeEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			return fmt.Errorf("operational-place record %d has no matching event", record.Sequence)
+		}
+	}
+	for _, record := range bundle.OperationalResourceRecords {
+		if !resourceEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			return fmt.Errorf("operational-resource record %d has no matching event", record.Sequence)
+		}
+	}
 	for _, record := range bundle.KnowledgeLinkRecords {
 		if !linkEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-link record %d has no matching event", record.Sequence)
@@ -346,6 +404,12 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 	}
 	if err := verifySignedOperationalRunRecords(bundle.Events, bundle.OperationalRunRecords); err != nil {
 		return fmt.Errorf("verify operational-run records: %w", err)
+	}
+	if err := verifySignedOperationalPlaceRecords(bundle.Events, bundle.OperationalPlaceRecords); err != nil {
+		return fmt.Errorf("verify operational-place records: %w", err)
+	}
+	if err := verifySignedOperationalResourceRecords(bundle.Events, bundle.OperationalResourceRecords); err != nil {
+		return fmt.Errorf("verify operational-resource records: %w", err)
 	}
 	if err := verifySignedKnowledgeLinkRecords(bundle.Events, bundle.KnowledgeLinkRecords); err != nil {
 		return fmt.Errorf("verify knowledge-link records: %w", err)
@@ -441,6 +505,26 @@ func filterOperationalRunRecordsByOrigin(records []SignedOperationalRunRecord, w
 	return out
 }
 
+func filterOperationalPlaceRecordsByOrigin(records []SignedOperationalPlaceRecord, wanted map[string]bool) []SignedOperationalPlaceRecord {
+	out := []SignedOperationalPlaceRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func filterOperationalResourceRecordsByOrigin(records []SignedOperationalResourceRecord, wanted map[string]bool) []SignedOperationalResourceRecord {
+	out := []SignedOperationalResourceRecord{}
+	for _, record := range records {
+		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
 func filterKnowledgeLinkRecordsByOrigin(records []SignedKnowledgeLinkRecord, wanted map[string]bool) []SignedKnowledgeLinkRecord {
 	out := []SignedKnowledgeLinkRecord{}
 	for _, record := range records {
@@ -465,8 +549,16 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 	itemIDs := map[string]bool{}
 	responsibilityIDs := map[string]bool{}
 	runIDs := map[string]bool{}
+	placeIDs := map[string]bool{}
+	resourceIDs := map[string]bool{}
 	for _, event := range bundle.Events {
 		switch event.Type {
+		case "place_created":
+			placeIDs[eventEntityCanonicalID(event)] = true
+			placeIDs[eventDisplayAlias(event)] = true
+		case "resource_created":
+			resourceIDs[eventEntityCanonicalID(event)] = true
+			resourceIDs[eventDisplayAlias(event)] = true
 		case "knowledge_item_created", "revision_added", "knowledge_item_status_changed", "knowledge_item_superseded":
 			itemIDs[eventEntityCanonicalID(event)] = true
 			itemIDs[eventDisplayAlias(event)] = true
@@ -479,30 +571,34 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 		}
 	}
 	result := PeerExchangeImportResult{
-		ImportedEvents:             len(bundle.Events),
-		ImportedKnowledgeItems:     len(bundle.KnowledgeItemRecords),
-		ImportedKnowledgeApprovals: len(bundle.KnowledgeApprovalRecords),
-		ImportedKnowledgeEvidence:  len(bundle.KnowledgeEvidenceRecords),
-		ImportedOperationalRuns:    len(bundle.OperationalRunRecords),
-		ImportedKnowledgeLinks:     len(bundle.KnowledgeLinkRecords),
-		ImportedResponsibilities:   len(bundle.KnowledgeResponsibilityRecords),
+		ImportedEvents:               len(bundle.Events),
+		ImportedKnowledgeItems:       len(bundle.KnowledgeItemRecords),
+		ImportedKnowledgeApprovals:   len(bundle.KnowledgeApprovalRecords),
+		ImportedKnowledgeEvidence:    len(bundle.KnowledgeEvidenceRecords),
+		ImportedOperationalRuns:      len(bundle.OperationalRunRecords),
+		ImportedOperationalPlaces:    len(bundle.OperationalPlaceRecords),
+		ImportedOperationalResources: len(bundle.OperationalResourceRecords),
+		ImportedKnowledgeLinks:       len(bundle.KnowledgeLinkRecords),
+		ImportedResponsibilities:     len(bundle.KnowledgeResponsibilityRecords),
 	}
 	for _, event := range bundle.Events {
 		switch event.Type {
 		case "run_recorded":
-			if strings.TrimSpace(event.PlaceID) != "" {
+			if strings.TrimSpace(event.PlaceID) != "" && !placeIDs[event.PlaceID] {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "operational_run",
 					RecordID:   eventEntityCanonicalID(event),
-					Reason:     "place reference is outside the current peer-visible slice",
+					Reason:     "place reference is missing from the bundle",
 				})
 			}
 			for _, resourceID := range event.ResourceIDs {
-				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
-					RecordType: "operational_run",
-					RecordID:   eventEntityCanonicalID(event),
-					Reason:     "resource reference " + resourceID + " is outside the current peer-visible slice",
-				})
+				if !resourceIDs[resourceID] {
+					result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
+						RecordType: "operational_run",
+						RecordID:   eventEntityCanonicalID(event),
+						Reason:     "resource reference " + resourceID + " is missing from the bundle",
+					})
+				}
 			}
 		case "approval_recorded":
 			if event.TargetType == "run" && !runIDs[event.TargetID] {
@@ -513,14 +609,14 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 				})
 			}
 		case "link_added":
-			if reason := peerExchangeMissingEndpointReason(event.FromType, event.FromID, itemIDs, responsibilityIDs, runIDs); reason != "" {
+			if reason := peerExchangeMissingEndpointReason(event.FromType, event.FromID, placeIDs, resourceIDs, itemIDs, responsibilityIDs, runIDs); reason != "" {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "knowledge_link",
 					RecordID:   eventEntityCanonicalID(event),
 					Reason:     "from endpoint " + reason,
 				})
 			}
-			if reason := peerExchangeMissingEndpointReason(event.ToType, event.ToID, itemIDs, responsibilityIDs, runIDs); reason != "" {
+			if reason := peerExchangeMissingEndpointReason(event.ToType, event.ToID, placeIDs, resourceIDs, itemIDs, responsibilityIDs, runIDs); reason != "" {
 				result.UnresolvedReferences = append(result.UnresolvedReferences, PeerExchangeImportIssue{
 					RecordType: "knowledge_link",
 					RecordID:   eventEntityCanonicalID(event),
@@ -532,8 +628,16 @@ func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportRe
 	return result
 }
 
-func peerExchangeMissingEndpointReason(entityType string, entityID string, itemIDs map[string]bool, responsibilityIDs map[string]bool, runIDs map[string]bool) string {
+func peerExchangeMissingEndpointReason(entityType string, entityID string, placeIDs map[string]bool, resourceIDs map[string]bool, itemIDs map[string]bool, responsibilityIDs map[string]bool, runIDs map[string]bool) string {
 	switch entityType {
+	case "place":
+		if !placeIDs[entityID] {
+			return "place is missing from the bundle"
+		}
+	case "resource":
+		if !resourceIDs[entityID] {
+			return "resource is missing from the bundle"
+		}
 	case "knowledge_item":
 		if !itemIDs[entityID] {
 			return "knowledge item is missing from the bundle"
@@ -546,10 +650,6 @@ func peerExchangeMissingEndpointReason(entityType string, entityID string, itemI
 		if !runIDs[entityID] {
 			return "run is missing from the bundle"
 		}
-	case "place":
-		return "place is outside the first peer-exchange slice"
-	case "resource":
-		return "resource is outside the first peer-exchange slice"
 	default:
 		return "uses unsupported endpoint type " + entityType
 	}

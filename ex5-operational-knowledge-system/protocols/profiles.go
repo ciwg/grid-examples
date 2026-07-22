@@ -25,6 +25,12 @@ var knowledgeResponsibilitySpec []byte
 //go:embed operational-run.md
 var operationalRunSpec []byte
 
+//go:embed operational-place.md
+var operationalPlaceSpec []byte
+
+//go:embed operational-resource.md
+var operationalResourceSpec []byte
+
 type Profile struct {
 	Name string
 	Spec []byte
@@ -56,6 +62,14 @@ var (
 	// shipped operational-run spec bytes rather than a handwritten constant.
 	// Source: DI-vamok
 	OperationalRunProfile = mustProfile("operational-run", operationalRunSpec)
+	// Intent: Bind the seventh ex5 PromiseGrid-native runtime slice to the
+	// exact shipped operational-place spec bytes rather than a handwritten
+	// constant. Source: DI-pivul
+	OperationalPlaceProfile = mustProfile("operational-place", operationalPlaceSpec)
+	// Intent: Bind the eighth ex5 PromiseGrid-native runtime slice to the exact
+	// shipped operational-resource spec bytes rather than a handwritten
+	// constant. Source: DI-pivul
+	OperationalResourceProfile = mustProfile("operational-resource", operationalResourceSpec)
 )
 
 func mustProfile(name string, spec []byte) Profile {
@@ -67,7 +81,7 @@ func mustProfile(name string, spec []byte) Profile {
 }
 
 func ProfileByCIDText(cidText string) (Profile, error) {
-	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile, KnowledgeEvidenceProfile, KnowledgeLinkProfile, KnowledgeResponsibilityProfile, OperationalRunProfile} {
+	for _, profile := range []Profile{KnowledgeItemProfile, KnowledgeApprovalProfile, KnowledgeEvidenceProfile, KnowledgeLinkProfile, KnowledgeResponsibilityProfile, OperationalRunProfile, OperationalPlaceProfile, OperationalResourceProfile} {
 		if profile.CID.String() == cidText {
 			return profile, nil
 		}

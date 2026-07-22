@@ -1,14 +1,14 @@
-# TODO tasem - extend CAS authority beyond the six frozen families in ex5
+# TODO tasem - extend CAS authority beyond the eight frozen families in ex5
 
 ## Goal
 
 Move `ex5` closer to a uniform grid-native storage model by deciding how CAS
 should become authoritative for the still-unfrozen runtime state instead of
-remaining limited to the six frozen family envelopes.
+remaining limited to the eight frozen family envelopes.
 
 ## Why this exists
 
-The current runtime now replays and exports the six frozen families
+The current runtime now replays and exports the eight frozen families
 authoritatively from CAS, but other runtime state still depends on
 compatibility event replay and local projections.
 
@@ -26,4 +26,3 @@ compatibility event replay and local projections.
 
 - open
 - created from the post-109 PromiseGrid review
-

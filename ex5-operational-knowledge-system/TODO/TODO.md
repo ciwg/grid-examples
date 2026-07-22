@@ -1,12 +1,12 @@
 # TODO
 
 ## Open / Planned
-- [ ] 110 - Make place and resource context peer-visible in ex5 - `TODO/TODO-pivok-ex5-peer-visible-place-resource-families.md`
-- [ ] 111 - Extend CAS authority beyond the six frozen families in ex5 - `TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
+- [ ] 111 - Extend CAS authority beyond the eight frozen families in ex5 - `TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
 - [ ] 112 - Tighten the ex5 embodiment contract beyond the current HTTP adapter - `TODO/TODO-lurog-ex5-embodiment-contract-tightening-beyond-http.md`
 
 ## Completed
 
+- [x] 110 - Make place and resource context peer-visible in ex5 - `TODO/TODO-pivok-ex5-peer-visible-place-resource-families.md`
 - [x] 109 - Reconcile ex5 peer-visible entity namespaces across independent peers - `TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
 - [x] 108 - Freeze and claim the sixth ex5 PromiseGrid protocol family for runs - `TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`
 - [x] 107 - Introduce peer-stable identity and ordering for ex5 peer exchange - `TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`

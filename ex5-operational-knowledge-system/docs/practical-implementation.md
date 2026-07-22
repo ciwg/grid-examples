@@ -5,12 +5,14 @@
 The `ex5` foundation uses one append-only `events.jsonl` file plus
 `knowledge-item-messages.jsonl`, `knowledge-approval-messages.jsonl`,
 `knowledge-evidence-messages.jsonl`, `operational-run-messages.jsonl`,
+`operational-place-messages.jsonl`, `operational-resource-messages.jsonl`,
 `knowledge-link-messages.jsonl`, `knowledge-responsibility-messages.jsonl`, an
 `attachments/` directory, and a `drafts/` directory for browser-shared working
 bodies. The service replays the event log at startup, verifies the signed
 knowledge-item, knowledge-approval, knowledge-evidence, operational-run,
-knowledge-link, and knowledge-responsibility logs against that replay,
-overlays any saved live draft bodies, and projects current query views for:
+operational-place, operational-resource, knowledge-link, and
+knowledge-responsibility logs against that replay, overlays any saved live
+draft bodies, and projects current query views for:
 
 - places
 - resources
@@ -205,14 +207,18 @@ The implementation already organizes the model around protocol-family seams:
 - `knowledge-item`
 - `knowledge-approval`
 - `knowledge-evidence`
+- `operational-run`
+- `operational-place`
+- `operational-resource`
 - `knowledge-link`
 - `knowledge-responsibility`
 - `knowledge-search-metadata`
 
 The current Go code now emits and verifies signed grid envelopes for the
 `knowledge-item`, `knowledge-approval`, `knowledge-evidence`,
+`operational-run`, `operational-place`, `operational-resource`,
 `knowledge-link`, and `knowledge-responsibility` families, and it freezes
-those five families' runtime behavior by their shipped `pCID`s.
+those eight families' runtime behavior by their shipped `pCID`s.
 `knowledge-search-metadata` remains derived projection state rather than a
 sixth signed family, and the local HTTP adapter is still not the full
 PromiseGrid peer contract. Source: `DI-sobek`; `DI-mibor`; `DI-vosul`;
@@ -224,14 +230,13 @@ PromiseGrid-facing work, see
 
 The next staged PromiseGrid boundary is now also explicit: the first
 relay-visible exchange slice carries `knowledge-item`, `knowledge-approval`,
-`knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, and
-`operational-run`. The shipped importer accepts origin-aware unseen history for
-those families into non-empty runtimes, carries inline CID-keyed evidence
-blobs, and treats the create-envelope CID as the durable peer-visible entity
-ID while preserving the older short ID only as an alias. It still reports
-unresolved place/resource references explicitly instead of trimming those
-artifacts out of the exchange bundle. Source: `DI-guzab`; `DI-voruk`;
-`DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`.
+`knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`,
+`operational-run`, `operational-place`, and `operational-resource`. The
+shipped importer accepts origin-aware unseen history for those families into
+non-empty runtimes, carries inline CID-keyed evidence blobs, and treats the
+create-envelope CID as the durable peer-visible entity ID while preserving the
+older short ID only as an alias. Source: `DI-guzab`; `DI-voruk`; `DI-vamok`;
+`DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`.
 
 That later storage decision is now also staged: the first CAS pass dual-writes
 signed family envelopes and copied evidence blobs into content-addressed
@@ -250,10 +255,10 @@ remain adapter-delivered, but the adapter now exposes the shipped peer-exchange
 format and CAS capability through runtime metadata and is described as an
 adapter over that broader runtime. Source: `DI-vabek`; `DI-rovuz`.
 
-What remains after that shipped runtime wave is narrower: place/resource
-references are still outside the peer-visible frozen family set, and CAS is
-still only authoritative for the six frozen families rather than every local
-projection/runtime artifact. Source: `DI-lavuz`; `DI-tivor`; `DI-loruk`.
+What remains after that shipped runtime wave is narrower: CAS is still only
+authoritative for the eight frozen families rather than every local
+projection/runtime artifact. Source: `DI-lavuz`; `DI-tivor`; `DI-loruk`;
+`DI-pivul`.
 
 The typed-link path is also now stricter at write time. The runtime validates
 both endpoint types and endpoint IDs before appending a link event, and
@@ -285,13 +290,11 @@ version. Source: `DI-dazim`.
 The foundation still does not yet include:
 
 - websocket transport
-- non-bootstrap peer exchange into already-populated runtimes
-- peer-visible evidence carriage
-- authoritative CAS-backed replay/read behavior
-- signed grid envelopes on the wire for any remaining ex5 families beyond the
-  five frozen ones
-- frozen runtime behavior selected by a shipped `pCID` for any remaining ex5
-  families
+- peer-visible durable families for remaining local-only runtime state beyond
+  the eight shipped signed families
+- CAS-authoritative replay/read behavior for remaining local-only compatibility
+  state beyond the eight shipped signed families
+- embodiment tightening beyond the current local HTTP adapter contract
 
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
