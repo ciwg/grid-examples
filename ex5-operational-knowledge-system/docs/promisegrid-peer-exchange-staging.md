@@ -1,8 +1,7 @@
 # ex5 PromiseGrid peer-exchange staging
 
-This note records what `ex5` will treat as the first relay-visible peer
-exchange slice after the five local signed families were frozen. Source:
-`DI-guzab`.
+This note records the first shipped relay-visible peer exchange slice in
+`ex5`. Source: `DI-guzab`; `DI-voruk`.
 
 ## First relay-visible slice
 
@@ -15,7 +14,9 @@ runtime surface. It carries only the attachment-free signed families:
 - `knowledge-responsibility`
 
 Those four families are already signed, replay-verified, and portable without
-depending on local attachment paths. Source: `DI-guzab`.
+depending on local attachment paths. The shipped bootstrap exchange exports and
+imports the whole family logs plus their compatibility events over the current
+local HTTP adapter. Source: `DI-guzab`; `DI-voruk`.
 
 ## Deferred from the first slice
 
@@ -26,6 +27,19 @@ but attachment bytes still live on the local copied-file path. Until `ex5`
 settles CAS-backed storage or another portable blob-carriage rule, peer-visible
 evidence exchange would overstate what another host can actually resolve.
 Source: `DI-ribof`; `DI-guzab`.
+
+## Bootstrap import behavior
+
+The shipped importer is bootstrap-only:
+
+- it imports only into an empty runtime
+- it preserves whole approval and link family history
+- it reports unresolved run approvals and unresolved place/resource/run link
+  endpoints explicitly instead of trimming those artifacts away
+
+This keeps the first exchange slice PromiseGrid-complete at the family level
+without pretending `ex5` already has a safe multi-peer merge contract. Source:
+`DI-voruk`.
 
 ## Staged runtime/storage shape
 

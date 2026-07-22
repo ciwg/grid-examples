@@ -11,6 +11,15 @@ Intent: Start real peer-visible PromiseGrid exchange on artifacts the runtime al
 Constraints: Do not bundle CAS-backed storage into this decision slice; do not tighten the embodiment contract in the same pass; document clearly that evidence stays local-only at peer-exchange time until a later storage/carriage decision lands.
 Affects: `ex5-operational-knowledge-system/TODO/TODO-fativ-ex5-relay-visible-peer-exchange.md`, `docs/thought-experiments/TE-tavok-ex5-first-relay-exchange-scope.md`, `ex5-operational-knowledge-system/docs/promisegrid-peer-exchange-staging.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
+ID: DI-voruk
+Date: 2026-07-22 10:30:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Implement the first relay-visible slice as whole-family bootstrap export/import over the local HTTP adapter, carrying all signed `knowledge-item`, `knowledge-approval`, `knowledge-link`, and `knowledge-responsibility` records plus their compatibility events, while allowing unresolved run/place/resource references to remain explicit instead of trimming the family logs.
+Intent: Ship a more PromiseGrid-complete first exchange slice by preserving whole artifact families, while avoiding unsolved merge semantics by limiting import to an empty runtime.
+Constraints: Import is bootstrap-only into an empty runtime; no evidence family export/import is added; unresolved run approvals and links to non-exported endpoints must be reported explicitly instead of silently hidden.
+Affects: `ex5-operational-knowledge-system/TODO/TODO-fativ-ex5-relay-visible-peer-exchange.md`, `ex5-operational-knowledge-system/service/peer_exchange.go`, `ex5-operational-knowledge-system/service/server.go`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/service/app_test.go`, `ex5-operational-knowledge-system/service/server_test.go`, `ex5-operational-knowledge-system/docs/promisegrid-peer-exchange-staging.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `ex5-operational-knowledge-system/README.md`
+
 ## Goal
 
 Define the first relay-visible peer-exchange slice for ex5 now that the core
@@ -29,10 +38,16 @@ and evidence attachment references are not yet portable across hosts.
   assumptions.
 - [x] fativ.3 Define the first staged runtime and storage changes.
 - [x] fativ.4 Add tracking docs for what becomes peer-visible.
+- [x] fativ.5 Implement local export/import for the four family logs over the
+  current HTTP adapter.
+- [x] fativ.6 Keep import bootstrap-only and report unresolved references
+  explicitly.
+- [x] fativ.7 Add round-trip and tamper coverage for the first exchange slice.
 
 ## Status
 
 - done
 - first staged relay-visible exchange is the four attachment-free families
+- whole-family bootstrap export/import now ships over the local HTTP adapter
 - peer-visible `knowledge-evidence` stays deferred until the later
   CAS/blob-carriage decision

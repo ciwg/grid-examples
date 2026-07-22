@@ -41,6 +41,36 @@ type Meta struct {
 	KnowledgeResponsibilityPCID string   `json:"knowledge_responsibility_pcid"`
 }
 
+type PeerExchangeBundle struct {
+	Format                         string                                `json:"format"`
+	ExportedAt                     string                                `json:"exported_at"`
+	Implementation                 string                                `json:"implementation"`
+	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
+	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
+	KnowledgeLinkPCID              string                                `json:"knowledge_link_pcid"`
+	KnowledgeResponsibilityPCID    string                                `json:"knowledge_responsibility_pcid"`
+	Events                         []OperationalEvent                    `json:"events"`
+	KnowledgeItemRecords           []SignedKnowledgeItemRecord           `json:"knowledge_item_records"`
+	KnowledgeApprovalRecords       []SignedKnowledgeApprovalRecord       `json:"knowledge_approval_records"`
+	KnowledgeLinkRecords           []SignedKnowledgeLinkRecord           `json:"knowledge_link_records"`
+	KnowledgeResponsibilityRecords []SignedKnowledgeResponsibilityRecord `json:"knowledge_responsibility_records"`
+}
+
+type PeerExchangeImportIssue struct {
+	RecordType string `json:"record_type"`
+	RecordID   string `json:"record_id"`
+	Reason     string `json:"reason"`
+}
+
+type PeerExchangeImportResult struct {
+	ImportedEvents             int                       `json:"imported_events"`
+	ImportedKnowledgeItems     int                       `json:"imported_knowledge_items"`
+	ImportedKnowledgeApprovals int                       `json:"imported_knowledge_approvals"`
+	ImportedKnowledgeLinks     int                       `json:"imported_knowledge_links"`
+	ImportedResponsibilities   int                       `json:"imported_responsibilities"`
+	UnresolvedReferences       []PeerExchangeImportIssue `json:"unresolved_references"`
+}
+
 type Place struct {
 	ID            string             `json:"id"`
 	Kind          string             `json:"kind"`

@@ -35,7 +35,9 @@ The first staged relay-visible exchange slice is now defined more narrowly than
 the full local runtime: `knowledge-item`, `knowledge-approval`,
 `knowledge-link`, and `knowledge-responsibility` are the first peer-visible
 families, while peer-visible `knowledge-evidence` waits on the later
-storage/blob-carriage decision. Source: `DI-guzab`.
+storage/blob-carriage decision. That first slice now ships as whole-family
+bootstrap export/import over the current local HTTP adapter. Source:
+`DI-guzab`; `DI-voruk`.
 
 That later storage step is also now staged: CAS enters first as an additive
 sidecar for signed envelopes and copied evidence blobs, while the current

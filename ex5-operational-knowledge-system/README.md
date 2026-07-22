@@ -471,3 +471,4 @@ What it does not try to do yet:
 - keep the current local HTTP live-draft model instead of porting the full `ex3` websocket collaboration stack
 - treat collaborative editing as optional rather than core to the product
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
+- ship the first PromiseGrid peer exchange as bootstrap export/import for the four attachment-free signed families while deferring evidence carriage to the later CAS step

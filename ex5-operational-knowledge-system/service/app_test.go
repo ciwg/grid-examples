@@ -575,6 +575,138 @@ func TestAppRejectsTamperedSignedKnowledgeEvidenceRecords(t *testing.T) {
 	}
 }
 
+func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+
+	place, err := source.CreatePlace("alice", "area", "Receiving", "Inbound area", "", nil)
+	if err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	resource, err := source.CreateResource("alice", "container", "Dock bin", "Holds inbound parts", place.ID, nil)
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	responsibility, err := source.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := source.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
+		t.Fatalf("approve item: %v", err)
+	}
+	run, err := source.RecordRun("carol", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if err := source.RecordApproval("dave", "run", run.ID, 0, "auditor", DecisionNoted, "captured"); err != nil {
+		t.Fatalf("approve run: %v", err)
+	}
+	if err := source.AddLink("alice", "responsibility", responsibility.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns intake"); err != nil {
+		t.Fatalf("add responsibility link: %v", err)
+	}
+	if err := source.AddLink("alice", "resource", resource.ID, "knowledge_item", item.ID, "used_by", "Dock bin supports check"); err != nil {
+		t.Fatalf("add resource link: %v", err)
+	}
+
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	if bundle.Format != peerExchangeBundleFormat {
+		t.Fatalf("unexpected bundle format %q", bundle.Format)
+	}
+	if len(bundle.KnowledgeApprovalRecords) != 2 {
+		t.Fatalf("expected 2 approval records in bundle, got %d", len(bundle.KnowledgeApprovalRecords))
+	}
+	if len(bundle.KnowledgeLinkRecords) != 2 {
+		t.Fatalf("expected 2 link records in bundle, got %d", len(bundle.KnowledgeLinkRecords))
+	}
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	result, err := target.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		t.Fatalf("import bundle: %v", err)
+	}
+	if result.ImportedKnowledgeApprovals != 2 || result.ImportedKnowledgeLinks != 2 {
+		t.Fatalf("unexpected import counts: %+v", result)
+	}
+	if len(result.UnresolvedReferences) != 2 {
+		t.Fatalf("expected 2 unresolved references, got %+v", result.UnresolvedReferences)
+	}
+	if len(target.items) != 1 || len(target.responsibilities) != 1 {
+		t.Fatalf("expected item and responsibility after import, got items=%d responsibilities=%d", len(target.items), len(target.responsibilities))
+	}
+	if len(target.runs) != 0 || len(target.places) != 0 || len(target.resources) != 0 {
+		t.Fatalf("bootstrap import should not materialize runs/places/resources from this slice: runs=%d places=%d resources=%d", len(target.runs), len(target.places), len(target.resources))
+	}
+	if len(target.approvals) != 2 {
+		t.Fatalf("expected both approvals preserved after import, got %d", len(target.approvals))
+	}
+	if len(target.links) != 2 {
+		t.Fatalf("expected both links preserved after import, got %d", len(target.links))
+	}
+	importedItem, err := target.GetKnowledgeItem(item.ID)
+	if err != nil {
+		t.Fatalf("get imported item: %v", err)
+	}
+	if len(importedItem.Approvals) != 1 || importedItem.Approvals[0].Decision != DecisionApproved {
+		t.Fatalf("expected only the item approval to attach to imported item, got %+v", importedItem.Approvals)
+	}
+	if len(importedItem.Links) != 2 {
+		t.Fatalf("expected both item-facing links to remain visible on imported item, got %+v", importedItem.Links)
+	}
+	importedResponsibility, err := target.GetResponsibility(responsibility.ID)
+	if err != nil {
+		t.Fatalf("get imported responsibility: %v", err)
+	}
+	if len(importedResponsibility.Links) != 1 {
+		t.Fatalf("expected only the responsibility link to attach, got %+v", importedResponsibility.Links)
+	}
+}
+
+func TestAppRejectsTamperedPeerExchangeBundle(t *testing.T) {
+	source, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	responsibility, err := source.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := source.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	if err := source.RecordApproval("bob", "knowledge_item", item.ID, item.CurrentRevision, "reviewer", DecisionApproved, "ready"); err != nil {
+		t.Fatalf("approve item: %v", err)
+	}
+	bundle, err := source.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+	if len(bundle.KnowledgeApprovalRecords) == 0 {
+		t.Fatalf("expected approval records in bundle")
+	}
+	bundle.KnowledgeApprovalRecords[0].EnvelopeCID = "bafkreipeerexchangetampered"
+
+	target, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := target.ImportPeerExchangeBundle(bundle); err == nil || !strings.Contains(err.Error(), "knowledge-approval") || !strings.Contains(err.Error(), "envelope cid mismatch") {
+		t.Fatalf("expected tampered approval envelope rejection, got %v", err)
+	}
+}
+
 func TestAppWritesAndReplaysSignedKnowledgeLinkRecords(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "runtime")
 	app, err := NewApp(root)

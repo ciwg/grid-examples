@@ -221,7 +221,10 @@ relay-visible exchange slice is attachment-free and carries
 `knowledge-item`, `knowledge-approval`, `knowledge-link`, and
 `knowledge-responsibility`. Peer-visible `knowledge-evidence` remains deferred
 until the later storage/carriage decision because the current evidence family
-still points at local copied attachment paths. Source: `DI-guzab`.
+still points at local copied attachment paths. The shipped bootstrap importer
+accepts the whole approval and link family logs into an empty runtime and
+reports unresolved run/place/resource references explicitly instead of trimming
+those artifacts out of the exchange bundle. Source: `DI-guzab`; `DI-voruk`.
 
 That later storage decision is now also staged: the first CAS pass dual-writes
 signed family envelopes and copied evidence blobs into content-addressed

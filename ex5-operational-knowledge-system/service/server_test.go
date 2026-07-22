@@ -307,6 +307,112 @@ func TestServerPlacesResourcesAndLiveItems(t *testing.T) {
 	}
 }
 
+func TestServerExportsAndImportsPeerExchangeBundle(t *testing.T) {
+	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	responsibility, err := sourceApp.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	item, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{responsibility.ID})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := sourceApp.RecordRun("bob", RunKindReceiving, item.ID, item.CurrentRevision, "accepted_with_notes", "Wrap torn", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	if err := sourceApp.RecordApproval("carol", "run", run.ID, 0, "auditor", DecisionNoted, "captured"); err != nil {
+		t.Fatalf("approve run: %v", err)
+	}
+	if err := sourceApp.AddLink("alice", "responsibility", responsibility.ID, "knowledge_item", item.ID, "owns", "Receiving lead owns intake"); err != nil {
+		t.Fatalf("add link: %v", err)
+	}
+	sourceServer := NewServer(sourceApp)
+
+	exportRequest := httptest.NewRequest(http.MethodGet, "/api/peer-exchange/export", nil)
+	exportResponse := httptest.NewRecorder()
+	sourceServer.Handler().ServeHTTP(exportResponse, exportRequest)
+	if exportResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected export status: %d %s", exportResponse.Code, exportResponse.Body.String())
+	}
+	var bundle PeerExchangeBundle
+	if err := json.Unmarshal(exportResponse.Body.Bytes(), &bundle); err != nil {
+		t.Fatalf("decode export bundle: %v", err)
+	}
+	if bundle.Format != peerExchangeBundleFormat {
+		t.Fatalf("unexpected bundle format %q", bundle.Format)
+	}
+
+	targetApp, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	targetServer := NewServer(targetApp)
+	body, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatalf("encode import bundle: %v", err)
+	}
+	importRequest := httptest.NewRequest(http.MethodPost, "/api/peer-exchange/import", bytes.NewReader(body))
+	importResponse := httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(importResponse, importRequest)
+	if importResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected import status: %d %s", importResponse.Code, importResponse.Body.String())
+	}
+	var result PeerExchangeImportResult
+	if err := json.Unmarshal(importResponse.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode import result: %v", err)
+	}
+	if result.ImportedKnowledgeItems != len(bundle.KnowledgeItemRecords) {
+		t.Fatalf("unexpected import item count: %+v", result)
+	}
+	if len(result.UnresolvedReferences) != 1 {
+		t.Fatalf("expected unresolved run approval after bootstrap import, got %+v", result.UnresolvedReferences)
+	}
+}
+
+func TestServerRejectsPeerExchangeImportIntoNonEmptyRuntime(t *testing.T) {
+	sourceApp, err := NewApp(filepath.Join(t.TempDir(), "source"))
+	if err != nil {
+		t.Fatalf("new source app: %v", err)
+	}
+	responsibility, err := sourceApp.CreateResponsibility("alice", "Receiving lead", "Owns intake checks", []string{"reviewer"}, nil)
+	if err != nil {
+		t.Fatalf("create responsibility: %v", err)
+	}
+	if _, err := sourceApp.CreateKnowledgeItem("alice", KnowledgeKindReceiving, "Inspect inbound pallet", "Receiving check", "# Inspect inbound pallet", nil, []string{responsibility.ID}); err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	bundle, err := sourceApp.ExportPeerExchangeBundle()
+	if err != nil {
+		t.Fatalf("export bundle: %v", err)
+	}
+
+	targetApp, err := NewApp(filepath.Join(t.TempDir(), "target"))
+	if err != nil {
+		t.Fatalf("new target app: %v", err)
+	}
+	if _, err := targetApp.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "Startup flow", "# Start line", nil, nil); err != nil {
+		t.Fatalf("seed target item: %v", err)
+	}
+	targetServer := NewServer(targetApp)
+	body, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatalf("encode import bundle: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/peer-exchange/import", bytes.NewReader(body))
+	response := httptest.NewRecorder()
+	targetServer.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected import rejection for non-empty runtime, got %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "empty runtime") {
+		t.Fatalf("unexpected rejection body: %s", response.Body.String())
+	}
+}
+
 func TestServerLiveItemGetAndConflictResponse(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

@@ -58,7 +58,7 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- relay-visible peer exchange
+- peer-visible `knowledge-evidence` exchange
 - relay transport or CAS-backed envelope storage as part of the ex5
   operational workflow
 
@@ -121,6 +121,12 @@ Done now:
 - `knowledge-evidence` is frozen as the third ex5 family
 - `knowledge-link` is frozen as the fourth ex5 family
 - `knowledge-responsibility` is frozen as the fifth ex5 family
+- the runtime exports and bootstrap-imports whole-family signed
+  `knowledge-item`, `knowledge-approval`, `knowledge-link`, and
+  `knowledge-responsibility` records plus their compatibility events over the
+  local HTTP adapter
+- bootstrap import preserves unresolved run approvals and links to
+  place/resource/run endpoints explicitly instead of trimming the family logs
 - search metadata remains derived projection state over those families, not a
   sixth signed family
 - the runtime computes all five `pCID`s from the exact shipped spec bytes
@@ -137,10 +143,10 @@ Done now:
 
 Remaining:
 
-- implement the first relay-visible exchange layer for the four
-  attachment-free families
 - implement additive CAS-backed storage for signed envelopes and copied
   evidence blobs
+- add peer-visible `knowledge-evidence` exchange once portable blob carriage
+  exists
 - tighten embodiment/runtime language only after those peer/storage layers are
   implemented
 
@@ -168,10 +174,11 @@ The current ex5 implementation claims live in
 The next staged PromiseGrid work is no longer a sixth durable
 `knowledge-search-metadata` family. Search metadata is settled as derived
 projection state, so the next work is the peer/storage layer backlog that
-follows the frozen operational families. The first relay-visible slice is now
-staged for the four attachment-free families, while peer-visible evidence waits
-for the later storage/carriage decision. CAS is now also staged as an additive
-sidecar for signed envelopes and copied evidence blobs rather than a log
-replacement rewrite, and embodiment tightening is staged after those runtime
-layers are implemented rather than before. Source: `DI-fusok`; `DI-guzab`;
-`DI-ribek`; `DI-vabek`.
+follows the frozen operational families. The first relay-visible slice now
+ships as whole-family bootstrap export/import for the four attachment-free
+families, while peer-visible evidence still waits for the later
+storage/carriage decision. CAS is now staged as an additive sidecar for signed
+envelopes and copied evidence blobs rather than a log replacement rewrite, and
+embodiment tightening is staged after those runtime layers are implemented
+rather than before. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`; `DI-ribek`;
+`DI-vabek`.

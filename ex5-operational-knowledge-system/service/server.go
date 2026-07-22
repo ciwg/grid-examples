@@ -31,6 +31,8 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/app.js", server.handleAppJS)
 	mux.HandleFunc("/style.css", server.handleStyleCSS)
 	mux.HandleFunc("/api/meta", server.handleMeta)
+	mux.HandleFunc("/api/peer-exchange/export", server.handlePeerExchangeExport)
+	mux.HandleFunc("/api/peer-exchange/import", server.handlePeerExchangeImport)
 	mux.HandleFunc("/api/dashboard", server.handleDashboard)
 	mux.HandleFunc("/api/problem-review", server.handleProblemReview)
 	mux.HandleFunc("/api/search", server.handleSearch)
@@ -78,6 +80,42 @@ func (server *Server) handleStyleCSS(writer http.ResponseWriter, request *http.R
 
 func (server *Server) handleMeta(writer http.ResponseWriter, request *http.Request) {
 	writeJSON(writer, http.StatusOK, server.app.Meta())
+}
+
+// Intent: Keep the first peer-visible ex5 exchange on the same local adapter
+// surface as the current embodiments so browser, CLI, and test tooling can
+// bootstrap signed-family exchange before any later embodiment/runtime
+// tightening. Source: DI-voruk
+func (server *Server) handlePeerExchangeExport(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	bundle, err := server.app.ExportPeerExchangeBundle()
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(writer, http.StatusOK, bundle)
+}
+
+func (server *Server) handlePeerExchangeImport(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, 8*1024*1024)
+	var bundle PeerExchangeBundle
+	if err := decodeJSONBody(request, &bundle); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	result, err := server.app.ImportPeerExchangeBundle(bundle)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, result)
 }
 
 func (server *Server) handleDashboard(writer http.ResponseWriter, request *http.Request) {
