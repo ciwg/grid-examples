@@ -120,6 +120,11 @@ build one shell-facing queue for draft items, review queue runs, and problem
 runs instead of inventing a terminal-only aggregation endpoint. Source:
 `DI-vabok`.
 
+The CLI place/resource drilldown path follows the same rule too. It keeps
+`show-place` and `show-resource` on the existing context-detail routes and
+renders hierarchy, related runs, and typed links in a more useful terminal
+layout instead of inventing a shell-only detail backend. Source: `DI-luzom`.
+
 The important behavior point is that these are not separate backends. They are
 two terminal-facing views over the same local runtime and projected state, so a
 user can mix shell commands and Neovim inspection without crossing embodiment

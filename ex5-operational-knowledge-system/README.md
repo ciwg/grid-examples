@@ -76,6 +76,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - CLI evidence upload for runs, with optional facts JSON and optional file attachment
 - CLI structured search filters and problem-only review over the shared search projection
 - CLI pending-review aggregation for draft items, unreviewed runs, and problem runs
+- CLI place/resource drilldown summaries over the shared context detail routes
 - first-phase Neovim live-draft commands for opening, refreshing, inspecting,
   and pushing a knowledge item draft through the same local runtime
 - Neovim item inspector for revisions, approvals, and related runs
@@ -192,8 +193,10 @@ The CLI talks to the same server:
 go run ./cmd/oks-cli dashboard
 go run ./cmd/oks-cli places
 go run ./cmd/oks-cli new-place alice area Receiving "Inbound receiving and count area"
+go run ./cmd/oks-cli show-place PLACE-0001
 go run ./cmd/oks-cli resources
 go run ./cmd/oks-cli new-resource alice container "RJ45 Bin" "Connectors bin" PLACE-0001
+go run ./cmd/oks-cli show-resource RES-0001
 go run ./cmd/oks-cli responsibilities
 go run ./cmd/oks-cli show-responsibility RESP-0001
 go run ./cmd/oks-cli new-responsibility alice "Line lead" "Owns startup and approval routing"
@@ -233,6 +236,8 @@ The intended terminal behavior today is:
   detail from the same routes the browser and Neovim embodiments already read
 - use the CLI when you need one pending-review queue for draft items, review
   queue runs, and problem runs without opening the editor
+- use the CLI when you need contextual place/resource drilldowns with related
+  runs and link summaries in one terminal view
 - use Neovim when you want to stay inside one editor session while:
   - editing a live draft
   - reviewing item and run detail

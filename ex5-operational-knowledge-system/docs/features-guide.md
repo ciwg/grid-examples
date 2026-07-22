@@ -224,6 +224,7 @@ CLI behavior today:
 - explicit run evidence upload with optional facts JSON and optional attachment
 - direct free-text search plus structured and `problem=true` filters
 - grouped hotspot review over the shared problem-review surface
+- contextual place/resource drilldowns with related runs and links over the shared detail routes
 - projected responsibility detail inspection over the shared responsibility route
 - grouped pending-review aggregation over the same search-route family Neovim already uses
 

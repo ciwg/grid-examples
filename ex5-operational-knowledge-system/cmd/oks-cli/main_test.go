@@ -214,6 +214,97 @@ func TestShowResponsibilityCommandUsesExpectedRoute(t *testing.T) {
 	}
 }
 
+func TestShowPlaceCommandRendersDrilldownSummary(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{
+			"id":"PLACE-0001",
+			"kind":"area",
+			"name":"Receiving",
+			"summary":"Inbound inspection area",
+			"parent_id":"PLACE-0000",
+			"child_place_ids":["PLACE-0002"],
+			"resource_ids":["RES-0001"],
+			"related_runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"ITEM-0001","outcome":"accepted_with_notes","notes":"Outer wrap torn","resource_ids":["RES-0001"]}],
+			"links":[{"relation":"stores","from_type":"place","from_id":"PLACE-0001","to_type":"resource","to_id":"RES-0001","notes":"Receiving area stores the connector bin"}]
+		}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-place", "PLACE-0001"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-place command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if path != "/api/places/PLACE-0001" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Place PLACE-0001") ||
+		!strings.Contains(output, "child places: PLACE-0002") ||
+		!strings.Contains(output, "resources: RES-0001") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0001") ||
+		!strings.Contains(output, "stores place PLACE-0001 -> resource RES-0001") {
+		t.Fatalf("unexpected show-place output: %s", output)
+	}
+}
+
+func TestShowResourceCommandRendersDrilldownSummary(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{
+			"id":"RES-0001",
+			"kind":"container",
+			"name":"RJ45 Bin",
+			"summary":"Connector bin",
+			"place_id":"PLACE-0001",
+			"related_runs":[{"id":"RUN-0002","kind":"inventory_audit","item_id":"ITEM-0002","outcome":"completed","notes":"Counted receiving bin","resource_ids":["RES-0001"]}],
+			"links":[{"relation":"used_in","from_type":"resource","from_id":"RES-0001","to_type":"run","to_id":"RUN-0002","notes":"Connector bin was counted during the run"}]
+		}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{ServerURL: server.URL}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-resource", "RES-0001"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-resource command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if path != "/api/resources/RES-0001" {
+		t.Fatalf("unexpected path: %s", path)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "# Resource RES-0001") ||
+		!strings.Contains(output, "place=PLACE-0001") ||
+		!strings.Contains(output, "show: oks-cli show-run RUN-0002") ||
+		!strings.Contains(output, "used_in resource RES-0001 -> run RUN-0002") {
+		t.Fatalf("unexpected show-resource output: %s", output)
+	}
+}
+
 func TestRunSearchRequiresQuery(t *testing.T) {
 	cli := &CLI{ServerURL: "http://127.0.0.1:7045"}
 	exitCode, err := cli.run([]string{"search"})

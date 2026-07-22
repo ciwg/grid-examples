@@ -215,7 +215,16 @@ Returns one place with:
 
 - hierarchy context
 - linked resources
+- related runs
+- typed links
 - timeline
+
+The CLI now reuses this route as a terminal drilldown summary:
+
+- `oks-cli show-place PLACE_ID`
+
+It renders hierarchy, related runs, and link context directly instead of
+dumping an undifferentiated JSON blob. Source: `DI-luzom`.
 
 ### `GET /api/resources`
 
@@ -236,7 +245,19 @@ Payload fields:
 
 ### `GET /api/resources/{id}`
 
-Returns one resource and its timeline.
+Returns one resource with:
+
+- place context
+- related runs
+- typed links
+- timeline
+
+The CLI now reuses this route as a terminal drilldown summary:
+
+- `oks-cli show-resource RESOURCE_ID`
+
+It renders place context, related runs, and link context directly instead of
+dumping an undifferentiated JSON blob. Source: `DI-luzom`.
 
 ## Responsibilities
 

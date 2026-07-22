@@ -57,7 +57,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/places/" + args[1])
+		err = cli.ShowPlace(args[1])
 	case "resources":
 		err = cli.Resources()
 	case "new-resource":
@@ -73,7 +73,7 @@ func (cli *CLI) run(args []string) (int, error) {
 		if len(args) != 2 {
 			return 2, fmt.Errorf("%s", usageText)
 		}
-		err = cli.Show("/api/resources/" + args[1])
+		err = cli.ShowResource(args[1])
 	case "responsibilities":
 		err = cli.Responsibilities()
 	case "show-responsibility":
@@ -195,6 +195,46 @@ type CLI struct {
 	ServerURL string
 }
 
+type cliLink struct {
+	Relation string `json:"relation"`
+	FromType string `json:"from_type"`
+	FromID   string `json:"from_id"`
+	ToType   string `json:"to_type"`
+	ToID     string `json:"to_id"`
+	Notes    string `json:"notes"`
+}
+
+type cliRunSummary struct {
+	ID          string   `json:"id"`
+	Kind        string   `json:"kind"`
+	ItemID      string   `json:"item_id"`
+	Outcome     string   `json:"outcome"`
+	Notes       string   `json:"notes"`
+	ResourceIDs []string `json:"resource_ids"`
+}
+
+type cliPlaceDetail struct {
+	ID            string          `json:"id"`
+	Kind          string          `json:"kind"`
+	Name          string          `json:"name"`
+	Summary       string          `json:"summary"`
+	ParentID      string          `json:"parent_id"`
+	ChildPlaceIDs []string        `json:"child_place_ids"`
+	ResourceIDs   []string        `json:"resource_ids"`
+	RelatedRuns   []cliRunSummary `json:"related_runs"`
+	Links         []cliLink       `json:"links"`
+}
+
+type cliResourceDetail struct {
+	ID          string          `json:"id"`
+	Kind        string          `json:"kind"`
+	Name        string          `json:"name"`
+	Summary     string          `json:"summary"`
+	PlaceID     string          `json:"place_id"`
+	RelatedRuns []cliRunSummary `json:"related_runs"`
+	Links       []cliLink       `json:"links"`
+}
+
 var allowedSearchFilters = map[string]struct{}{
 	"kind":              {},
 	"status":            {},
@@ -207,6 +247,38 @@ var allowedSearchFilters = map[string]struct{}{
 
 func (cli *CLI) Dashboard() error     { return cli.Show("/api/dashboard") }
 func (cli *CLI) ProblemReview() error { return cli.Show("/api/problem-review") }
+
+// Intent: Keep place drilldowns on the shared place-detail projection while
+// rendering the hierarchy, links, and related runs in a terminal-first review
+// layout that is easier to act on than a raw JSON dump. Source: DI-luzom
+func (cli *CLI) ShowPlace(placeID string) error {
+	body, err := cli.get("/api/places/" + placeID)
+	if err != nil {
+		return err
+	}
+	var place cliPlaceDetail
+	if err := json.Unmarshal(body, &place); err != nil {
+		return err
+	}
+	fmt.Println(renderPlaceDetail(place))
+	return nil
+}
+
+// Intent: Keep resource drilldowns on the shared resource-detail projection
+// while rendering context, links, and related runs in a terminal-first review
+// layout that is easier to act on than a raw JSON dump. Source: DI-luzom
+func (cli *CLI) ShowResource(resourceID string) error {
+	body, err := cli.get("/api/resources/" + resourceID)
+	if err != nil {
+		return err
+	}
+	var resource cliResourceDetail
+	if err := json.Unmarshal(body, &resource); err != nil {
+		return err
+	}
+	fmt.Println(renderResourceDetail(resource))
+	return nil
+}
 
 // Intent: Keep the shell-first pending-review queue on the same projection
 // family Neovim already uses so terminal triage does not invent a separate
@@ -503,6 +575,90 @@ func requireJSONObject(value any, context string) (map[string]any, error) {
 		return nil, fmt.Errorf("%s is not an object", context)
 	}
 	return object, nil
+}
+
+func renderPlaceDetail(place cliPlaceDetail) string {
+	lines := []string{
+		fmt.Sprintf("# Place %s", safeText(place.ID, "-")),
+		fmt.Sprintf("name=%s kind=%s parent=%s", safeText(place.Name, "-"), safeText(place.Kind, "-"), safeText(place.ParentID, "-")),
+	}
+	if strings.TrimSpace(place.Summary) != "" {
+		lines = append(lines, place.Summary)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "child places: "+joinOrNone(place.ChildPlaceIDs))
+	lines = append(lines, "resources: "+joinOrNone(place.ResourceIDs))
+	lines = append(lines, "")
+	lines = append(lines, "related runs:")
+	lines = append(lines, renderRunLines(place.RelatedRuns)...)
+	lines = append(lines, "")
+	lines = append(lines, "links:")
+	lines = append(lines, renderLinkLines(place.Links)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderResourceDetail(resource cliResourceDetail) string {
+	lines := []string{
+		fmt.Sprintf("# Resource %s", safeText(resource.ID, "-")),
+		fmt.Sprintf("name=%s kind=%s place=%s", safeText(resource.Name, "-"), safeText(resource.Kind, "-"), safeText(resource.PlaceID, "-")),
+	}
+	if strings.TrimSpace(resource.Summary) != "" {
+		lines = append(lines, resource.Summary)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "related runs:")
+	lines = append(lines, renderRunLines(resource.RelatedRuns)...)
+	lines = append(lines, "")
+	lines = append(lines, "links:")
+	lines = append(lines, renderLinkLines(resource.Links)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderRunLines(runs []cliRunSummary) []string {
+	if len(runs) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(runs)*3)
+	for _, run := range runs {
+		lines = append(lines, fmt.Sprintf("- %s kind=%s outcome=%s item=%s", safeText(run.ID, "-"), safeText(run.Kind, "-"), safeText(run.Outcome, "-"), safeText(run.ItemID, "-")))
+		lines = append(lines, "  show: oks-cli show-run "+safeText(run.ID, "-"))
+		if len(run.ResourceIDs) > 0 {
+			lines = append(lines, "  resources: "+strings.Join(run.ResourceIDs, ", "))
+		}
+		if strings.TrimSpace(run.Notes) != "" {
+			lines = append(lines, "  "+run.Notes)
+		}
+	}
+	return lines
+}
+
+func renderLinkLines(links []cliLink) []string {
+	if len(links) == 0 {
+		return []string{"- none"}
+	}
+	lines := make([]string, 0, len(links)*2)
+	for _, link := range links {
+		lines = append(lines, fmt.Sprintf("- %s %s %s -> %s %s", safeText(link.Relation, "-"), safeText(link.FromType, "-"), safeText(link.FromID, "-"), safeText(link.ToType, "-"), safeText(link.ToID, "-")))
+		if strings.TrimSpace(link.Notes) != "" {
+			lines = append(lines, "  "+link.Notes)
+		}
+	}
+	return lines
+}
+
+func joinOrNone(values []string) string {
+	if len(values) == 0 {
+		return "none"
+	}
+	return strings.Join(values, ", ")
+}
+
+func safeText(value string, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func readResponseBody(response *http.Response) ([]byte, error) {
