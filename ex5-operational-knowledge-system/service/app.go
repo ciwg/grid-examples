@@ -36,12 +36,16 @@ type App struct {
 }
 
 func NewApp(dataRoot string) (*App, error) {
-	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, operationalPlaceRecords, operationalResourceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(dataRoot)
+	canonicalRoot, err := CanonicalDataRoot(dataRoot)
+	if err != nil {
+		return nil, err
+	}
+	store, events, knowledgeItemRecords, knowledgeApprovalRecords, knowledgeEvidenceRecords, operationalRunRecords, operationalPlaceRecords, operationalResourceRecords, knowledgeLinkRecords, knowledgeResponsibilityRecords, err := OpenStore(canonicalRoot)
 	if err != nil {
 		return nil, err
 	}
 	app := &App{
-		dataRoot:             dataRoot,
+		dataRoot:             canonicalRoot,
 		store:                store,
 		responsibilities:     map[string]*Responsibility{},
 		places:               map[string]*Place{},
@@ -128,6 +132,10 @@ func NewApp(dataRoot string) (*App, error) {
 }
 
 func (app *App) Meta() Meta {
+	// Intent: Keep runtime capability metadata authoritative for both the
+	// canonical local socket path and the embodiment-specific live-draft lanes
+	// so clients do not infer them from cwd guesses or a false global transport
+	// preference. Source: DI-sorek; DI-torak
 	return Meta{
 		DataRoot:                    app.dataRoot,
 		LocalPeerID:                 app.localPeerID,
@@ -165,16 +173,17 @@ func (app *App) Meta() Meta {
 			"knowledge-link",
 			"knowledge-responsibility",
 		},
-		CASObjectsEnabled:           true,
-		CASAttachmentBlobsEnabled:   true,
-		CASDraftBodiesEnabled:       true,
-		RelayBlobTransferEnabled:    true,
-		LiveDraftWebSocketEnabled:   true,
-		LiveDraftPreferredTransport: "local_unix_socket",
-		LocalUnixSocketEnabled:      true,
-		LocalUnixSocketPath:         EmbodimentSocketPath(app.dataRoot),
-		TerminalEmbodimentAdapter:   "local_unix_socket",
-		PrimaryEmbodimentAdapter:    "local_http",
+		CASObjectsEnabled:         true,
+		CASAttachmentBlobsEnabled: true,
+		CASDraftBodiesEnabled:     true,
+		RelayBlobTransferEnabled:  true,
+		LiveDraftWebSocketEnabled: true,
+		BrowserLiveDraftTransport: "websocket_over_local_http",
+		NeovimLiveDraftTransport:  "local_unix_socket",
+		LocalUnixSocketEnabled:    true,
+		LocalUnixSocketPath:       EmbodimentSocketPath(app.dataRoot),
+		TerminalEmbodimentAdapter: "local_unix_socket",
+		PrimaryEmbodimentAdapter:  "local_http",
 	}
 }
 

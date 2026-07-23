@@ -121,6 +121,37 @@ func TestDefaultSocketPathUsesNearestRuntimeRoot(t *testing.T) {
 	}
 }
 
+func TestDiscoverSocketPathUsesRuntimeMetaBeforeFilesystemFallback(t *testing.T) {
+	root := t.TempDir()
+	runtimeRoot := filepath.Join(root, ".operational-knowledge-system")
+	if err := os.MkdirAll(runtimeRoot, 0o755); err != nil {
+		t.Fatalf("mkdir runtime root: %v", err)
+	}
+	workspace := filepath.Join(root, "nested", "shell")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	customSocketPath := filepath.Join(root, "custom-runtime", "embodiment.sock")
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/meta" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(writer).Encode(service.Meta{
+			LocalUnixSocketEnabled: true,
+			LocalUnixSocketPath:    customSocketPath,
+		}); err != nil {
+			t.Fatalf("encode meta: %v", err)
+		}
+	}))
+	defer server.Close()
+	t.Chdir(workspace)
+	got := discoverSocketPath(server.URL)
+	if got != customSocketPath {
+		t.Fatalf("unexpected discovered socket path: got=%q want=%q", got, customSocketPath)
+	}
+}
+
 func TestProblemReviewCommandUsesExpectedRoute(t *testing.T) {
 	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

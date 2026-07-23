@@ -56,7 +56,8 @@ The response now includes, for example:
 - `cas_attachment_blobs_enabled`
 - `cas_draft_bodies_enabled`
 - `live_draft_websocket_enabled`
-- `live_draft_preferred_transport`
+- `browser_live_draft_transport`
+- `neovim_live_draft_transport`
 - `local_unix_socket_enabled`
 - `local_unix_socket_path`
 - `terminal_embodiment_adapter`
@@ -64,14 +65,20 @@ The response now includes, for example:
 
 Those capability fields are the current shipped way for embodiments to confirm
 which local adapter/runtime features are present without treating the HTTP
-route names themselves as the PromiseGrid peer contract. Source: `DI-bavuk`;
-`DI-zunep`.
+route names themselves as the PromiseGrid peer contract. They also let CLI and
+Neovim discover the runtime's canonical socket path before relying on local
+filesystem guesses. In Neovim, that runtime-first discovery is bounded by a
+short timeout and falls back immediately to local repo-root inference if the
+HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
+`DI-sorek`; `DI-batov`.
 
 In the current runtime, `primary_embodiment_adapter` is `local_http` because
 the browser still projects through this adapter. `terminal_embodiment_adapter`
 is `local_unix_socket`, meaning CLI and Neovim now prefer the direct local
 socket contract while keeping this HTTP surface available as compatibility.
-Source: `DI-bavuk`; `DI-favel`.
+`browser_live_draft_transport` is `websocket_over_local_http`, while
+`neovim_live_draft_transport` is `local_unix_socket`. Source: `DI-bavuk`;
+`DI-favel`; `DI-torak`.
 
 ## Peer exchange
 

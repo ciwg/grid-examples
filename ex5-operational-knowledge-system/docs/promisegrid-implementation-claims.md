@@ -9,8 +9,9 @@ blurring together:
 
 - the current shipped implementation
 - the PromiseGrid framing that ships with this example
-- the wire-level work that ex5 has not implemented yet, such as frozen `pCID`
-  handling and signed envelopes
+- the future-scope work that ex5 still has not implemented yet, such as a
+  browser-side direct non-HTTP embodiment contract and broader ERP-style
+  planning behavior. Source: `DI-murev`.
 
 ## Current status
 

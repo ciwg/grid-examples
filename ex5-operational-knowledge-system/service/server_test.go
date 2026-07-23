@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -72,17 +73,63 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if !meta.RelayBlobTransferEnabled {
 		t.Fatalf("expected relay blob transfer capability metadata in meta: %+v", meta)
 	}
-	if !meta.LiveDraftWebSocketEnabled || meta.LiveDraftPreferredTransport != "local_unix_socket" {
-		t.Fatalf("expected local unix socket live-draft capability metadata in meta: %+v", meta)
+	if !meta.LiveDraftWebSocketEnabled {
+		t.Fatalf("expected websocket live-draft capability metadata in meta: %+v", meta)
+	}
+	if meta.BrowserLiveDraftTransport != "websocket_over_local_http" {
+		t.Fatalf("expected browser websocket live-draft transport metadata in meta: %+v", meta)
+	}
+	if meta.NeovimLiveDraftTransport != "local_unix_socket" {
+		t.Fatalf("expected Neovim local unix socket live-draft transport metadata in meta: %+v", meta)
 	}
 	if !meta.LocalUnixSocketEnabled || !strings.HasSuffix(meta.LocalUnixSocketPath, "/embodiment.sock") {
 		t.Fatalf("expected local unix socket metadata in meta: %+v", meta)
+	}
+	if !filepath.IsAbs(meta.LocalUnixSocketPath) {
+		t.Fatalf("expected absolute local unix socket path in meta: %+v", meta)
 	}
 	if meta.TerminalEmbodimentAdapter != "local_unix_socket" {
 		t.Fatalf("expected terminal local unix socket adapter in meta: %+v", meta)
 	}
 	if meta.PrimaryEmbodimentAdapter != "local_http" {
 		t.Fatalf("expected local_http embodiment adapter in meta: %+v", meta)
+	}
+}
+
+func TestServerMetaPublishesAbsoluteSocketPathForRelativeRuntimeRoot(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get wd: %v", err)
+	}
+	if err := os.Chdir(workspace); err != nil {
+		t.Fatalf("chdir workspace: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+	app, err := NewApp(".operational-knowledge-system")
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := NewServer(app)
+	request := httptest.NewRequest(http.MethodGet, "/api/meta", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected meta status: %d %s", response.Code, response.Body.String())
+	}
+	var meta Meta
+	if err := json.Unmarshal(response.Body.Bytes(), &meta); err != nil {
+		t.Fatalf("decode meta: %v", err)
+	}
+	want := filepath.Join(workspace, ".operational-knowledge-system", "embodiment.sock")
+	if meta.LocalUnixSocketPath != want {
+		t.Fatalf("unexpected local socket path: got=%q want=%q", meta.LocalUnixSocketPath, want)
 	}
 }
 

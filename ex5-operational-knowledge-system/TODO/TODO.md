@@ -5,6 +5,12 @@
 
 ## Completed
 
+- [x] 126 - Remove the remaining ex5 feature-guide PromiseGrid scope drift - `TODO/TODO-luneg-ex5-features-guide-promisegrid-drift.md`
+- [x] 125 - Bound Neovim runtime-first socket discovery so dead HTTP targets do not stall startup - `TODO/TODO-bavot-ex5-neovim-meta-discovery-timeout.md`
+- [x] 124 - Make the ex5 runtime advertise a canonical absolute local socket path - `TODO/TODO-rusav-ex5-absolute-socket-path-advertisement.md`
+- [x] 123 - Split ex5 live transport capability metadata by embodiment instead of one global preference - `TODO/TODO-nubek-ex5-live-transport-meta-granularity.md`
+- [x] 122 - Correct ex5 PromiseGrid scope wording after signed-envelope and relay rollout - `TODO/TODO-savok-ex5-promisegrid-scope-wording-drift.md`
+- [x] 121 - Make the ex5 direct socket contract self-locating for non-default runtime roots - `TODO/TODO-lurek-ex5-socket-contract-root-discovery.md`
 - [x] 120 - Make the ex5 terminal socket path more robust across roots and working directories - `TODO/TODO-pobek-ex5-socket-path-robustness.md`
 - [x] 119 - Make Neovim live-socket writes acknowledge failure before suppressing fallback - `TODO/TODO-tavur-ex5-neovim-socket-write-ack.md`
 - [x] 118 - Prevent socket ownership collisions between local ex5 runtimes - `TODO/TODO-murek-ex5-socket-runtime-ownership.md`

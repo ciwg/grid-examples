@@ -15,15 +15,23 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/service"
 )
 
 func main() {
-	socketPath := flag.String("socket", defaultSocketPath(), "local unix socket path")
+	socketPath := flag.String("socket", "", "local unix socket path")
 	serverURL := flag.String("server", "http://127.0.0.1:7045", "server URL")
 	flag.Parse()
+	resolvedServerURL := strings.TrimRight(*serverURL, "/")
+	resolvedSocketPath := strings.TrimSpace(*socketPath)
+	if resolvedSocketPath == "" {
+		resolvedSocketPath = discoverSocketPath(resolvedServerURL)
+	}
 	cli := &CLI{
-		ServerURL:  strings.TrimRight(*serverURL, "/"),
-		SocketPath: *socketPath,
+		ServerURL:  resolvedServerURL,
+		SocketPath: resolvedSocketPath,
 	}
 	exitCode, err := cli.run(flag.Args())
 	if err != nil {
@@ -34,9 +42,42 @@ func main() {
 	}
 }
 
-// Intent: Resolve the terminal embodiment socket against the nearest runtime
-// root we can identify so CLI calls do not silently fall back just because the
-// shell started in a different working directory. Source: DI-vorag
+// Intent: Ask the runtime for its canonical socket path before relying on
+// filesystem guesses so a custom `-data-root` still yields the direct terminal
+// embodiment contract. Source: DI-sorek
+func discoverSocketPath(serverURL string) string {
+	socketPath, err := socketPathFromMeta(serverURL)
+	if err == nil {
+		return socketPath
+	}
+	return defaultSocketPath()
+}
+
+func socketPathFromMeta(serverURL string) (string, error) {
+	client := &http.Client{Timeout: 2 * time.Second}
+	response, err := client.Get(serverURL + "/api/meta")
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("meta discovery failed: %s", response.Status)
+	}
+	var meta service.Meta
+	if err := json.NewDecoder(response.Body).Decode(&meta); err != nil {
+		return "", err
+	}
+	if !meta.LocalUnixSocketEnabled || strings.TrimSpace(meta.LocalUnixSocketPath) == "" {
+		return "", errors.New("runtime does not advertise a direct local socket path")
+	}
+	return meta.LocalUnixSocketPath, nil
+}
+
+// Intent: Keep a local best-effort fallback when the runtime is not yet
+// reachable so CLI startup still has a stable socket guess before HTTP
+// discovery exists. Source: DI-vorag; DI-sorek
 func defaultSocketPath() string {
 	cwd, err := os.Getwd()
 	if err != nil {

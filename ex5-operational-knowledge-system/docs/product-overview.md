@@ -80,9 +80,10 @@ terminal, and Neovim workflows. Source: `DI-tabiv`; `DI-ranor`; `DI-fudok`.
 
 ## PromiseGrid Boundary
 
-`ex5` ships with the PromiseGrid examples and follows that model, but the
-shipped product currently implements the local runtime and local embodiment
-layer rather than the full signed-envelope / relay layer. Source: `DI-sobek`.
+`ex5` ships with the PromiseGrid examples and follows that model, and the
+shipped product now includes its current signed-envelope, peer-exchange,
+relay-feed, and dedicated remote relay layers rather than stopping at only the
+local runtime and local embodiment layer. Source: `DI-murev`.
 
 What that means in practice:
 

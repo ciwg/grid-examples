@@ -135,9 +135,10 @@ For operator-facing docs that describe the current product directly, see:
 ## Current PromiseGrid Shape
 
 The implemented foundation ships with the PromiseGrid examples and dev guide,
-and it follows that development model. The current ex5 runtime is still the
-local-runtime layer of that model rather than the full signed-envelope / relay
-layer. Source: `DI-sobek`.
+and it follows that development model. The current ex5 runtime now ships its
+bounded signed-envelope, peer-exchange, relay-feed, and dedicated remote relay
+layers directly rather than stopping at only a pre-relay local-runtime slice.
+Source: `DI-murev`.
 
 What is already true today:
 
@@ -145,7 +146,8 @@ What is already true today:
   `protocols/`
 - the Go runtime owns append-only storage, projections, and the local adapter
   surfaces
-- the browser and CLI are embodiments over the same shared operational state
+- the browser, CLI, and Neovim are embodiments over the same shared
+  operational state
 
 What the current runtime actually implements today:
 

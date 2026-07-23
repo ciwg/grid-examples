@@ -12,15 +12,18 @@ local memory, and treats them as one problem:
 - people need to find the same history later from either the browser or the CLI
 
 This foundation solves that shared problem by keeping the durable record in one
-append-only operational history and projecting it into shared browser and CLI
-views over the same runtime. The embodiments are intentionally uneven today:
-the browser is deeper, the CLI is thinner, and both read/write the same
-durable model. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`.
+append-only operational history and projecting it into shared browser, CLI,
+and Neovim views over the same runtime. The embodiments are intentionally
+uneven today: the browser is deepest, the CLI is thinner, and Neovim is
+specialized around live drafting, inspection, and review, but all three
+read/write the same durable model. Source: `DI-radok`; `DI-kovup`;
+`DI-zuvob`; `DI-lusen`.
 
 PromiseGrid note: the current feature set ships inside the PromiseGrid example
-set and follows that model, but the shipped implementation here is still the
-local runtime plus local embodiment adapters, not the full signed-envelope /
-relay layer. Source: `DI-sobek`.
+set and follows that model, and the shipped implementation here already
+includes its current signed-envelope, peer-exchange, relay-feed, and dedicated
+remote relay layers inside that bounded scope. Source: `DI-murev`;
+`DI-lusen`.
 
 It now also keeps a browser-shared working draft for each knowledge item,
 separate from the durable revision history. That lets operators collaborate on

@@ -152,6 +152,150 @@ vim.cmd("qa!")
 	}
 }
 
+func TestNeovimSetupUsesMetaAdvertisedSocketPathBeforeRepoRootFallback(t *testing.T) {
+	nvimPath, err := exec.LookPath("nvim")
+	if err != nil {
+		t.Skip("nvim not available")
+	}
+	nvimRuntimeRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get wd: %v", err)
+	}
+	root := t.TempDir()
+	repoRoot := root
+	metaSocketPath := filepath.Join(root, "custom-runtime", "embodiment.sock")
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/meta" {
+			http.NotFound(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(writer).Encode(service.Meta{
+			LocalUnixSocketEnabled: true,
+			LocalUnixSocketPath:    metaSocketPath,
+		}); err != nil {
+			t.Fatalf("encode meta: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	script := filepath.Join(t.TempDir(), "snapshot_meta_socket.lua")
+	scriptBody := fmt.Sprintf(`
+vim.env.OKS_SOCKET_PATH = nil
+vim.env.OKS_BASE_URL = %q
+local oks = require("oks")
+oks.setup({ repo_root = %q })
+if oks.config.socket_path ~= %q then
+  error("unexpected discovered socket path " .. tostring(oks.config.socket_path))
+end
+vim.cmd("qa!")
+`, server.URL, repoRoot, metaSocketPath)
+	if err := os.WriteFile(script, []byte(scriptBody), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	command := exec.Command(
+		nvimPath,
+		"--headless",
+		"-u", "NONE",
+		"-c", "set runtimepath+="+nvimRuntimeRoot,
+		"-l", script,
+	)
+	command.Dir = filepath.Join(root, "elsewhere")
+	if err := os.MkdirAll(command.Dir, 0o755); err != nil {
+		t.Fatalf("mkdir elsewhere: %v", err)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nvim meta-socket regression: %v\n%s", err, string(output))
+	}
+	if strings.Contains(string(output), "unexpected discovered socket path") {
+		t.Fatalf("unexpected discovered socket output: %s", string(output))
+	}
+}
+
+func TestNeovimSetupFallsBackToRepoRootSocketWhenMetaDiscoveryFails(t *testing.T) {
+	nvimPath, err := exec.LookPath("nvim")
+	if err != nil {
+		t.Skip("nvim not available")
+	}
+	nvimRuntimeRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get wd: %v", err)
+	}
+	root, err := os.MkdirTemp("/tmp", "oksfb-")
+	if err != nil {
+		t.Fatalf("mkdtemp root: %v", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(root)
+	}()
+	repoRoot := filepath.Join(root, "r")
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatalf("mkdir repo root: %v", err)
+	}
+	dataRoot := filepath.Join(repoRoot, ".operational-knowledge-system")
+	app, err := service.NewApp(dataRoot)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", service.KnowledgeKindProcedure, "Fallback item", "Summary", "body", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	socketServer := service.NewLocalEmbodimentServer(app, service.EmbodimentSocketPath(dataRoot))
+	go func() {
+		if err := socketServer.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = socketServer.Close()
+	}()
+	waitForNvimUnixSocket(t, service.EmbodimentSocketPath(dataRoot))
+
+	script := filepath.Join(t.TempDir(), "snapshot_meta_fallback.lua")
+	scriptBody := fmt.Sprintf(`
+vim.env.OKS_SOCKET_PATH = nil
+vim.env.OKS_BASE_URL = "http://127.0.0.1:1"
+local oks = require("oks")
+oks.setup({ repo_root = %q })
+vim.cmd("OksOpen %s")
+vim.wait(2000, function()
+  return oks.state.transport == "local-socket"
+end, 50)
+if oks.state.transport ~= "local-socket" then
+  error("expected local-socket fallback transport, got " .. tostring(oks.state.transport))
+end
+if oks.config.socket_path ~= %q then
+  error("unexpected fallback socket path " .. tostring(oks.config.socket_path))
+end
+vim.cmd("qa!")
+`, repoRoot, item.ID, service.EmbodimentSocketPath(dataRoot))
+	if err := os.WriteFile(script, []byte(scriptBody), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	command := exec.Command(
+		nvimPath,
+		"--headless",
+		"-u", "NONE",
+		"-c", "set runtimepath+="+nvimRuntimeRoot,
+		"-l", script,
+	)
+	command.Dir = filepath.Join(root, "elsewhere")
+	if err := os.MkdirAll(command.Dir, 0o755); err != nil {
+		t.Fatalf("mkdir elsewhere: %v", err)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nvim meta-fallback regression: %v\n%s", err, string(output))
+	}
+	if strings.Contains(string(output), "expected local-socket fallback transport") || strings.Contains(string(output), "unexpected fallback socket path") {
+		t.Fatalf("unexpected fallback output: %s", string(output))
+	}
+}
+
 func TestNeovimPushFallsBackToHTTPAfterSocketWriteFailure(t *testing.T) {
 	nvimPath, err := exec.LookPath("nvim")
 	if err != nil {

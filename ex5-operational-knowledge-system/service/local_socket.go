@@ -20,6 +20,13 @@ import (
 
 const embodimentSocketFilename = "embodiment.sock"
 
+// Intent: Canonicalize the runtime root once before deriving local embodiment
+// contract paths so metadata and listeners agree on one absolute location.
+// Source: DI-rakuv
+func CanonicalDataRoot(dataRoot string) (string, error) {
+	return filepath.Abs(dataRoot)
+}
+
 func EmbodimentSocketPath(dataRoot string) string {
 	return filepath.Join(dataRoot, embodimentSocketFilename)
 }
@@ -32,10 +39,14 @@ type LocalEmbodimentServer struct {
 }
 
 func NewLocalEmbodimentServer(app *App, socketPath string) *LocalEmbodimentServer {
+	resolvedSocketPath, err := filepath.Abs(socketPath)
+	if err != nil {
+		resolvedSocketPath = socketPath
+	}
 	return &LocalEmbodimentServer{
 		app:        app,
 		httpServer: NewServer(app).Handler(),
-		socketPath: socketPath,
+		socketPath: resolvedSocketPath,
 	}
 }
 

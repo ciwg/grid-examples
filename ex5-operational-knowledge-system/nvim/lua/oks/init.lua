@@ -166,6 +166,55 @@ local function socket_path_available()
   return M.config.socket_path and M.config.socket_path ~= "" and uv.fs_stat(M.config.socket_path) ~= nil
 end
 
+local function meta_request()
+  -- Intent: Keep runtime-first socket discovery from stalling editor startup
+  -- indefinitely by bounding the HTTP lookup and then falling back locally.
+  -- Source: DI-batov
+  local argv = {
+    "curl",
+    "-sS",
+    "--connect-timeout",
+    "1",
+    "--max-time",
+    "1",
+    "-o",
+    "-",
+    "-w",
+    "\n%{http_code}",
+    M.config.base_url .. "/api/meta",
+  }
+  local raw = vim.fn.system(argv)
+  local shell_error = vim.v.shell_error
+  local status_text = raw:match("\n(%d%d%d)%s*$")
+  if not status_text then
+    return nil, string.format("meta request failed: %s", raw)
+  end
+  local status = tonumber(status_text)
+  local body = raw:gsub("\n%d%d%d%s*$", "")
+  if shell_error ~= 0 and status == nil then
+    return nil, string.format("meta request failed: %s", raw)
+  end
+  if status ~= 200 then
+    return nil, string.format("meta request returned %d", status)
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    return nil, "meta response decode failed"
+  end
+  return decoded, nil
+end
+
+local function socket_path_from_meta()
+  local meta, err = meta_request()
+  if err ~= nil then
+    return nil, err
+  end
+  if not meta.local_unix_socket_enabled or type(meta.local_unix_socket_path) ~= "string" or meta.local_unix_socket_path == "" then
+    return nil, "meta does not advertise a local unix socket path"
+  end
+  return vim.fs.normalize(meta.local_unix_socket_path), nil
+end
+
 local function split_json_lines(buffer)
   local messages = {}
   while true do
@@ -2208,18 +2257,24 @@ function M.setup(opts)
   local explicit_repo_root = opts.repo_root
   M.config = vim.tbl_deep_extend("force", M.config, opts)
   M.config.repo_root = vim.fs.normalize(M.config.repo_root)
-  -- Intent: Keep the direct socket contract anchored to the repo/runtime root
-  -- instead of the editor's working directory so terminal embodiments connect
-  -- predictably across `:cd` changes and launcher locations. Source: DI-vorag
+  -- Intent: Ask the runtime for the canonical socket path before falling back
+  -- to repo-root inference so Neovim follows the real terminal embodiment
+  -- contract even when the runtime root moved. Source: DI-sorek
   if vim.env.OKS_SOCKET_PATH and vim.env.OKS_SOCKET_PATH ~= "" then
     M.config.socket_path = vim.fs.normalize(vim.env.OKS_SOCKET_PATH)
   elseif explicit_socket_path and explicit_socket_path ~= "" then
     M.config.socket_path = vim.fs.normalize(explicit_socket_path)
   else
-    local repo_root = explicit_repo_root or M.config.repo_root
-    local normalized_repo_root = vim.fs.normalize(repo_root)
-    M.config.socket_path = ((vim.fs and vim.fs.joinpath) and vim.fs.joinpath(normalized_repo_root, ".operational-knowledge-system", "embodiment.sock")
-      or (normalized_repo_root .. "/.operational-knowledge-system/embodiment.sock"))
+    local discovered_socket_path, discovery_err = socket_path_from_meta()
+    if discovered_socket_path ~= nil then
+      M.config.socket_path = discovered_socket_path
+    else
+      local repo_root = explicit_repo_root or M.config.repo_root
+      local normalized_repo_root = vim.fs.normalize(repo_root)
+      M.config.socket_path = ((vim.fs and vim.fs.joinpath) and vim.fs.joinpath(normalized_repo_root, ".operational-knowledge-system", "embodiment.sock")
+        or (normalized_repo_root .. "/.operational-knowledge-system/embodiment.sock"))
+      M.config.socket_discovery_error = discovery_err
+    end
   end
   vim.api.nvim_create_user_command("OksOpen", function(command)
     M.open(command.args)

@@ -52,7 +52,8 @@ type Meta struct {
 	CASDraftBodiesEnabled       bool     `json:"cas_draft_bodies_enabled"`
 	RelayBlobTransferEnabled    bool     `json:"relay_blob_transfer_enabled"`
 	LiveDraftWebSocketEnabled   bool     `json:"live_draft_websocket_enabled"`
-	LiveDraftPreferredTransport string   `json:"live_draft_preferred_transport"`
+	BrowserLiveDraftTransport   string   `json:"browser_live_draft_transport"`
+	NeovimLiveDraftTransport    string   `json:"neovim_live_draft_transport"`
 	LocalUnixSocketEnabled      bool     `json:"local_unix_socket_enabled"`
 	LocalUnixSocketPath         string   `json:"local_unix_socket_path"`
 	TerminalEmbodimentAdapter   string   `json:"terminal_embodiment_adapter"`
