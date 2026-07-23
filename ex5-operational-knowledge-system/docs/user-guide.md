@@ -294,10 +294,15 @@ Browser flow:
 - Start in Review and open the draft queue.
 - Open `MAINT-0001` and call out that live draft state is separate from durable
   revision history.
-- Switch to hotspots and open `RUN-0001` to show one receiving problem with its
+- Click `Problem hotspots`.
+- In `Places with repeated problems`, find `Receiving Dock A` and click
+  `Problem runs here`.
+- Look below the hotspots list for `Showing results for at Receiving Dock A ·
+  problem-focused.`
+- Open `RUN-0001` from that result list to show one receiving problem with its
   run, evidence, review, and context together.
-- Open `RUN-0002` to show that problem review comes from real recorded work,
-  not just free-text notes.
+- Repeat the same pattern for `Stock Cage 3` to open `RUN-0002` and show that
+  problem review comes from real recorded work, not just free-text notes.
 - Point at Current Record and the next-step actions to show that review and
   action stay connected instead of bouncing across tools.
 

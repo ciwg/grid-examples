@@ -461,6 +461,11 @@ button:hover { filter: brightness(1.05); }
   gap: 0.8rem;
   align-items: start;
 }
+.search-result-head h3,
+.hotspot-head h3 {
+  text-transform: none;
+  letter-spacing: normal;
+}
 .card-actions {
   display: flex;
   flex-wrap: wrap;

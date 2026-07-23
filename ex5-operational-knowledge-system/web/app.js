@@ -1479,9 +1479,18 @@ function renderProblemReview(summary) {
       const actions = document.createElement("div");
       actions.className = "card-actions";
       actions.appendChild(makeActionButton("Inspect context", () => inspectRecord(targetType, item.group_id), "Problem Review"));
-      actions.appendChild(makeActionButton("Problem runs here", () => runSearch({ [`${targetType}_id`]: item.group_id, problem: true }), "Problem Review"));
-      actions.appendChild(makeActionButton("Receiving here", () => runSearch({ [`${targetType}_id`]: item.group_id, kind: "receiving_check" }), "Problem Review"));
-      actions.appendChild(makeActionButton("Inventory here", () => runSearch({ [`${targetType}_id`]: item.group_id, kind: "inventory_audit" }), "Problem Review"));
+      actions.appendChild(makeActionButton("Problem runs here", async () => {
+        await runSearch({ [`${targetType}_id`]: item.group_id, problem: true });
+        setWorkspaceStatus(`Loaded problem runs for ${item.name} below.`, "success");
+      }, "Problem Review"));
+      actions.appendChild(makeActionButton("Receiving here", async () => {
+        await runSearch({ [`${targetType}_id`]: item.group_id, kind: "receiving_check" });
+        setWorkspaceStatus(`Loaded receiving runs for ${item.name} below.`, "success");
+      }, "Problem Review"));
+      actions.appendChild(makeActionButton("Inventory here", async () => {
+        await runSearch({ [`${targetType}_id`]: item.group_id, kind: "inventory_audit" });
+        setWorkspaceStatus(`Loaded inventory runs for ${item.name} below.`, "success");
+      }, "Problem Review"));
       card.appendChild(actions);
       block.appendChild(card);
     }
@@ -1660,6 +1669,21 @@ function renderDetailPrimary(type, record) {
 }
 
 function formatSearchFilters(filters) {
+  // Intent: Keep browser search drilldowns readable with the same human labels
+  // the operator just clicked, instead of bouncing them into raw durable IDs
+  // during the demo/browser workflow. Source: DI-dabek
+  function selectedLabel(selectEl, fallback) {
+    if (!fallback || !selectEl) {
+      return fallback;
+    }
+    const option = Array.from(selectEl.options || []).find((candidate) => candidate.value === fallback);
+    if (!option) {
+      return fallback;
+    }
+    const parts = option.textContent.split(" · ");
+    return parts[parts.length - 1].trim() || fallback;
+  }
+
   const labels = [];
   if (filters.query || filters.q) {
     labels.push(`searching for "${filters.query || filters.q}"`);
@@ -1674,13 +1698,13 @@ function formatSearchFilters(filters) {
     labels.push(`result ${filters.outcome}`);
   }
   if (filters.place_id) {
-    labels.push(`at ${filters.place_id}`);
+    labels.push(`at ${selectedLabel(searchPlaceSelectEl, filters.place_id)}`);
   }
   if (filters.resource_id) {
-    labels.push(`with ${filters.resource_id}`);
+    labels.push(`with ${selectedLabel(searchResourceSelectEl, filters.resource_id)}`);
   }
   if (filters.responsibility_id) {
-    labels.push(`owned by ${filters.responsibility_id}`);
+    labels.push(`owned by ${selectedLabel(searchResponsibilitySelectEl, filters.responsibility_id)}`);
   }
   if (filters.problem) {
     labels.push("problem-focused");
@@ -2007,7 +2031,7 @@ async function runSearch(filters) {
   const effectiveFilters = getSearchFilters(form);
   const payload = await getJSON(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
   renderSearchResults(effectiveFilters, payload);
-  clearWorkspaceStatus();
+  searchActiveEl.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function clearSearch() {

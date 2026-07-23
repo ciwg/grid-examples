@@ -1042,7 +1042,7 @@ const searchClickTimer = setInterval(() => {
 	required := []string{
 		"Search problems here",
 		"problem-focused",
-		"at PLACE-0001",
+		"at Receiving",
 		"RUN-0001",
 		"RUN-0002",
 	}
@@ -1151,6 +1151,122 @@ const problemClickTimer = setInterval(() => {
 	for _, marker := range required {
 		if !strings.Contains(dom, marker) {
 			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
+		}
+	}
+}
+
+func TestHeadlessBrowserProblemHotspotDrilldownShowsVisibleSearchHandoff(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		withMockBrowserBridge(MustRead("index.html")),
+		[]byte("</body>"),
+		[]byte(`<script>
+const hotspotDrilldownTimer = setInterval(() => {
+  const cards = Array.from(document.querySelectorAll("#problem-review .card"));
+  const receivingCard = cards.find((card) => card.textContent.includes("Receiving Dock A"));
+  if (!receivingCard) {
+    return;
+  }
+  const button = Array.from(receivingCard.querySelectorAll("button")).find((candidate) => candidate.textContent.trim() === "Problem runs here");
+  if (!button) {
+    return;
+  }
+  button.click();
+  clearInterval(hotspotDrilldownTimer);
+}, 250);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":1,"places":2,"resources":2,"procedures":0,"training_items":0,"maintenance_items":1,"receiving_items":1,"inventory_items":1,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":1,"inventory_runs":1,"approvals":1,"evidence":2,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":2,"place_groups":[{"group_type":"place","group_id":"PLACE-0003","kind":"area","name":"Stock Cage 3","problem_count":1,"receiving_problems":0,"inventory_problems":1,"highlights":["condition: bin overfilled","count mismatch: 84 -> 88","variance: 4"]},{"group_type":"place","group_id":"PLACE-0001","kind":"area","name":"Receiving Dock A","problem_count":1,"receiving_problems":1,"inventory_problems":0,"highlights":["condition: wrap torn","count mismatch: 240 -> 238","outcome: accepted_with_notes"]}],"resource_groups":[{"group_type":"resource","group_id":"RES-0002","kind":"container","name":"RJ45 Bin","problem_count":1,"receiving_problems":0,"inventory_problems":1,"highlights":["condition: bin overfilled","count mismatch: 84 -> 88","variance: 4"]},{"group_type":"resource","group_id":"RES-0001","kind":"station","name":"Inbound Pallet Camera","problem_count":1,"receiving_problems":1,"inventory_problems":0,"highlights":["condition: wrap torn","count mismatch: 240 -> 238","outcome: accepted_with_notes"]}]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[{"id":"PLACE-0001","kind":"area","name":"Receiving Dock A","summary":"Inbound receiving lane","parent_id":"","child_place_ids":[],"resource_ids":["RES-0001"],"timeline":[]},{"id":"PLACE-0003","kind":"area","name":"Stock Cage 3","summary":"Small-parts storage cage","parent_id":"","child_place_ids":[],"resource_ids":["RES-0002"],"timeline":[]}]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[{"id":"RES-0001","kind":"station","name":"Inbound Pallet Camera","summary":"Pallet inspection camera","place_id":"PLACE-0001","tags":[],"links":[],"timeline":[]},{"id":"RES-0002","kind":"container","name":"RJ45 Bin","summary":"Connector bin","place_id":"PLACE-0003","tags":[],"links":[],"timeline":[]}]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[{"id":"RESP-0001","title":"Receiving lead","summary":"Owns inbound receiving checks, discrepancies, and supplier escalation","team":"OPS","linked_item_ids":["RECV-0001"],"linked_run_ids":["RUN-0001"],"linked_role_keys":["reviewer"],"timeline":[]},{"id":"RESP-0002","title":"Inventory steward","summary":"Owns cycle counts, bin drift review, and stock corrections","team":"OPS","linked_item_ids":["INV-0001"],"linked_run_ids":["RUN-0002"],"linked_role_keys":["reviewer"],"timeline":[]}]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[{"id":"MAINT-0001","kind":"maintenance_check","status":"draft","title":"Daily heat sealer check","summary":"Confirm startup temperature, seal quality, and corrective action logging","current_revision":2,"working_version":3},{"id":"RECV-0001","kind":"receiving_check","status":"approved","title":"Inspect inbound connector pallet","summary":"Receiving checklist","current_revision":1,"working_version":1},{"id":"INV-0001","kind":"inventory_audit","status":"approved","title":"Count RJ45 bin","summary":"Inventory count","current_revision":1,"working_version":1}]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Wrap torn on inbound pallet"},{"id":"RUN-0002","kind":"inventory_audit","item_id":"INV-0001","revision":1,"outcome":"completed","place_id":"PLACE-0003","resource_ids":["RES-0002"],"notes":"RJ45 count drift found"}]}`)
+	})
+	mux.HandleFunc("/api/search", func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Query().Get("place_id") != "PLACE-0001" || request.URL.Query().Get("problem") != "true" {
+			t.Fatalf("unexpected search query: %s", request.URL.RawQuery)
+		}
+		writeJSON(writer, `{"filters":{"place_id":"PLACE-0001","problem":true},"places":[{"id":"PLACE-0001","kind":"area","name":"Receiving Dock A","summary":"Inbound receiving lane"}],"resources":[{"id":"RES-0001","kind":"station","name":"Inbound Pallet Camera","summary":"Pallet inspection camera","place_id":"PLACE-0001"}],"responsibilities":[{"id":"RESP-0001","title":"Receiving lead","summary":"Owns inbound receiving checks, discrepancies, and supplier escalation"}],"items":[{"id":"RECV-0001","kind":"receiving_check","status":"approved","title":"Inspect inbound connector pallet","summary":"Receiving checklist","current_revision":1,"working_version":1}],"runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"RECV-0001","revision":1,"outcome":"accepted_with_notes","place_id":"PLACE-0001","resource_ids":["RES-0001"],"notes":"Wrap torn on inbound pallet"}]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=5000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	required := []string{
+		"Loaded problem runs for Receiving Dock A below.",
+		"Showing results for at Receiving Dock A · problem-focused.",
+		"RUN-0001",
+		"Inbound Pallet Camera",
+	}
+	for _, marker := range required {
+		if !strings.Contains(dom, marker) {
+			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
+		}
+	}
+}
+
+func TestBrowserStylesKeepHotspotAndResultIDsInExactCase(t *testing.T) {
+	css := string(MustRead("style.css"))
+	required := []string{
+		".search-result-head h3",
+		".hotspot-head h3",
+		"text-transform: none;",
+		"letter-spacing: normal;",
+	}
+	for _, marker := range required {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("style.css missing %q", marker)
 		}
 	}
 }
