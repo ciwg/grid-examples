@@ -1,9 +1,10 @@
 # TODO
 
 ## Open / Planned
-- [ ] 146 - Decide whether the reusable PromiseGrid substrate should keep living inside the ex5 module boundary - `TODO/TODO-tolav-ex5-substrate-module-boundary.md`
 
 ## Completed
+
+- [x] 146 - Decide whether the reusable PromiseGrid substrate should keep living inside the ex5 module boundary - `TODO/TODO-tolav-ex5-substrate-module-boundary.md`
 
 - [x] 145 - Determine whether any minimal app-agnostic workflow substrate is actually justified beyond ex5-specific flows - `TODO/TODO-rasuv-ex5-minimal-workflow-substrate-evidence.md`
 

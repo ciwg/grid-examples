@@ -36,8 +36,11 @@ append-only log, CAS object, and authoritative frozen-envelope persistence
 core. `service/` remains the ex5 operational-knowledge application/runtime
 layer built on top of that substrate instead of being described as the
 generalized PromiseGrid product itself, and it still owns drafts, attachment
-materialization, projections, and operator workflow policy. Source:
-`DI-ragiv`; `DI-vurem`; `DI-rasok`; `DI-nolav`; `DI-lemor`.
+materialization, projections, and operator workflow policy. That substrate is
+intentionally still nested inside the `ex5` module boundary for now: the
+semantic split is real, but a separate module boundary is not yet justified by
+independent consumer, versioning, or release evidence. Source: `DI-ragiv`;
+`DI-vurem`; `DI-rasok`; `DI-nolav`; `DI-lemor`; `DI-zufek`.
 
 The current implementation keeps procedures, training content, maintenance
 content, receiving-check content, inventory-audit content, responsibilities,

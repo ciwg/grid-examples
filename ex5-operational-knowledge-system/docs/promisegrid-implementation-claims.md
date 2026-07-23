@@ -277,6 +277,11 @@ Remaining:
   future slice can be named without ex5-specific review or entity vocabulary
   and proven reusable beyond this application. Source: `DI-lemor`;
   `DI-luvem`.
+- the reusable substrate remains intentionally nested inside the `ex5` module
+  boundary for now, because the repo still has one consumer set, one release
+  line, and an intentionally partial substrate surface. A separate module
+  boundary remains a future option only if second-consumer, versioning, or
+  release evidence appears. Source: `DI-zufek`.
 
 ## Current implementation claim
 
