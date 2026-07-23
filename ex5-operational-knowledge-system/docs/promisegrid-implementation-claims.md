@@ -272,8 +272,11 @@ Done now:
 
 Remaining:
 
-- broader substrate extraction beyond the record and transport cores,
-  including store wiring or app-agnostic workflow layers
+- broader substrate extraction beyond the record, transport, and store cores,
+  while workflow composition intentionally remains inside `service/` until a
+  future slice can be named without ex5-specific review or entity vocabulary
+  and proven reusable beyond this application. Source: `DI-lemor`;
+  `DI-luvem`.
 
 ## Current implementation claim
 
