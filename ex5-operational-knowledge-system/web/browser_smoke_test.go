@@ -1574,6 +1574,9 @@ func writeTestWebSocketFrame(conn interface {
 }
 
 func withMockBrowserBridge(html []byte) []byte {
+	// Intent: Keep the browser smoke suite focused on page-level UI behavior
+	// while stronger deterministic extension/native-host contract tests cover
+	// the real shipped bridge boundary separately. Source: DI-vasem
 	mock := `<script>
 window.addEventListener("message", async (event) => {
   if (event.source !== window || !event.data || event.data.__oks_bridge !== true || event.data.direction !== "page->bridge") {

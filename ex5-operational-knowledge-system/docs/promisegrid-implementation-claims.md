@@ -38,6 +38,10 @@ Today it ships:
 - Chrome/Chromium Manifest V3 browser embodiment over native messaging, with
   the browser UI kept in `web/app.js` and bridged into the same direct local
   contract family
+- deterministic extension/native-host contract coverage for browser readiness,
+  one-shot RPC forwarding, and live-port forwarding/disconnect behavior, with
+  the broader DOM smoke suite still explicitly scoped to page-level mock-bridge
+  rendering
 - typed local socket `operation` messages for the terminal inspect/read slice,
   instead of generic route-shaped socket forwarding for those reads
 - projected read/query views over that history

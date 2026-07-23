@@ -99,6 +99,12 @@ and local runtime socket successfully. That keeps readiness truth tied to the
 actual direct browser contract instead of only proving that the content script
 is installed. Source: `DI-salov`.
 
+The current test boundary now reflects that split more honestly: deterministic
+extension/native-host contract tests cover the shipped `background.js` and
+`content.js` readiness, one-shot RPC, and live-port forwarding/disconnect
+paths directly, while the headless browser smoke suite still uses a page-level
+mock bridge for DOM and workflow rendering checks. Source: `DI-vasem`.
+
 For the currently shipped terminal runtime contract, the direct socket now
 uses typed `operation` messages for:
 

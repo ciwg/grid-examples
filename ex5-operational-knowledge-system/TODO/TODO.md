@@ -1,9 +1,11 @@
 # TODO
 
 ## Open / Planned
-- [ ] 137 - Add stronger ex5 browser direct-contract integration coverage beyond the mock bridge - `TODO/TODO-pavur-ex5-browser-direct-contract-integration-coverage.md`
+- none currently
 
 ## Completed
+
+- [x] 137 - Add stronger ex5 browser direct-contract integration coverage beyond the mock bridge - `TODO/TODO-pavur-ex5-browser-direct-contract-integration-coverage.md`
 
 - [x] 136 - Remove the remaining ex5 browser and Neovim transport wording drift - `TODO/TODO-zunek-ex5-browser-neovim-transport-doc-drift.md`
 
