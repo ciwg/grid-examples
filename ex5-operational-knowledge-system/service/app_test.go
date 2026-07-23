@@ -487,8 +487,9 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 	if !meta.CASObjectsEnabled || !meta.CASAttachmentBlobsEnabled || !meta.CASDraftBodiesEnabled {
 		t.Fatalf("expected CAS capability flags in meta, got %+v", meta)
 	}
-	if meta.PrimaryEmbodimentAdapter != "local_http" {
-		t.Fatalf("expected local_http embodiment adapter in meta, got %+v", meta)
+	browser, ok := meta.Embodiments["browser"]
+	if !ok || browser.PrimaryAdapter != "local_http" {
+		t.Fatalf("expected browser local_http embodiment metadata in meta, got %+v", meta)
 	}
 
 	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-evidence-messages.jsonl"))

@@ -72,7 +72,8 @@ Today it ships:
 - authoritative CAS-backed replay/export envelope bytes for the eight frozen
   families, with one-time manifest backfill for older runtimes
 - runtime capability metadata exposing the shipped peer-exchange format,
-  relay-feed format, blob-transfer support, and CAS support through `Meta`
+  relay-feed format, blob-transfer support, CAS support, and per-embodiment
+  transport semantics through `Meta`
 - startup verification of the signed knowledge-item envelope log against the
   replayed item event history
 - startup verification of the signed knowledge-approval envelope log against

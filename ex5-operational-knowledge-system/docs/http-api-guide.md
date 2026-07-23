@@ -56,12 +56,9 @@ The response now includes, for example:
 - `cas_attachment_blobs_enabled`
 - `cas_draft_bodies_enabled`
 - `live_draft_websocket_enabled`
-- `browser_live_draft_transport`
-- `neovim_live_draft_transport`
 - `local_unix_socket_enabled`
 - `local_unix_socket_path`
-- `terminal_embodiment_adapter`
-- `primary_embodiment_adapter`
+- `embodiments`
 
 Those capability fields are the current shipped way for embodiments to confirm
 which local adapter/runtime features are present without treating the HTTP
@@ -72,15 +69,14 @@ short timeout and falls back immediately to local repo-root inference if the
 HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
 `DI-sorek`; `DI-batov`.
 
-In the current runtime, `primary_embodiment_adapter` is `local_http` because
-the browser still projects through this adapter. `terminal_embodiment_adapter`
-is `local_unix_socket`, meaning CLI and Neovim now prefer the direct local
-socket contract. Neovim still keeps this HTTP surface as compatibility
-fallback, while the CLI now requires an explicit `-socket=off` opt-in before
-using HTTP compatibility transport. Source: `DI-zorav`.
-`browser_live_draft_transport` is `websocket_over_local_http`, while
-`neovim_live_draft_transport` is `local_unix_socket`. Source: `DI-bavuk`;
-`DI-favel`; `DI-torak`.
+In the current runtime, `embodiments.browser` declares `local_http` as its
+primary adapter and `websocket_over_local_http` as its live-draft transport.
+`embodiments.cli` declares `local_unix_socket` as its primary adapter and marks
+HTTP compatibility as `explicit_opt_in`. `embodiments.neovim` declares
+`local_unix_socket` as both its primary adapter and live-draft transport, with
+websocket and HTTP listed as fallback transports. Terminal embodiments also
+repeat the canonical `local_unix_socket_path` inside their own embodiment
+records. Source: `DI-vurak`; `DI-zorav`.
 
 ## Peer exchange
 

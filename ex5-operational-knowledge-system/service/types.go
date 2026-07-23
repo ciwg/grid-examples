@@ -29,35 +29,40 @@ const (
 )
 
 type Meta struct {
-	DataRoot                    string   `json:"data_root"`
-	LocalPeerID                 string   `json:"local_peer_id"`
-	KnowledgeKinds              []string `json:"knowledge_kinds"`
-	RunKinds                    []string `json:"run_kinds"`
-	ApprovalDecisions           []string `json:"approval_decisions"`
-	ItemStatuses                []string `json:"item_statuses"`
-	KnowledgeItemPCID           string   `json:"knowledge_item_pcid"`
-	KnowledgeApprovalPCID       string   `json:"knowledge_approval_pcid"`
-	KnowledgeEvidencePCID       string   `json:"knowledge_evidence_pcid"`
-	KnowledgeLinkPCID           string   `json:"knowledge_link_pcid"`
-	KnowledgeResponsibilityPCID string   `json:"knowledge_responsibility_pcid"`
-	OperationalRunPCID          string   `json:"operational_run_pcid"`
-	OperationalPlacePCID        string   `json:"operational_place_pcid"`
-	OperationalResourcePCID     string   `json:"operational_resource_pcid"`
-	PeerExchangeFormat          string   `json:"peer_exchange_format"`
-	PeerExchangeFamilies        []string `json:"peer_exchange_families"`
-	RelayFeedFormat             string   `json:"relay_feed_format"`
-	RelayFeedFamilies           []string `json:"relay_feed_families"`
-	CASObjectsEnabled           bool     `json:"cas_objects_enabled"`
-	CASAttachmentBlobsEnabled   bool     `json:"cas_attachment_blobs_enabled"`
-	CASDraftBodiesEnabled       bool     `json:"cas_draft_bodies_enabled"`
-	RelayBlobTransferEnabled    bool     `json:"relay_blob_transfer_enabled"`
-	LiveDraftWebSocketEnabled   bool     `json:"live_draft_websocket_enabled"`
-	BrowserLiveDraftTransport   string   `json:"browser_live_draft_transport"`
-	NeovimLiveDraftTransport    string   `json:"neovim_live_draft_transport"`
-	LocalUnixSocketEnabled      bool     `json:"local_unix_socket_enabled"`
-	LocalUnixSocketPath         string   `json:"local_unix_socket_path"`
-	TerminalEmbodimentAdapter   string   `json:"terminal_embodiment_adapter"`
-	PrimaryEmbodimentAdapter    string   `json:"primary_embodiment_adapter"`
+	DataRoot                    string                         `json:"data_root"`
+	LocalPeerID                 string                         `json:"local_peer_id"`
+	KnowledgeKinds              []string                       `json:"knowledge_kinds"`
+	RunKinds                    []string                       `json:"run_kinds"`
+	ApprovalDecisions           []string                       `json:"approval_decisions"`
+	ItemStatuses                []string                       `json:"item_statuses"`
+	KnowledgeItemPCID           string                         `json:"knowledge_item_pcid"`
+	KnowledgeApprovalPCID       string                         `json:"knowledge_approval_pcid"`
+	KnowledgeEvidencePCID       string                         `json:"knowledge_evidence_pcid"`
+	KnowledgeLinkPCID           string                         `json:"knowledge_link_pcid"`
+	KnowledgeResponsibilityPCID string                         `json:"knowledge_responsibility_pcid"`
+	OperationalRunPCID          string                         `json:"operational_run_pcid"`
+	OperationalPlacePCID        string                         `json:"operational_place_pcid"`
+	OperationalResourcePCID     string                         `json:"operational_resource_pcid"`
+	PeerExchangeFormat          string                         `json:"peer_exchange_format"`
+	PeerExchangeFamilies        []string                       `json:"peer_exchange_families"`
+	RelayFeedFormat             string                         `json:"relay_feed_format"`
+	RelayFeedFamilies           []string                       `json:"relay_feed_families"`
+	CASObjectsEnabled           bool                           `json:"cas_objects_enabled"`
+	CASAttachmentBlobsEnabled   bool                           `json:"cas_attachment_blobs_enabled"`
+	CASDraftBodiesEnabled       bool                           `json:"cas_draft_bodies_enabled"`
+	RelayBlobTransferEnabled    bool                           `json:"relay_blob_transfer_enabled"`
+	LiveDraftWebSocketEnabled   bool                           `json:"live_draft_websocket_enabled"`
+	LocalUnixSocketEnabled      bool                           `json:"local_unix_socket_enabled"`
+	LocalUnixSocketPath         string                         `json:"local_unix_socket_path"`
+	Embodiments                 map[string]EmbodimentTransport `json:"embodiments"`
+}
+
+type EmbodimentTransport struct {
+	PrimaryAdapter      string   `json:"primary_adapter"`
+	LiveDraftTransport  string   `json:"live_draft_transport,omitempty"`
+	FallbackTransports  []string `json:"fallback_transports,omitempty"`
+	CompatibilityMode   string   `json:"compatibility_mode"`
+	LocalUnixSocketPath string   `json:"local_unix_socket_path,omitempty"`
 }
 
 type RelayMeta struct {

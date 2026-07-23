@@ -76,23 +76,26 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if !meta.LiveDraftWebSocketEnabled {
 		t.Fatalf("expected websocket live-draft capability metadata in meta: %+v", meta)
 	}
-	if meta.BrowserLiveDraftTransport != "websocket_over_local_http" {
-		t.Fatalf("expected browser websocket live-draft transport metadata in meta: %+v", meta)
-	}
-	if meta.NeovimLiveDraftTransport != "local_unix_socket" {
-		t.Fatalf("expected Neovim local unix socket live-draft transport metadata in meta: %+v", meta)
-	}
 	if !meta.LocalUnixSocketEnabled || !strings.HasSuffix(meta.LocalUnixSocketPath, "/embodiment.sock") {
 		t.Fatalf("expected local unix socket metadata in meta: %+v", meta)
 	}
 	if !filepath.IsAbs(meta.LocalUnixSocketPath) {
 		t.Fatalf("expected absolute local unix socket path in meta: %+v", meta)
 	}
-	if meta.TerminalEmbodimentAdapter != "local_unix_socket" {
-		t.Fatalf("expected terminal local unix socket adapter in meta: %+v", meta)
+	browser, ok := meta.Embodiments["browser"]
+	if !ok || browser.PrimaryAdapter != "local_http" || browser.LiveDraftTransport != "websocket_over_local_http" {
+		t.Fatalf("expected browser embodiment transport metadata in meta: %+v", meta)
 	}
-	if meta.PrimaryEmbodimentAdapter != "local_http" {
-		t.Fatalf("expected local_http embodiment adapter in meta: %+v", meta)
+	cli, ok := meta.Embodiments["cli"]
+	if !ok || cli.PrimaryAdapter != "local_unix_socket" || cli.CompatibilityMode != "explicit_opt_in" {
+		t.Fatalf("expected cli embodiment transport metadata in meta: %+v", meta)
+	}
+	neovim, ok := meta.Embodiments["neovim"]
+	if !ok || neovim.PrimaryAdapter != "local_unix_socket" || neovim.LiveDraftTransport != "local_unix_socket" {
+		t.Fatalf("expected neovim embodiment transport metadata in meta: %+v", meta)
+	}
+	if cli.LocalUnixSocketPath != meta.LocalUnixSocketPath || neovim.LocalUnixSocketPath != meta.LocalUnixSocketPath {
+		t.Fatalf("expected terminal embodiments to advertise the canonical local socket path in meta: %+v", meta)
 	}
 }
 

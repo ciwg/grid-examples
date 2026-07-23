@@ -133,9 +133,9 @@ func NewApp(dataRoot string) (*App, error) {
 
 func (app *App) Meta() Meta {
 	// Intent: Keep runtime capability metadata authoritative for both the
-	// canonical local socket path and the embodiment-specific live-draft lanes
-	// so clients do not infer them from cwd guesses or a false global transport
-	// preference. Source: DI-sorek; DI-torak
+	// canonical local socket path and one explicit embodiment transport table so
+	// clients do not infer primary vs compatibility lanes from cwd guesses or
+	// scattered flat fields. Source: DI-sorek; DI-torak; DI-vurak
 	return Meta{
 		DataRoot:                    app.dataRoot,
 		LocalPeerID:                 app.localPeerID,
@@ -178,12 +178,29 @@ func (app *App) Meta() Meta {
 		CASDraftBodiesEnabled:     true,
 		RelayBlobTransferEnabled:  true,
 		LiveDraftWebSocketEnabled: true,
-		BrowserLiveDraftTransport: "websocket_over_local_http",
-		NeovimLiveDraftTransport:  "local_unix_socket",
 		LocalUnixSocketEnabled:    true,
 		LocalUnixSocketPath:       EmbodimentSocketPath(app.dataRoot),
-		TerminalEmbodimentAdapter: "local_unix_socket",
-		PrimaryEmbodimentAdapter:  "local_http",
+		Embodiments: map[string]EmbodimentTransport{
+			"browser": {
+				PrimaryAdapter:     "local_http",
+				LiveDraftTransport: "websocket_over_local_http",
+				FallbackTransports: []string{"http_live_route"},
+				CompatibilityMode:  "implicit_fallback",
+			},
+			"cli": {
+				PrimaryAdapter:      "local_unix_socket",
+				FallbackTransports:  []string{"local_http"},
+				CompatibilityMode:   "explicit_opt_in",
+				LocalUnixSocketPath: EmbodimentSocketPath(app.dataRoot),
+			},
+			"neovim": {
+				PrimaryAdapter:      "local_unix_socket",
+				LiveDraftTransport:  "local_unix_socket",
+				FallbackTransports:  []string{"websocket_over_local_http", "http_live_route"},
+				CompatibilityMode:   "implicit_fallback",
+				LocalUnixSocketPath: EmbodimentSocketPath(app.dataRoot),
+			},
+		},
 	}
 }
 
