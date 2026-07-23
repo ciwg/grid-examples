@@ -21,12 +21,14 @@ import (
 )
 
 func main() {
-	socketPath := flag.String("socket", "", "local unix socket path")
+	socketPath := flag.String("socket", "", "local unix socket path, or 'off' to force HTTP compatibility transport")
 	serverURL := flag.String("server", "http://127.0.0.1:7045", "server URL")
 	flag.Parse()
 	resolvedServerURL := strings.TrimRight(*serverURL, "/")
 	resolvedSocketPath := strings.TrimSpace(*socketPath)
-	if resolvedSocketPath == "" {
+	if strings.EqualFold(resolvedSocketPath, "off") {
+		resolvedSocketPath = ""
+	} else if resolvedSocketPath == "" {
 		resolvedSocketPath = discoverSocketPath(resolvedServerURL)
 	}
 	cli := &CLI{
@@ -44,7 +46,8 @@ func main() {
 
 // Intent: Ask the runtime for its canonical socket path before relying on
 // filesystem guesses so a custom `-data-root` still yields the direct terminal
-// embodiment contract. Source: DI-sorek
+// embodiment contract unless the operator explicitly opts into HTTP
+// compatibility mode. Source: DI-sorek; DI-zorav
 func discoverSocketPath(serverURL string) string {
 	socketPath, err := socketPathFromMeta(serverURL)
 	if err == nil {

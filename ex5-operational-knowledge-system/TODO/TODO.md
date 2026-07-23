@@ -5,6 +5,8 @@
 
 ## Completed
 
+- [x] 127 - Tighten ex5 terminal transport honesty and align the remaining long-form PromiseGrid docs - `TODO/TODO-musav-ex5-terminal-transport-alignment-pass.md`
+
 - [x] 126 - Remove the remaining ex5 feature-guide PromiseGrid scope drift - `TODO/TODO-luneg-ex5-features-guide-promisegrid-drift.md`
 - [x] 125 - Bound Neovim runtime-first socket discovery so dead HTTP targets do not stall startup - `TODO/TODO-bavot-ex5-neovim-meta-discovery-timeout.md`
 - [x] 124 - Make the ex5 runtime advertise a canonical absolute local socket path - `TODO/TODO-rusav-ex5-absolute-socket-path-advertisement.md`

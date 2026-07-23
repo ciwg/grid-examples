@@ -103,6 +103,59 @@ func TestCLIUsesLocalSocketTransportWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestCLIFailsClosedWhenPreferredLocalSocketIsUnavailable(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests++
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"responsibilities":1}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{
+		SocketPath: filepath.Join(t.TempDir(), "missing.sock"),
+		ServerURL:  server.URL,
+	}
+	exitCode, err := cli.run([]string{"dashboard"})
+	if exitCode != 1 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "rerun with -socket=off") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if requests != 0 {
+		t.Fatalf("expected no HTTP fallback requests, got %d", requests)
+	}
+}
+
+func TestCLIUsesHTTPWhenSocketCompatibilityIsExplicitlySelected(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests++
+		if request.URL.Path != "/api/dashboard" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"responsibilities":1}`))
+	}))
+	defer server.Close()
+
+	cli := &CLI{
+		SocketPath: "",
+		ServerURL:  server.URL,
+	}
+	exitCode, err := cli.run([]string{"dashboard"})
+	if err != nil {
+		t.Fatalf("dashboard command: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	if requests != 1 {
+		t.Fatalf("expected one HTTP compatibility request, got %d", requests)
+	}
+}
+
 func TestDefaultSocketPathUsesNearestRuntimeRoot(t *testing.T) {
 	root := t.TempDir()
 	runtimeRoot := filepath.Join(root, ".operational-knowledge-system")

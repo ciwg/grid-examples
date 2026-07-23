@@ -81,7 +81,7 @@ Browser:
 
 CLI:
 
-- prefers the direct local Unix-socket contract, with HTTP kept as compatibility fallback
+- prefers the direct local Unix-socket contract, with HTTP available only as explicit compatibility opt-in through `-socket=off`
 - prints dashboard counts
 - creates and lists places and resources
 - creates responsibilities and knowledge items
@@ -99,7 +99,7 @@ Neovim phase 1:
 - opens a knowledge item live draft by item ID
 - prefers the direct local Unix-socket contract for both request/response and live-draft streaming, and falls back to the shared HTTP live endpoint when compatibility requires it
 - pushes the current body with `:write`
-- sends presence/typing updates over websocket when connected, with the live-draft HTTP endpoint kept as fallback
+- sends presence/typing updates over the local socket when connected, falls back through websocket carriage when the socket path is unavailable, and keeps the live-draft HTTP endpoint only as the final compatibility path
 - exposes local status/participant inspection commands
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
@@ -319,7 +319,7 @@ into `ex5`, while giving terminal embodiments a direct local Unix-socket
 contract over the same runtime. Shared live drafting remains the real-time
 collaboration transport, but the carriage now splits by embodiment: browser
 uses websocket-preferred HTTP, while Neovim uses the local socket and falls
-back to HTTP only for compatibility. The current phase still includes read-only
+back through websocket and then HTTP only for compatibility. The current phase still includes read-only
 item/run/entity inspection and search/browse over projected detail, plus a
 read-only pending-review queue and a narrow set of revision-safe item/run
 approval and item supersede actions over that same shared runtime. Source:

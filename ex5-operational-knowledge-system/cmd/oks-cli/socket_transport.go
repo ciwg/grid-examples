@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -17,17 +18,19 @@ import (
 var errLocalSocketUnavailable = errors.New("local unix socket unavailable")
 
 // Intent: Prefer the direct local Unix-socket contract for the CLI while
-// preserving HTTP fallback so shell workflows remain usable during mixed local
-// deployments. Source: DI-favel
+// making compatibility HTTP transport an explicit operator choice instead of a
+// silent demotion when the preferred local embodiment path is unavailable.
+// Source: DI-favel; DI-zorav
 func (cli *CLI) roundTrip(method string, path string, contentType string, body []byte) (int, []byte, error) {
 	if strings.TrimSpace(cli.SocketPath) != "" {
 		status, payload, err := cli.localSocketRoundTrip(method, path, contentType, body)
 		if err == nil {
 			return status, payload, nil
 		}
-		if !errors.Is(err, errLocalSocketUnavailable) {
-			return 0, nil, err
+		if errors.Is(err, errLocalSocketUnavailable) {
+			return 0, nil, fmt.Errorf("local unix socket unavailable at %s; rerun with -socket=off to use HTTP compatibility transport", cli.SocketPath)
 		}
+		return 0, nil, err
 	}
 	return cli.httpRoundTrip(method, path, contentType, body)
 }

@@ -22,9 +22,10 @@ history again.
 
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
-example with shared browser and CLI embodiments over one local Go runtime, plus
-a first-phase Neovim live-draft embodiment for teams that work there. Source:
-`DI-fudok`.
+example with shared browser, CLI, and Neovim embodiments over one local Go
+runtime, with the browser on the local HTTP adapter and the two terminal
+surfaces preferring the direct local Unix-socket contract. Source: `DI-fudok`;
+`DI-zorav`.
 
 The current implementation keeps procedures, training content, maintenance
 content, receiving-check content, inventory-audit content, responsibilities,
@@ -155,7 +156,7 @@ What the current runtime actually implements today:
 - generic place hierarchy and resource records
 - local HTTP API
 - browser UI over that API, including shared working drafts for knowledge items
-- CLI over a direct local Unix-socket contract, with HTTP kept as compatibility fallback
+- CLI over a direct local Unix-socket contract, with HTTP available only as explicit compatibility opt-in through `-socket=off`
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
   editing
@@ -281,6 +282,11 @@ go run ./cmd/oks-cli problem-review
 go run ./cmd/oks-cli pending-review
 go run ./cmd/oks-cli runs
 ```
+
+By default the CLI now treats the direct local Unix socket as the required
+terminal embodiment contract. If that socket is unavailable, the command fails
+closed instead of silently demoting to HTTP. Use `-socket=off` only when you
+intentionally want the older HTTP compatibility path. Source: `DI-zorav`.
 
 ## Terminal Behavior
 

@@ -1,8 +1,8 @@
 # operational knowledge system architecture
 
 `ex5-operational-knowledge-system` keeps durable operational history in one
-local Go runtime and presents browser, CLI, and a first-phase Neovim
-live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
+local Go runtime and presents browser, CLI, and Neovim embodiments over that
+shared state. Source: `DI-radok`; `DI-fudok`; `DI-zorav`.
 
 ## Topology
 
@@ -14,11 +14,10 @@ live-draft embodiment over that shared state. Source: `DI-radok`; `DI-fudok`.
                     local Go runtime and projections
                        /                        \
                       /                          \
-                 local HTTP API            CLI
-                      │
-          browser UI + live draft / presence surface
-                      │
-                 Neovim live-draft client
+                 local HTTP API       local Unix socket
+                      │                     │
+          browser UI + live draft     CLI and Neovim
+             / presence surface      request/live clients
 ```
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
@@ -240,9 +239,10 @@ Creating a new durable revision snapshots the current working body into the
 append-only knowledge-item history. This keeps live drafting and auditable
 revisions related but distinct.
 
-In the current Neovim phase, the editor now prefers websocket carriage for the
-shared live draft and falls back to `GET/POST /api/items/{id}/live` when the
-socket path is unavailable. It still reads projected detail from
+In the current Neovim phase, the editor now prefers the direct local Unix
+socket for the shared live draft, falls back to websocket carriage under the
+HTTP adapter when the local socket is unavailable, and then falls back again
+to `GET/POST /api/items/{id}/live` only for compatibility. It still reads projected detail from
 `GET /api/items/{id}` plus `GET /api/runs/{id}` for inspection. That keeps the
 embodiment aligned with the same runtime truth the browser uses instead of
 creating a second collaboration channel. Linked-entity browsing extends that
