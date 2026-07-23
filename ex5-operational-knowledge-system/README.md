@@ -213,6 +213,9 @@ Source: `DI-lavek`; `DI-rasok`.
 
 For the explicit technical statement of the current PromiseGrid boundary, see
 [PromiseGrid Implementation Claims](docs/promisegrid-implementation-claims.md).
+For the canonical B-side implementation-promise publication surface, including
+both frozen-family claims and per-component implementation/delegation scope,
+see [CHANGELOG.md](CHANGELOG.md). Source: `DI-nubor`.
 
 ## Runtime
 

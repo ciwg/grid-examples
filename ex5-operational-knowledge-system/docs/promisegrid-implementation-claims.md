@@ -286,8 +286,15 @@ Remaining:
 ## Current implementation claim
 
 The current ex5 implementation claims live in
-[CHANGELOG.md](../CHANGELOG.md). Source: `DI-mibor`; `DI-vosul`; `DI-kavup`;
-`DI-votek`; `DI-sarib`.
+[CHANGELOG.md](../CHANGELOG.md). That file is now the single canonical B-side
+publication surface for both:
+
+- exact frozen-family implementation claims by spec doc-CID
+- component-level implementation/delegation claims for the local runtime,
+  browser embodiment path, terminal embodiments, and remote relay
+
+Source: `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`;
+`DI-nubor`.
 
 ## How to read the other ex5 docs
 
