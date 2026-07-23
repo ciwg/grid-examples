@@ -6,17 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedKnowledgeResponsibilityRecord struct {
-	Sequence         uint64 `json:"sequence"`
-	OriginPeerID     string `json:"origin_peer_id"`
-	OriginSequence   uint64 `json:"origin_sequence"`
-	ResponsibilityID string `json:"responsibility_id"`
-	PCID             string `json:"pcid"`
-	EnvelopeCID      string `json:"envelope_cid"`
-	EnvelopeBase64   string `json:"envelope_base64"`
-	RecordedAt       string `json:"recorded_at"`
-	Implementation   string `json:"implementation"`
-}
+type SignedKnowledgeResponsibilityRecord = records.SignedKnowledgeResponsibilityRecord
 
 type knowledgeResponsibilityPayload struct {
 	EntityID  string   `cbor:"entity_id"`
@@ -54,20 +44,11 @@ func knowledgeResponsibilityPayloadForEvent(event OperationalEvent) (knowledgeRe
 // signed and replay-verifiable without changing the current embodiment adapter
 // surfaces. Source: DI-sarib
 func buildSignedKnowledgeResponsibilityRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeResponsibilityRecord, bool, error) {
-	record, ok, err := records.BuildSignedKnowledgeResponsibilityRecord(identity, records.Event(event))
-	return SignedKnowledgeResponsibilityRecord(record), ok, err
+	return records.BuildSignedKnowledgeResponsibilityRecord(identity, records.Event(event))
 }
 
 func verifySignedKnowledgeResponsibilityRecords(events []OperationalEvent, in []SignedKnowledgeResponsibilityRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedKnowledgeResponsibilityRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedKnowledgeResponsibilityRecord(record)
-	}
-	return records.VerifySignedKnowledgeResponsibilityRecords(eventSlice, recordSlice)
+	return records.VerifySignedKnowledgeResponsibilityRecords(events, in)
 }
 
 func compareKnowledgeResponsibilityPayload(expected knowledgeResponsibilityPayload, got knowledgeResponsibilityPayload) error {

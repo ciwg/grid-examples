@@ -26,7 +26,11 @@ Source: `DI-lavek`.
 
 Today it ships:
 
-- one extracted reusable PromiseGrid record substrate under `promisegrid/records/`
+- extracted reusable PromiseGrid substrate under `promisegrid/`:
+  `records/` for durable record truth and `transport/` for peer-exchange /
+  relay-feed wire shapes and origin-aware batch helpers, plus `store/` for
+  append-only log helpers, CAS object storage, and authoritative frozen-
+  envelope hydration
 - one local Go runtime
 - append-only operational event history
 - local durable draft manifests plus CAS-backed draft bodies, and durable
@@ -139,12 +143,17 @@ browser embodiment is ready. The local HTTP surface remains the shell/bootstrap
 lane for page load and `/api/meta`, not the primary browser runtime contract.
 Source: `DI-ronav`.
 
-The durable frozen-family record core now also has its first reusable
-substrate boundary under `promisegrid/records/`. That package carries
-identity, origin normalization, canonical durable ID decoration, and
-signed-envelope build/verify logic for the eight frozen families, while
-ex5-specific persistence, projections, and workflows remain in the example
-app. Source: `DI-ragiv`.
+The durable frozen-family record core now has a reusable substrate boundary
+under `promisegrid/records/`, the shipped peer-exchange / relay-feed wire
+contract now also has a reusable substrate boundary under
+`promisegrid/transport/`, and the shared append-only log / CAS /
+authoritative-envelope persistence core now lives under `promisegrid/store/`.
+Those packages carry identity, origin normalization, canonical durable ID
+decoration, signed-envelope build/verify logic, wire shapes, origin-aware
+transport filtering, and the reusable persistence core, while ex5-specific
+draft manifests, attachment materialization, projections, workflows, and
+embodiment composition remain in the example app under `service/`. Source:
+`DI-ragiv`; `DI-vurem`; `DI-rasok`; `DI-nolav`; `DI-lemor`.
 
 ### 1a. One dedicated remote relay surface
 
@@ -254,14 +263,17 @@ Done now:
   re-materializes them into a local compatibility attachment path on import
 - ongoing relay-feed exchange now requires evidence blobs to be staged into
   local CAS by CID before evidence-bearing feed batches import successfully
-- the browser still projects through the current local HTTP adapter, while CLI
-  and Neovim now project through the local Unix-socket contract on top of
-  those signed families
+- the peer-exchange and relay-feed wire structs plus origin-aware transport
+  filtering helpers now live in the reusable `promisegrid/transport/`
+  substrate instead of being owned only as `service/` mirror types
+- the browser now projects through the direct Chrome/Chromium
+  native-messaging embodiment, while CLI and Neovim project through the local
+  Unix-socket contract on top of those signed families
 
 Remaining:
 
-- broader substrate extraction beyond the record core, including transport,
-  store wiring, or app-agnostic workflow layers
+- broader substrate extraction beyond the record and transport cores,
+  including store wiring or app-agnostic workflow layers
 
 ## Current implementation claim
 
@@ -296,11 +308,12 @@ relay routes.
 CAS now ships as an additive sidecar for signed envelopes and copied evidence
 blobs plus authoritative reload for shared live draft bodies through local
 manifests, and the embodiment-tightening step now ships through capability
-metadata plus adapter-over-runtime doc updates while keeping HTTP as the sole
-embodiment adapter. The current peer layer is no longer bootstrap-only; it now
-uses origin-aware dedupe and local sequence projection for ongoing import, and
-its peer-visible entities now use create-envelope CIDs as the durable IDs while
-preserving the old short IDs as aliases. Source: `DI-fusok`; `DI-guzab`;
-`DI-voruk`; `DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`;
-`DI-vamok`; `DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`;
-`DI-zunep`; `DI-bavuk`; `DI-pazek`.
+metadata plus adapter-over-runtime docs while keeping HTTP as the shell /
+bootstrap / compatibility surface rather than the sole embodiment adapter. The
+current peer layer is no longer bootstrap-only; it now uses origin-aware
+dedupe and local sequence projection for ongoing import, and its peer-visible
+entities now use create-envelope CIDs as the durable IDs while preserving the
+old short IDs as aliases. Source: `DI-fusok`; `DI-guzab`; `DI-voruk`;
+`DI-ribek`; `DI-lavuz`; `DI-vabek`; `DI-rovuz`; `DI-tivor`; `DI-vamok`;
+`DI-faruv`; `DI-ruzok`; `DI-rumek`; `DI-loruk`; `DI-pivul`; `DI-zunep`;
+`DI-bavuk`; `DI-pazek`; `DI-punek`.

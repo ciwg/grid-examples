@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	pgstore "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/store"
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
@@ -98,7 +100,7 @@ func (relay *Relay) Meta() RelayMeta {
 		DataRoot:                   relay.store.root,
 		ServiceName:                relayServiceName,
 		RoutePrefix:                relayRoutePrefix,
-		RelayFeedFormat:            relayFeedFormat,
+		RelayFeedFormat:            pgtransport.RelayFeedFormat,
 		RelayFeedFamilies:          relayFeedFamilies(),
 		RelayBlobTransferEnabled:   true,
 		PublishRequiresStagedBlobs: true,
@@ -135,14 +137,14 @@ func (relay *Relay) Publish(batch RelayFeedBatch) (RelayPublishResult, error) {
 		return RelayPublishResult{}, nil
 	}
 
-	itemRecords := filterKnowledgeItemRecordsByOrigin(batch.KnowledgeItemRecords, unseenKeys)
-	approvalRecords := filterKnowledgeApprovalRecordsByOrigin(batch.KnowledgeApprovalRecords, unseenKeys)
-	evidenceRecords := filterKnowledgeEvidenceRecordsByOrigin(batch.KnowledgeEvidenceRecords, unseenKeys)
-	runRecords := filterOperationalRunRecordsByOrigin(batch.OperationalRunRecords, unseenKeys)
-	placeRecords := filterOperationalPlaceRecordsByOrigin(batch.OperationalPlaceRecords, unseenKeys)
-	resourceRecords := filterOperationalResourceRecordsByOrigin(batch.OperationalResourceRecords, unseenKeys)
-	linkRecords := filterKnowledgeLinkRecordsByOrigin(batch.KnowledgeLinkRecords, unseenKeys)
-	responsibilityRecords := filterKnowledgeResponsibilityRecordsByOrigin(batch.KnowledgeResponsibilityRecords, unseenKeys)
+	itemRecords := pgtransport.FilterKnowledgeItemRecordsByOrigin(batch.KnowledgeItemRecords, unseenKeys)
+	approvalRecords := pgtransport.FilterKnowledgeApprovalRecordsByOrigin(batch.KnowledgeApprovalRecords, unseenKeys)
+	evidenceRecords := pgtransport.FilterKnowledgeEvidenceRecordsByOrigin(batch.KnowledgeEvidenceRecords, unseenKeys)
+	runRecords := pgtransport.FilterOperationalRunRecordsByOrigin(batch.OperationalRunRecords, unseenKeys)
+	placeRecords := pgtransport.FilterOperationalPlaceRecordsByOrigin(batch.OperationalPlaceRecords, unseenKeys)
+	resourceRecords := pgtransport.FilterOperationalResourceRecordsByOrigin(batch.OperationalResourceRecords, unseenKeys)
+	linkRecords := pgtransport.FilterKnowledgeLinkRecordsByOrigin(batch.KnowledgeLinkRecords, unseenKeys)
+	responsibilityRecords := pgtransport.FilterKnowledgeResponsibilityRecordsByOrigin(batch.KnowledgeResponsibilityRecords, unseenKeys)
 
 	for _, record := range itemRecords {
 		if err := relay.store.AppendSignedKnowledgeItemRecord(record); err != nil {
@@ -225,9 +227,9 @@ func (relay *Relay) Pull(request RelayFeedRequest) (RelayFeedBatch, error) {
 	relay.mu.Lock()
 	defer relay.mu.Unlock()
 
-	unseenEvents, unseenKeys := filterRelayFeedEvents(relay.events, request.KnownOrigins)
+	unseenEvents, unseenKeys := pgtransport.FilterRelayFeedEvents(relay.events, request.KnownOrigins)
 	return RelayFeedBatch{
-		Format:                         relayFeedFormat,
+		Format:                         pgtransport.RelayFeedFormat,
 		ExportedAt:                     time.Now().Format(time.RFC3339),
 		Implementation:                 relayServiceName,
 		ExportingPeerID:                relayServiceName,
@@ -240,22 +242,22 @@ func (relay *Relay) Pull(request RelayFeedRequest) (RelayFeedBatch, error) {
 		OperationalPlacePCID:           protocols.OperationalPlaceProfile.CID.String(),
 		OperationalResourcePCID:        protocols.OperationalResourceProfile.CID.String(),
 		Events:                         renumberRelayBatchEvents(unseenEvents),
-		KnowledgeItemRecords:           filterKnowledgeItemRecordsByOrigin(relay.knowledgeItemRecords, unseenKeys),
-		KnowledgeApprovalRecords:       filterKnowledgeApprovalRecordsByOrigin(relay.knowledgeApprovalRecords, unseenKeys),
-		KnowledgeEvidenceRecords:       filterKnowledgeEvidenceRecordsByOrigin(relay.knowledgeEvidenceRecords, unseenKeys),
-		OperationalRunRecords:          filterOperationalRunRecordsByOrigin(relay.operationalRunRecords, unseenKeys),
-		OperationalPlaceRecords:        filterOperationalPlaceRecordsByOrigin(relay.operationalPlaceRecords, unseenKeys),
-		OperationalResourceRecords:     filterOperationalResourceRecordsByOrigin(relay.operationalResourceRecords, unseenKeys),
-		KnowledgeLinkRecords:           filterKnowledgeLinkRecordsByOrigin(relay.knowledgeLinkRecords, unseenKeys),
-		KnowledgeResponsibilityRecords: filterKnowledgeResponsibilityRecordsByOrigin(relay.knowledgeResponsibilityRecords, unseenKeys),
-		RequiredBlobCIDs:               requiredBlobCIDsForEvents(unseenEvents),
+		KnowledgeItemRecords:           pgtransport.FilterKnowledgeItemRecordsByOrigin(relay.knowledgeItemRecords, unseenKeys),
+		KnowledgeApprovalRecords:       pgtransport.FilterKnowledgeApprovalRecordsByOrigin(relay.knowledgeApprovalRecords, unseenKeys),
+		KnowledgeEvidenceRecords:       pgtransport.FilterKnowledgeEvidenceRecordsByOrigin(relay.knowledgeEvidenceRecords, unseenKeys),
+		OperationalRunRecords:          pgtransport.FilterOperationalRunRecordsByOrigin(relay.operationalRunRecords, unseenKeys),
+		OperationalPlaceRecords:        pgtransport.FilterOperationalPlaceRecordsByOrigin(relay.operationalPlaceRecords, unseenKeys),
+		OperationalResourceRecords:     pgtransport.FilterOperationalResourceRecordsByOrigin(relay.operationalResourceRecords, unseenKeys),
+		KnowledgeLinkRecords:           pgtransport.FilterKnowledgeLinkRecordsByOrigin(relay.knowledgeLinkRecords, unseenKeys),
+		KnowledgeResponsibilityRecords: pgtransport.FilterKnowledgeResponsibilityRecordsByOrigin(relay.knowledgeResponsibilityRecords, unseenKeys),
+		RequiredBlobCIDs:               pgtransport.RequiredBlobCIDsForEvents(unseenEvents),
 	}, nil
 }
 
 func (relay *Relay) Blob(cid string) ([]byte, error) {
 	relay.mu.Lock()
 	defer relay.mu.Unlock()
-	return relay.store.loadCASObject(strings.TrimSpace(cid))
+	return relay.store.cas.LoadObject(strings.TrimSpace(cid))
 }
 
 // Intent: Stage raw relay blobs by CID before any evidence-bearing feed publish
@@ -264,7 +266,7 @@ func (relay *Relay) Blob(cid string) ([]byte, error) {
 func (relay *Relay) StoreBlob(cid string, body []byte) error {
 	relay.mu.Lock()
 	defer relay.mu.Unlock()
-	writtenCID, err := relay.store.writeCASObject(body)
+	writtenCID, err := relay.store.cas.WriteObject(body)
 	if err != nil {
 		return err
 	}
@@ -309,7 +311,7 @@ func (relay *Relay) missingBlobCIDs(cids []string) ([]string, error) {
 		if cid == "" {
 			continue
 		}
-		if _, err := relay.store.loadCASObject(cid); err != nil {
+		if _, err := relay.store.cas.LoadObject(cid); err != nil {
 			if os.IsNotExist(err) {
 				missing = append(missing, cid)
 				continue
@@ -361,7 +363,7 @@ func (relay *Relay) collectRelayPublishEvents(events []OperationalEvent) ([]Oper
 			continue
 		}
 		unseenEvents = append(unseenEvents, event)
-		unseenKeys[originEventKey(event.OriginPeerID, event.OriginSequence)] = true
+		unseenKeys[pgtransport.OriginEventKey(event.OriginPeerID, event.OriginSequence)] = true
 	}
 	return unseenEvents, unseenKeys, next, nil
 }
@@ -373,14 +375,14 @@ func (relay *Relay) validateRemoteRelayBatch(batch RelayFeedBatch) error {
 		if cid == "" {
 			continue
 		}
-		body, err := relay.store.loadCASObject(cid)
+		body, err := relay.store.cas.LoadObject(cid)
 		if err != nil {
 			return err
 		}
 		casBlobObjects[cid] = base64.StdEncoding.EncodeToString(body)
 	}
 	bundle := PeerExchangeBundle{
-		Format:                         peerExchangeBundleFormat,
+		Format:                         pgtransport.PeerExchangeBundleFormat,
 		ExportedAt:                     batch.ExportedAt,
 		Implementation:                 batch.Implementation,
 		ExportingPeerID:                batch.ExportingPeerID,
@@ -501,9 +503,7 @@ func openRelayStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeI
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 
-	openLog := func(path string) (*os.File, error) {
-		return os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
-	}
+	openLog := func(path string) (*os.File, error) { return pgstore.OpenAppendOnlyLog(path) }
 
 	eventPath := filepath.Join(root, "events.jsonl")
 	eventsFile, err := openLog(eventPath)
@@ -607,7 +607,7 @@ func openRelayStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeI
 		operationalResourcePath:         operationalResourcePath,
 		knowledgeLinkPath:               knowledgeLinkPath,
 		knowledgeResponsibilityPath:     knowledgeResponsibilityPath,
-		casRoot:                         filepath.Join(root, "cas", "objects"),
+		cas:                             pgstore.NewCASStore(filepath.Join(root, "cas", "objects")),
 	}
 
 	itemRecords, err := store.hydrateSignedKnowledgeItemRecords(knowledgeItemRecords)

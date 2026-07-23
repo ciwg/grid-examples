@@ -6,18 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedOperationalRunRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	RunID          string `json:"run_id"`
-	ItemID         string `json:"item_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedOperationalRunRecord = records.SignedOperationalRunRecord
 
 type operationalRunPayload struct {
 	RunID             string   `cbor:"run_id"`
@@ -64,20 +53,11 @@ func operationalRunPayloadForEvent(event OperationalEvent) (operationalRunPayloa
 // PromiseGrid-native family so evidence can anchor to a signed operational run
 // contract instead of a compatibility-only local event. Source: DI-vamok
 func buildSignedOperationalRunRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalRunRecord, bool, error) {
-	record, ok, err := records.BuildSignedOperationalRunRecord(identity, records.Event(event))
-	return SignedOperationalRunRecord(record), ok, err
+	return records.BuildSignedOperationalRunRecord(identity, records.Event(event))
 }
 
 func verifySignedOperationalRunRecords(events []OperationalEvent, in []SignedOperationalRunRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedOperationalRunRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedOperationalRunRecord(record)
-	}
-	return records.VerifySignedOperationalRunRecords(eventSlice, recordSlice)
+	return records.VerifySignedOperationalRunRecords(events, in)
 }
 
 func compareOperationalRunPayload(expected operationalRunPayload, got operationalRunPayload) error {

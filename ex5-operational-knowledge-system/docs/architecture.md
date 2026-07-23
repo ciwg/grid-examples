@@ -2,7 +2,10 @@
 
 `ex5-operational-knowledge-system` keeps durable operational history in one
 local Go runtime and presents browser, CLI, and Neovim embodiments over that
-shared state. Source: `DI-radok`; `DI-fudok`; `DI-zorav`.
+shared state. The repo now also has an explicit reusable PromiseGrid substrate
+boundary under `promisegrid/`, while `service/` remains the ex5
+operational-knowledge application/runtime layer. Source: `DI-radok`;
+`DI-fudok`; `DI-zorav`; `DI-ragiv`; `DI-vurem`; `DI-rasok`.
 
 ## Topology
 
@@ -71,11 +74,21 @@ back into a local compatibility attachment path on demand. Source:
 `DI-lavuz`; `DI-rovud`; `DI-faruv`.
 
 The embodiment contract also tightened another step after that milestone:
-browser still uses the local HTTP adapter, while CLI and Neovim now prefer the
-direct local Unix-socket contract. The HTTP adapter still exposes peer-exchange
-and CAS runtime capability metadata and is described as an adapter over the
-richer runtime contract instead of only a local app surface. Source:
-`DI-vabek`; `DI-rovuz`; `DI-favel`.
+browser now prefers the direct Chrome/Chromium native-messaging embodiment,
+while CLI and Neovim prefer the direct local Unix-socket contract. The local
+HTTP surface remains the browser shell/bootstrap lane plus explicit
+compatibility transport, and it still exposes peer-exchange and CAS runtime
+capability metadata as an adapter over the richer runtime contract. Source:
+`DI-vabek`; `DI-rovuz`; `DI-favel`; `DI-punek`.
+
+The reusable substrate line is now explicit:
+
+- `promisegrid/records/` owns frozen-family durable record truth
+- `promisegrid/transport/` owns peer-exchange and relay-feed wire truth
+- `service/` owns ex5 persistence, projections, workflows, and embodiment
+  composition over those substrate packages
+
+Source: `DI-ragiv`; `DI-vurem`; `DI-rasok`; `DI-nolav`.
 
 The runtime owns:
 

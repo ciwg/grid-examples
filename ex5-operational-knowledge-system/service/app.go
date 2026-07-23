@@ -9,6 +9,7 @@ import (
 	"time"
 
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
@@ -153,8 +154,8 @@ func (app *App) Meta() Meta {
 		OperationalRunPCID:          protocols.OperationalRunProfile.CID.String(),
 		OperationalPlacePCID:        protocols.OperationalPlaceProfile.CID.String(),
 		OperationalResourcePCID:     protocols.OperationalResourceProfile.CID.String(),
-		PeerExchangeFormat:          peerExchangeBundleFormat,
-		RelayFeedFormat:             relayFeedFormat,
+		PeerExchangeFormat:          pgtransport.PeerExchangeBundleFormat,
+		RelayFeedFormat:             pgtransport.RelayFeedFormat,
 		PeerExchangeFamilies: []string{
 			"knowledge-item",
 			"knowledge-approval",

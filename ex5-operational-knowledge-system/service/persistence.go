@@ -1,9 +1,7 @@
 package service
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,10 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	pgstore "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/store"
 )
-
-const maxEventLineBytes = 1 << 20
 
 type Store struct {
 	root                            string
@@ -37,7 +33,7 @@ type Store struct {
 	knowledgeLinkPath               string
 	knowledgeResponsibilityPath     string
 	draftPath                       string
-	casRoot                         string
+	cas                             *pgstore.CASStore
 	identity                        *RuntimeIdentity
 }
 
@@ -60,7 +56,8 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 	if err := os.MkdirAll(filepath.Join(root, "attachments"), 0o755); err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
-	if err := os.MkdirAll(filepath.Join(root, "cas", "objects"), 0o755); err != nil {
+	casRoot := filepath.Join(root, "cas", "objects")
+	if err := os.MkdirAll(casRoot, 0o755); err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(root, "drafts"), 0o755); err != nil {
@@ -71,7 +68,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 	eventPath := filepath.Join(root, "events.jsonl")
-	eventsFile, err := os.OpenFile(eventPath, os.O_RDWR|os.O_CREATE, 0o644)
+	eventsFile, err := pgstore.OpenAppendOnlyLog(eventPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
@@ -80,7 +77,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
 	}
 	knowledgeItemPath := filepath.Join(root, "knowledge-item-messages.jsonl")
-	knowledgeItemFile, err := os.OpenFile(knowledgeItemPath, os.O_RDWR|os.O_CREATE, 0o644)
+	knowledgeItemFile, err := pgstore.OpenAppendOnlyLog(knowledgeItemPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close())
 	}
@@ -89,7 +86,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
 	}
 	knowledgeApprovalPath := filepath.Join(root, "knowledge-approval-messages.jsonl")
-	knowledgeApprovalFile, err := os.OpenFile(knowledgeApprovalPath, os.O_RDWR|os.O_CREATE, 0o644)
+	knowledgeApprovalFile, err := pgstore.OpenAppendOnlyLog(knowledgeApprovalPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close())
 	}
@@ -98,7 +95,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
 	}
 	knowledgeEvidencePath := filepath.Join(root, "knowledge-evidence-messages.jsonl")
-	knowledgeEvidenceFile, err := os.OpenFile(knowledgeEvidencePath, os.O_RDWR|os.O_CREATE, 0o644)
+	knowledgeEvidenceFile, err := pgstore.OpenAppendOnlyLog(knowledgeEvidencePath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close())
 	}
@@ -107,7 +104,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
 	}
 	operationalRunPath := filepath.Join(root, "operational-run-messages.jsonl")
-	operationalRunFile, err := os.OpenFile(operationalRunPath, os.O_RDWR|os.O_CREATE, 0o644)
+	operationalRunFile, err := pgstore.OpenAppendOnlyLog(operationalRunPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close())
 	}
@@ -116,7 +113,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
 	}
 	operationalPlacePath := filepath.Join(root, "operational-place-messages.jsonl")
-	operationalPlaceFile, err := os.OpenFile(operationalPlacePath, os.O_RDWR|os.O_CREATE, 0o644)
+	operationalPlaceFile, err := pgstore.OpenAppendOnlyLog(operationalPlacePath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close())
 	}
@@ -125,7 +122,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close())
 	}
 	operationalResourcePath := filepath.Join(root, "operational-resource-messages.jsonl")
-	operationalResourceFile, err := os.OpenFile(operationalResourcePath, os.O_RDWR|os.O_CREATE, 0o644)
+	operationalResourceFile, err := pgstore.OpenAppendOnlyLog(operationalResourcePath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close())
 	}
@@ -134,7 +131,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close())
 	}
 	knowledgeLinkPath := filepath.Join(root, "knowledge-link-messages.jsonl")
-	knowledgeLinkFile, err := os.OpenFile(knowledgeLinkPath, os.O_RDWR|os.O_CREATE, 0o644)
+	knowledgeLinkFile, err := pgstore.OpenAppendOnlyLog(knowledgeLinkPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close())
 	}
@@ -143,7 +140,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close())
 	}
 	knowledgeResponsibilityPath := filepath.Join(root, "knowledge-responsibility-messages.jsonl")
-	knowledgeResponsibilityFile, err := os.OpenFile(knowledgeResponsibilityPath, os.O_RDWR|os.O_CREATE, 0o644)
+	knowledgeResponsibilityFile, err := pgstore.OpenAppendOnlyLog(knowledgeResponsibilityPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, errors.Join(err, eventsFile.Close(), knowledgeItemFile.Close(), knowledgeApprovalFile.Close(), knowledgeEvidenceFile.Close(), operationalRunFile.Close(), operationalPlaceFile.Close(), operationalResourceFile.Close(), knowledgeLinkFile.Close())
 	}
@@ -199,7 +196,7 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 		knowledgeLinkPath:               knowledgeLinkPath,
 		knowledgeResponsibilityPath:     knowledgeResponsibilityPath,
 		draftPath:                       filepath.Join(root, "drafts"),
-		casRoot:                         filepath.Join(root, "cas", "objects"),
+		cas:                             pgstore.NewCASStore(casRoot),
 		identity:                        identity,
 	}
 	knowledgeItemRecords, err = store.hydrateSignedKnowledgeItemRecords(knowledgeItemRecords)
@@ -238,89 +235,30 @@ func OpenStore(root string) (*Store, []OperationalEvent, []SignedKnowledgeItemRe
 }
 
 func readEvents(file *os.File) (events []OperationalEvent, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	// Intent: Replay the full stored event log within the server's current
-	// request-size envelope so durable large revisions do not become
-	// unreadable after restart. Source: DI-busor
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	events = []OperationalEvent{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var event OperationalEvent
-		if err := json.Unmarshal(line, &event); err != nil {
-			return nil, fmt.Errorf("decode event: %w", err)
-		}
-		events = append(events, event)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	events, err = pgstore.ReadJSONL[OperationalEvent](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode event: %w", err)
 	}
 	return events, nil
 }
 
 func (store *Store) AppendEvent(event OperationalEvent) error {
-	body, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	if _, err := store.events.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.events.Sync()
+	return pgstore.AppendJSONL(store.events, event)
 }
 
 func readSignedKnowledgeItemRecords(file *os.File) (records []SignedKnowledgeItemRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedKnowledgeItemRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedKnowledgeItemRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode knowledge-item record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedKnowledgeItemRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode knowledge-item record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedKnowledgeItemRecord(record SignedKnowledgeItemRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.knowledgeItemMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.knowledgeItemMessages.Sync()
+	return pgstore.AppendJSONL(store.knowledgeItemMessages, record)
 }
 
 func (store *Store) LoadSignedKnowledgeItemRecordsAuthoritative() ([]SignedKnowledgeItemRecord, error) {
@@ -332,46 +270,18 @@ func (store *Store) LoadSignedKnowledgeItemRecordsAuthoritative() ([]SignedKnowl
 }
 
 func readSignedKnowledgeApprovalRecords(file *os.File) (records []SignedKnowledgeApprovalRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedKnowledgeApprovalRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedKnowledgeApprovalRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode knowledge-approval record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedKnowledgeApprovalRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode knowledge-approval record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedKnowledgeApprovalRecord(record SignedKnowledgeApprovalRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.knowledgeApprovalMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.knowledgeApprovalMessages.Sync()
+	return pgstore.AppendJSONL(store.knowledgeApprovalMessages, record)
 }
 
 func (store *Store) LoadSignedKnowledgeApprovalRecordsAuthoritative() ([]SignedKnowledgeApprovalRecord, error) {
@@ -383,46 +293,18 @@ func (store *Store) LoadSignedKnowledgeApprovalRecordsAuthoritative() ([]SignedK
 }
 
 func readSignedKnowledgeEvidenceRecords(file *os.File) (records []SignedKnowledgeEvidenceRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedKnowledgeEvidenceRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedKnowledgeEvidenceRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode knowledge-evidence record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedKnowledgeEvidenceRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode knowledge-evidence record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedKnowledgeEvidenceRecord(record SignedKnowledgeEvidenceRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.knowledgeEvidenceMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.knowledgeEvidenceMessages.Sync()
+	return pgstore.AppendJSONL(store.knowledgeEvidenceMessages, record)
 }
 
 func (store *Store) LoadSignedKnowledgeEvidenceRecordsAuthoritative() ([]SignedKnowledgeEvidenceRecord, error) {
@@ -434,46 +316,18 @@ func (store *Store) LoadSignedKnowledgeEvidenceRecordsAuthoritative() ([]SignedK
 }
 
 func readSignedOperationalRunRecords(file *os.File) (records []SignedOperationalRunRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedOperationalRunRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedOperationalRunRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode operational-run record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedOperationalRunRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode operational-run record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedOperationalRunRecord(record SignedOperationalRunRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.operationalRunMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.operationalRunMessages.Sync()
+	return pgstore.AppendJSONL(store.operationalRunMessages, record)
 }
 
 func (store *Store) LoadSignedOperationalRunRecordsAuthoritative() ([]SignedOperationalRunRecord, error) {
@@ -485,46 +339,18 @@ func (store *Store) LoadSignedOperationalRunRecordsAuthoritative() ([]SignedOper
 }
 
 func readSignedOperationalPlaceRecords(file *os.File) (records []SignedOperationalPlaceRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedOperationalPlaceRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedOperationalPlaceRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode operational-place record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedOperationalPlaceRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode operational-place record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedOperationalPlaceRecord(record SignedOperationalPlaceRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.operationalPlaceMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.operationalPlaceMessages.Sync()
+	return pgstore.AppendJSONL(store.operationalPlaceMessages, record)
 }
 
 func (store *Store) LoadSignedOperationalPlaceRecordsAuthoritative() ([]SignedOperationalPlaceRecord, error) {
@@ -536,46 +362,18 @@ func (store *Store) LoadSignedOperationalPlaceRecordsAuthoritative() ([]SignedOp
 }
 
 func readSignedOperationalResourceRecords(file *os.File) (records []SignedOperationalResourceRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedOperationalResourceRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedOperationalResourceRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode operational-resource record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedOperationalResourceRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode operational-resource record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedOperationalResourceRecord(record SignedOperationalResourceRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.operationalResourceMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.operationalResourceMessages.Sync()
+	return pgstore.AppendJSONL(store.operationalResourceMessages, record)
 }
 
 func (store *Store) LoadSignedOperationalResourceRecordsAuthoritative() ([]SignedOperationalResourceRecord, error) {
@@ -587,46 +385,18 @@ func (store *Store) LoadSignedOperationalResourceRecordsAuthoritative() ([]Signe
 }
 
 func readSignedKnowledgeLinkRecords(file *os.File) (records []SignedKnowledgeLinkRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedKnowledgeLinkRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedKnowledgeLinkRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode knowledge-link record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedKnowledgeLinkRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode knowledge-link record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedKnowledgeLinkRecord(record SignedKnowledgeLinkRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.knowledgeLinkMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.knowledgeLinkMessages.Sync()
+	return pgstore.AppendJSONL(store.knowledgeLinkMessages, record)
 }
 
 func (store *Store) LoadSignedKnowledgeLinkRecordsAuthoritative() ([]SignedKnowledgeLinkRecord, error) {
@@ -638,46 +408,18 @@ func (store *Store) LoadSignedKnowledgeLinkRecordsAuthoritative() ([]SignedKnowl
 }
 
 func readSignedKnowledgeResponsibilityRecords(file *os.File) (records []SignedKnowledgeResponsibilityRecord, err error) {
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if _, seekErr := file.Seek(0, os.SEEK_END); seekErr != nil {
-			err = errors.Join(err, seekErr)
-		}
-	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventLineBytes)
-	records = []SignedKnowledgeResponsibilityRecord{}
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var record SignedKnowledgeResponsibilityRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			return nil, fmt.Errorf("decode knowledge-responsibility record: %w", err)
-		}
-		records = append(records, record)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	records, err = pgstore.ReadJSONL[SignedKnowledgeResponsibilityRecord](file)
+	if err != nil {
+		return nil, fmt.Errorf("decode knowledge-responsibility record: %w", err)
 	}
 	return records, nil
 }
 
 func (store *Store) AppendSignedKnowledgeResponsibilityRecord(record SignedKnowledgeResponsibilityRecord) error {
-	if err := store.writeEnvelopeCAS(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
+	if err := store.cas.WriteEnvelopeBase64(record.EnvelopeCID, record.EnvelopeBase64); err != nil {
 		return err
 	}
-	body, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	if _, err := store.knowledgeResponsibilityMessages.Write(append(body, '\n')); err != nil {
-		return err
-	}
-	return store.knowledgeResponsibilityMessages.Sync()
+	return pgstore.AppendJSONL(store.knowledgeResponsibilityMessages, record)
 }
 
 func (store *Store) LoadSignedKnowledgeResponsibilityRecordsAuthoritative() ([]SignedKnowledgeResponsibilityRecord, error) {
@@ -713,7 +455,7 @@ func (store *Store) SaveAttachment(entityID string, filename string, data []byte
 	if err := tempFile.Close(); err != nil {
 		return "", "", 0, err
 	}
-	cid, err := store.writeCASObject(data)
+	cid, err := store.cas.WriteObject(data)
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -728,7 +470,7 @@ func (store *Store) MaterializeAttachmentFromCID(entityID string, attachmentName
 	if strings.TrimSpace(attachmentCID) == "" {
 		return "", nil
 	}
-	body, err := store.loadCASObject(attachmentCID)
+	body, err := store.cas.LoadObject(attachmentCID)
 	if err != nil {
 		return "", err
 	}
@@ -757,212 +499,127 @@ func (store *Store) MaterializeAttachmentFromCID(entityID string, attachmentName
 	return target, nil
 }
 
-func (store *Store) writeEnvelopeCAS(expectedCID string, envelopeBase64 string) error {
-	envelopeBytes, err := base64.StdEncoding.DecodeString(envelopeBase64)
-	if err != nil {
-		return fmt.Errorf("decode envelope base64: %w", err)
-	}
-	cid, err := store.writeCASObject(envelopeBytes)
-	if err != nil {
-		return err
-	}
-	if cid != expectedCID {
-		return fmt.Errorf("envelope CAS cid mismatch: got %q want %q", cid, expectedCID)
-	}
-	return nil
-}
-
-// Intent: Make CAS authoritative for the eight frozen family envelope bytes
-// while allowing one-time backfill from the manifest copy so older runtimes can
-// migrate into the stronger replay path without a destructive cutover. Source:
-// DI-rovud
-func (store *Store) authoritativeEnvelopeBase64(envelopeCID string, manifestBase64 string) (string, error) {
-	envelopeBytes, err := store.loadCASObject(envelopeCID)
-	if err == nil {
-		return base64.StdEncoding.EncodeToString(envelopeBytes), nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	if strings.TrimSpace(manifestBase64) == "" {
-		return "", fmt.Errorf("cas envelope %q missing and no manifest fallback present", envelopeCID)
-	}
-	if err := store.writeEnvelopeCAS(envelopeCID, manifestBase64); err != nil {
-		return "", err
-	}
-	envelopeBytes, err = store.loadCASObject(envelopeCID)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(envelopeBytes), nil
-}
-
-func (store *Store) writeCASObject(data []byte) (string, error) {
-	cid, err := protocols.CIDForBytes(data)
-	if err != nil {
-		return "", fmt.Errorf("cid cas object: %w", err)
-	}
-	target := store.casObjectPath(cid.String())
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return "", err
-	}
-	existing, err := os.ReadFile(target)
-	if err == nil {
-		if !bytes.Equal(existing, data) {
-			return "", fmt.Errorf("cas object %q already exists with different bytes", cid.String())
-		}
-		return cid.String(), nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	tempFile, err := os.CreateTemp(filepath.Dir(target), "cas-*")
-	if err != nil {
-		return "", err
-	}
-	tempPath := tempFile.Name()
-	if _, err := tempFile.Write(data); err != nil {
-		return "", errors.Join(err, tempFile.Close(), os.Remove(tempPath))
-	}
-	if err := tempFile.Close(); err != nil {
-		return "", errors.Join(err, os.Remove(tempPath))
-	}
-	if err := os.Rename(tempPath, target); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			existing, readErr := os.ReadFile(target)
-			if readErr != nil {
-				return "", errors.Join(err, readErr)
-			}
-			if !bytes.Equal(existing, data) {
-				return "", fmt.Errorf("cas object %q already exists with different bytes", cid.String())
-			}
-			if removeErr := os.Remove(tempPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-				return "", removeErr
-			}
-			return cid.String(), nil
-		}
-		return "", errors.Join(err, os.Remove(tempPath))
-	}
-	return cid.String(), nil
-}
-
-func (store *Store) loadCASObject(cid string) ([]byte, error) {
-	body, err := os.ReadFile(store.casObjectPath(cid))
-	if err != nil {
-		return nil, err
-	}
-	readCID, err := protocols.CIDForBytes(body)
-	if err != nil {
-		return nil, fmt.Errorf("cid cas object %q: %w", cid, err)
-	}
-	if readCID.String() != cid {
-		return nil, fmt.Errorf("cas object %q bytes hash to %q", cid, readCID.String())
-	}
-	return body, nil
-}
-
+// Intent: Preserve app-level test access to the current CAS object location
+// while the durable object-path rule itself now lives in the reusable store
+// substrate. Source: DI-lemor
 func (store *Store) casObjectPath(cid string) string {
-	prefix := cid
-	if len(prefix) > 2 {
-		prefix = prefix[:2]
-	}
-	return filepath.Join(store.casRoot, prefix, cid)
+	return store.cas.ObjectPath(cid)
 }
 
 func (store *Store) hydrateSignedKnowledgeItemRecords(records []SignedKnowledgeItemRecord) ([]SignedKnowledgeItemRecord, error) {
-	out := append([]SignedKnowledgeItemRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative knowledge-item envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedKnowledgeItemRecord) string { return record.EnvelopeCID },
+		func(record SignedKnowledgeItemRecord) string { return record.EnvelopeBase64 },
+		func(record SignedKnowledgeItemRecord) string {
+			return fmt.Sprintf("knowledge-item envelope %d", record.Sequence)
+		},
+		func(record *SignedKnowledgeItemRecord, base64Envelope string) { record.EnvelopeBase64 = base64Envelope },
+	)
 }
 
 func (store *Store) hydrateSignedKnowledgeApprovalRecords(records []SignedKnowledgeApprovalRecord) ([]SignedKnowledgeApprovalRecord, error) {
-	out := append([]SignedKnowledgeApprovalRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative knowledge-approval envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedKnowledgeApprovalRecord) string { return record.EnvelopeCID },
+		func(record SignedKnowledgeApprovalRecord) string { return record.EnvelopeBase64 },
+		func(record SignedKnowledgeApprovalRecord) string {
+			return fmt.Sprintf("knowledge-approval envelope %d", record.Sequence)
+		},
+		func(record *SignedKnowledgeApprovalRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 func (store *Store) hydrateSignedKnowledgeEvidenceRecords(records []SignedKnowledgeEvidenceRecord) ([]SignedKnowledgeEvidenceRecord, error) {
-	out := append([]SignedKnowledgeEvidenceRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative knowledge-evidence envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedKnowledgeEvidenceRecord) string { return record.EnvelopeCID },
+		func(record SignedKnowledgeEvidenceRecord) string { return record.EnvelopeBase64 },
+		func(record SignedKnowledgeEvidenceRecord) string {
+			return fmt.Sprintf("knowledge-evidence envelope %d", record.Sequence)
+		},
+		func(record *SignedKnowledgeEvidenceRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 func (store *Store) hydrateSignedOperationalRunRecords(records []SignedOperationalRunRecord) ([]SignedOperationalRunRecord, error) {
-	out := append([]SignedOperationalRunRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative operational-run envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedOperationalRunRecord) string { return record.EnvelopeCID },
+		func(record SignedOperationalRunRecord) string { return record.EnvelopeBase64 },
+		func(record SignedOperationalRunRecord) string {
+			return fmt.Sprintf("operational-run envelope %d", record.Sequence)
+		},
+		func(record *SignedOperationalRunRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 func (store *Store) hydrateSignedOperationalPlaceRecords(records []SignedOperationalPlaceRecord) ([]SignedOperationalPlaceRecord, error) {
-	out := append([]SignedOperationalPlaceRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative operational-place envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedOperationalPlaceRecord) string { return record.EnvelopeCID },
+		func(record SignedOperationalPlaceRecord) string { return record.EnvelopeBase64 },
+		func(record SignedOperationalPlaceRecord) string {
+			return fmt.Sprintf("operational-place envelope %d", record.Sequence)
+		},
+		func(record *SignedOperationalPlaceRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 func (store *Store) hydrateSignedOperationalResourceRecords(records []SignedOperationalResourceRecord) ([]SignedOperationalResourceRecord, error) {
-	out := append([]SignedOperationalResourceRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative operational-resource envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedOperationalResourceRecord) string { return record.EnvelopeCID },
+		func(record SignedOperationalResourceRecord) string { return record.EnvelopeBase64 },
+		func(record SignedOperationalResourceRecord) string {
+			return fmt.Sprintf("operational-resource envelope %d", record.Sequence)
+		},
+		func(record *SignedOperationalResourceRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 func (store *Store) hydrateSignedKnowledgeLinkRecords(records []SignedKnowledgeLinkRecord) ([]SignedKnowledgeLinkRecord, error) {
-	out := append([]SignedKnowledgeLinkRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative knowledge-link envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedKnowledgeLinkRecord) string { return record.EnvelopeCID },
+		func(record SignedKnowledgeLinkRecord) string { return record.EnvelopeBase64 },
+		func(record SignedKnowledgeLinkRecord) string {
+			return fmt.Sprintf("knowledge-link envelope %d", record.Sequence)
+		},
+		func(record *SignedKnowledgeLinkRecord, base64Envelope string) { record.EnvelopeBase64 = base64Envelope },
+	)
 }
 
 func (store *Store) hydrateSignedKnowledgeResponsibilityRecords(records []SignedKnowledgeResponsibilityRecord) ([]SignedKnowledgeResponsibilityRecord, error) {
-	out := append([]SignedKnowledgeResponsibilityRecord(nil), records...)
-	for i := range out {
-		base64Envelope, err := store.authoritativeEnvelopeBase64(out[i].EnvelopeCID, out[i].EnvelopeBase64)
-		if err != nil {
-			return nil, fmt.Errorf("load authoritative knowledge-responsibility envelope %d: %w", out[i].Sequence, err)
-		}
-		out[i].EnvelopeBase64 = base64Envelope
-	}
-	return out, nil
+	return pgstore.HydrateAuthoritativeEnvelopes(
+		store.cas,
+		records,
+		func(record SignedKnowledgeResponsibilityRecord) string { return record.EnvelopeCID },
+		func(record SignedKnowledgeResponsibilityRecord) string { return record.EnvelopeBase64 },
+		func(record SignedKnowledgeResponsibilityRecord) string {
+			return fmt.Sprintf("knowledge-responsibility envelope %d", record.Sequence)
+		},
+		func(record *SignedKnowledgeResponsibilityRecord, base64Envelope string) {
+			record.EnvelopeBase64 = base64Envelope
+		},
+	)
 }
 
 // Intent: Restore the shared browser working bodies on startup without mixing
@@ -1007,7 +664,7 @@ func (store *Store) LoadDrafts() (map[string]PersistedDraft, error) {
 // without rewriting historical revision events. Source: DI-lusov; DI-zoruk;
 // DI-zunep
 func (store *Store) SaveDraft(entityID string, draft PersistedDraft) error {
-	bodyCID, err := store.writeCASObject([]byte(draft.Body))
+	bodyCID, err := store.cas.WriteObject([]byte(draft.Body))
 	if err != nil {
 		return err
 	}
@@ -1021,14 +678,14 @@ func (store *Store) SaveDraft(entityID string, draft PersistedDraft) error {
 func (store *Store) hydrateDraftManifest(entityID string, draft PersistedDraft) (PersistedDraft, bool, error) {
 	changed := false
 	if strings.TrimSpace(draft.BodyCID) == "" {
-		bodyCID, err := store.writeCASObject([]byte(draft.Body))
+		bodyCID, err := store.cas.WriteObject([]byte(draft.Body))
 		if err != nil {
 			return PersistedDraft{}, false, err
 		}
 		draft.BodyCID = bodyCID
 		changed = true
 	}
-	body, err := store.loadCASObject(draft.BodyCID)
+	body, err := store.cas.LoadObject(draft.BodyCID)
 	if err != nil {
 		return PersistedDraft{}, false, err
 	}

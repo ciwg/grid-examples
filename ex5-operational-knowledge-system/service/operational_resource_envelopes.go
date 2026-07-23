@@ -6,17 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedOperationalResourceRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	ResourceID     string `json:"resource_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedOperationalResourceRecord = records.SignedOperationalResourceRecord
 
 type operationalResourcePayload struct {
 	EntityID  string   `cbor:"entity_id"`
@@ -53,20 +43,11 @@ func operationalResourcePayloadForEvent(event OperationalEvent) (operationalReso
 // so exchanged runs and links can resolve their resource references without
 // falling back to unresolved local-only context. Source: DI-pivul
 func buildSignedOperationalResourceRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalResourceRecord, bool, error) {
-	record, ok, err := records.BuildSignedOperationalResourceRecord(identity, records.Event(event))
-	return SignedOperationalResourceRecord(record), ok, err
+	return records.BuildSignedOperationalResourceRecord(identity, records.Event(event))
 }
 
 func verifySignedOperationalResourceRecords(events []OperationalEvent, in []SignedOperationalResourceRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedOperationalResourceRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedOperationalResourceRecord(record)
-	}
-	return records.VerifySignedOperationalResourceRecords(eventSlice, recordSlice)
+	return records.VerifySignedOperationalResourceRecords(events, in)
 }
 
 func compareOperationalResourcePayload(expected operationalResourcePayload, got operationalResourcePayload) error {

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-)
 
-const relayFeedFormat = "ex5-relay-feed-v1"
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
+)
 
 // Intent: Expose a narrower incremental relay feed over the existing signed
 // family layer so ex5 can advance beyond whole-bundle exchange without
@@ -18,10 +18,10 @@ func (app *App) ExportRelayFeed(request RelayFeedRequest) (RelayFeedBatch, error
 	if err != nil {
 		return RelayFeedBatch{}, err
 	}
-	unseenEvents, unseenKeys := filterRelayFeedEvents(bundle.Events, request.KnownOrigins)
-	requiredBlobCIDs := requiredBlobCIDsForEvents(unseenEvents)
+	unseenEvents, unseenKeys := pgtransport.FilterRelayFeedEvents(bundle.Events, request.KnownOrigins)
+	requiredBlobCIDs := pgtransport.RequiredBlobCIDsForEvents(unseenEvents)
 	return RelayFeedBatch{
-		Format:                         relayFeedFormat,
+		Format:                         pgtransport.RelayFeedFormat,
 		ExportedAt:                     bundle.ExportedAt,
 		Implementation:                 "ex5-relay-feed",
 		ExportingPeerID:                bundle.ExportingPeerID,
@@ -34,14 +34,14 @@ func (app *App) ExportRelayFeed(request RelayFeedRequest) (RelayFeedBatch, error
 		OperationalPlacePCID:           bundle.OperationalPlacePCID,
 		OperationalResourcePCID:        bundle.OperationalResourcePCID,
 		Events:                         unseenEvents,
-		KnowledgeItemRecords:           filterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenKeys),
-		KnowledgeApprovalRecords:       filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenKeys),
-		KnowledgeEvidenceRecords:       filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenKeys),
-		OperationalRunRecords:          filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenKeys),
-		OperationalPlaceRecords:        filterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenKeys),
-		OperationalResourceRecords:     filterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenKeys),
-		KnowledgeLinkRecords:           filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenKeys),
-		KnowledgeResponsibilityRecords: filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenKeys),
+		KnowledgeItemRecords:           pgtransport.FilterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenKeys),
+		KnowledgeApprovalRecords:       pgtransport.FilterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenKeys),
+		KnowledgeEvidenceRecords:       pgtransport.FilterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenKeys),
+		OperationalRunRecords:          pgtransport.FilterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenKeys),
+		OperationalPlaceRecords:        pgtransport.FilterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenKeys),
+		OperationalResourceRecords:     pgtransport.FilterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenKeys),
+		KnowledgeLinkRecords:           pgtransport.FilterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenKeys),
+		KnowledgeResponsibilityRecords: pgtransport.FilterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenKeys),
 		RequiredBlobCIDs:               requiredBlobCIDs,
 	}, nil
 }
@@ -65,7 +65,7 @@ func (app *App) ImportRelayFeed(batch RelayFeedBatch) (RelayFeedImportResult, er
 		return RelayFeedImportResult{MissingBlobCIDs: missing}, nil
 	}
 	result, err := app.ImportPeerExchangeBundle(PeerExchangeBundle{
-		Format:                         peerExchangeBundleFormat,
+		Format:                         pgtransport.PeerExchangeBundleFormat,
 		ExportedAt:                     batch.ExportedAt,
 		Implementation:                 batch.Implementation,
 		ExportingPeerID:                batch.ExportingPeerID,
@@ -111,7 +111,7 @@ func (app *App) ImportRelayFeed(batch RelayFeedBatch) (RelayFeedImportResult, er
 func (app *App) RelayBlob(cid string) ([]byte, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return app.store.loadCASObject(strings.TrimSpace(cid))
+	return app.store.cas.LoadObject(strings.TrimSpace(cid))
 }
 
 // Intent: Stage relay-delivered blobs into local CAS only when the uploaded
@@ -120,7 +120,7 @@ func (app *App) RelayBlob(cid string) ([]byte, error) {
 func (app *App) StoreRelayBlob(cid string, body []byte) error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	writtenCID, err := app.store.writeCASObject(body)
+	writtenCID, err := app.store.cas.WriteObject(body)
 	if err != nil {
 		return err
 	}
@@ -130,40 +130,8 @@ func (app *App) StoreRelayBlob(cid string, body []byte) error {
 	return nil
 }
 
-func filterRelayFeedEvents(events []OperationalEvent, known map[string]uint64) ([]OperationalEvent, map[string]bool) {
-	out := make([]OperationalEvent, 0, len(events))
-	wanted := map[string]bool{}
-	for _, event := range events {
-		seen := known[event.OriginPeerID]
-		if event.OriginSequence <= seen {
-			continue
-		}
-		out = append(out, event)
-		wanted[originEventKey(event.OriginPeerID, event.OriginSequence)] = true
-	}
-	return out, wanted
-}
-
-func requiredBlobCIDsForEvents(events []OperationalEvent) []string {
-	seen := map[string]bool{}
-	out := []string{}
-	for _, event := range events {
-		if event.Type != "evidence_added" || strings.TrimSpace(event.AttachmentCID) == "" {
-			continue
-		}
-		cid := strings.TrimSpace(event.AttachmentCID)
-		if seen[cid] {
-			continue
-		}
-		seen[cid] = true
-		out = append(out, cid)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func validateRelayFeedBatch(batch RelayFeedBatch) error {
-	if strings.TrimSpace(batch.Format) != relayFeedFormat {
+	if strings.TrimSpace(batch.Format) != pgtransport.RelayFeedFormat {
 		return fmt.Errorf("unsupported relay feed format %q", batch.Format)
 	}
 	required := map[string]bool{}
@@ -196,7 +164,7 @@ func (app *App) relayFeedBlobObjects(cids []string) (map[string]string, []string
 		if cid == "" {
 			continue
 		}
-		body, err := app.store.loadCASObject(cid)
+		body, err := app.store.cas.LoadObject(cid)
 		if err != nil {
 			if strings.Contains(err.Error(), "no such file") || strings.Contains(err.Error(), "not found") {
 				missing = append(missing, cid)

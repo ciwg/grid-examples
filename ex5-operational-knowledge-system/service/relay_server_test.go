@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 )
 
 func TestRelayServerMeta(t *testing.T) {
@@ -38,7 +40,7 @@ func TestRelayServerMeta(t *testing.T) {
 	if meta.RoutePrefix != relayRoutePrefix {
 		t.Fatalf("unexpected relay route prefix: %+v", meta)
 	}
-	if meta.RelayFeedFormat != relayFeedFormat || !meta.RelayBlobTransferEnabled || !meta.PublishRequiresStagedBlobs {
+	if meta.RelayFeedFormat != pgtransport.RelayFeedFormat || !meta.RelayBlobTransferEnabled || !meta.PublishRequiresStagedBlobs {
 		t.Fatalf("unexpected relay meta capabilities: %+v", meta)
 	}
 }

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 )
 
 func TestServerCreatesAndListsKnowledgeItems(t *testing.T) {
@@ -58,10 +60,10 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &meta); err != nil {
 		t.Fatalf("decode meta: %v", err)
 	}
-	if meta.PeerExchangeFormat != peerExchangeBundleFormat {
+	if meta.PeerExchangeFormat != pgtransport.PeerExchangeBundleFormat {
 		t.Fatalf("unexpected peer exchange format in meta: %+v", meta)
 	}
-	if meta.RelayFeedFormat != relayFeedFormat {
+	if meta.RelayFeedFormat != pgtransport.RelayFeedFormat {
 		t.Fatalf("unexpected relay feed format in meta: %+v", meta)
 	}
 	if meta.OperationalRunPCID == "" {
@@ -648,7 +650,7 @@ func TestServerExportsAndImportsPeerExchangeBundle(t *testing.T) {
 	if err := json.Unmarshal(exportResponse.Body.Bytes(), &bundle); err != nil {
 		t.Fatalf("decode export bundle: %v", err)
 	}
-	if bundle.Format != peerExchangeBundleFormat {
+	if bundle.Format != pgtransport.PeerExchangeBundleFormat {
 		t.Fatalf("unexpected bundle format %q", bundle.Format)
 	}
 
@@ -711,7 +713,7 @@ func TestServerExportsIncrementalRelayFeed(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &batch); err != nil {
 		t.Fatalf("decode relay feed: %v", err)
 	}
-	if batch.Format != relayFeedFormat {
+	if batch.Format != pgtransport.RelayFeedFormat {
 		t.Fatalf("unexpected relay feed format %q", batch.Format)
 	}
 	if len(batch.Events) != 1 || batch.Events[0].Type != "evidence_added" {

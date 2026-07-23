@@ -6,17 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedOperationalPlaceRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	PlaceID        string `json:"place_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedOperationalPlaceRecord = records.SignedOperationalPlaceRecord
 
 type operationalPlacePayload struct {
 	EntityID  string   `cbor:"entity_id"`
@@ -53,20 +43,11 @@ func operationalPlacePayloadForEvent(event OperationalEvent) (operationalPlacePa
 // exchanged runs and links can resolve their place references without falling
 // back to unresolved local-only context. Source: DI-pivul
 func buildSignedOperationalPlaceRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalPlaceRecord, bool, error) {
-	record, ok, err := records.BuildSignedOperationalPlaceRecord(identity, records.Event(event))
-	return SignedOperationalPlaceRecord(record), ok, err
+	return records.BuildSignedOperationalPlaceRecord(identity, records.Event(event))
 }
 
 func verifySignedOperationalPlaceRecords(events []OperationalEvent, in []SignedOperationalPlaceRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedOperationalPlaceRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedOperationalPlaceRecord(record)
-	}
-	return records.VerifySignedOperationalPlaceRecords(eventSlice, recordSlice)
+	return records.VerifySignedOperationalPlaceRecords(events, in)
 }
 
 func compareOperationalPlacePayload(expected operationalPlacePayload, got operationalPlacePayload) error {

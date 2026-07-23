@@ -7,11 +7,9 @@ import (
 	"strings"
 	"time"
 
-	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
-
-const peerExchangeBundleFormat = "ex5-peer-exchange-v5"
 
 // Intent: Expose the current relay-visible ex5 PromiseGrid slice as
 // whole-family peer exchange over the current local HTTP adapter so peers can
@@ -102,7 +100,7 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 		if event.Type != "evidence_added" || strings.TrimSpace(event.AttachmentCID) == "" {
 			continue
 		}
-		blobBytes, err := app.store.loadCASObject(event.AttachmentCID)
+		blobBytes, err := app.store.cas.LoadObject(event.AttachmentCID)
 		if err != nil {
 			return PeerExchangeBundle{}, fmt.Errorf("read evidence blob %q from cas: %w", event.AttachmentCID, err)
 		}
@@ -110,7 +108,7 @@ func (app *App) ExportPeerExchangeBundle() (PeerExchangeBundle, error) {
 	}
 
 	return PeerExchangeBundle{
-		Format:                         peerExchangeBundleFormat,
+		Format:                         pgtransport.PeerExchangeBundleFormat,
 		ExportedAt:                     time.Now().Format(time.RFC3339),
 		Implementation:                 "ex5-local-runtime",
 		ExportingPeerID:                app.localPeerID,
@@ -174,12 +172,12 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 		result.ImportedResponsibilities = 0
 		return result, nil
 	}
-	for _, record := range filterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeItemRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-item record: %w", err)
 		}
 	}
-	for _, record := range filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeApprovalRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-approval record: %w", err)
 		}
@@ -189,7 +187,7 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 		if err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("decode cas blob %q: %w", cid, err)
 		}
-		writtenCID, err := app.store.writeCASObject(blobBytes)
+		writtenCID, err := app.store.cas.WriteObject(blobBytes)
 		if err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("write cas blob %q: %w", cid, err)
 		}
@@ -197,32 +195,32 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 			return PeerExchangeImportResult{}, fmt.Errorf("cas blob cid mismatch for %q", cid)
 		}
 	}
-	for _, record := range filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeEvidenceRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-evidence record: %w", err)
 		}
 	}
-	for _, record := range filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedOperationalRunRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append operational-run record: %w", err)
 		}
 	}
-	for _, record := range filterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedOperationalPlaceRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append operational-place record: %w", err)
 		}
 	}
-	for _, record := range filterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedOperationalResourceRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append operational-resource record: %w", err)
 		}
 	}
-	for _, record := range filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeLinkRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-link record: %w", err)
 		}
 	}
-	for _, record := range filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys) {
+	for _, record := range pgtransport.FilterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys) {
 		if err := app.store.AppendSignedKnowledgeResponsibilityRecord(record); err != nil {
 			return PeerExchangeImportResult{}, fmt.Errorf("append knowledge-responsibility record: %w", err)
 		}
@@ -241,14 +239,14 @@ func (app *App) ImportPeerExchangeBundle(bundle PeerExchangeBundle) (PeerExchang
 		}
 	}
 	result.ImportedEvents = len(unseenEvents)
-	result.ImportedKnowledgeItems = len(filterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys))
-	result.ImportedKnowledgeApprovals = len(filterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys))
-	result.ImportedKnowledgeEvidence = len(filterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys))
-	result.ImportedOperationalRuns = len(filterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys))
-	result.ImportedOperationalPlaces = len(filterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys))
-	result.ImportedOperationalResources = len(filterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys))
-	result.ImportedKnowledgeLinks = len(filterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys))
-	result.ImportedResponsibilities = len(filterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys))
+	result.ImportedKnowledgeItems = len(pgtransport.FilterKnowledgeItemRecordsByOrigin(bundle.KnowledgeItemRecords, unseenEventKeys))
+	result.ImportedKnowledgeApprovals = len(pgtransport.FilterKnowledgeApprovalRecordsByOrigin(bundle.KnowledgeApprovalRecords, unseenEventKeys))
+	result.ImportedKnowledgeEvidence = len(pgtransport.FilterKnowledgeEvidenceRecordsByOrigin(bundle.KnowledgeEvidenceRecords, unseenEventKeys))
+	result.ImportedOperationalRuns = len(pgtransport.FilterOperationalRunRecordsByOrigin(bundle.OperationalRunRecords, unseenEventKeys))
+	result.ImportedOperationalPlaces = len(pgtransport.FilterOperationalPlaceRecordsByOrigin(bundle.OperationalPlaceRecords, unseenEventKeys))
+	result.ImportedOperationalResources = len(pgtransport.FilterOperationalResourceRecordsByOrigin(bundle.OperationalResourceRecords, unseenEventKeys))
+	result.ImportedKnowledgeLinks = len(pgtransport.FilterKnowledgeLinkRecordsByOrigin(bundle.KnowledgeLinkRecords, unseenEventKeys))
+	result.ImportedResponsibilities = len(pgtransport.FilterKnowledgeResponsibilityRecordsByOrigin(bundle.KnowledgeResponsibilityRecords, unseenEventKeys))
 	return result, nil
 }
 
@@ -268,7 +266,7 @@ func peerExchangeSupportsEvent(eventType string) bool {
 }
 
 func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
-	if strings.TrimSpace(bundle.Format) != peerExchangeBundleFormat {
+	if strings.TrimSpace(bundle.Format) != pgtransport.PeerExchangeBundleFormat {
 		return fmt.Errorf("unsupported peer exchange bundle format %q", bundle.Format)
 	}
 	if bundle.KnowledgeItemPCID != protocols.KnowledgeItemProfile.CID.String() {
@@ -355,42 +353,42 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 		}
 	}
 	for _, record := range bundle.KnowledgeItemRecords {
-		if !itemEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !itemEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-item record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeApprovalRecords {
-		if !approvalEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !approvalEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-approval record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeEvidenceRecords {
-		if !evidenceEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !evidenceEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-evidence record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.OperationalRunRecords {
-		if !runEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !runEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("operational-run record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.OperationalPlaceRecords {
-		if !placeEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !placeEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("operational-place record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.OperationalResourceRecords {
-		if !resourceEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !resourceEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("operational-resource record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeLinkRecords {
-		if !linkEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !linkEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-link record %d has no matching event", record.Sequence)
 		}
 	}
 	for _, record := range bundle.KnowledgeResponsibilityRecords {
-		if !responsibilityEventSequences[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
+		if !responsibilityEventSequences[pgtransport.RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
 			return fmt.Errorf("knowledge-responsibility record %d has no matching event", record.Sequence)
 		}
 	}
@@ -441,16 +439,12 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 	return nil
 }
 
-func recordOriginKey(peerID string, originSequence uint64, sequence uint64) string {
-	return records.RecordOriginKey(peerID, originSequence, sequence)
-}
-
 func (app *App) collectUnseenPeerExchangeEventsLocked(bundle PeerExchangeBundle) ([]OperationalEvent, map[string]bool, error) {
 	unseen := make([]OperationalEvent, 0, len(bundle.Events))
 	unseenKeys := map[string]bool{}
 	for _, rawEvent := range bundle.Events {
 		event := normalizeOperationalEvent(rawEvent, app.localPeerID)
-		key := originEventKey(event.OriginPeerID, event.OriginSequence)
+		key := pgtransport.OriginEventKey(event.OriginPeerID, event.OriginSequence)
 		if app.knownOriginEvents[key] {
 			continue
 		}
@@ -458,86 +452,6 @@ func (app *App) collectUnseenPeerExchangeEventsLocked(bundle PeerExchangeBundle)
 		unseenKeys[key] = true
 	}
 	return unseen, unseenKeys, nil
-}
-
-func filterKnowledgeItemRecordsByOrigin(records []SignedKnowledgeItemRecord, wanted map[string]bool) []SignedKnowledgeItemRecord {
-	out := []SignedKnowledgeItemRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterKnowledgeApprovalRecordsByOrigin(records []SignedKnowledgeApprovalRecord, wanted map[string]bool) []SignedKnowledgeApprovalRecord {
-	out := []SignedKnowledgeApprovalRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterKnowledgeEvidenceRecordsByOrigin(records []SignedKnowledgeEvidenceRecord, wanted map[string]bool) []SignedKnowledgeEvidenceRecord {
-	out := []SignedKnowledgeEvidenceRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterOperationalRunRecordsByOrigin(records []SignedOperationalRunRecord, wanted map[string]bool) []SignedOperationalRunRecord {
-	out := []SignedOperationalRunRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterOperationalPlaceRecordsByOrigin(records []SignedOperationalPlaceRecord, wanted map[string]bool) []SignedOperationalPlaceRecord {
-	out := []SignedOperationalPlaceRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterOperationalResourceRecordsByOrigin(records []SignedOperationalResourceRecord, wanted map[string]bool) []SignedOperationalResourceRecord {
-	out := []SignedOperationalResourceRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterKnowledgeLinkRecordsByOrigin(records []SignedKnowledgeLinkRecord, wanted map[string]bool) []SignedKnowledgeLinkRecord {
-	out := []SignedKnowledgeLinkRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
-}
-
-func filterKnowledgeResponsibilityRecordsByOrigin(records []SignedKnowledgeResponsibilityRecord, wanted map[string]bool) []SignedKnowledgeResponsibilityRecord {
-	out := []SignedKnowledgeResponsibilityRecord{}
-	for _, record := range records {
-		if wanted[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] {
-			out = append(out, record)
-		}
-	}
-	return out
 }
 
 func summarizePeerExchangeImport(bundle PeerExchangeBundle) PeerExchangeImportResult {

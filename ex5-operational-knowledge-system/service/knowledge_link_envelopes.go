@@ -6,17 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedKnowledgeLinkRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	LinkID         string `json:"link_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedKnowledgeLinkRecord = records.SignedKnowledgeLinkRecord
 
 type knowledgeLinkPayload struct {
 	EntityID  string `cbor:"entity_id"`
@@ -55,20 +45,11 @@ func knowledgeLinkPayloadForEvent(event OperationalEvent) (knowledgeLinkPayload,
 // family so the durable link graph becomes signed and replay-verifiable without
 // changing the current embodiment adapter surfaces. Source: DI-votek
 func buildSignedKnowledgeLinkRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeLinkRecord, bool, error) {
-	record, ok, err := records.BuildSignedKnowledgeLinkRecord(identity, records.Event(event))
-	return SignedKnowledgeLinkRecord(record), ok, err
+	return records.BuildSignedKnowledgeLinkRecord(identity, records.Event(event))
 }
 
 func verifySignedKnowledgeLinkRecords(events []OperationalEvent, in []SignedKnowledgeLinkRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedKnowledgeLinkRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedKnowledgeLinkRecord(record)
-	}
-	return records.VerifySignedKnowledgeLinkRecords(eventSlice, recordSlice)
+	return records.VerifySignedKnowledgeLinkRecords(events, in)
 }
 
 func compareKnowledgeLinkPayload(expected knowledgeLinkPayload, got knowledgeLinkPayload) error {

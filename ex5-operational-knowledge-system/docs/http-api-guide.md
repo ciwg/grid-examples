@@ -16,8 +16,11 @@ the explicit compatibility transport for CLI and Neovim. The browser's primary
 runtime contract now rides through the Chrome/Chromium native-messaging
 embodiment instead of treating `/api/*` as the main browser semantics layer.
 These route names are not the signed PromiseGrid peer contract, and should not
-be read as frozen `pCID`-selected public wire meaning. Source: `DI-sobek`;
-`DI-favel`; `DI-punek`.
+be read as frozen `pCID`-selected public wire meaning. The reusable
+peer-exchange and relay-feed wire layer now lives under
+`promisegrid/transport/`, while this HTTP surface remains an ex5 embodiment
+adapter over that substrate. Source: `DI-sobek`; `DI-favel`; `DI-punek`;
+`DI-vurem`; `DI-rasok`.
 
 The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `go.mod`, matching the current patch-level default used across the other
@@ -158,7 +161,10 @@ That means the browser now reaches its main dashboard, catalog refresh,
 structured search, live-state bootstrap, and durable write workflows over
 named runtime operations instead of generic route-shaped request forwarding.
 The remaining HTTP role is the browser shell/bootstrap surface plus `/api/meta`
-before the direct embodiment is ready. Source: `DI-lorim`; `DI-ronav`.
+before the direct embodiment is ready. The wire structs and origin-aware batch
+helpers behind peer exchange and relay feed now live in
+`promisegrid/transport/` instead of as `service/`-owned mirror types. Source:
+`DI-lorim`; `DI-ronav`; `DI-vurem`; `DI-nolav`.
 
 ## Peer exchange
 

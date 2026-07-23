@@ -6,19 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedKnowledgeApprovalRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	ApprovalID     string `json:"approval_id"`
-	TargetType     string `json:"target_type"`
-	TargetID       string `json:"target_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedKnowledgeApprovalRecord = records.SignedKnowledgeApprovalRecord
 
 type knowledgeApprovalPayload struct {
 	EntityID   string `cbor:"entity_id"`
@@ -57,20 +45,11 @@ func knowledgeApprovalPayloadForEvent(event OperationalEvent) (knowledgeApproval
 // PromiseGrid-native family so both item and run approvals become signed
 // durable artifacts under one approval contract. Source: DI-vosul
 func buildSignedKnowledgeApprovalRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeApprovalRecord, bool, error) {
-	record, ok, err := records.BuildSignedKnowledgeApprovalRecord(identity, records.Event(event))
-	return SignedKnowledgeApprovalRecord(record), ok, err
+	return records.BuildSignedKnowledgeApprovalRecord(identity, records.Event(event))
 }
 
 func verifySignedKnowledgeApprovalRecords(events []OperationalEvent, in []SignedKnowledgeApprovalRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedKnowledgeApprovalRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedKnowledgeApprovalRecord(record)
-	}
-	return records.VerifySignedKnowledgeApprovalRecords(eventSlice, recordSlice)
+	return records.VerifySignedKnowledgeApprovalRecords(events, in)
 }
 
 func compareKnowledgeApprovalPayload(expected knowledgeApprovalPayload, got knowledgeApprovalPayload) error {

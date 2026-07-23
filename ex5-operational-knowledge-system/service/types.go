@@ -1,5 +1,10 @@
 package service
 
+import (
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
+)
+
 const (
 	KnowledgeKindProcedure   = "procedure"
 	KnowledgeKindTraining    = "training"
@@ -75,105 +80,13 @@ type RelayMeta struct {
 	PublishRequiresStagedBlobs bool     `json:"publish_requires_staged_blobs"`
 }
 
-type RelayFeedRequest struct {
-	KnownOrigins map[string]uint64 `json:"known_origins,omitempty"`
-}
-
-type RelayFeedBatch struct {
-	Format                         string                                `json:"format"`
-	ExportedAt                     string                                `json:"exported_at"`
-	Implementation                 string                                `json:"implementation"`
-	ExportingPeerID                string                                `json:"exporting_peer_id"`
-	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
-	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
-	KnowledgeEvidencePCID          string                                `json:"knowledge_evidence_pcid"`
-	KnowledgeLinkPCID              string                                `json:"knowledge_link_pcid"`
-	KnowledgeResponsibilityPCID    string                                `json:"knowledge_responsibility_pcid"`
-	OperationalRunPCID             string                                `json:"operational_run_pcid"`
-	OperationalPlacePCID           string                                `json:"operational_place_pcid"`
-	OperationalResourcePCID        string                                `json:"operational_resource_pcid"`
-	Events                         []OperationalEvent                    `json:"events"`
-	KnowledgeItemRecords           []SignedKnowledgeItemRecord           `json:"knowledge_item_records"`
-	KnowledgeApprovalRecords       []SignedKnowledgeApprovalRecord       `json:"knowledge_approval_records"`
-	KnowledgeEvidenceRecords       []SignedKnowledgeEvidenceRecord       `json:"knowledge_evidence_records"`
-	OperationalRunRecords          []SignedOperationalRunRecord          `json:"operational_run_records"`
-	OperationalPlaceRecords        []SignedOperationalPlaceRecord        `json:"operational_place_records"`
-	OperationalResourceRecords     []SignedOperationalResourceRecord     `json:"operational_resource_records"`
-	KnowledgeLinkRecords           []SignedKnowledgeLinkRecord           `json:"knowledge_link_records"`
-	KnowledgeResponsibilityRecords []SignedKnowledgeResponsibilityRecord `json:"knowledge_responsibility_records"`
-	RequiredBlobCIDs               []string                              `json:"required_blob_cids,omitempty"`
-}
-
-type RelayFeedImportResult struct {
-	ImportedEvents               int                       `json:"imported_events"`
-	ImportedKnowledgeItems       int                       `json:"imported_knowledge_items"`
-	ImportedKnowledgeApprovals   int                       `json:"imported_knowledge_approvals"`
-	ImportedKnowledgeEvidence    int                       `json:"imported_knowledge_evidence"`
-	ImportedOperationalRuns      int                       `json:"imported_operational_runs"`
-	ImportedOperationalPlaces    int                       `json:"imported_operational_places"`
-	ImportedOperationalResources int                       `json:"imported_operational_resources"`
-	ImportedKnowledgeLinks       int                       `json:"imported_knowledge_links"`
-	ImportedResponsibilities     int                       `json:"imported_responsibilities"`
-	MissingBlobCIDs              []string                  `json:"missing_blob_cids,omitempty"`
-	UnresolvedReferences         []PeerExchangeImportIssue `json:"unresolved_references"`
-}
-
-type RelayPublishResult struct {
-	PublishedEvents               int      `json:"published_events"`
-	PublishedKnowledgeItems       int      `json:"published_knowledge_items"`
-	PublishedKnowledgeApprovals   int      `json:"published_knowledge_approvals"`
-	PublishedKnowledgeEvidence    int      `json:"published_knowledge_evidence"`
-	PublishedOperationalRuns      int      `json:"published_operational_runs"`
-	PublishedOperationalPlaces    int      `json:"published_operational_places"`
-	PublishedOperationalResources int      `json:"published_operational_resources"`
-	PublishedKnowledgeLinks       int      `json:"published_knowledge_links"`
-	PublishedResponsibilities     int      `json:"published_responsibilities"`
-	MissingBlobCIDs               []string `json:"missing_blob_cids,omitempty"`
-}
-
-type PeerExchangeBundle struct {
-	Format                         string                                `json:"format"`
-	ExportedAt                     string                                `json:"exported_at"`
-	Implementation                 string                                `json:"implementation"`
-	ExportingPeerID                string                                `json:"exporting_peer_id"`
-	KnowledgeItemPCID              string                                `json:"knowledge_item_pcid"`
-	KnowledgeApprovalPCID          string                                `json:"knowledge_approval_pcid"`
-	KnowledgeEvidencePCID          string                                `json:"knowledge_evidence_pcid"`
-	KnowledgeLinkPCID              string                                `json:"knowledge_link_pcid"`
-	KnowledgeResponsibilityPCID    string                                `json:"knowledge_responsibility_pcid"`
-	OperationalRunPCID             string                                `json:"operational_run_pcid"`
-	OperationalPlacePCID           string                                `json:"operational_place_pcid"`
-	OperationalResourcePCID        string                                `json:"operational_resource_pcid"`
-	Events                         []OperationalEvent                    `json:"events"`
-	KnowledgeItemRecords           []SignedKnowledgeItemRecord           `json:"knowledge_item_records"`
-	KnowledgeApprovalRecords       []SignedKnowledgeApprovalRecord       `json:"knowledge_approval_records"`
-	KnowledgeEvidenceRecords       []SignedKnowledgeEvidenceRecord       `json:"knowledge_evidence_records"`
-	OperationalRunRecords          []SignedOperationalRunRecord          `json:"operational_run_records"`
-	OperationalPlaceRecords        []SignedOperationalPlaceRecord        `json:"operational_place_records"`
-	OperationalResourceRecords     []SignedOperationalResourceRecord     `json:"operational_resource_records"`
-	KnowledgeLinkRecords           []SignedKnowledgeLinkRecord           `json:"knowledge_link_records"`
-	KnowledgeResponsibilityRecords []SignedKnowledgeResponsibilityRecord `json:"knowledge_responsibility_records"`
-	CASBlobObjects                 map[string]string                     `json:"cas_blob_objects,omitempty"`
-}
-
-type PeerExchangeImportIssue struct {
-	RecordType string `json:"record_type"`
-	RecordID   string `json:"record_id"`
-	Reason     string `json:"reason"`
-}
-
-type PeerExchangeImportResult struct {
-	ImportedEvents               int                       `json:"imported_events"`
-	ImportedKnowledgeItems       int                       `json:"imported_knowledge_items"`
-	ImportedKnowledgeApprovals   int                       `json:"imported_knowledge_approvals"`
-	ImportedKnowledgeEvidence    int                       `json:"imported_knowledge_evidence"`
-	ImportedOperationalRuns      int                       `json:"imported_operational_runs"`
-	ImportedOperationalPlaces    int                       `json:"imported_operational_places"`
-	ImportedOperationalResources int                       `json:"imported_operational_resources"`
-	ImportedKnowledgeLinks       int                       `json:"imported_knowledge_links"`
-	ImportedResponsibilities     int                       `json:"imported_responsibilities"`
-	UnresolvedReferences         []PeerExchangeImportIssue `json:"unresolved_references"`
-}
+type RelayFeedRequest = pgtransport.RelayFeedRequest
+type RelayFeedBatch = pgtransport.RelayFeedBatch
+type RelayFeedImportResult = pgtransport.RelayFeedImportResult
+type RelayPublishResult = pgtransport.RelayPublishResult
+type PeerExchangeBundle = pgtransport.PeerExchangeBundle
+type PeerExchangeImportIssue = pgtransport.PeerExchangeImportIssue
+type PeerExchangeImportResult = pgtransport.PeerExchangeImportResult
 
 type Place struct {
 	ID            string             `json:"id"`
@@ -396,49 +309,4 @@ type LiveItemState struct {
 	Participants    []LivePresence `json:"participants"`
 }
 
-type OperationalEvent struct {
-	Sequence          uint64            `json:"sequence"`
-	OriginPeerID      string            `json:"origin_peer_id"`
-	OriginSequence    uint64            `json:"origin_sequence"`
-	Timestamp         string            `json:"timestamp"`
-	EntityType        string            `json:"entity_type"`
-	EntityID          string            `json:"entity_id"`
-	DisplayID         string            `json:"display_id,omitempty"`
-	CanonicalID       string            `json:"canonical_id,omitempty"`
-	Type              string            `json:"type"`
-	Actor             string            `json:"actor"`
-	Name              string            `json:"name"`
-	Title             string            `json:"title"`
-	Summary           string            `json:"summary"`
-	Body              string            `json:"body"`
-	Kind              string            `json:"kind"`
-	Status            string            `json:"status"`
-	Tags              []string          `json:"tags"`
-	Team              string            `json:"team"`
-	ParentID          string            `json:"parent_id"`
-	PlaceID           string            `json:"place_id"`
-	ResourceIDs       []string          `json:"resource_ids"`
-	ResponsibilityIDs []string          `json:"responsibility_ids"`
-	RoleKeys          []string          `json:"role_keys"`
-	Revision          int               `json:"revision"`
-	Outcome           string            `json:"outcome"`
-	Notes             string            `json:"notes"`
-	Machine           string            `json:"machine"`
-	Location          string            `json:"location"`
-	AttachmentName    string            `json:"attachment_name"`
-	AttachmentPath    string            `json:"attachment_path"`
-	AttachmentCID     string            `json:"attachment_cid"`
-	AttachmentSize    int64             `json:"attachment_size"`
-	EvidenceID        string            `json:"evidence_id"`
-	Facts             map[string]string `json:"facts"`
-	TargetType        string            `json:"target_type"`
-	TargetID          string            `json:"target_id"`
-	RunID             string            `json:"run_id"`
-	Decision          string            `json:"decision"`
-	Role              string            `json:"role"`
-	FromType          string            `json:"from_type"`
-	FromID            string            `json:"from_id"`
-	ToType            string            `json:"to_type"`
-	ToID              string            `json:"to_id"`
-	Relation          string            `json:"relation"`
-}
+type OperationalEvent = records.Event

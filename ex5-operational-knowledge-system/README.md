@@ -28,10 +28,16 @@ bridge into the direct runtime contract and the two terminal surfaces
 preferring the direct local Unix-socket contract. Source: `DI-fudok`;
 `DI-zorav`; `DI-punek`.
 
-The first reusable substrate boundary now lives under `promisegrid/records/`,
-where the frozen-family durable record core has been pulled above the ex5 app
-layer without generalizing ex5-specific projections or workflows. Source:
-`DI-ragiv`.
+The reusable PromiseGrid substrate now lives under `promisegrid/`, with
+`promisegrid/records/` carrying the frozen-family durable record core,
+`promisegrid/transport/` carrying the peer-exchange and relay-feed wire shapes
+plus origin-aware transport helpers, and `promisegrid/store/` carrying the
+append-only log, CAS object, and authoritative frozen-envelope persistence
+core. `service/` remains the ex5 operational-knowledge application/runtime
+layer built on top of that substrate instead of being described as the
+generalized PromiseGrid product itself, and it still owns drafts, attachment
+materialization, projections, and operator workflow policy. Source:
+`DI-ragiv`; `DI-vurem`; `DI-rasok`; `DI-nolav`; `DI-lemor`.
 
 The current implementation keeps procedures, training content, maintenance
 content, receiving-check content, inventory-audit content, responsibilities,
@@ -184,9 +190,10 @@ What the current runtime actually implements today:
 - dedicated remote relay deployment through the separate `operational-relay`
   binary, with durable `/relay/v1/feed/*` plus `/relay/v1/blobs/{cid}` routes
 - CAS-authoritative replay/export for the eight frozen family envelopes
-- first extracted reusable record substrate under `promisegrid/records/` for
-  identity, origin ordering, canonical durable IDs, and frozen-family
-  signed-envelope build/verify helpers
+- extracted reusable PromiseGrid substrate under `promisegrid/`:
+  `records/` for identity, origin ordering, canonical durable IDs, and
+  frozen-family signed-envelope build/verify helpers, plus `transport/` for
+  peer-exchange and relay-feed wire contracts and origin-aware batch helpers
 - inline CID-keyed evidence blob carriage only in the bootstrap peer-exchange
   bundle path
 
@@ -195,9 +202,11 @@ What is not yet implemented in the shipped runtime:
 - ERP-style inventory quantities, reservations, or planning logic
 
 That distinction is intentional in the docs: this README describes the actual
-implemented ex5 runtime layer, not runtime behavior that has not shipped yet.
-Within that scoped definition, `ex5` is now complete for its current
-PromiseGrid-aligned runtime slice. Source: `DI-lavek`.
+implemented ex5 application/runtime layer plus the currently extracted
+PromiseGrid substrate, not runtime behavior that has not shipped yet and not a
+fully generalized PromiseGrid product boundary. Within that scoped definition,
+`ex5` is now complete for its current PromiseGrid-aligned runtime slice.
+Source: `DI-lavek`; `DI-rasok`.
 
 For the explicit technical statement of the current PromiseGrid boundary, see
 [PromiseGrid Implementation Claims](docs/promisegrid-implementation-claims.md).

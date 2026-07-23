@@ -1,9 +1,18 @@
 # TODO
 
 ## Open / Planned
-- none currently
+- [ ] 145 - Determine whether any minimal app-agnostic workflow substrate is actually justified beyond ex5-specific flows - `TODO/TODO-rasuv-ex5-minimal-workflow-substrate-evidence.md`
+- [ ] 146 - Decide whether the reusable PromiseGrid substrate should keep living inside the ex5 module boundary - `TODO/TODO-tolav-ex5-substrate-module-boundary.md`
 
 ## Completed
+
+- [x] 144 - Decide whether store and CAS wiring should become the next reusable PromiseGrid substrate slice - `TODO/TODO-mufek-ex5-persistence-substrate-boundary.md`
+
+- [x] 143 - Retire remaining rollout-era staging abstractions where a smaller long-term PromiseGrid boundary is now clear - `TODO/TODO-timav-ex5-staging-abstraction-cleanup.md`
+
+- [x] 142 - Make the ex5 example-app boundary explicit against any broader PromiseGrid runtime/product boundary - `TODO/TODO-sulok-ex5-example-vs-runtime-product-boundary.md`
+
+- [x] 141 - Extract more reusable PromiseGrid substrate beyond the current ex5 record core - `TODO/TODO-ravem-ex5-further-promisegrid-substrate-extraction.md`
 
 - [x] 140 - Make browser live transport report connected only after a real live-open acknowledgement - `TODO/TODO-vazek-ex5-browser-live-open-acknowledgement.md`
 

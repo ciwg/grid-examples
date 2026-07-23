@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	pgtransport "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/transport"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
@@ -870,7 +871,7 @@ func TestAppExportsAndImportsPeerExchangeBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("export bundle: %v", err)
 	}
-	if bundle.Format != peerExchangeBundleFormat {
+	if bundle.Format != pgtransport.PeerExchangeBundleFormat {
 		t.Fatalf("unexpected bundle format %q", bundle.Format)
 	}
 	if len(bundle.KnowledgeApprovalRecords) != 2 {
@@ -2442,7 +2443,7 @@ func TestAppTracksReceivingCheckKindsAndDashboardCounts(t *testing.T) {
 	if got := meta.RunKinds[3]; got != RunKindReceiving {
 		t.Fatalf("expected receiving run kind in meta, got %+v", meta.RunKinds)
 	}
-	if meta.PeerExchangeFormat != peerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 8 || meta.OperationalPlacePCID == "" || meta.OperationalResourcePCID == "" {
+	if meta.PeerExchangeFormat != pgtransport.PeerExchangeBundleFormat || len(meta.PeerExchangeFamilies) != 8 || meta.OperationalPlacePCID == "" || meta.OperationalResourcePCID == "" {
 		t.Fatalf("unexpected peer-exchange meta: %+v", meta)
 	}
 

@@ -6,19 +6,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedKnowledgeItemRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	ItemID         string `json:"item_id"`
-	EventType      string `json:"event_type"`
-	Revision       int    `json:"revision"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedKnowledgeItemRecord = records.SignedKnowledgeItemRecord
 
 type knowledgeItemPayload struct {
 	EntityID          string   `cbor:"entity_id"`
@@ -66,20 +54,11 @@ func knowledgeItemPayloadForEvent(event OperationalEvent) (knowledgeItemPayload,
 // the rest of the runtime still projects through the existing local model.
 // Source: DI-mibor
 func buildSignedKnowledgeItemRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeItemRecord, bool, error) {
-	record, ok, err := records.BuildSignedKnowledgeItemRecord(identity, records.Event(event))
-	return SignedKnowledgeItemRecord(record), ok, err
+	return records.BuildSignedKnowledgeItemRecord(identity, records.Event(event))
 }
 
 func verifySignedKnowledgeItemRecords(events []OperationalEvent, in []SignedKnowledgeItemRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedKnowledgeItemRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedKnowledgeItemRecord(record)
-	}
-	return records.VerifySignedKnowledgeItemRecords(eventSlice, recordSlice)
+	return records.VerifySignedKnowledgeItemRecords(events, in)
 }
 
 func compareKnowledgeItemPayload(expected knowledgeItemPayload, got knowledgeItemPayload) error {

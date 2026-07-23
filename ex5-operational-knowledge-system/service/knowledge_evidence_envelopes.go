@@ -7,18 +7,7 @@ import (
 	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
-type SignedKnowledgeEvidenceRecord struct {
-	Sequence       uint64 `json:"sequence"`
-	OriginPeerID   string `json:"origin_peer_id"`
-	OriginSequence uint64 `json:"origin_sequence"`
-	EvidenceID     string `json:"evidence_id"`
-	RunID          string `json:"run_id"`
-	PCID           string `json:"pcid"`
-	EnvelopeCID    string `json:"envelope_cid"`
-	EnvelopeBase64 string `json:"envelope_base64"`
-	RecordedAt     string `json:"recorded_at"`
-	Implementation string `json:"implementation"`
-}
+type SignedKnowledgeEvidenceRecord = records.SignedKnowledgeEvidenceRecord
 
 type knowledgeEvidencePayload struct {
 	EvidenceID     string            `cbor:"evidence_id"`
@@ -59,20 +48,11 @@ func knowledgeEvidencePayloadForEvent(event OperationalEvent) (knowledgeEvidence
 // ex5 PromiseGrid-native family while leaving copied attachment bytes on the
 // current runtime storage path. Source: DI-kavup; DI-ribof
 func buildSignedKnowledgeEvidenceRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeEvidenceRecord, bool, error) {
-	record, ok, err := records.BuildSignedKnowledgeEvidenceRecord(identity, records.Event(event))
-	return SignedKnowledgeEvidenceRecord(record), ok, err
+	return records.BuildSignedKnowledgeEvidenceRecord(identity, records.Event(event))
 }
 
 func verifySignedKnowledgeEvidenceRecords(events []OperationalEvent, in []SignedKnowledgeEvidenceRecord) error {
-	eventSlice := make([]records.Event, len(events))
-	recordSlice := make([]records.SignedKnowledgeEvidenceRecord, len(in))
-	for i, event := range events {
-		eventSlice[i] = records.Event(event)
-	}
-	for i, record := range in {
-		recordSlice[i] = records.SignedKnowledgeEvidenceRecord(record)
-	}
-	return records.VerifySignedKnowledgeEvidenceRecords(eventSlice, recordSlice)
+	return records.VerifySignedKnowledgeEvidenceRecords(events, in)
 }
 
 func compareKnowledgeEvidencePayload(expected knowledgeEvidencePayload, got knowledgeEvidencePayload) error {
