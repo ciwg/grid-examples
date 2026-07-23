@@ -1,9 +1,15 @@
 # TODO
 
 ## Open / Planned
-- none currently
+- [ ] 137 - Add stronger ex5 browser direct-contract integration coverage beyond the mock bridge - `TODO/TODO-pavur-ex5-browser-direct-contract-integration-coverage.md`
 
 ## Completed
+
+- [x] 136 - Remove the remaining ex5 browser and Neovim transport wording drift - `TODO/TODO-zunek-ex5-browser-neovim-transport-doc-drift.md`
+
+- [x] 135 - Move more ex5 browser semantics above route-shaped direct-contract forwarding - `TODO/TODO-rumav-ex5-browser-direct-contract-above-routes.md`
+
+- [x] 134 - Prove ex5 browser embodiment readiness against the native host, not just the page bridge - `TODO/TODO-fovek-ex5-browser-host-readiness-proof.md`
 
 - [x] 133 - Decide whether ex5 should yield a more generalized PromiseGrid runtime substrate - `TODO/TODO-sovek-ex5-generalized-runtime-substrate.md`
 

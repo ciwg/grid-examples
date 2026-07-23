@@ -157,6 +157,57 @@ if (window.crypto) {
     window.__random_uuid_patch_error = String(error);
   }
 }
+
+func TestHeadlessBrowserFailsClosedWhenDirectBridgeIsUnavailable(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(MustRead("index.html"))
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=4000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	required := []string{
+		"Direct browser embodiment unavailable",
+		"This embodiment currently requires Chrome or Chromium with the ex5 browser extension installed.",
+	}
+	for _, marker := range required {
+		if !strings.Contains(dom, marker) {
+			t.Fatalf("rendered dom missing %q\n%s", marker, dom)
+		}
+	}
+}
 </script>
 <script src="/app.js" type="module"></script>`),
 		1,
@@ -1536,12 +1587,17 @@ window.addEventListener("message", async (event) => {
     ...payload,
   }, window.location.origin);
   if (message.kind === "handshake") {
-    reply({ kind: "handshake", ok: true });
+    const response = await fetch("/api/meta").then((metaResponse) => metaResponse.json());
+    const ok = !!(response && response.local_unix_socket_path && response.embodiments && response.embodiments.browser && response.embodiments.browser.primary_adapter === "chrome_native_messaging");
+    reply({ kind: "handshake", ok });
     return;
   }
   if (message.kind === "rpc") {
     const request = message.request || {};
     let path = request.path;
+    let method = request.method || "GET";
+    let headers = request.headers || {};
+    let body = request.body || undefined;
     if (!path && request.type === "operation") {
       if (request.operation === "inspect_item") {
         path = "/api/items/" + request.item_id;
@@ -1565,12 +1621,134 @@ window.addEventListener("message", async (event) => {
         path = "/api/search?" + params.toString();
       } else if (request.operation === "problem_review") {
         path = "/api/problem-review";
+      } else if (request.operation === "create_place") {
+        path = "/api/places";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          kind: request.kind,
+          name: request.name,
+          summary: request.summary,
+          parent_id: request.parent_id,
+          tags: request.tags || [],
+        });
+      } else if (request.operation === "create_resource") {
+        path = "/api/resources";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          kind: request.kind,
+          name: request.name,
+          summary: request.summary,
+          place_id: request.place_id,
+          tags: request.tags || [],
+        });
+      } else if (request.operation === "create_responsibility") {
+        path = "/api/responsibilities";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          title: request.title,
+          summary: request.summary,
+          role_keys: request.role_keys || [],
+          tags: request.tags || [],
+        });
+      } else if (request.operation === "create_item") {
+        path = "/api/items";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          kind: request.kind,
+          title: request.title,
+          summary: request.summary,
+          body: request.body,
+          tags: request.tags || [],
+          responsibility_ids: request.responsibility_ids || [],
+        });
+      } else if (request.operation === "record_run") {
+        path = "/api/runs";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          kind: request.kind,
+          item_id: request.item_id,
+          revision: request.revision,
+          outcome: request.outcome,
+          notes: request.notes,
+          machine: request.machine,
+          location: request.location,
+          place_id: request.place_id,
+          resource_ids: request.resource_ids || [],
+          responsibility_ids: request.responsibility_ids || [],
+        });
+      } else if (request.operation === "record_item_approval") {
+        path = "/api/items/" + request.item_id + "/approvals";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          revision: request.revision,
+          role: request.role,
+          decision: request.decision,
+          notes: request.notes,
+        });
+      } else if (request.operation === "record_run_approval") {
+        path = "/api/runs/" + request.run_id + "/approvals";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          role: request.role,
+          decision: request.decision,
+          notes: request.notes,
+        });
+      } else if (request.operation === "add_revision") {
+        path = "/api/items/" + request.item_id + "/revisions";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          title: request.title,
+          summary: request.summary,
+          body: request.body,
+          tags: request.tags || [],
+        });
+      } else if (request.operation === "supersede_item") {
+        path = "/api/items/" + request.item_id + "/supersede";
+        method = "POST";
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({
+          actor: request.actor,
+          notes: request.notes,
+        });
+      } else if (request.operation === "add_evidence") {
+        path = "/api/runs/" + request.run_id + "/evidence";
+        method = "POST";
+        const payload = new FormData();
+        payload.set("actor", request.actor || "");
+        payload.set("summary", request.summary || "");
+        payload.set("facts_json", JSON.stringify(request.facts || {}));
+        if (request.attachment_name && request.attachment_body_base64) {
+          const binary = atob(request.attachment_body_base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+          }
+          payload.set("attachment", new Blob([bytes]), request.attachment_name);
+        }
+        body = payload;
+        headers = {};
       }
     }
     const response = await fetch(path, {
-      method: request.method || "GET",
-      headers: request.headers || {},
-      body: request.body || undefined,
+      method,
+      headers,
+      body,
     });
     const text = await response.text();
     reply({

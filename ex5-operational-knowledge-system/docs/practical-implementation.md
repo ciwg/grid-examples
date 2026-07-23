@@ -99,7 +99,7 @@ Neovim phase 1:
 - opens a knowledge item live draft by item ID
 - prefers the direct local Unix-socket contract for both request/response and live-draft streaming, and falls back to the shared HTTP live endpoint when compatibility requires it
 - pushes the current body with `:write`
-- sends presence/typing updates over the local socket when connected, falls back through websocket carriage when the socket path is unavailable, and keeps the live-draft HTTP endpoint only as the final compatibility path
+- sends presence/typing updates over the local socket when connected, and only reaches websocket plus the shared live-draft HTTP endpoint when explicit compatibility mode is enabled
 - exposes local status/participant inspection commands
 - opens a read-only projected item inspector for revisions, approvals, and related runs
 - opens a read-only projected run inspector for evidence and approvals
@@ -310,22 +310,23 @@ The foundation still does not yet include:
 Those are still important future steps. The current pass focuses on a runnable
 standalone operational-memory tool with one local runtime, a richer browser
 embodiment, direct local socket transports for the CLI and Neovim, and a
-shared draft surface that now spans browser websocket carriage plus terminal
+shared draft surface that now spans browser native messaging plus terminal
 socket carriage.
 
 The current product direction is to keep browser live drafting inside the
-existing local adapter instead of porting the full `ex3` collaboration stack
-into `ex5`, while giving terminal embodiments a direct local Unix-socket
-contract over the same runtime. Shared live drafting remains the real-time
+shipped Chrome/Chromium native-messaging embodiment over the direct local
+runtime contract, while giving terminal embodiments the same runtime through a
+direct local Unix-socket contract. Shared live drafting remains the real-time
 collaboration transport, but the carriage now splits by embodiment: browser
-uses websocket-preferred HTTP, while Neovim uses the local socket and falls
-back through websocket and then HTTP only for compatibility. The current phase still includes read-only
+uses native messaging through the extension and local browser host, while
+Neovim uses the local socket and reaches websocket plus HTTP only through
+explicit compatibility mode. The current phase still includes read-only
 item/run/entity inspection and search/browse over projected detail, plus a
 read-only pending-review queue and a narrow set of revision-safe item/run
 approval and item supersede actions over that same shared runtime. Source:
 `DI-tabiv`; `DI-fudok`; `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`;
 `DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-tivor`; `DI-noruv`;
-`DI-favel`.
+`DI-favel`; `DI-fonuv`; `DI-punek`; `DI-vubem`.
 
 ## Current verification shape
 

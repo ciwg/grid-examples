@@ -122,6 +122,12 @@ generic `method + path` socket forwarding. That makes the primary local socket
 contract more runtime-shaped while keeping HTTP as the browser adapter and the
 terminal compatibility surface. Source: `DI-monuv`.
 
+The browser direct contract now also carries its main create/operate mutation
+slice as named operations instead of generic method-and-path forwarding. Create
+place/resource/responsibility/item, record run, add evidence, record approvals,
+add revision, and supersede item now cross the native-messaging embodiment as
+typed runtime intents. Source: `DI-lorim`.
+
 The durable frozen-family record core now also has its first reusable
 substrate boundary under `promisegrid/records/`. That package carries
 identity, origin normalization, canonical durable ID decoration, and

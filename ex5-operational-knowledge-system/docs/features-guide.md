@@ -584,6 +584,8 @@ problem and gives it one durable local history.
 
 The current product direction is now:
 
-- keep browser live drafting on websocket-preferred carriage under the existing local adapter, while terminal embodiments use the new local Unix-socket contract instead of porting the full `ex3` collaboration stack into `ex5`
+- keep the browser on the shipped Chrome/Chromium native-messaging embodiment over the direct local runtime contract, while terminal embodiments use the local Unix-socket contract instead of treating the older HTTP adapter as the primary embodiment path
 - treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment as a desirable follow-on because many real teams operate there
+
+Source: `DI-vubem`; `DI-punek`; `DI-fonuv`.

@@ -142,6 +142,97 @@ func (server *LocalEmbodimentServer) handleConn(conn net.Conn) {
 // through route-shaped HTTP forwarding. Source: DI-monuv
 func (server *LocalEmbodimentServer) handleOperation(conn net.Conn, request LocalEmbodimentRequest) {
 	switch request.Operation {
+	case "runtime_ready":
+		// Intent: Let direct embodiments prove the full browser/native-host/socket
+		// chain cheaply at startup without falling back into route-shaped HTTP
+		// probing or opening a workflow-specific live session. Source: DI-salov
+		server.writeSocketProjection(conn, map[string]bool{"ready": true})
+	case "create_place":
+		// Intent: Move the browser create/operate mutation slice onto typed local
+		// runtime operations so durable browser writes stop depending on generic
+		// route-shaped request forwarding. Source: DI-rumav
+		record, err := server.app.CreatePlace(request.Actor, request.Kind, request.Name, request.Summary, request.ParentID, request.Tags)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "create_resource":
+		record, err := server.app.CreateResource(request.Actor, request.Kind, request.Name, request.Summary, request.PlaceID, request.Tags)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "create_responsibility":
+		record, err := server.app.CreateResponsibility(request.Actor, request.Title, request.Summary, request.RoleKeys, request.Tags)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "create_item":
+		record, err := server.app.CreateKnowledgeItem(request.Actor, request.Kind, request.Title, request.Summary, request.Body, request.Tags, request.ResponsibilityIDs)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "record_run":
+		record, err := server.app.RecordRun(request.Actor, request.Kind, request.ItemID, request.Revision, request.Outcome, request.Notes, request.Machine, request.Location, request.PlaceID, request.ResourceIDs, request.ResponsibilityIDs)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "add_evidence":
+		attachmentBody, err := decodeAttachmentBody(request.AttachmentBodyBase64)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		record, err := server.app.AddEvidence(request.Actor, request.RunID, request.Summary, request.Facts, request.AttachmentName, attachmentBody)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "record_item_approval":
+		if err := server.app.RecordApproval(request.Actor, "knowledge_item", request.ItemID, request.Revision, request.Role, request.Decision, request.Notes); err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		record, err := server.app.GetKnowledgeItem(request.ItemID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "record_run_approval":
+		if err := server.app.RecordApproval(request.Actor, "run", request.RunID, 0, request.Role, request.Decision, request.Notes); err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		record, err := server.app.GetRun(request.RunID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "add_revision":
+		record, err := server.app.AddRevision(request.Actor, request.ItemID, request.Title, request.Summary, request.Body, request.Tags)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	case "supersede_item":
+		record, err := server.app.SupersedeKnowledgeItem(request.Actor, request.ItemID, request.Notes)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
 	case "inspect_item":
 		item, err := server.app.GetKnowledgeItem(request.ItemID)
 		if err != nil {
@@ -383,6 +474,13 @@ func requestBodyBytes(request LocalEmbodimentRequest) ([]byte, error) {
 		return base64.StdEncoding.DecodeString(request.BodyBase64)
 	}
 	return []byte(request.Body), nil
+}
+
+func decodeAttachmentBody(encoded string) ([]byte, error) {
+	if strings.TrimSpace(encoded) == "" {
+		return nil, nil
+	}
+	return base64.StdEncoding.DecodeString(encoded)
 }
 
 type socketJSONWriter struct {

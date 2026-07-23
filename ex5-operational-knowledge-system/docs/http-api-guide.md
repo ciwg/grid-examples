@@ -93,6 +93,12 @@ compatibility transports that are only available through explicit opt-in mode
 `local_unix_socket_path` inside their own embodiment records. Source:
 `DI-vurak`; `DI-zorav`; `DI-fonuv`; `DI-punek`.
 
+Browser startup now marks that embodiment ready only after one typed
+`runtime_ready` probe crosses the page bridge, extension worker, native host,
+and local runtime socket successfully. That keeps readiness truth tied to the
+actual direct browser contract instead of only proving that the content script
+is installed. Source: `DI-salov`.
+
 For the currently shipped terminal runtime contract, the direct socket now
 uses typed `operation` messages for:
 
@@ -105,6 +111,25 @@ uses typed `operation` messages for:
 
 HTTP route names remain the browser adapter and explicit compatibility surface,
 not the primary local terminal contract for those reads. Source: `DI-monuv`.
+
+For the currently shipped browser direct contract, inspect/search reads still
+use typed operations and the main create/operate mutation slice now also uses
+typed operations for:
+
+- `create_place`
+- `create_resource`
+- `create_responsibility`
+- `create_item`
+- `record_run`
+- `add_evidence`
+- `record_item_approval`
+- `record_run_approval`
+- `add_revision`
+- `supersede_item`
+
+That means the browser now reaches its main durable write workflows over named
+runtime operations instead of generic route-shaped request forwarding, while
+startup/catalog reads remain the next staged follow-on. Source: `DI-lorim`.
 
 ## Peer exchange
 

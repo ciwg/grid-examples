@@ -13,17 +13,36 @@ function postToPage(message) {
 
 // Intent: Translate page-level bridge messages into extension runtime traffic
 // without inventing new browser-specific semantics beyond the locked direct
-// contract family. Source: DI-punek
+// contract family. Browser readiness must now prove the native-host path
+// instead of only proving that the content script is installed. Source:
+// DI-punek; DI-salov
 window.addEventListener("message", (event) => {
   if (event.source !== window || !event.data || event.data.__oks_bridge !== true || event.data.direction !== "page->bridge") {
     return;
   }
   const message = event.data;
   if (message.kind === "handshake") {
-    postToPage({
-      kind: "handshake",
+    chrome.runtime.sendMessage({
+      kind: "rpc",
       request_id: message.request_id,
-      ok: true,
+      socket_path: message.socket_path,
+      request: {
+        type: "operation",
+        operation: "runtime_ready",
+      },
+    }).then((response) => {
+      const ok = !!(response && !response.error && response.response && response.response.status === 200);
+      postToPage({
+        kind: "handshake",
+        request_id: message.request_id,
+        ok,
+      });
+    }).catch(() => {
+      postToPage({
+        kind: "handshake",
+        request_id: message.request_id,
+        ok: false,
+      });
     });
     return;
   }

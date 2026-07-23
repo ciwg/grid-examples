@@ -240,9 +240,9 @@ append-only knowledge-item history. This keeps live drafting and auditable
 revisions related but distinct.
 
 In the current Neovim phase, the editor now prefers the direct local Unix
-socket for the shared live draft, falls back to websocket carriage under the
-HTTP adapter when the local socket is unavailable, and then falls back again
-to `GET/POST /api/items/{id}/live` only for compatibility. It still reads projected detail from
+socket for the shared live draft and request/response work, and reaches
+websocket plus `GET/POST /api/items/{id}/live` only when explicit
+compatibility mode is enabled. It still reads projected detail from
 `GET /api/items/{id}` plus `GET /api/runs/{id}` for inspection. That keeps the
 embodiment aligned with the same runtime truth the browser uses instead of
 creating a second collaboration channel. Linked-entity browsing extends that
@@ -254,7 +254,7 @@ draft items plus run-review slices. Item approval extends it to one small
 write-side action that still depends on the same `GET /api/items/{id}` truth
 and the existing `POST /api/items/{id}/approvals` route. Source: `DI-fudok`;
 `DI-lonuk`; `DI-ravok`; `DI-zalor`; `DI-givot`; `DI-lorav`; `DI-vamor`;
-`DI-bafor`; `DI-pudor`.
+`DI-bafor`; `DI-pudor`; `DI-fonuv`; `DI-vubem`.
 
 ## Current implementation note
 

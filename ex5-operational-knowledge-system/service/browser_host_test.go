@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"io"
@@ -69,6 +70,188 @@ func TestBrowserHostForwardsTypedOperations(t *testing.T) {
 	}
 	if inspected.ID != item.ID {
 		t.Fatalf("unexpected inspected item id: %q", inspected.ID)
+	}
+}
+
+func TestBrowserHostForwardsRuntimeReadyProbe(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(filepath.Join(t.TempDir(), "runtime-socket"))
+	server := NewLocalEmbodimentServer(app, socketPath)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	requestPayload, err := json.Marshal(BrowserHostEnvelope{
+		RequestID:  "ready-1",
+		SocketPath: socketPath,
+		Request: LocalEmbodimentRequest{
+			Type:      "operation",
+			Operation: "runtime_ready",
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	input := bytes.NewBuffer(nil)
+	if err := binary.Write(input, binary.LittleEndian, uint32(len(requestPayload))); err != nil {
+		t.Fatalf("write request size: %v", err)
+	}
+	if _, err := input.Write(requestPayload); err != nil {
+		t.Fatalf("write request payload: %v", err)
+	}
+
+	output := bytes.NewBuffer(nil)
+	host := NewBrowserHost()
+	if err := host.ServeSession(bytes.NewReader(input.Bytes()), output); err != nil {
+		t.Fatalf("serve session: %v", err)
+	}
+	response := decodeBrowserHostResponse(t, output)
+	if response.RequestID != "ready-1" {
+		t.Fatalf("unexpected request id: %+v", response)
+	}
+	if response.Response.Status != 200 {
+		t.Fatalf("unexpected host response: %+v", response)
+	}
+	if response.Response.Body != `{"ready":true}` {
+		t.Fatalf("unexpected readiness payload: %+v", response)
+	}
+}
+
+func TestBrowserHostForwardsCreateItemOperation(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(filepath.Join(t.TempDir(), "runtime-socket"))
+	server := NewLocalEmbodimentServer(app, socketPath)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	requestPayload, err := json.Marshal(BrowserHostEnvelope{
+		RequestID:  "create-item-1",
+		SocketPath: socketPath,
+		Request: LocalEmbodimentRequest{
+			Type:              "operation",
+			Operation:         "create_item",
+			Actor:             "alice",
+			Kind:              KnowledgeKindProcedure,
+			Title:             "Startup checklist",
+			Summary:           "Boot line",
+			Body:              "# Startup checklist",
+			Tags:              []string{"startup"},
+			ResponsibilityIDs: nil,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	input := bytes.NewBuffer(nil)
+	if err := binary.Write(input, binary.LittleEndian, uint32(len(requestPayload))); err != nil {
+		t.Fatalf("write request size: %v", err)
+	}
+	if _, err := input.Write(requestPayload); err != nil {
+		t.Fatalf("write request payload: %v", err)
+	}
+
+	output := bytes.NewBuffer(nil)
+	host := NewBrowserHost()
+	if err := host.ServeSession(bytes.NewReader(input.Bytes()), output); err != nil {
+		t.Fatalf("serve session: %v", err)
+	}
+	response := decodeBrowserHostResponse(t, output)
+	if response.Response.Status != 200 {
+		t.Fatalf("unexpected host response: %+v", response)
+	}
+	var item KnowledgeItem
+	if err := json.Unmarshal([]byte(response.Response.Body), &item); err != nil {
+		t.Fatalf("decode created item: %v", err)
+	}
+	if item.Title != "Startup checklist" || item.Kind != KnowledgeKindProcedure {
+		t.Fatalf("unexpected created item: %+v", item)
+	}
+}
+
+func TestBrowserHostForwardsAddEvidenceOperation(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	run, err := app.RecordRun("bob", RunKindProcedure, item.ID, 1, "completed", "done", "", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(filepath.Join(t.TempDir(), "runtime-socket"))
+	server := NewLocalEmbodimentServer(app, socketPath)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	requestPayload, err := json.Marshal(BrowserHostEnvelope{
+		RequestID:  "evidence-1",
+		SocketPath: socketPath,
+		Request: LocalEmbodimentRequest{
+			Type:                 "operation",
+			Operation:            "add_evidence",
+			Actor:                "bob",
+			RunID:                run.ID,
+			Summary:              "Checklist photo",
+			Facts:                map[string]string{"result": "ok"},
+			AttachmentName:       "check.txt",
+			AttachmentBodyBase64: base64.StdEncoding.EncodeToString([]byte("ok")),
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	input := bytes.NewBuffer(nil)
+	if err := binary.Write(input, binary.LittleEndian, uint32(len(requestPayload))); err != nil {
+		t.Fatalf("write request size: %v", err)
+	}
+	if _, err := input.Write(requestPayload); err != nil {
+		t.Fatalf("write request payload: %v", err)
+	}
+
+	output := bytes.NewBuffer(nil)
+	host := NewBrowserHost()
+	if err := host.ServeSession(bytes.NewReader(input.Bytes()), output); err != nil {
+		t.Fatalf("serve session: %v", err)
+	}
+	response := decodeBrowserHostResponse(t, output)
+	if response.Response.Status != 200 {
+		t.Fatalf("unexpected host response: %+v", response)
+	}
+	var updatedRun RunRecord
+	if err := json.Unmarshal([]byte(response.Response.Body), &updatedRun); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+	if len(updatedRun.Evidence) != 1 || updatedRun.Evidence[0].AttachmentName != "check.txt" {
+		t.Fatalf("unexpected evidence result: %+v", updatedRun)
 	}
 }
 

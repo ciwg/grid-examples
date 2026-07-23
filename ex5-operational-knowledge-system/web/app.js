@@ -423,16 +423,28 @@ document.getElementById("evidence-form").addEventListener("submit", runHandled(a
   event.preventDefault();
   const form = event.currentTarget;
   const runID = firstPresent(form.run_id.value, form.run_id_select.value);
-  const body = new FormData();
-  body.set("actor", form.actor.value);
-  body.set("summary", form.summary.value);
-  body.set("facts_json", form.facts_json.value || "{}");
-  if (form.attachment.files[0]) {
-    body.set("attachment", form.attachment.files[0]);
+  let facts = {};
+  if (form.facts_json.value.trim()) {
+    facts = JSON.parse(form.facts_json.value);
   }
-  const response = await fetch(`/api/runs/${runID}/evidence`, { method: "POST", body });
-  if (!response.ok) {
-    throw new Error(await response.text());
+  let attachmentName = "";
+  let attachmentBodyBase64 = "";
+  if (form.attachment.files[0]) {
+    attachmentName = form.attachment.files[0].name;
+    attachmentBodyBase64 = bytesToBase64(await form.attachment.files[0].arrayBuffer());
+  }
+  const response = await bridgeRPC({
+    type: "operation",
+    operation: "add_evidence",
+    actor: form.actor.value,
+    run_id: runID,
+    summary: form.summary.value,
+    facts,
+    attachment_name: attachmentName,
+    attachment_body_base64: attachmentBodyBase64,
+  });
+  if (!response || response.status >= 400) {
+    throw new Error(response && response.body ? response.body : "Add evidence failed");
   }
   form.reset();
   form.actor.value = "bob";
@@ -743,9 +755,10 @@ function isChromeOrChromiumBrowser() {
 }
 
 // Intent: Make the browser embodiment state its Chrome/Chromium direct-contract
-// requirement honestly up front instead of silently demoting back into the
-// older HTTP browser path when the extension bridge is unavailable. Source:
-// DI-punek
+// requirement honestly up front and prove the extension/native-host/runtime
+// chain before startup marks the browser ready, instead of silently demoting
+// back into the older HTTP browser path or overstating readiness after only a
+// page-bridge check. Source: DI-punek; DI-salov
 async function initializeBrowserEmbodiment() {
   browserBridgeState.supported = isChromeOrChromiumBrowser();
   if (!browserBridgeState.supported) {
@@ -785,6 +798,7 @@ function bridgeHandshake() {
     postBridgeMessage({
       kind: "handshake",
       request_id: requestID,
+      socket_path: browserBridgeState.socketPath,
     });
   });
 }
@@ -803,6 +817,19 @@ function bridgeRPC(request) {
       request,
     });
   });
+}
+
+function bytesToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    for (const value of chunk) {
+      binary += String.fromCharCode(value);
+    }
+  }
+  return btoa(binary);
 }
 
 function directOperationForGET(path) {
@@ -850,9 +877,130 @@ function directOperationForGET(path) {
   return null;
 }
 
+// Intent: Raise the browser create/operate mutation slice above route-shaped
+// forwarding by naming each durable workflow directly instead of tunneling
+// those writes back through generic method-and-path requests. Source: DI-rumav
+function directOperationForPOST(path, payload) {
+  if (path === "/api/places") {
+    return {
+      type: "operation",
+      operation: "create_place",
+      actor: payload.actor,
+      kind: payload.kind,
+      name: payload.name,
+      summary: payload.summary,
+      parent_id: payload.parent_id,
+      tags: payload.tags || [],
+    };
+  }
+  if (path === "/api/resources") {
+    return {
+      type: "operation",
+      operation: "create_resource",
+      actor: payload.actor,
+      kind: payload.kind,
+      name: payload.name,
+      summary: payload.summary,
+      place_id: payload.place_id,
+      tags: payload.tags || [],
+    };
+  }
+  if (path === "/api/responsibilities") {
+    return {
+      type: "operation",
+      operation: "create_responsibility",
+      actor: payload.actor,
+      title: payload.title,
+      summary: payload.summary,
+      role_keys: payload.role_keys || [],
+      tags: payload.tags || [],
+    };
+  }
+  if (path === "/api/items") {
+    return {
+      type: "operation",
+      operation: "create_item",
+      actor: payload.actor,
+      kind: payload.kind,
+      title: payload.title,
+      summary: payload.summary,
+      body: payload.body,
+      tags: payload.tags || [],
+      responsibility_ids: payload.responsibility_ids || [],
+    };
+  }
+  if (path === "/api/runs") {
+    return {
+      type: "operation",
+      operation: "record_run",
+      actor: payload.actor,
+      kind: payload.kind,
+      item_id: payload.item_id,
+      revision: payload.revision,
+      outcome: payload.outcome,
+      notes: payload.notes,
+      machine: payload.machine,
+      location: payload.location,
+      place_id: payload.place_id,
+      resource_ids: payload.resource_ids || [],
+      responsibility_ids: payload.responsibility_ids || [],
+    };
+  }
+  const itemRevisionMatch = path.match(/^\/api\/items\/([^/]+)\/revisions$/);
+  if (itemRevisionMatch) {
+    return {
+      type: "operation",
+      operation: "add_revision",
+      actor: payload.actor,
+      item_id: itemRevisionMatch[1],
+      title: payload.title,
+      summary: payload.summary,
+      body: payload.body,
+      tags: payload.tags || [],
+    };
+  }
+  const itemApprovalMatch = path.match(/^\/api\/items\/([^/]+)\/approvals$/);
+  if (itemApprovalMatch) {
+    return {
+      type: "operation",
+      operation: "record_item_approval",
+      actor: payload.actor,
+      item_id: itemApprovalMatch[1],
+      revision: payload.revision,
+      role: payload.role,
+      decision: payload.decision,
+      notes: payload.notes,
+    };
+  }
+  const runApprovalMatch = path.match(/^\/api\/runs\/([^/]+)\/approvals$/);
+  if (runApprovalMatch) {
+    return {
+      type: "operation",
+      operation: "record_run_approval",
+      actor: payload.actor,
+      run_id: runApprovalMatch[1],
+      role: payload.role,
+      decision: payload.decision,
+      notes: payload.notes,
+    };
+  }
+  const itemSupersedeMatch = path.match(/^\/api\/items\/([^/]+)\/supersede$/);
+  if (itemSupersedeMatch) {
+    return {
+      type: "operation",
+      operation: "supersede_item",
+      actor: payload.actor,
+      item_id: itemSupersedeMatch[1],
+      notes: payload.notes,
+    };
+  }
+  return null;
+}
+
 async function requestBrowserJSON(method, path, payload) {
   const directOperation = method === "GET" ? directOperationForGET(path) : null;
-  const response = directOperation ? await bridgeRPC(directOperation) : await bridgeRPC({
+  const directWriteOperation = method === "POST" ? directOperationForPOST(path, payload || {}) : null;
+  const response = directOperation ? await bridgeRPC(directOperation) : directWriteOperation ? await bridgeRPC(directWriteOperation) : await bridgeRPC({
     type: "request",
     method,
     path,
