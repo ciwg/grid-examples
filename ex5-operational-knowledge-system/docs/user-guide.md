@@ -237,19 +237,36 @@ Source: `DI-vemok`; `DI-kovup`; `DI-rubav`.
 
 ## Browser Path
 
-The browser is the broadest embodiment, but it currently requires:
+The browser is the broadest embodiment. For the demo path below, do not
+assemble it manually. Use the exact setup, launch, and verify steps here first,
+then use the live-demo sheet. Unsupported browsers do not silently fall back to
+the older HTTP browser path. Source: `DI-punek`; `DI-fonuv`; `DI-fovek`;
+`DI-dabek`.
 
-- Chrome or Chromium
-- the shipped unpacked extension under `chrome-extension/`
-- the shipped native host binary from `cmd/operational-browser-host`
-- native-host registration for `operational_browser_host`
+Run these exact steps:
 
-If that browser embodiment is not set up yet, start with CLI or Neovim first.
-Unsupported browsers do not silently fall back to the older HTTP browser path.
-Source: `DI-punek`; `DI-fonuv`; `DI-fovek`.
+```bash
+./scripts/setup-demo-browser.sh
+./scripts/launch-demo-browser.sh
+./scripts/verify-demo-browser.sh
+```
 
-Once the browser embodiment is available, the newcomer sample is easiest to
-read in this order:
+What those do:
+
+- create a disposable demo runtime under `/tmp/ex5-demo-browser/runtime`
+- build and register the native host for `operational_browser_host`
+- launch Chrome with the shipped unpacked extension already loaded
+- fail closed unless the runtime, host, and registration path are actually
+  ready
+
+Use the live-demo sheet only after `verify-demo-browser.sh` prints:
+
+```text
+ex5 browser demo verification passed
+```
+
+After verification passes, the newcomer sample is easiest to read in this
+order:
 
 1. Review workspace draft queue: find `MAINT-0001`
 2. Review workspace hotspots: inspect the receiving and inventory problems
@@ -264,7 +281,7 @@ read in this order:
 
 Use this when you need a short live intro for people who have never seen `ex5`.
 It stays on the same sample world and browser order described above. Source:
-`DI-luren`.
+`DI-luren`; `DI-dabek`.
 
 Opening:
 
@@ -293,6 +310,9 @@ go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock pending-r
 Close with:
 
 - `Same runtime. Same operational truth. Different embodiment.`
+
+If `verify-demo-browser.sh` does not pass, do not use this browser sheet. Fall
+back to the CLI tour earlier in this same guide instead. Source: `DI-dabek`.
 
 For field-by-field browser behavior, use the
 [Browser UI Guide](./browser-ui-guide.md). Source: `DI-nalor`; `DI-rubav`.
@@ -356,9 +376,30 @@ Source: `DI-zorav`.
 
 ### The browser says Chrome/Chromium is required
 
-That is expected on unsupported browsers or when the ex5 extension/native host
-is not installed. Use CLI or Neovim until the browser embodiment is ready.
-Source: `DI-punek`; `DI-fovek`.
+Run the three browser-demo commands in this guide exactly:
+
+```bash
+./scripts/setup-demo-browser.sh
+./scripts/launch-demo-browser.sh
+./scripts/verify-demo-browser.sh
+```
+
+If verification still does not pass, use the CLI or Neovim path instead.
+Source: `DI-punek`; `DI-fovek`; `DI-dabek`.
+
+### The launch script says `127.0.0.1:7045` is not serving the demo runtime
+
+That means some other local server is already bound to `127.0.0.1:7045`, and
+it is not the disposable demo runtime under `/tmp/ex5-demo-browser/runtime`.
+Stop that other local server first, then rerun:
+
+```bash
+./scripts/launch-demo-browser.sh
+./scripts/verify-demo-browser.sh
+```
+
+Do not use the browser live-demo sheet until verification passes. Source:
+`DI-dabek`.
 
 ### Pending review or problem review looks empty
 

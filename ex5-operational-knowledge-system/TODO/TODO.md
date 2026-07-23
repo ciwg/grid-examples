@@ -5,6 +5,8 @@
 
 ## Completed
 
+- [x] 150 - Make the ex5 browser demo runnable from one sheet through explicit setup and verification - `TODO/TODO-mopak-ex5-browser-demo-setup-verification.md`
+
 - [x] 148 - Add checked-in sample data and one newcomer-ready ex5 user guide - `TODO/TODO-turem-ex5-sample-data-and-newcomer-guide.md`
 
 - [x] 147 - Align ex5 implementation promise publication to the PromiseGrid dev guide - `TODO/TODO-jovek-ex5-implementation-promise-publication-alignment.md`
