@@ -260,6 +260,40 @@ read in this order:
 6. Operate workspace: review how run logging, evidence, and approvals attach
    to the current record
 
+### Live Demo Sheet
+
+Use this when you need a short live intro for people who have never seen `ex5`.
+It stays on the same sample world and browser order described above. Source:
+`DI-luren`.
+
+Opening:
+
+- `I built this because our operational truth gets split across too many places.`
+- `We end up with the procedure in one tool, the work record in another, evidence somewhere else, review in chat, and the real context in people's heads.`
+- `This keeps the procedure, the run, the evidence, the review, and the context together.`
+
+Browser flow:
+
+- Start in Review and open the draft queue.
+- Open `MAINT-0001` and call out that live draft state is separate from durable
+  revision history.
+- Switch to hotspots and open `RUN-0001` to show one receiving problem with its
+  run, evidence, review, and context together.
+- Open `RUN-0002` to show that problem review comes from real recorded work,
+  not just free-text notes.
+- Point at Current Record and the next-step actions to show that review and
+  action stay connected instead of bouncing across tools.
+
+CLI proof:
+
+```bash
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock pending-review
+```
+
+Close with:
+
+- `Same runtime. Same operational truth. Different embodiment.`
+
 For field-by-field browser behavior, use the
 [Browser UI Guide](./browser-ui-guide.md). Source: `DI-nalor`; `DI-rubav`.
 

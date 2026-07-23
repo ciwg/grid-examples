@@ -1,7 +1,7 @@
 # TODO
 
 ## Open / Planned
-- none currently
+- [ ] 149 - Prepare a browser-first ex5 demo path, a CLI proof slice, and thin repeatability helpers for short recordings - `TODO/TODO-mivor-ex5-browser-first-demo-prep.md`
 
 ## Completed
 
