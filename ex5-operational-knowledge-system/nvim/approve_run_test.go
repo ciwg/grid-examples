@@ -92,6 +92,7 @@ func TestNeovimApproveRunRefreshesRunInspector(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "approve_run.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 vim.env.OKS_DISPLAY_NAME = "Boss"
 local oks = require("oks")
 oks.setup()

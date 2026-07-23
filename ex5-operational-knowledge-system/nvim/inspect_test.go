@@ -133,6 +133,7 @@ func TestNeovimInspectRunRendersContextHandoffs(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "inspect_run.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 
@@ -217,6 +218,7 @@ func TestNeovimInspectEntityRendersResponsibilityDetail(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "inspect_entity.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 

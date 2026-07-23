@@ -91,7 +91,7 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 		t.Fatalf("expected cli embodiment transport metadata in meta: %+v", meta)
 	}
 	neovim, ok := meta.Embodiments["neovim"]
-	if !ok || neovim.PrimaryAdapter != "local_unix_socket" || neovim.LiveDraftTransport != "local_unix_socket" {
+	if !ok || neovim.PrimaryAdapter != "local_unix_socket" || neovim.LiveDraftTransport != "local_unix_socket" || neovim.CompatibilityMode != "explicit_opt_in" {
 		t.Fatalf("expected neovim embodiment transport metadata in meta: %+v", meta)
 	}
 	if cli.LocalUnixSocketPath != meta.LocalUnixSocketPath || neovim.LocalUnixSocketPath != meta.LocalUnixSocketPath {

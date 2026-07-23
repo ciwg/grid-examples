@@ -33,7 +33,7 @@ Today it ships:
 - websocket-preferred shared live-draft carriage for the browser, with the
   existing HTTP live routes preserved as compatibility paths
 - direct local Unix-socket embodiment contracts for CLI and Neovim, with HTTP
-  kept as fallback and compatibility
+  kept only as explicit compatibility transport
 - projected read/query views over that history
 - browser over the local HTTP adapter, plus CLI and Neovim over a direct local
   Unix-socket contract
@@ -104,8 +104,9 @@ embodiments are not separate durable systems. The browser still projects
 through the local HTTP adapter, while CLI and Neovim now prefer a direct local
 Unix-socket contract over that same runtime. Browser live drafting still
 prefers websocket carriage under the HTTP adapter, while Neovim live drafting
-prefers the local socket and keeps HTTP as fallback. Source: `DI-fudok`;
-`DI-ravum`; `DI-sobek`; `DI-bavuk`; `DI-noruv`; `DI-favel`.
+prefers the local socket and only reaches websocket/HTTP compatibility through
+explicit opt-in. Source: `DI-fudok`; `DI-ravum`; `DI-sobek`; `DI-bavuk`;
+`DI-noruv`; `DI-favel`; `DI-fonuv`.
 
 ### 1a. One dedicated remote relay surface
 
@@ -131,7 +132,7 @@ UI focus. Source: `DI-lusov`; `DI-zoruk`; `DI-dazim`; `DI-sobek`.
 ### 4. The local HTTP API is still the browser adapter and compatibility surface
 
 `GET /api/*` and `POST /api/*` routes are the shipped browser adapter surface
-and the compatibility fallback for CLI and Neovim. The durable frozen families
+and the explicit compatibility transport for CLI and Neovim. The durable frozen families
 underneath them are now also reachable through the direct local Unix-socket
 contract used by the two terminal embodiments. Source: `DI-sobek`;
 `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`;

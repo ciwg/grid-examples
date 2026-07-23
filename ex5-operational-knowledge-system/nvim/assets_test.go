@@ -89,7 +89,8 @@ func TestNeovimLauncherOpensItemThroughRuntimePath(t *testing.T) {
 		"runtimepath+=",
 		"OksOpen",
 		"OKS_BASE_URL",
-		"OKS_SOCKET_PATH",
+		"OKS_SOCKET",
+		"--socket=off",
 		"OKS_DISPLAY_NAME",
 		"OKS_COLOR",
 	}

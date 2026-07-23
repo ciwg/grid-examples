@@ -1,12 +1,13 @@
 # TODO
 
 ## Open / Planned
-- [ ] 130 - Tighten the remaining ex5 compatibility fallback semantics - `TODO/TODO-lavok-ex5-fallback-semantics-tightening.md`
 - [ ] 131 - Move more ex5 runtime behavior above adapter-shaped route seams - `TODO/TODO-tazum-ex5-runtime-contract-above-adapters.md`
 - [ ] 132 - Define a direct non-HTTP browser embodiment contract for ex5 - `TODO/TODO-rubek-ex5-browser-non-http-embodiment.md`
 - [ ] 133 - Decide whether ex5 should yield a more generalized PromiseGrid runtime substrate - `TODO/TODO-sovek-ex5-generalized-runtime-substrate.md`
 
 ## Completed
+
+- [x] 130 - Tighten the remaining ex5 compatibility fallback semantics - `TODO/TODO-lavok-ex5-fallback-semantics-tightening.md`
 
 - [x] 129 - Unify ex5 embodiment transport metadata beyond the current split fields - `TODO/TODO-murev-ex5-embodiment-transport-metadata-unification.md`
 

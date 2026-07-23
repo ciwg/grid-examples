@@ -62,6 +62,7 @@ func TestNeovimProblemReviewRendersGroupedHotspots(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "problem_review.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 
@@ -137,6 +138,7 @@ func TestNeovimProblemReviewRejectsMalformedGroups(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "problem_review_malformed.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local notices = {}
 vim.notify = function(message, level)
   table.insert(notices, message)

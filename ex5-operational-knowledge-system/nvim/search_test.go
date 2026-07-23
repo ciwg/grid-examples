@@ -43,6 +43,7 @@ func TestNeovimSearchRendersGroupedBrowseResults(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "search.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 
@@ -127,6 +128,7 @@ func TestNeovimSearchAddsStructuredFilters(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "search_filters.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 

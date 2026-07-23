@@ -135,7 +135,7 @@ func (app *App) Meta() Meta {
 	// Intent: Keep runtime capability metadata authoritative for both the
 	// canonical local socket path and one explicit embodiment transport table so
 	// clients do not infer primary vs compatibility lanes from cwd guesses or
-	// scattered flat fields. Source: DI-sorek; DI-torak; DI-vurak
+	// scattered flat fields. Source: DI-sorek; DI-torak; DI-vurak; DI-fonuv
 	return Meta{
 		DataRoot:                    app.dataRoot,
 		LocalPeerID:                 app.localPeerID,
@@ -197,7 +197,7 @@ func (app *App) Meta() Meta {
 				PrimaryAdapter:      "local_unix_socket",
 				LiveDraftTransport:  "local_unix_socket",
 				FallbackTransports:  []string{"websocket_over_local_http", "http_live_route"},
-				CompatibilityMode:   "implicit_fallback",
+				CompatibilityMode:   "explicit_opt_in",
 				LocalUnixSocketPath: EmbodimentSocketPath(app.dataRoot),
 			},
 		},

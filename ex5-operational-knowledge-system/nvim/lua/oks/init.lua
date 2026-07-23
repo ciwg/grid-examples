@@ -24,6 +24,7 @@ M.config = {
   socket_path = vim.env.OKS_SOCKET_PATH
     or ((vim.fs and vim.fs.joinpath) and vim.fs.joinpath(default_repo_root(), ".operational-knowledge-system", "embodiment.sock")
       or (default_repo_root() .. "/.operational-knowledge-system/embodiment.sock")),
+  socket_mode = vim.env.OKS_SOCKET or "auto",
   base_url = vim.env.OKS_BASE_URL or "http://127.0.0.1:7045",
   display_name = vim.env.OKS_DISPLAY_NAME or "Neovim User",
   color = vim.env.OKS_COLOR or "#d66f1d",
@@ -164,6 +165,21 @@ end
 
 local function socket_path_available()
   return M.config.socket_path and M.config.socket_path ~= "" and uv.fs_stat(M.config.socket_path) ~= nil
+end
+
+local function compatibility_transport_enabled()
+  return M.config.socket_mode == "off"
+end
+
+local function direct_socket_required_message()
+  return "local socket unavailable; relaunch with oks-nvim --socket=off to use compatibility transport"
+end
+
+local function default_transport_state()
+  if compatibility_transport_enabled() then
+    return "http-poll"
+  end
+  return "local-socket-required"
 end
 
 local function meta_request()
@@ -399,15 +415,20 @@ local function socket_request(method, path, payload)
   return decoded.status, decoded.body or "", nil
 end
 
--- Intent: Prefer the direct local Unix-socket embodiment contract for
--- Neovim requests while preserving HTTP fallback so editor workflows stay
--- operable when only the browser adapter is available. Source: DI-favel
+-- Intent: Keep the direct local Unix-socket embodiment contract primary for
+-- Neovim requests and only allow HTTP compatibility when the operator
+-- explicitly selected `oks-nvim --socket=off`. Source: DI-favel; DI-fonuv
 local function request(method, path, payload)
   if socket_path_available() then
     local status, body, err = socket_request(method, path, payload)
     if err == nil then
       return status, body, nil
     end
+    if not compatibility_transport_enabled() then
+      return nil, nil, direct_socket_required_message()
+    end
+  elseif not compatibility_transport_enabled() then
+    return nil, nil, direct_socket_required_message()
   end
   local argv = {
     "curl",
@@ -596,7 +617,7 @@ local function close_live_socket()
   end
   M.state.socket_connected = false
   M.state.socket_buffer = ""
-  M.state.transport = "http-poll"
+  M.state.transport = default_transport_state()
 end
 
 local function handle_live_socket_payload(payload)
@@ -626,6 +647,21 @@ local function schedule_socket_reconnect(item_id, generation)
     end
     M.connect_live_socket(item_id)
   end))
+end
+
+local function handle_socket_transport_loss(item_id, generation, message)
+  close_live_socket()
+  if compatibility_transport_enabled() then
+    start_poll_loop()
+  else
+    stop_poll_loop()
+  end
+  if message and message ~= "" then
+    notify(message, vim.log.levels.WARN)
+  end
+  if item_id and item_id ~= "" then
+    schedule_socket_reconnect(item_id, generation)
+  end
 end
 
 local function send_live_socket_update(update_body, typing)
@@ -661,15 +697,18 @@ local function send_live_socket_update(update_body, typing)
   if finished and not write_err then
     return true
   end
-  close_live_socket()
-  start_poll_loop()
-  if M.state.item_id and M.state.item_id ~= "" then
-    schedule_socket_reconnect(M.state.item_id, generation)
-  end
   if write_err then
-    notify("local socket write failed; falling back to compatibility transport", vim.log.levels.WARN)
+    if compatibility_transport_enabled() then
+      handle_socket_transport_loss(M.state.item_id, generation, "local socket write failed; falling back to compatibility transport")
+    else
+      handle_socket_transport_loss(M.state.item_id, generation, "local socket write failed; direct transport still required")
+    end
   else
-    notify("local socket write timed out; falling back to compatibility transport", vim.log.levels.WARN)
+    if compatibility_transport_enabled() then
+      handle_socket_transport_loss(M.state.item_id, generation, "local socket write timed out; falling back to compatibility transport")
+    else
+      handle_socket_transport_loss(M.state.item_id, generation, "local socket write timed out; direct transport still required")
+    end
   end
   return false
 end
@@ -683,9 +722,11 @@ function M.connect_live_socket(item_id)
     M.state.socket = socket
     socket:connect(M.config.socket_path, vim.schedule_wrap(function(err)
       if err then
-        close_live_socket()
-        start_poll_loop()
-        schedule_socket_reconnect(item_id, generation)
+        if compatibility_transport_enabled() then
+          handle_socket_transport_loss(item_id, generation, "local socket connect failed; falling back to compatibility transport")
+        else
+          handle_socket_transport_loss(item_id, generation, "local socket connect failed; direct transport still required")
+        end
         return
       end
       socket:write(json_encode({
@@ -703,9 +744,11 @@ function M.connect_live_socket(item_id)
           return
         end
         if read_err or not chunk then
-          close_live_socket()
-          start_poll_loop()
-          schedule_socket_reconnect(item_id, generation)
+          if compatibility_transport_enabled() then
+            handle_socket_transport_loss(item_id, generation, "local socket closed; falling back to compatibility transport")
+          else
+            handle_socket_transport_loss(item_id, generation, "local socket closed; direct transport still required")
+          end
           return
         end
         M.state.socket_connected = true
@@ -720,6 +763,14 @@ function M.connect_live_socket(item_id)
         end
       end))
     end))
+    return
+  end
+  if not compatibility_transport_enabled() then
+    local generation = M.state.socket_generation + 1
+    M.state.socket_generation = generation
+    close_live_socket()
+    notify(direct_socket_required_message(), vim.log.levels.WARN)
+    schedule_socket_reconnect(item_id, generation)
     return
   end
   local parsed, parse_err = parse_websocket_url(websocket_url("/api/items/" .. item_id .. "/live/socket"))
@@ -933,9 +984,9 @@ end
 local function start_live_transport()
   stop_poll_loop()
   start_heartbeat_loop()
-  -- Intent: Make Neovim prefer the direct Unix-socket live-draft contract
-  -- while preserving HTTP polling fallback when the local socket surface is
-  -- unavailable. Source: DI-favel
+  -- Intent: Make Neovim prefer the direct Unix-socket live-draft contract and
+  -- only use websocket/HTTP compatibility when the operator explicitly opted
+  -- out with `oks-nvim --socket=off`. Source: DI-favel; DI-fonuv
   M.connect_live_socket(M.state.item_id)
 end
 
@@ -948,6 +999,7 @@ local function session_lines()
     "version: " .. tostring(M.state.version or 0),
     "revision: " .. tostring(M.state.current_revision or 0),
     "participant: " .. M.state.participant_id,
+    "socket_mode: " .. tostring(M.config.socket_mode or "auto"),
     "socket_path: " .. (M.config.socket_path or "-"),
     "base_url: " .. M.config.base_url,
     "participants:",
@@ -2254,13 +2306,19 @@ end
 function M.setup(opts)
   opts = opts or {}
   local explicit_socket_path = opts.socket_path
+  local explicit_socket_mode = opts.socket_mode
   local explicit_repo_root = opts.repo_root
   M.config = vim.tbl_deep_extend("force", M.config, opts)
   M.config.repo_root = vim.fs.normalize(M.config.repo_root)
   -- Intent: Ask the runtime for the canonical socket path before falling back
   -- to repo-root inference so Neovim follows the real terminal embodiment
-  -- contract even when the runtime root moved. Source: DI-sorek
-  if vim.env.OKS_SOCKET_PATH and vim.env.OKS_SOCKET_PATH ~= "" then
+  -- contract even when the runtime root moved, unless the operator explicitly
+  -- selected compatibility mode with `oks-nvim --socket=off`. Source: DI-sorek;
+  -- DI-fonuv
+  if explicit_socket_mode == "off" or vim.env.OKS_SOCKET == "off" then
+    M.config.socket_mode = "off"
+    M.config.socket_path = ""
+  elseif vim.env.OKS_SOCKET_PATH and vim.env.OKS_SOCKET_PATH ~= "" then
     M.config.socket_path = vim.fs.normalize(vim.env.OKS_SOCKET_PATH)
   elseif explicit_socket_path and explicit_socket_path ~= "" then
     M.config.socket_path = vim.fs.normalize(explicit_socket_path)
@@ -2276,6 +2334,7 @@ function M.setup(opts)
       M.config.socket_discovery_error = discovery_err
     end
   end
+  M.state.transport = default_transport_state()
   vim.api.nvim_create_user_command("OksOpen", function(command)
     M.open(command.args)
   end, { nargs = 1 })

@@ -1,8 +1,8 @@
 # ex5 HTTP API guide
 
 This guide documents the local HTTP adapter that the browser still uses as its
-primary embodiment surface, and that CLI/Neovim still keep as compatibility
-fallback.
+primary embodiment surface, and that CLI/Neovim still keep as explicit
+compatibility transport.
 
 The dedicated remote relay service is documented separately in
 [Relay API Guide](./relay-api-guide.md).
@@ -12,7 +12,7 @@ contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.
 
 In current ex5, these HTTP routes are the shipped browser embodiment contract
-and the compatibility fallback for CLI and Neovim. They are not the signed
+and the explicit compatibility transport for CLI and Neovim. They are not the signed
 PromiseGrid peer contract, and route names should not be read as frozen
 `pCID`-selected public wire meaning. Source: `DI-sobek`; `DI-favel`.
 
@@ -72,11 +72,12 @@ HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
 In the current runtime, `embodiments.browser` declares `local_http` as its
 primary adapter and `websocket_over_local_http` as its live-draft transport.
 `embodiments.cli` declares `local_unix_socket` as its primary adapter and marks
-HTTP compatibility as `explicit_opt_in`. `embodiments.neovim` declares
+HTTP compatibility as `explicit_opt_in`. `embodiments.neovim` also declares
 `local_unix_socket` as both its primary adapter and live-draft transport, with
-websocket and HTTP listed as fallback transports. Terminal embodiments also
-repeat the canonical `local_unix_socket_path` inside their own embodiment
-records. Source: `DI-vurak`; `DI-zorav`.
+websocket and HTTP listed as compatibility transports that are only available
+through explicit opt-in mode (`oks-nvim --socket=off`). Terminal embodiments
+also repeat the canonical `local_unix_socket_path` inside their own embodiment
+records. Source: `DI-vurak`; `DI-zorav`; `DI-fonuv`.
 
 ## Peer exchange
 

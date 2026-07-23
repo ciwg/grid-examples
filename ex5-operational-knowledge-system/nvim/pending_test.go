@@ -71,6 +71,7 @@ func TestNeovimPendingRendersDraftAndReviewQueues(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "pending.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 
@@ -155,6 +156,7 @@ func TestNeovimPendingRejectsMissingRunApprovals(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "pending_missing_approvals.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local notices = {}
 vim.notify = function(message, level)
   table.insert(notices, message)

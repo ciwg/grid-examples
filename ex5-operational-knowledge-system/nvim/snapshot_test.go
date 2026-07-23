@@ -296,7 +296,7 @@ vim.cmd("qa!")
 	}
 }
 
-func TestNeovimPushFallsBackToHTTPAfterSocketWriteFailure(t *testing.T) {
+func TestNeovimPushFallsBackToHTTPAfterSocketWriteFailureInExplicitCompatMode(t *testing.T) {
 	nvimPath, err := exec.LookPath("nvim")
 	if err != nil {
 		t.Skip("nvim not available")
@@ -326,6 +326,7 @@ func TestNeovimPushFallsBackToHTTPAfterSocketWriteFailure(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "push_fallback.lua")
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = "off"
 local oks = require("oks")
 oks.setup()
 oks.config.socket_path = ""
@@ -378,6 +379,125 @@ vim.cmd("qa!")
 	}
 	if received["update_body"] != true || received["body"] != "after failure" {
 		t.Fatalf("unexpected fallback payload: %#v", received)
+	}
+}
+
+func TestNeovimPushFailsClosedAfterSocketWriteFailureWithoutCompatMode(t *testing.T) {
+	nvimPath, err := exec.LookPath("nvim")
+	if err != nil {
+		t.Skip("nvim not available")
+	}
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests++
+		if request.URL.Path == "/api/meta" {
+			http.Error(writer, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		t.Fatalf("unexpected HTTP compatibility request: %s %s", request.Method, request.URL.Path)
+	}))
+	defer server.Close()
+
+	script := filepath.Join(t.TempDir(), "push_fail_closed.lua")
+	scriptBody := fmt.Sprintf(`
+vim.env.OKS_BASE_URL = %q
+vim.env.OKS_SOCKET = nil
+local oks = require("oks")
+oks.setup()
+oks.state.item_id = "ITEM-0001"
+oks.state.bufnr = vim.api.nvim_get_current_buf()
+oks.state.winid = vim.api.nvim_get_current_win()
+oks.state.version = 1
+oks.state.current_revision = 1
+oks.state.title = "Socket required"
+oks.state.status = "draft"
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { "after failure" })
+oks.state.socket_connected = true
+oks.state.transport = "local-socket"
+oks.state.socket_generation = 7
+oks.state.socket = {
+  write = function(_, _, cb)
+    cb("broken pipe")
+  end,
+  read_stop = function()
+  end,
+  close = function()
+  end,
+}
+oks.push()
+if oks.state.transport ~= "local-socket-required" then
+  error("expected local-socket-required transport, got " .. tostring(oks.state.transport))
+end
+vim.cmd("qa!")
+`, server.URL)
+	if err := os.WriteFile(script, []byte(scriptBody), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	command := exec.Command(
+		nvimPath,
+		"--headless",
+		"-u", "NONE",
+		"-c", "set runtimepath+=.",
+		"-l", script,
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nvim fail-closed regression: %v\n%s", err, string(output))
+	}
+	if requests < 1 {
+		t.Fatalf("expected at least one startup meta request")
+	}
+	if strings.Contains(string(output), "expected local-socket-required transport") {
+		t.Fatalf("unexpected fail-closed output: %s", string(output))
+	}
+}
+
+func TestOksNvimWrapperSupportsExplicitSocketOffFlag(t *testing.T) {
+	packageRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get wd: %v", err)
+	}
+	repoRoot := filepath.Dir(packageRoot)
+	root := t.TempDir()
+	fakeBin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatalf("mkdir fake bin: %v", err)
+	}
+	argsFile := filepath.Join(root, "args.txt")
+	envFile := filepath.Join(root, "env.txt")
+	fakeNvim := filepath.Join(fakeBin, "nvim")
+	fakeBody := fmt.Sprintf(`#!/usr/bin/env bash
+printf '%%s\n' "$@" > %q
+{
+  printf 'OKS_SOCKET=%%s\n' "${OKS_SOCKET:-}"
+  printf 'OKS_BASE_URL=%%s\n' "${OKS_BASE_URL:-}"
+} > %q
+`, argsFile, envFile)
+	if err := os.WriteFile(fakeNvim, []byte(fakeBody), 0o755); err != nil {
+		t.Fatalf("write fake nvim: %v", err)
+	}
+
+	command := exec.Command("bash", filepath.Join(repoRoot, "scripts", "oks-nvim"), "--socket=off", "ITEM-0001")
+	command.Dir = repoRoot
+	command.Env = append(os.Environ(), "PATH="+fakeBin+":"+os.Getenv("PATH"))
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run oks-nvim wrapper: %v\n%s", err, string(output))
+	}
+	argsData, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("read args: %v", err)
+	}
+	if !strings.Contains(string(argsData), "+OksOpen ITEM-0001") {
+		t.Fatalf("wrapper did not forward item open command: %s", string(argsData))
+	}
+	envData, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envData), "OKS_SOCKET=off") {
+		t.Fatalf("wrapper did not export explicit socket mode: %s", string(envData))
 	}
 }
 

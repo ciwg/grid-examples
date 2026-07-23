@@ -2,20 +2,48 @@
 set -eu
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-item_id="${1:-${OKS_ITEM_ID:-}}"
+socket_mode="${OKS_SOCKET:-auto}"
+item_id=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --socket=off)
+      socket_mode="off"
+      shift
+      ;;
+    --help)
+      echo "usage: oks-nvim [--socket=off] ITEM_ID" >&2
+      exit 0
+      ;;
+    -*)
+      echo "unknown option: $1" >&2
+      echo "usage: oks-nvim [--socket=off] ITEM_ID" >&2
+      exit 1
+      ;;
+    *)
+      item_id="$1"
+      shift
+      break
+      ;;
+  esac
+done
 
 if [ -z "${item_id}" ]; then
-  echo "usage: oks-nvim ITEM_ID" >&2
+  item_id="${OKS_ITEM_ID:-}"
+fi
+
+if [ -z "${item_id}" ]; then
+  echo "usage: oks-nvim [--socket=off] ITEM_ID" >&2
   exit 1
 fi
 
-# Intent: Let Neovim discover the runtime's canonical socket path from
-# `/api/meta` by default while still honoring `OKS_SOCKET_PATH` as an explicit
-# override when an operator wants to pin a different local contract path.
-# Source: DI-sorek
+# Intent: Keep the direct local Unix-socket contract primary while making the
+# browser-adapter compatibility path an explicit launch-time choice through
+# `--socket=off`. Source: DI-sorek; DI-fonuv
 export OKS_BASE_URL="${OKS_BASE_URL:-http://127.0.0.1:7045}"
 export OKS_DISPLAY_NAME="${OKS_DISPLAY_NAME:-Neovim User}"
 export OKS_COLOR="${OKS_COLOR:-#d66f1d}"
+export OKS_SOCKET="${socket_mode}"
 
 exec nvim \
   --cmd "set runtimepath+=${repo_root}/nvim" \
