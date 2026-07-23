@@ -1,11 +1,10 @@
 package service
 
-import "strings"
+import records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 
-// Intent: Make peer-visible create artifacts use the create-envelope CID as
-// their durable identity while preserving the historical short ID as an alias
-// for compatibility replay, verification, and embodiment migration. Source:
-// DI-loruk
+// Intent: Preserve create-envelope-CID durable identity semantics while the
+// canonical ID decoration logic moves into the reusable PromiseGrid record
+// substrate. Source: DI-ragiv
 func decoratePeerVisibleEventCanonicalIDs(
 	events []OperationalEvent,
 	itemRecords []SignedKnowledgeItemRecord,
@@ -17,157 +16,64 @@ func decoratePeerVisibleEventCanonicalIDs(
 	linkRecords []SignedKnowledgeLinkRecord,
 	responsibilityRecords []SignedKnowledgeResponsibilityRecord,
 ) []OperationalEvent {
-	itemCreateCIDs := map[string]string{}
-	for _, record := range itemRecords {
-		if record.EventType != "knowledge_item_created" {
-			continue
-		}
-		itemCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	eventSlice := make([]records.Event, len(events))
+	itemSlice := make([]records.SignedKnowledgeItemRecord, len(itemRecords))
+	approvalSlice := make([]records.SignedKnowledgeApprovalRecord, len(approvalRecords))
+	evidenceSlice := make([]records.SignedKnowledgeEvidenceRecord, len(evidenceRecords))
+	runSlice := make([]records.SignedOperationalRunRecord, len(runRecords))
+	placeSlice := make([]records.SignedOperationalPlaceRecord, len(placeRecords))
+	resourceSlice := make([]records.SignedOperationalResourceRecord, len(resourceRecords))
+	linkSlice := make([]records.SignedKnowledgeLinkRecord, len(linkRecords))
+	responsibilitySlice := make([]records.SignedKnowledgeResponsibilityRecord, len(responsibilityRecords))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	approvalCreateCIDs := map[string]string{}
-	for _, record := range approvalRecords {
-		approvalCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range itemRecords {
+		itemSlice[i] = records.SignedKnowledgeItemRecord(record)
 	}
-	evidenceCreateCIDs := map[string]string{}
-	for _, record := range evidenceRecords {
-		evidenceCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range approvalRecords {
+		approvalSlice[i] = records.SignedKnowledgeApprovalRecord(record)
 	}
-	runCreateCIDs := map[string]string{}
-	for _, record := range runRecords {
-		runCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range evidenceRecords {
+		evidenceSlice[i] = records.SignedKnowledgeEvidenceRecord(record)
 	}
-	placeCreateCIDs := map[string]string{}
-	for _, record := range placeRecords {
-		placeCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range runRecords {
+		runSlice[i] = records.SignedOperationalRunRecord(record)
 	}
-	resourceCreateCIDs := map[string]string{}
-	for _, record := range resourceRecords {
-		resourceCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range placeRecords {
+		placeSlice[i] = records.SignedOperationalPlaceRecord(record)
 	}
-	linkCreateCIDs := map[string]string{}
-	for _, record := range linkRecords {
-		linkCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range resourceRecords {
+		resourceSlice[i] = records.SignedOperationalResourceRecord(record)
 	}
-	responsibilityCreateCIDs := map[string]string{}
-	for _, record := range responsibilityRecords {
-		responsibilityCreateCIDs[recordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
+	for i, record := range linkRecords {
+		linkSlice[i] = records.SignedKnowledgeLinkRecord(record)
 	}
-	out := make([]OperationalEvent, 0, len(events))
-	for _, event := range events {
-		out = append(out, decoratePeerVisibleEventCanonicalID(
-			event,
-			itemCreateCIDs,
-			approvalCreateCIDs,
-			evidenceCreateCIDs,
-			runCreateCIDs,
-			placeCreateCIDs,
-			resourceCreateCIDs,
-			linkCreateCIDs,
-			responsibilityCreateCIDs,
-		))
+	for i, record := range responsibilityRecords {
+		responsibilitySlice[i] = records.SignedKnowledgeResponsibilityRecord(record)
 	}
-	return out
-}
-
-func decoratePeerVisibleEventCanonicalID(
-	event OperationalEvent,
-	itemCreateCIDs map[string]string,
-	approvalCreateCIDs map[string]string,
-	evidenceCreateCIDs map[string]string,
-	runCreateCIDs map[string]string,
-	placeCreateCIDs map[string]string,
-	resourceCreateCIDs map[string]string,
-	linkCreateCIDs map[string]string,
-	responsibilityCreateCIDs map[string]string,
-) OperationalEvent {
-	key := originEventKey(event.OriginPeerID, event.OriginSequence)
-	switch event.Type {
-	case "place_created":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if placeCreateCIDs[key] != "" {
-			event.CanonicalID = placeCreateCIDs[key]
-		}
-	case "resource_created":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if resourceCreateCIDs[key] != "" {
-			event.CanonicalID = resourceCreateCIDs[key]
-		}
-	case "knowledge_item_created":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if itemCreateCIDs[key] != "" {
-			event.CanonicalID = itemCreateCIDs[key]
-		}
-	case "responsibility_created":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if responsibilityCreateCIDs[key] != "" {
-			event.CanonicalID = responsibilityCreateCIDs[key]
-		}
-	case "run_recorded":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if runCreateCIDs[key] != "" {
-			event.CanonicalID = runCreateCIDs[key]
-		}
-	case "approval_recorded":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if approvalCreateCIDs[key] != "" {
-			event.CanonicalID = approvalCreateCIDs[key]
-		}
-	case "link_added":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EntityID
-		}
-		if linkCreateCIDs[key] != "" {
-			event.CanonicalID = linkCreateCIDs[key]
-		}
-	case "evidence_added":
-		if strings.TrimSpace(event.DisplayID) == "" {
-			event.DisplayID = event.EvidenceID
-		}
-		if evidenceCreateCIDs[key] != "" {
-			event.CanonicalID = evidenceCreateCIDs[key]
-		}
+	out := records.DecoratePeerVisibleEventCanonicalIDs(
+		eventSlice,
+		itemSlice,
+		approvalSlice,
+		evidenceSlice,
+		runSlice,
+		placeSlice,
+		resourceSlice,
+		linkSlice,
+		responsibilitySlice,
+	)
+	converted := make([]OperationalEvent, len(out))
+	for i, event := range out {
+		converted[i] = OperationalEvent(event)
 	}
-	return event
+	return converted
 }
 
 func canonicalOrAliasID(canonicalID string, aliasID string) string {
-	if strings.TrimSpace(canonicalID) != "" {
-		return canonicalID
-	}
-	return aliasID
+	return records.CanonicalOrAliasID(canonicalID, aliasID)
 }
 
 func peerVisibleEntityTypeForEvent(event OperationalEvent) string {
-	switch event.Type {
-	case "place_created":
-		return "place"
-	case "resource_created":
-		return "resource"
-	case "knowledge_item_created", "revision_added", "knowledge_item_status_changed", "knowledge_item_superseded":
-		return "knowledge_item"
-	case "responsibility_created":
-		return "responsibility"
-	case "run_recorded":
-		return "run"
-	case "approval_recorded":
-		return "approval"
-	case "link_added":
-		return "link"
-	case "evidence_added":
-		return "evidence"
-	default:
-		return ""
-	}
+	return records.PeerVisibleEntityTypeForEvent(records.Event(event))
 }

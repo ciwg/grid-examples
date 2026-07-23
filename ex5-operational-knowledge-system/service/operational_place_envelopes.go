@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
 type SignedOperationalPlaceRecord struct {
@@ -55,104 +53,20 @@ func operationalPlacePayloadForEvent(event OperationalEvent) (operationalPlacePa
 // exchanged runs and links can resolve their place references without falling
 // back to unresolved local-only context. Source: DI-pivul
 func buildSignedOperationalPlaceRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalPlaceRecord, bool, error) {
-	payload, ok := operationalPlacePayloadForEvent(event)
-	if !ok {
-		return SignedOperationalPlaceRecord{}, false, nil
-	}
-	payloadBytes, err := protocols.Marshal(payload)
-	if err != nil {
-		return SignedOperationalPlaceRecord{}, false, fmt.Errorf("marshal operational-place payload: %w", err)
-	}
-	envelope := protocols.NewEnvelope(protocols.OperationalPlaceProfile.CID, payloadBytes, nil)
-	signable, err := envelope.SignableBytes()
-	if err != nil {
-		return SignedOperationalPlaceRecord{}, false, fmt.Errorf("build signable operational-place envelope: %w", err)
-	}
-	proofBytes, err := identity.SignProof(signable)
-	if err != nil {
-		return SignedOperationalPlaceRecord{}, false, fmt.Errorf("sign operational-place envelope: %w", err)
-	}
-	envelope = protocols.NewEnvelope(protocols.OperationalPlaceProfile.CID, payloadBytes, proofBytes)
-	envelopeBytes, err := envelope.Bytes()
-	if err != nil {
-		return SignedOperationalPlaceRecord{}, false, fmt.Errorf("encode operational-place envelope: %w", err)
-	}
-	envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-	if err != nil {
-		return SignedOperationalPlaceRecord{}, false, fmt.Errorf("cid operational-place envelope: %w", err)
-	}
-	return SignedOperationalPlaceRecord{
-		Sequence:       event.Sequence,
-		OriginPeerID:   effectiveOriginPeerID(event, identity.PeerID()),
-		OriginSequence: effectiveOriginSequence(event),
-		PlaceID:        event.EntityID,
-		PCID:           protocols.OperationalPlaceProfile.CID.String(),
-		EnvelopeCID:    envelopeCID.String(),
-		EnvelopeBase64: base64.StdEncoding.EncodeToString(envelopeBytes),
-		RecordedAt:     event.Timestamp,
-		Implementation: "ex5-local-runtime",
-	}, true, nil
+	record, ok, err := records.BuildSignedOperationalPlaceRecord(identity, records.Event(event))
+	return SignedOperationalPlaceRecord(record), ok, err
 }
 
-func verifySignedOperationalPlaceRecords(events []OperationalEvent, records []SignedOperationalPlaceRecord) error {
-	if len(records) == 0 {
-		return nil
+func verifySignedOperationalPlaceRecords(events []OperationalEvent, in []SignedOperationalPlaceRecord) error {
+	eventSlice := make([]records.Event, len(events))
+	recordSlice := make([]records.SignedOperationalPlaceRecord, len(in))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	expected := map[string]operationalPlacePayload{}
-	for _, event := range events {
-		payload, ok := operationalPlacePayloadForEvent(event)
-		if !ok {
-			continue
-		}
-		expected[originEventKey(effectiveOriginPeerID(event, ""), effectiveOriginSequence(event))] = payload
+	for i, record := range in {
+		recordSlice[i] = records.SignedOperationalPlaceRecord(record)
 	}
-	for _, record := range records {
-		peerID := strings.TrimSpace(record.OriginPeerID)
-		originSequence := record.OriginSequence
-		if originSequence == 0 {
-			originSequence = record.Sequence
-		}
-		payload, ok := expected[originEventKey(peerID, originSequence)]
-		if !ok {
-			continue
-		}
-		if record.PCID != protocols.OperationalPlaceProfile.CID.String() {
-			return fmt.Errorf("operational-place record %d uses unexpected pCID %q", record.Sequence, record.PCID)
-		}
-		envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
-		if err != nil {
-			return fmt.Errorf("decode operational-place record %d envelope: %w", record.Sequence, err)
-		}
-		envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("cid operational-place record %d envelope: %w", record.Sequence, err)
-		}
-		if envelopeCID.String() != record.EnvelopeCID {
-			return fmt.Errorf("operational-place record %d envelope cid mismatch", record.Sequence)
-		}
-		envelope, err := protocols.ParseEnvelope(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("parse operational-place record %d envelope: %w", record.Sequence, err)
-		}
-		if envelope.PCID.String() != protocols.OperationalPlaceProfile.CID.String() {
-			return fmt.Errorf("operational-place record %d envelope pCID mismatch", record.Sequence)
-		}
-		signable, err := envelope.SignableBytes()
-		if err != nil {
-			return fmt.Errorf("build operational-place record %d signable bytes: %w", record.Sequence, err)
-		}
-		if err := VerifyRuntimeProof(signable, envelope.ProofBytes); err != nil {
-			return fmt.Errorf("verify operational-place record %d proof: %w", record.Sequence, err)
-		}
-		var got operationalPlacePayload
-		if err := protocols.Unmarshal(envelope.PayloadBytes, &got); err != nil {
-			return fmt.Errorf("decode operational-place record %d payload: %w", record.Sequence, err)
-		}
-		if err := compareOperationalPlacePayload(payload, got); err != nil {
-			return fmt.Errorf("operational-place record %d payload mismatch: %w", record.Sequence, err)
-		}
-	}
-	return nil
+	return records.VerifySignedOperationalPlaceRecords(eventSlice, recordSlice)
 }
 
 func compareOperationalPlacePayload(expected operationalPlacePayload, got operationalPlacePayload) error {

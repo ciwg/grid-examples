@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
 type SignedOperationalRunRecord struct {
@@ -66,108 +64,20 @@ func operationalRunPayloadForEvent(event OperationalEvent) (operationalRunPayloa
 // PromiseGrid-native family so evidence can anchor to a signed operational run
 // contract instead of a compatibility-only local event. Source: DI-vamok
 func buildSignedOperationalRunRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalRunRecord, bool, error) {
-	payload, ok := operationalRunPayloadForEvent(event)
-	if !ok {
-		return SignedOperationalRunRecord{}, false, nil
-	}
-	payloadBytes, err := protocols.Marshal(payload)
-	if err != nil {
-		return SignedOperationalRunRecord{}, false, fmt.Errorf("marshal operational-run payload: %w", err)
-	}
-	envelope := protocols.NewEnvelope(protocols.OperationalRunProfile.CID, payloadBytes, nil)
-	signable, err := envelope.SignableBytes()
-	if err != nil {
-		return SignedOperationalRunRecord{}, false, fmt.Errorf("build signable operational-run envelope: %w", err)
-	}
-	proofBytes, err := identity.SignProof(signable)
-	if err != nil {
-		return SignedOperationalRunRecord{}, false, fmt.Errorf("sign operational-run envelope: %w", err)
-	}
-	envelope = protocols.NewEnvelope(protocols.OperationalRunProfile.CID, payloadBytes, proofBytes)
-	envelopeBytes, err := envelope.Bytes()
-	if err != nil {
-		return SignedOperationalRunRecord{}, false, fmt.Errorf("encode operational-run envelope: %w", err)
-	}
-	envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-	if err != nil {
-		return SignedOperationalRunRecord{}, false, fmt.Errorf("cid operational-run envelope: %w", err)
-	}
-	return SignedOperationalRunRecord{
-		Sequence:       event.Sequence,
-		OriginPeerID:   effectiveOriginPeerID(event, identity.PeerID()),
-		OriginSequence: effectiveOriginSequence(event),
-		RunID:          event.EntityID,
-		ItemID:         event.TargetID,
-		PCID:           protocols.OperationalRunProfile.CID.String(),
-		EnvelopeCID:    envelopeCID.String(),
-		EnvelopeBase64: base64.StdEncoding.EncodeToString(envelopeBytes),
-		RecordedAt:     event.Timestamp,
-		Implementation: "ex5-local-runtime",
-	}, true, nil
+	record, ok, err := records.BuildSignedOperationalRunRecord(identity, records.Event(event))
+	return SignedOperationalRunRecord(record), ok, err
 }
 
-func verifySignedOperationalRunRecords(events []OperationalEvent, records []SignedOperationalRunRecord) error {
-	if len(records) == 0 {
-		return nil
+func verifySignedOperationalRunRecords(events []OperationalEvent, in []SignedOperationalRunRecord) error {
+	eventSlice := make([]records.Event, len(events))
+	recordSlice := make([]records.SignedOperationalRunRecord, len(in))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	expected := map[string]operationalRunPayload{}
-	for _, event := range events {
-		payload, ok := operationalRunPayloadForEvent(event)
-		if !ok {
-			continue
-		}
-		expected[originEventKey(effectiveOriginPeerID(event, ""), effectiveOriginSequence(event))] = payload
+	for i, record := range in {
+		recordSlice[i] = records.SignedOperationalRunRecord(record)
 	}
-	for _, record := range records {
-		peerID := record.OriginPeerID
-		if strings.TrimSpace(peerID) == "" {
-			peerID = ""
-		}
-		originSequence := record.OriginSequence
-		if originSequence == 0 {
-			originSequence = record.Sequence
-		}
-		payload, ok := expected[originEventKey(peerID, originSequence)]
-		if !ok {
-			continue
-		}
-		if record.PCID != protocols.OperationalRunProfile.CID.String() {
-			return fmt.Errorf("operational-run record %d uses unexpected pCID %q", record.Sequence, record.PCID)
-		}
-		envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
-		if err != nil {
-			return fmt.Errorf("decode operational-run record %d envelope: %w", record.Sequence, err)
-		}
-		envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("cid operational-run record %d envelope: %w", record.Sequence, err)
-		}
-		if envelopeCID.String() != record.EnvelopeCID {
-			return fmt.Errorf("operational-run record %d envelope cid mismatch", record.Sequence)
-		}
-		envelope, err := protocols.ParseEnvelope(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("parse operational-run record %d envelope: %w", record.Sequence, err)
-		}
-		if envelope.PCID.String() != protocols.OperationalRunProfile.CID.String() {
-			return fmt.Errorf("operational-run record %d envelope pCID mismatch", record.Sequence)
-		}
-		signable, err := envelope.SignableBytes()
-		if err != nil {
-			return fmt.Errorf("build operational-run record %d signable bytes: %w", record.Sequence, err)
-		}
-		if err := VerifyRuntimeProof(signable, envelope.ProofBytes); err != nil {
-			return fmt.Errorf("verify operational-run record %d proof: %w", record.Sequence, err)
-		}
-		var got operationalRunPayload
-		if err := protocols.Unmarshal(envelope.PayloadBytes, &got); err != nil {
-			return fmt.Errorf("decode operational-run record %d payload: %w", record.Sequence, err)
-		}
-		if err := compareOperationalRunPayload(payload, got); err != nil {
-			return fmt.Errorf("operational-run record %d payload mismatch: %w", record.Sequence, err)
-		}
-	}
-	return nil
+	return records.VerifySignedOperationalRunRecords(eventSlice, recordSlice)
 }
 
 func compareOperationalRunPayload(expected operationalRunPayload, got operationalRunPayload) error {

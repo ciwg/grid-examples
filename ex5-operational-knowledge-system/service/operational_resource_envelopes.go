@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
 type SignedOperationalResourceRecord struct {
@@ -55,104 +53,20 @@ func operationalResourcePayloadForEvent(event OperationalEvent) (operationalReso
 // so exchanged runs and links can resolve their resource references without
 // falling back to unresolved local-only context. Source: DI-pivul
 func buildSignedOperationalResourceRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedOperationalResourceRecord, bool, error) {
-	payload, ok := operationalResourcePayloadForEvent(event)
-	if !ok {
-		return SignedOperationalResourceRecord{}, false, nil
-	}
-	payloadBytes, err := protocols.Marshal(payload)
-	if err != nil {
-		return SignedOperationalResourceRecord{}, false, fmt.Errorf("marshal operational-resource payload: %w", err)
-	}
-	envelope := protocols.NewEnvelope(protocols.OperationalResourceProfile.CID, payloadBytes, nil)
-	signable, err := envelope.SignableBytes()
-	if err != nil {
-		return SignedOperationalResourceRecord{}, false, fmt.Errorf("build signable operational-resource envelope: %w", err)
-	}
-	proofBytes, err := identity.SignProof(signable)
-	if err != nil {
-		return SignedOperationalResourceRecord{}, false, fmt.Errorf("sign operational-resource envelope: %w", err)
-	}
-	envelope = protocols.NewEnvelope(protocols.OperationalResourceProfile.CID, payloadBytes, proofBytes)
-	envelopeBytes, err := envelope.Bytes()
-	if err != nil {
-		return SignedOperationalResourceRecord{}, false, fmt.Errorf("encode operational-resource envelope: %w", err)
-	}
-	envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-	if err != nil {
-		return SignedOperationalResourceRecord{}, false, fmt.Errorf("cid operational-resource envelope: %w", err)
-	}
-	return SignedOperationalResourceRecord{
-		Sequence:       event.Sequence,
-		OriginPeerID:   effectiveOriginPeerID(event, identity.PeerID()),
-		OriginSequence: effectiveOriginSequence(event),
-		ResourceID:     event.EntityID,
-		PCID:           protocols.OperationalResourceProfile.CID.String(),
-		EnvelopeCID:    envelopeCID.String(),
-		EnvelopeBase64: base64.StdEncoding.EncodeToString(envelopeBytes),
-		RecordedAt:     event.Timestamp,
-		Implementation: "ex5-local-runtime",
-	}, true, nil
+	record, ok, err := records.BuildSignedOperationalResourceRecord(identity, records.Event(event))
+	return SignedOperationalResourceRecord(record), ok, err
 }
 
-func verifySignedOperationalResourceRecords(events []OperationalEvent, records []SignedOperationalResourceRecord) error {
-	if len(records) == 0 {
-		return nil
+func verifySignedOperationalResourceRecords(events []OperationalEvent, in []SignedOperationalResourceRecord) error {
+	eventSlice := make([]records.Event, len(events))
+	recordSlice := make([]records.SignedOperationalResourceRecord, len(in))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	expected := map[string]operationalResourcePayload{}
-	for _, event := range events {
-		payload, ok := operationalResourcePayloadForEvent(event)
-		if !ok {
-			continue
-		}
-		expected[originEventKey(effectiveOriginPeerID(event, ""), effectiveOriginSequence(event))] = payload
+	for i, record := range in {
+		recordSlice[i] = records.SignedOperationalResourceRecord(record)
 	}
-	for _, record := range records {
-		peerID := strings.TrimSpace(record.OriginPeerID)
-		originSequence := record.OriginSequence
-		if originSequence == 0 {
-			originSequence = record.Sequence
-		}
-		payload, ok := expected[originEventKey(peerID, originSequence)]
-		if !ok {
-			continue
-		}
-		if record.PCID != protocols.OperationalResourceProfile.CID.String() {
-			return fmt.Errorf("operational-resource record %d uses unexpected pCID %q", record.Sequence, record.PCID)
-		}
-		envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
-		if err != nil {
-			return fmt.Errorf("decode operational-resource record %d envelope: %w", record.Sequence, err)
-		}
-		envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("cid operational-resource record %d envelope: %w", record.Sequence, err)
-		}
-		if envelopeCID.String() != record.EnvelopeCID {
-			return fmt.Errorf("operational-resource record %d envelope cid mismatch", record.Sequence)
-		}
-		envelope, err := protocols.ParseEnvelope(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("parse operational-resource record %d envelope: %w", record.Sequence, err)
-		}
-		if envelope.PCID.String() != protocols.OperationalResourceProfile.CID.String() {
-			return fmt.Errorf("operational-resource record %d envelope pCID mismatch", record.Sequence)
-		}
-		signable, err := envelope.SignableBytes()
-		if err != nil {
-			return fmt.Errorf("build operational-resource record %d signable bytes: %w", record.Sequence, err)
-		}
-		if err := VerifyRuntimeProof(signable, envelope.ProofBytes); err != nil {
-			return fmt.Errorf("verify operational-resource record %d proof: %w", record.Sequence, err)
-		}
-		var got operationalResourcePayload
-		if err := protocols.Unmarshal(envelope.PayloadBytes, &got); err != nil {
-			return fmt.Errorf("decode operational-resource record %d payload: %w", record.Sequence, err)
-		}
-		if err := compareOperationalResourcePayload(payload, got); err != nil {
-			return fmt.Errorf("operational-resource record %d payload mismatch: %w", record.Sequence, err)
-		}
-	}
-	return nil
+	return records.VerifySignedOperationalResourceRecords(eventSlice, recordSlice)
 }
 
 func compareOperationalResourcePayload(expected operationalResourcePayload, got operationalResourcePayload) error {

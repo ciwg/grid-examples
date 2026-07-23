@@ -83,7 +83,7 @@ func TestServerMetaIncludesRuntimeCapabilities(t *testing.T) {
 		t.Fatalf("expected absolute local unix socket path in meta: %+v", meta)
 	}
 	browser, ok := meta.Embodiments["browser"]
-	if !ok || browser.PrimaryAdapter != "local_http" || browser.LiveDraftTransport != "websocket_over_local_http" {
+	if !ok || browser.PrimaryAdapter != "chrome_native_messaging" || browser.LiveDraftTransport != "native_messaging" || browser.CompatibilityMode != "chrome_or_chromium_required" {
 		t.Fatalf("expected browser embodiment transport metadata in meta: %+v", meta)
 	}
 	cli, ok := meta.Embodiments["cli"]

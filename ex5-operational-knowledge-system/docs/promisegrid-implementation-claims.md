@@ -10,8 +10,8 @@ blurring together:
 - the current shipped implementation
 - the PromiseGrid framing that ships with this example
 - the future-scope work that ex5 still has not implemented yet, such as a
-  browser-side direct non-HTTP embodiment contract and broader ERP-style
-  planning behavior. Source: `DI-murev`.
+  more generalized runtime substrate and broader ERP-style planning behavior.
+  Source: `DI-murev`; `DI-punek`.
 
 ## Current status
 
@@ -26,19 +26,23 @@ Source: `DI-lavek`.
 
 Today it ships:
 
+- one extracted reusable PromiseGrid record substrate under `promisegrid/records/`
 - one local Go runtime
 - append-only operational event history
 - local durable draft manifests plus CAS-backed draft bodies, and durable
   attachment storage
-- websocket-preferred shared live-draft carriage for the browser, with the
-  existing HTTP live routes preserved as compatibility paths
+- Chrome/Chromium native-messaging live drafting for the browser, with the
+  older HTTP live routes no longer defining the primary browser contract
 - direct local Unix-socket embodiment contracts for CLI and Neovim, with HTTP
   kept only as explicit compatibility transport
+- Chrome/Chromium Manifest V3 browser embodiment over native messaging, with
+  the browser UI kept in `web/app.js` and bridged into the same direct local
+  contract family
 - typed local socket `operation` messages for the terminal inspect/read slice,
   instead of generic route-shaped socket forwarding for those reads
 - projected read/query views over that history
-- browser over the local HTTP adapter, plus CLI and Neovim over a direct local
-  Unix-socket contract
+- browser over a Chrome/Chromium native-messaging bridge into the local
+  runtime, plus CLI and Neovim over a direct local Unix-socket contract
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
   bytes
 - one frozen `knowledge-approval` profile selected from the exact shipped
@@ -95,20 +99,21 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- a browser-side direct non-HTTP embodiment contract
+- a browser embodiment for unsupported browsers outside the pinned
+  Chrome/Chromium direct-contract slice
 
 ## What the shipped implementation does promise
 
 ### 1. One shared local runtime contract
 
 Browser, CLI, and Neovim all read and write one shared ex5 runtime model. The
-embodiments are not separate durable systems. The browser still projects
-through the local HTTP adapter, while CLI and Neovim now prefer a direct local
-Unix-socket contract over that same runtime. Browser live drafting still
-prefers websocket carriage under the HTTP adapter, while Neovim live drafting
-prefers the local socket and only reaches websocket/HTTP compatibility through
-explicit opt-in. Source: `DI-fudok`; `DI-ravum`; `DI-sobek`; `DI-bavuk`;
-`DI-noruv`; `DI-favel`; `DI-fonuv`.
+embodiments are not separate durable systems. The browser now prefers a
+Chrome/Chromium native-messaging embodiment that bridges into the direct local
+contract, while CLI and Neovim prefer the direct local Unix-socket contract
+over that same runtime. Unsupported browsers do not silently fall back into the
+older HTTP browser path. Neovim also reaches websocket/HTTP compatibility only
+through explicit opt-in. Source: `DI-fudok`; `DI-ravum`; `DI-sobek`;
+`DI-bavuk`; `DI-noruv`; `DI-favel`; `DI-fonuv`; `DI-punek`.
 
 For the first typed local-contract slice, the terminal embodiments now use
 named `operation` messages for item/run/entity inspection, structured search,
@@ -116,6 +121,13 @@ pending review, and problem review, instead of tunneling those reads through
 generic `method + path` socket forwarding. That makes the primary local socket
 contract more runtime-shaped while keeping HTTP as the browser adapter and the
 terminal compatibility surface. Source: `DI-monuv`.
+
+The durable frozen-family record core now also has its first reusable
+substrate boundary under `promisegrid/records/`. That package carries
+identity, origin normalization, canonical durable ID decoration, and
+signed-envelope build/verify logic for the eight frozen families, while
+ex5-specific persistence, projections, and workflows remain in the example
+app. Source: `DI-ragiv`.
 
 ### 1a. One dedicated remote relay surface
 
@@ -140,12 +152,13 @@ UI focus. Source: `DI-lusov`; `DI-zoruk`; `DI-dazim`; `DI-sobek`.
 
 ### 4. The local HTTP API is still the browser adapter and compatibility surface
 
-`GET /api/*` and `POST /api/*` routes are the shipped browser adapter surface
-and the explicit compatibility transport for CLI and Neovim. The durable frozen families
-underneath them are now also reachable through the direct local Unix-socket
-contract used by the two terminal embodiments. Source: `DI-sobek`;
-`DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`;
-`DI-faruv`; `DI-favel`.
+`GET /api/*` and `POST /api/*` routes are the browser shell/bootstrap surface
+and the explicit compatibility transport for CLI and Neovim. The durable
+frozen families underneath them are now also reachable through the direct
+native-messaging browser embodiment and the direct local Unix-socket contract
+used by the two terminal embodiments. Source: `DI-sobek`; `DI-mibor`;
+`DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`; `DI-faruv`;
+`DI-favel`; `DI-punek`.
 
 That direct local terminal contract is now partly typed above the adapter
 shape: the selected inspect/read workflows no longer need to be forwarded over
@@ -170,7 +183,6 @@ The current shipped ex5 runtime does not yet promise:
 - that all ex5 durable families are already frozen and PromiseGrid-native at
   runtime
 - that the local HTTP route names are the PromiseGrid peer contract
-- that the browser already bypasses the local HTTP adapter
 - that ephemeral presence or derived projections are durable PromiseGrid
   families
 
@@ -231,9 +243,8 @@ Done now:
 
 Remaining:
 
-- keep embodiment/runtime language honest while browser-side non-HTTP
-  embodiment work and other deferred product follow-on work remain outside the
-  current PromiseGrid slice
+- broader substrate extraction beyond the record core, including transport,
+  store wiring, or app-agnostic workflow layers
 
 ## Current implementation claim
 

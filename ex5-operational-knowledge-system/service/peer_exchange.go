@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
@@ -441,13 +442,7 @@ func validatePeerExchangeBundle(bundle PeerExchangeBundle) error {
 }
 
 func recordOriginKey(peerID string, originSequence uint64, sequence uint64) string {
-	if strings.TrimSpace(peerID) == "" {
-		return originEventKey("", sequence)
-	}
-	if originSequence == 0 {
-		return originEventKey(peerID, sequence)
-	}
-	return originEventKey(peerID, originSequence)
+	return records.RecordOriginKey(peerID, originSequence, sequence)
 }
 
 func (app *App) collectUnseenPeerExchangeEventsLocked(bundle PeerExchangeBundle) ([]OperationalEvent, map[string]bool, error) {

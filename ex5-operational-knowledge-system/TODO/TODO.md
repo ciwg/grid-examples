@@ -1,10 +1,13 @@
 # TODO
 
 ## Open / Planned
-- [ ] 132 - Define a direct non-HTTP browser embodiment contract for ex5 - `TODO/TODO-rubek-ex5-browser-non-http-embodiment.md`
-- [ ] 133 - Decide whether ex5 should yield a more generalized PromiseGrid runtime substrate - `TODO/TODO-sovek-ex5-generalized-runtime-substrate.md`
+- none currently
 
 ## Completed
+
+- [x] 133 - Decide whether ex5 should yield a more generalized PromiseGrid runtime substrate - `TODO/TODO-sovek-ex5-generalized-runtime-substrate.md`
+
+- [x] 132 - Define a direct non-HTTP browser embodiment contract for ex5 - `TODO/TODO-rubek-ex5-browser-non-http-embodiment.md`
 
 - [x] 131 - Move more ex5 runtime behavior above adapter-shaped route seams - `TODO/TODO-tazum-ex5-runtime-contract-above-adapters.md`
 

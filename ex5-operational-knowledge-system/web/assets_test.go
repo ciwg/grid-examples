@@ -100,12 +100,17 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 	app := string(MustRead("app.js"))
 	required := []string{
 		"editor-item-id",
-		"/api/items/${editorState.itemID}/live",
-		"/api/items/${itemID}/live/socket",
+		"/api/meta",
 		"startLiveTransport",
 		"connectLiveSocket",
 		"sendLiveSocketUpdate",
-		"scheduleLiveReconnect",
+		"browserEmbodimentUnavailableMessage",
+		"initializeBrowserEmbodiment",
+		"bridgeHandshake",
+		"bridgeRPC",
+		"directOperationForGET",
+		"requestBrowserJSON",
+		"chrome_native_messaging",
 		"editor-snapshot",
 		"renderPlaces",
 		"renderSearchResults",
@@ -171,7 +176,7 @@ func TestEmbeddedAppIncludesLiveDraftWorkflowHooks(t *testing.T) {
 		"createMemoryStorage",
 		"createParticipantID",
 		"randomUUID",
-		"liveSocketURL",
+		"__oks_bridge",
 		"runHandled",
 	}
 	for _, marker := range required {

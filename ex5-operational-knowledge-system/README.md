@@ -23,9 +23,15 @@ history again.
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
 example with shared browser, CLI, and Neovim embodiments over one local Go
-runtime, with the browser on the local HTTP adapter and the two terminal
-surfaces preferring the direct local Unix-socket contract. Source: `DI-fudok`;
-`DI-zorav`.
+runtime, with the browser now requiring a Chrome/Chromium native-messaging
+bridge into the direct runtime contract and the two terminal surfaces
+preferring the direct local Unix-socket contract. Source: `DI-fudok`;
+`DI-zorav`; `DI-punek`.
+
+The first reusable substrate boundary now lives under `promisegrid/records/`,
+where the frozen-family durable record core has been pulled above the ex5 app
+layer without generalizing ex5-specific projections or workflows. Source:
+`DI-ragiv`.
 
 The current implementation keeps procedures, training content, maintenance
 content, receiving-check content, inventory-audit content, responsibilities,
@@ -46,6 +52,8 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   - inventory audits
 - browser-shared live working drafts with participant presence and explicit
   revision snapshots
+- Chrome/Chromium browser embodiment over a native-messaging bridge into the
+  direct local runtime contract
 - browser startup falls back to ephemeral in-memory participant identity when
   storage or UUID helpers are restricted
 - compact item lifecycle:
@@ -71,6 +79,8 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms
+- browser direct contract now requires Chrome or Chromium plus the shipped ex5
+  extension/native host, with no silent fallback to the older HTTP browser path
 - browser search filters by kind, status, outcome, place, resource, and responsibility
 - browser search now reaches record IDs directly across places, resources, responsibilities, items, and runs
 - browser free-text search now reaches run evidence facts and approval notes
@@ -154,8 +164,9 @@ What the current runtime actually implements today:
 
 - durable event history
 - generic place hierarchy and resource records
-- local HTTP API
-- browser UI over that API, including shared working drafts for knowledge items
+- local HTTP API and browser shell/bootstrap surface
+- browser UI over that shell, with runtime traffic now preferring the direct
+  Chrome/Chromium native-messaging embodiment
 - CLI over a direct local Unix-socket contract, with HTTP available only as explicit compatibility opt-in through `-socket=off`
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
@@ -173,6 +184,9 @@ What the current runtime actually implements today:
 - dedicated remote relay deployment through the separate `operational-relay`
   binary, with durable `/relay/v1/feed/*` plus `/relay/v1/blobs/{cid}` routes
 - CAS-authoritative replay/export for the eight frozen family envelopes
+- first extracted reusable record substrate under `promisegrid/records/` for
+  identity, origin ordering, canonical durable IDs, and frozen-family
+  signed-envelope build/verify helpers
 - inline CID-keyed evidence blob carriage only in the bootstrap peer-exchange
   bundle path
 

@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Ex5 Operational Browser Embodiment",
+  "version": "1.0.0",
+  "description": "Chrome/Chromium native-messaging bridge for the ex5 direct browser embodiment.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzclRvfqz3ySPV5or74aK/MAWIMJybiY/Myt4NZELKUiGJLJTBajPnOqrr+8Iq4k8fdRrKUkqZ3X2iUR1QQrRZrXcjUCpgTfool4FETpzcQqZWORJNMKq1EK6YlaytoVIGkHRukmOhbPIJuOQS6bVSbaiPAhK/heFoHr3Bvdoz27Wrtao5G1QprqdT8u3HsoPK/Jo0Hb4i5tGOPtYD296ToT/IymaszSrhSwJ1kM4XftkkogttkOE/AudTT3A2FWvDFvSd5RlFb7Srbzj2fjegALbubOfzVFf1VsF88zaLyZ99dpF1NT6vo1n+qd4r/5Lhz1FDL28kiUZEXwwfKWXrwIDAQAB",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

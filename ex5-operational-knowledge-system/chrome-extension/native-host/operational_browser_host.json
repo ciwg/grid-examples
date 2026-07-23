@@ -1,0 +1,9 @@
+{
+  "name": "operational_browser_host",
+  "description": "Ex5 Operational Knowledge Chrome/Chromium native-messaging host",
+  "path": "__BROWSER_HOST_PATH__",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://miagfmaampfgjkojhccdilogehbjijpe/"
+  ]
+}

@@ -81,6 +81,9 @@ const operateEvidenceDetailsEl = document.getElementById("operate-evidence-detai
 const operateApprovalDetailsEl = document.getElementById("operate-approval-details");
 
 const participantID = getParticipantID();
+const bridgePendingRPC = new Map();
+const bridgePendingHandshakes = new Map();
+let bridgeSequence = 0;
 const editorState = {
   itemID: "",
   version: 0,
@@ -99,6 +102,14 @@ const editorState = {
   socketConnected: false,
   transport: "http-poll",
   socketGeneration: 0,
+  bridgeRequestID: "",
+};
+
+const browserBridgeState = {
+  ready: false,
+  supported: false,
+  meta: null,
+  socketPath: "",
 };
 
 const detailState = {
@@ -147,6 +158,59 @@ const operateStageButtons = {
   evidence: operateChooseEvidenceEl,
   approval: operateChooseApproveEl,
 };
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window || !event.data || event.data.__oks_bridge !== true || event.data.direction !== "bridge->page") {
+    return;
+  }
+  const message = event.data;
+  if (message.kind === "handshake") {
+    const resolve = bridgePendingHandshakes.get(message.request_id);
+    if (resolve) {
+      bridgePendingHandshakes.delete(message.request_id);
+      resolve(!!message.ok);
+    }
+    return;
+  }
+  if (message.kind === "rpc-response") {
+    const entry = bridgePendingRPC.get(message.request_id);
+    if (!entry) {
+      return;
+    }
+    bridgePendingRPC.delete(message.request_id);
+    entry.resolve(message.response);
+    return;
+  }
+  if (message.kind === "error") {
+    const entry = bridgePendingRPC.get(message.request_id);
+    if (entry) {
+      bridgePendingRPC.delete(message.request_id);
+      entry.reject(new Error(message.error || "Browser bridge error"));
+      return;
+    }
+    if (message.request_id === editorState.bridgeRequestID) {
+      showToast(message.error || "Browser bridge error");
+      setWorkspaceStatus("Direct browser embodiment unavailable", "error", message.error || "Browser bridge error");
+    }
+    return;
+  }
+  if (message.kind === "live-message" && message.request_id === editorState.bridgeRequestID && message.response) {
+    handleLiveBridgeResponse(message.response);
+  }
+});
+
+function nextBridgeRequestID(prefix = "bridge") {
+  bridgeSequence += 1;
+  return `${prefix}-${bridgeSequence}`;
+}
+
+function postBridgeMessage(message) {
+  window.postMessage({
+    __oks_bridge: true,
+    direction: "page->bridge",
+    ...message,
+  }, window.location.origin);
+}
 
 function runHandled(action, context) {
   return (...args) => {
@@ -666,26 +730,159 @@ function clearWorkspaceStatus() {
   workspaceStatusEl.innerHTML = "";
 }
 
-async function postJSON(path, payload) {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(text);
+function browserEmbodimentUnavailableMessage() {
+  return "This embodiment currently requires Chrome or Chromium with the ex5 browser extension installed.";
+}
+
+function isChromeOrChromiumBrowser() {
+  const agent = navigator.userAgent || "";
+  if (agent.includes("Edg/")) {
+    return false;
   }
+  return agent.includes("Chrome/") || agent.includes("Chromium/");
+}
+
+// Intent: Make the browser embodiment state its Chrome/Chromium direct-contract
+// requirement honestly up front instead of silently demoting back into the
+// older HTTP browser path when the extension bridge is unavailable. Source:
+// DI-punek
+async function initializeBrowserEmbodiment() {
+  browserBridgeState.supported = isChromeOrChromiumBrowser();
+  if (!browserBridgeState.supported) {
+    setWorkspaceStatus("Chrome or Chromium is required", "error", browserEmbodimentUnavailableMessage());
+    return false;
+  }
+  const metaResponse = await fetch("/api/meta");
+  if (!metaResponse.ok) {
+    throw new Error(await metaResponse.text());
+  }
+  browserBridgeState.meta = await metaResponse.json();
+  browserBridgeState.socketPath = browserBridgeState.meta?.local_unix_socket_path || "";
+  const browserEmbodiment = browserBridgeState.meta?.embodiments?.browser || {};
+  if (browserEmbodiment.primary_adapter !== "chrome_native_messaging") {
+    throw new Error("runtime does not advertise the direct Chrome/Chromium browser embodiment");
+  }
+  const handshakeOK = await bridgeHandshake();
+  if (!handshakeOK) {
+    setWorkspaceStatus("Direct browser embodiment unavailable", "error", browserEmbodimentUnavailableMessage());
+    return false;
+  }
+  browserBridgeState.ready = true;
+  return true;
+}
+
+function bridgeHandshake() {
+  const requestID = nextBridgeRequestID("bridge-handshake");
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      bridgePendingHandshakes.delete(requestID);
+      resolve(false);
+    }, 300);
+    bridgePendingHandshakes.set(requestID, (ok) => {
+      clearTimeout(timer);
+      resolve(ok);
+    });
+    postBridgeMessage({
+      kind: "handshake",
+      request_id: requestID,
+    });
+  });
+}
+
+function bridgeRPC(request) {
+  if (!browserBridgeState.ready) {
+    throw new Error(browserEmbodimentUnavailableMessage());
+  }
+  const requestID = nextBridgeRequestID("bridge-rpc");
+  return new Promise((resolve, reject) => {
+    bridgePendingRPC.set(requestID, { resolve, reject });
+    postBridgeMessage({
+      kind: "rpc",
+      request_id: requestID,
+      socket_path: browserBridgeState.socketPath,
+      request,
+    });
+  });
+}
+
+function directOperationForGET(path) {
+  const url = new URL(path, window.location.href);
+  const { pathname } = url;
+  const itemMatch = pathname.match(/^\/api\/items\/([^/]+)$/);
+  if (itemMatch) {
+    return { type: "operation", operation: "inspect_item", item_id: itemMatch[1] };
+  }
+  const runMatch = pathname.match(/^\/api\/runs\/([^/]+)$/);
+  if (runMatch) {
+    return { type: "operation", operation: "inspect_run", run_id: runMatch[1] };
+  }
+  const placeMatch = pathname.match(/^\/api\/places\/([^/]+)$/);
+  if (placeMatch) {
+    return { type: "operation", operation: "inspect_entity", entity_type: "place", entity_id: placeMatch[1] };
+  }
+  const resourceMatch = pathname.match(/^\/api\/resources\/([^/]+)$/);
+  if (resourceMatch) {
+    return { type: "operation", operation: "inspect_entity", entity_type: "resource", entity_id: resourceMatch[1] };
+  }
+  const responsibilityMatch = pathname.match(/^\/api\/responsibilities\/([^/]+)$/);
+  if (responsibilityMatch) {
+    return { type: "operation", operation: "inspect_entity", entity_type: "responsibility", entity_id: responsibilityMatch[1] };
+  }
+  if (pathname === "/api/search") {
+    return {
+      type: "operation",
+      operation: "search",
+      search_options: {
+        query: url.searchParams.get("q") || "",
+        kind: url.searchParams.get("kind") || "",
+        status: url.searchParams.get("status") || "",
+        outcome: url.searchParams.get("outcome") || "",
+        problem_only: url.searchParams.get("problem_only") === "true",
+        place_id: url.searchParams.get("place_id") || "",
+        resource_id: url.searchParams.get("resource_id") || "",
+        responsibility_id: url.searchParams.get("responsibility_id") || "",
+      },
+    };
+  }
+  if (pathname === "/api/problem-review") {
+    return { type: "operation", operation: "problem_review" };
+  }
+  return null;
+}
+
+async function requestBrowserJSON(method, path, payload) {
+  const directOperation = method === "GET" ? directOperationForGET(path) : null;
+  const response = directOperation ? await bridgeRPC(directOperation) : await bridgeRPC({
+    type: "request",
+    method,
+    path,
+    headers: payload ? { "Content-Type": "application/json" } : {},
+    body: payload ? JSON.stringify(payload) : "",
+  });
+  if (!response) {
+    return null;
+  }
+  if (response.status >= 400) {
+    throw new Error(response.body || `browser direct request failed: ${response.status}`);
+  }
+  return response.body ? JSON.parse(response.body) : null;
+}
+
+async function postJSON(path, payload) {
+  const result = await requestBrowserJSON("POST", path, payload);
   showToast(`Saved via ${path}`);
-  return text ? JSON.parse(text) : null;
+  return result;
 }
 
 async function getJSON(path) {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(await response.text());
+  if (path === "/api/meta" && !browserBridgeState.ready) {
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return response.json();
   }
-  return response.json();
+  return requestBrowserJSON("GET", path, null);
 }
 
 function renderStats(data) {
@@ -1989,51 +2186,11 @@ async function flushLivePush() {
   if (sendLiveSocketUpdate(true)) {
     return;
   }
-  editorState.pushing = true;
-  try {
-    const response = await fetch(`/api/items/${editorState.itemID}/live`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant_id: participantID,
-        display_name: editorDisplayNameEl.value,
-        color: editorColorEl.value,
-        cursor: editorBodyEl.selectionStart || 0,
-        head: editorBodyEl.selectionEnd || 0,
-        typing: true,
-        base_version: editorState.version,
-        update_body: true,
-        body: editorBodyEl.value,
-      }),
-    });
-    if (response.status === 409) {
-      const payload = await response.json();
-      editorState.dirty = false;
-      editorBodyEl.value = payload.state.body;
-      renderEditorState(payload.state);
-      editorMetaEl.textContent = `${payload.state.title} · status ${payload.state.status} · live v${payload.state.version} · current revision ${payload.state.current_revision} · remote changes replaced your stale base version`;
-      showToast("Live draft conflict resolved by reloading the shared body");
-      return;
-    }
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    const state = await response.json();
-    editorState.dirty = false;
-    renderEditorState(state);
-  } finally {
-    editorState.pushing = false;
-  }
+  throw new Error(browserEmbodimentUnavailableMessage());
 }
 
 function startPollLoop() {
   clearPollLoop();
-  editorState.pollTimer = setInterval(() => {
-    if (!editorState.itemID || editorState.pushing) {
-      return;
-    }
-    pullLiveState(editorState.itemID, false).catch(handleError);
-  }, 2000);
 }
 
 function clearPollLoop() {
@@ -2051,9 +2208,7 @@ function startHeartbeatLoop() {
     }
     if (editorState.socketConnected) {
       sendLiveSocketUpdate(false);
-      return;
     }
-    sendLivePresencePOST(false).catch(handleError);
   }, 5000);
 }
 
@@ -2075,79 +2230,53 @@ function stopLiveTransport() {
   clearPollLoop();
   clearHeartbeatLoop();
   clearReconnectLoop();
-  editorState.socketGeneration += 1;
-  editorState.socketConnected = false;
-  if (editorState.socket) {
-    try {
-      editorState.socket.close();
-    } catch {
-    }
-    editorState.socket = null;
+  if (editorState.bridgeRequestID) {
+    postBridgeMessage({
+      kind: "live-close",
+      request_id: editorState.bridgeRequestID,
+      socket_path: browserBridgeState.socketPath,
+      request: { type: "live-close" },
+    });
   }
-  editorState.transport = "http-poll";
+  editorState.socketConnected = false;
+  editorState.socket = null;
+  editorState.bridgeRequestID = "";
+  editorState.transport = "native-messaging";
 }
 
 function startLiveTransport() {
   stopLiveTransport();
   startHeartbeatLoop();
-  if (typeof WebSocket !== "function" || !editorState.itemID) {
-    startPollLoop();
+  if (!browserBridgeState.ready || !editorState.itemID) {
     return;
   }
-  // Intent: Prefer websocket carriage for shared draft state and presence while
-  // preserving the existing HTTP live route as fallback during mixed-version
-  // or restart recovery. Source: DI-noruv
+  // Intent: Keep the browser on one direct local contract family for both
+  // request/response and live drafting instead of splitting reads/writes onto
+  // native messaging while leaving collaboration on the older HTTP adapter.
+  // Source: DI-punek
   connectLiveSocket(editorState.itemID);
 }
 
 function connectLiveSocket(itemID) {
-  const generation = editorState.socketGeneration + 1;
-  editorState.socketGeneration = generation;
-  try {
-    const socket = new WebSocket(liveSocketURL(itemID));
-    editorState.socket = socket;
-    socket.addEventListener("open", () => {
-      if (generation !== editorState.socketGeneration || editorState.itemID !== itemID) {
-        socket.close();
-        return;
-      }
-      editorState.socketConnected = true;
-      editorState.transport = "websocket";
-      clearPollLoop();
-      clearReconnectLoop();
-      sendLiveSocketUpdate(false);
-    });
-    socket.addEventListener("message", (event) => {
-      if (generation !== editorState.socketGeneration || editorState.itemID !== itemID) {
-        return;
-      }
-      handleLiveSocketMessage(event);
-    });
-    socket.addEventListener("close", () => {
-      if (generation !== editorState.socketGeneration) {
-        return;
-      }
-      editorState.socketConnected = false;
-      editorState.socket = null;
-      editorState.transport = "http-poll";
-      if (editorState.itemID === itemID) {
-        startPollLoop();
-        scheduleLiveReconnect(itemID, generation);
-      }
-    });
-    socket.addEventListener("error", () => {
-      if (generation !== editorState.socketGeneration) {
-        return;
-      }
-      editorState.socketConnected = false;
-      editorState.transport = "http-poll";
-    });
-  } catch {
-    editorState.socketConnected = false;
-    editorState.transport = "http-poll";
-    startPollLoop();
-    scheduleLiveReconnect(itemID, generation);
-  }
+  const requestID = nextBridgeRequestID("bridge-live");
+  editorState.bridgeRequestID = requestID;
+  editorState.socketConnected = true;
+  editorState.transport = "native-messaging";
+  postBridgeMessage({
+    kind: "live-open",
+    request_id: requestID,
+    socket_path: browserBridgeState.socketPath,
+    request: {
+      type: "live-open",
+      item_id: itemID,
+      participant_id: participantID,
+      display_name: editorDisplayNameEl.value,
+      color: editorColorEl.value,
+      cursor: editorBodyEl.selectionStart || 0,
+      head: editorBodyEl.selectionEnd || 0,
+      typing: false,
+    },
+  });
 }
 
 function scheduleLiveReconnect(itemID, generation) {
@@ -2160,15 +2289,9 @@ function scheduleLiveReconnect(itemID, generation) {
   }, 5000);
 }
 
-function handleLiveSocketMessage(event) {
-  let payload;
-  try {
-    payload = JSON.parse(event.data);
-  } catch {
-    return;
-  }
+function handleLiveBridgeResponse(payload) {
   if (payload.type === "error") {
-    showToast(payload.message || "Live websocket error");
+    showToast(payload.message || "Live browser bridge error");
     return;
   }
   if (!payload.state) {
@@ -2189,40 +2312,34 @@ function handleLiveSocketMessage(event) {
 }
 
 function sendLiveSocketUpdate(updateBody) {
-  if (!editorState.socketConnected || !editorState.socket || editorState.socket.readyState !== WebSocket.OPEN) {
+  if (!editorState.socketConnected || !editorState.bridgeRequestID) {
     return false;
   }
-  editorState.socket.send(JSON.stringify({
-    type: "live-update",
-    participant_id: participantID,
-    display_name: editorDisplayNameEl.value,
-    color: editorColorEl.value,
-    cursor: editorBodyEl.selectionStart || 0,
-    head: editorBodyEl.selectionEnd || 0,
-    typing: !!updateBody,
-    base_version: editorState.version,
-    update_body: updateBody,
-    body: updateBody ? editorBodyEl.value : "",
-  }));
-  return true;
-}
-
-async function sendLivePresencePOST(typing) {
-  await fetch(`/api/items/${editorState.itemID}/live`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  postBridgeMessage({
+    kind: "live-update",
+    request_id: editorState.bridgeRequestID,
+    socket_path: browserBridgeState.socketPath,
+    request: {
+      type: "live-update",
+      item_id: editorState.itemID,
       participant_id: participantID,
       display_name: editorDisplayNameEl.value,
       color: editorColorEl.value,
       cursor: editorBodyEl.selectionStart || 0,
       head: editorBodyEl.selectionEnd || 0,
-      typing,
+      typing: !!updateBody,
       base_version: editorState.version,
-      update_body: false,
-      body: "",
-    }),
+      update_body: updateBody,
+      body: updateBody ? editorBodyEl.value : "",
+    },
   });
+  return true;
+}
+
+async function sendLivePresencePOST(typing) {
+  if (!sendLiveSocketUpdate(typing)) {
+    throw new Error(browserEmbodimentUnavailableMessage());
+  }
 }
 
 function createMemoryStorage() {
@@ -2329,7 +2446,14 @@ clearSearch();
 setActiveMode("review");
 setReviewLane("drafts");
 openOperateStage("run");
-refresh().catch(handleError);
+initializeBrowserEmbodiment()
+  .then((ready) => {
+    if (!ready) {
+      return;
+    }
+    return refresh();
+  })
+  .catch(handleError);
 // Intent: Keep search centered on common review tasks first, then let operators
 // drop into structured filters only when they need finer drilldown. Source:
 // DI-rovak

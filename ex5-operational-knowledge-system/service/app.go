@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
 )
 
@@ -135,7 +136,8 @@ func (app *App) Meta() Meta {
 	// Intent: Keep runtime capability metadata authoritative for both the
 	// canonical local socket path and one explicit embodiment transport table so
 	// clients do not infer primary vs compatibility lanes from cwd guesses or
-	// scattered flat fields. Source: DI-sorek; DI-torak; DI-vurak; DI-fonuv
+	// scattered flat fields. Source: DI-sorek; DI-torak; DI-vurak; DI-fonuv;
+	// DI-punek
 	return Meta{
 		DataRoot:                    app.dataRoot,
 		LocalPeerID:                 app.localPeerID,
@@ -182,10 +184,9 @@ func (app *App) Meta() Meta {
 		LocalUnixSocketPath:       EmbodimentSocketPath(app.dataRoot),
 		Embodiments: map[string]EmbodimentTransport{
 			"browser": {
-				PrimaryAdapter:     "local_http",
-				LiveDraftTransport: "websocket_over_local_http",
-				FallbackTransports: []string{"http_live_route"},
-				CompatibilityMode:  "implicit_fallback",
+				PrimaryAdapter:     "chrome_native_messaging",
+				LiveDraftTransport: "native_messaging",
+				CompatibilityMode:  "chrome_or_chromium_required",
 			},
 			"cli": {
 				PrimaryAdapter:      "local_unix_socket",
@@ -1846,25 +1847,24 @@ func (app *App) observeIDLocked(id string) {
 }
 
 func normalizeOperationalEvents(events []OperationalEvent, localPeerID string) []OperationalEvent {
-	out := make([]OperationalEvent, 0, len(events))
-	for _, event := range events {
-		out = append(out, normalizeOperationalEvent(event, localPeerID))
+	eventSlice := make([]records.Event, len(events))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	return out
+	out := records.NormalizeEvents(eventSlice, localPeerID)
+	converted := make([]OperationalEvent, len(out))
+	for i, event := range out {
+		converted[i] = OperationalEvent(event)
+	}
+	return converted
 }
 
 func normalizeOperationalEvent(event OperationalEvent, localPeerID string) OperationalEvent {
-	if strings.TrimSpace(event.OriginPeerID) == "" {
-		event.OriginPeerID = localPeerID
-	}
-	if event.OriginSequence == 0 {
-		event.OriginSequence = event.Sequence
-	}
-	return event
+	return OperationalEvent(records.NormalizeEvent(records.Event(event), localPeerID))
 }
 
 func originEventKey(peerID string, originSequence uint64) string {
-	return peerID + "#" + fmt.Sprintf("%d", originSequence)
+	return records.OriginEventKey(peerID, originSequence)
 }
 
 func peerAliasKey(entityType string, peerID string, aliasID string) string {

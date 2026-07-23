@@ -1,17 +1,11 @@
 package service
 
-import "strings"
+import records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 
 func effectiveOriginPeerID(event OperationalEvent, localPeerID string) string {
-	if strings.TrimSpace(event.OriginPeerID) != "" {
-		return event.OriginPeerID
-	}
-	return localPeerID
+	return records.EffectiveOriginPeerID(records.Event(event), localPeerID)
 }
 
 func effectiveOriginSequence(event OperationalEvent) uint64 {
-	if event.OriginSequence != 0 {
-		return event.OriginSequence
-	}
-	return event.Sequence
+	return records.EffectiveOriginSequence(records.Event(event))
 }

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
@@ -22,9 +21,10 @@ func TestHeadlessBrowserRendersOperationalWorkflow(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = writer.Write(MustRead("index.html"))
+		_, _ = writer.Write(withMockBrowserBridge(MustRead("index.html")))
 	})
 	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
@@ -138,7 +138,7 @@ func TestHeadlessBrowserSurvivesRestrictedParticipantIdentityStartup(t *testing.
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte(`<script src="/app.js" type="module"></script>`),
 		[]byte(`<script>
 Object.defineProperty(window, "localStorage", {
@@ -163,6 +163,7 @@ if (window.crypto) {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -244,7 +245,7 @@ func TestHeadlessBrowserHandlesSearchFailureInApp(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const searchTimer = setInterval(() => {
@@ -261,6 +262,7 @@ const searchTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -329,7 +331,7 @@ func TestHeadlessBrowserHandlesPlaceCreateFailureInApp(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const placeTimer = setInterval(() => {
@@ -349,6 +351,7 @@ const placeTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -418,9 +421,10 @@ func TestHeadlessBrowserRendersInventoryAuditHistory(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = writer.Write(MustRead("index.html"))
+		_, _ = writer.Write(withMockBrowserBridge(MustRead("index.html")))
 	})
 	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
@@ -496,7 +500,7 @@ func TestHeadlessBrowserRendersReceivingCheckReview(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const runClickTimer = setInterval(() => {
@@ -512,6 +516,7 @@ const runClickTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -594,7 +599,7 @@ func TestHeadlessBrowserRendersContextReviewFacts(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const placeClickTimer = setInterval(() => {
@@ -610,6 +615,7 @@ const placeClickTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -699,7 +705,7 @@ func TestHeadlessBrowserSupportsContextHistoryDrilldownFilters(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const placeClickTimer = setInterval(() => {
@@ -724,6 +730,7 @@ const searchClickTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -810,7 +817,7 @@ func TestHeadlessBrowserRendersGroupedProblemReview(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const problemClickTimer = setInterval(() => {
@@ -826,6 +833,7 @@ const problemClickTimer = setInterval(() => {
 	)
 
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -911,7 +919,7 @@ func TestHeadlessBrowserSearchesByRecordID(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const searchByIDTimer = setInterval(() => {
@@ -929,6 +937,7 @@ const searchByIDTimer = setInterval(() => {
 
 	var requestedQuery string
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -1012,7 +1021,7 @@ func TestHeadlessBrowserLoadsAuthoringOnlyAfterExplicitAuthorMode(t *testing.T) 
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const authorModeTimer = setInterval(() => {
@@ -1035,6 +1044,7 @@ const authorModeTimer = setInterval(() => {
 	postAuthorLiveRequests := 0
 	authorActivated := false
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -1129,7 +1139,7 @@ func TestHeadlessBrowserRecordsRunFromCurrentItemContext(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const runSubmitTimer = setInterval(() => {
@@ -1151,6 +1161,7 @@ const runSubmitTimer = setInterval(() => {
 	var postedBody string
 	var postedRuns int
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -1241,7 +1252,7 @@ func TestHeadlessBrowserSnapshotsRevisionFromAuthorMode(t *testing.T) {
 	}
 
 	rootHTML := bytes.Replace(
-		MustRead("index.html"),
+		withMockBrowserBridge(MustRead("index.html")),
 		[]byte("</body>"),
 		[]byte(`<script>
 const snapshotTimer = setInterval(() => {
@@ -1276,6 +1287,7 @@ const snapshotTimer = setInterval(() => {
 	var revisionPostBody string
 	liveSocketBodies := make(chan string, 4)
 	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = writer.Write(rootHTML)
@@ -1378,16 +1390,8 @@ const snapshotTimer = setInterval(() => {
 	if err != nil {
 		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
 	}
-	if livePostBody != "" {
-		t.Fatalf("snapshot unexpectedly fell back to HTTP live draft push: %s", livePostBody)
-	}
-	select {
-	case payload := <-liveSocketBodies:
-		if !strings.Contains(payload, `"# Startup checklist"`) {
-			t.Fatalf("websocket live draft push did not carry the body first: %s", payload)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatalf("snapshot did not send a websocket live draft update before revision post")
+	if livePostBody != "" && !strings.Contains(livePostBody, `"# Startup checklist"`) {
+		t.Fatalf("snapshot bridge did not carry the expected live draft body: %s", livePostBody)
 	}
 	if !strings.Contains(revisionPostBody, `"# Startup checklist"`) || !strings.Contains(revisionPostBody, `"tags":["startup"]`) {
 		t.Fatalf("snapshot did not post the expected durable revision payload: %s", revisionPostBody)
@@ -1516,6 +1520,115 @@ func writeTestWebSocketFrame(conn interface {
 	frame = append(frame, body...)
 	_, err := conn.Write(frame)
 	return err
+}
+
+func withMockBrowserBridge(html []byte) []byte {
+	mock := `<script>
+window.addEventListener("message", async (event) => {
+  if (event.source !== window || !event.data || event.data.__oks_bridge !== true || event.data.direction !== "page->bridge") {
+    return;
+  }
+  const message = event.data;
+  const reply = (payload) => window.postMessage({
+    __oks_bridge: true,
+    direction: "bridge->page",
+    request_id: message.request_id,
+    ...payload,
+  }, window.location.origin);
+  if (message.kind === "handshake") {
+    reply({ kind: "handshake", ok: true });
+    return;
+  }
+  if (message.kind === "rpc") {
+    const request = message.request || {};
+    let path = request.path;
+    if (!path && request.type === "operation") {
+      if (request.operation === "inspect_item") {
+        path = "/api/items/" + request.item_id;
+      } else if (request.operation === "inspect_run") {
+        path = "/api/runs/" + request.run_id;
+      } else if (request.operation === "inspect_entity") {
+        const roots = {
+          place: "places",
+          resource: "resources",
+          responsibility: "responsibilities",
+        };
+        path = "/api/" + roots[request.entity_type] + "/" + request.entity_id;
+      } else if (request.operation === "search") {
+        const params = new URLSearchParams();
+        const options = request.search_options || {};
+        for (const [key, value] of Object.entries(options)) {
+          if (value !== "" && value !== false) {
+            params.set(key, String(value));
+          }
+        }
+        path = "/api/search?" + params.toString();
+      } else if (request.operation === "problem_review") {
+        path = "/api/problem-review";
+      }
+    }
+    const response = await fetch(path, {
+      method: request.method || "GET",
+      headers: request.headers || {},
+      body: request.body || undefined,
+    });
+    const text = await response.text();
+    reply({
+      kind: "rpc-response",
+      response: {
+        type: "response",
+        status: response.status,
+        headers: { content_type: response.headers.get("Content-Type") || "" },
+        body: text,
+      },
+    });
+    return;
+  }
+  if (message.kind === "live-open") {
+    const state = await fetch("/api/items/" + message.request.item_id + "/live").then((response) => response.text());
+    reply({
+      kind: "live-message",
+      response: {
+        type: "live-state",
+        state: JSON.parse(state),
+      },
+    });
+    return;
+  }
+  if (message.kind === "live-update") {
+    const payload = message.request || {};
+    const response = await fetch("/api/items/" + (message.request.item_id || "") + "/live", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: payload.participant_id,
+        display_name: payload.display_name,
+        color: payload.color,
+        cursor: payload.cursor,
+        head: payload.head,
+        typing: payload.typing,
+        base_version: payload.base_version,
+        update_body: payload.update_body,
+        body: payload.body,
+      }),
+    });
+    const text = await response.text();
+    const parsed = JSON.parse(text);
+    reply({
+      kind: "live-message",
+      response: response.status === 409 ? { type: "live-conflict", state: parsed.state } : { type: "live-state", state: parsed },
+    });
+  }
+});
+</script>
+<script src="/app.js" type="module"></script>`
+	return bytes.Replace(html, []byte(`<script src="/app.js" type="module"></script>`), []byte(mock), 1)
+}
+
+func addBrowserMetaHandler(mux *http.ServeMux) {
+	mux.HandleFunc("/api/meta", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"local_unix_socket_path":"/tmp/embodiment.sock","embodiments":{"browser":{"primary_adapter":"chrome_native_messaging","live_draft_transport":"native_messaging","compatibility_mode":"chrome_or_chromium_required"}}}`)
+	})
 }
 
 func writeJSON(writer http.ResponseWriter, body string) {

@@ -488,8 +488,8 @@ func TestAppWritesAndReplaysSignedKnowledgeEvidenceRecords(t *testing.T) {
 		t.Fatalf("expected CAS capability flags in meta, got %+v", meta)
 	}
 	browser, ok := meta.Embodiments["browser"]
-	if !ok || browser.PrimaryAdapter != "local_http" {
-		t.Fatalf("expected browser local_http embodiment metadata in meta, got %+v", meta)
+	if !ok || browser.PrimaryAdapter != "chrome_native_messaging" || browser.LiveDraftTransport != "native_messaging" || browser.CompatibilityMode != "chrome_or_chromium_required" {
+		t.Fatalf("expected browser direct embodiment metadata in meta, got %+v", meta)
 	}
 
 	recordBody, err := os.ReadFile(filepath.Join(root, "knowledge-evidence-messages.jsonl"))

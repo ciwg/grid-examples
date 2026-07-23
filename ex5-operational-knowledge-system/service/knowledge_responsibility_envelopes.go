@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
 type SignedKnowledgeResponsibilityRecord struct {
@@ -56,107 +54,20 @@ func knowledgeResponsibilityPayloadForEvent(event OperationalEvent) (knowledgeRe
 // signed and replay-verifiable without changing the current embodiment adapter
 // surfaces. Source: DI-sarib
 func buildSignedKnowledgeResponsibilityRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeResponsibilityRecord, bool, error) {
-	payload, ok := knowledgeResponsibilityPayloadForEvent(event)
-	if !ok {
-		return SignedKnowledgeResponsibilityRecord{}, false, nil
-	}
-	payloadBytes, err := protocols.Marshal(payload)
-	if err != nil {
-		return SignedKnowledgeResponsibilityRecord{}, false, fmt.Errorf("marshal responsibility payload: %w", err)
-	}
-	envelope := protocols.NewEnvelope(protocols.KnowledgeResponsibilityProfile.CID, payloadBytes, nil)
-	signable, err := envelope.SignableBytes()
-	if err != nil {
-		return SignedKnowledgeResponsibilityRecord{}, false, fmt.Errorf("build signable responsibility envelope: %w", err)
-	}
-	proofBytes, err := identity.SignProof(signable)
-	if err != nil {
-		return SignedKnowledgeResponsibilityRecord{}, false, fmt.Errorf("sign responsibility envelope: %w", err)
-	}
-	envelope = protocols.NewEnvelope(protocols.KnowledgeResponsibilityProfile.CID, payloadBytes, proofBytes)
-	envelopeBytes, err := envelope.Bytes()
-	if err != nil {
-		return SignedKnowledgeResponsibilityRecord{}, false, fmt.Errorf("encode responsibility envelope: %w", err)
-	}
-	envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-	if err != nil {
-		return SignedKnowledgeResponsibilityRecord{}, false, fmt.Errorf("cid responsibility envelope: %w", err)
-	}
-	return SignedKnowledgeResponsibilityRecord{
-		Sequence:         event.Sequence,
-		OriginPeerID:     effectiveOriginPeerID(event, identity.PeerID()),
-		OriginSequence:   effectiveOriginSequence(event),
-		ResponsibilityID: event.EntityID,
-		PCID:             protocols.KnowledgeResponsibilityProfile.CID.String(),
-		EnvelopeCID:      envelopeCID.String(),
-		EnvelopeBase64:   base64.StdEncoding.EncodeToString(envelopeBytes),
-		RecordedAt:       event.Timestamp,
-		Implementation:   "ex5-local-runtime",
-	}, true, nil
+	record, ok, err := records.BuildSignedKnowledgeResponsibilityRecord(identity, records.Event(event))
+	return SignedKnowledgeResponsibilityRecord(record), ok, err
 }
 
-func verifySignedKnowledgeResponsibilityRecords(events []OperationalEvent, records []SignedKnowledgeResponsibilityRecord) error {
-	if len(records) == 0 {
-		return nil
+func verifySignedKnowledgeResponsibilityRecords(events []OperationalEvent, in []SignedKnowledgeResponsibilityRecord) error {
+	eventSlice := make([]records.Event, len(events))
+	recordSlice := make([]records.SignedKnowledgeResponsibilityRecord, len(in))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	expected := map[string]knowledgeResponsibilityPayload{}
-	for _, event := range events {
-		payload, ok := knowledgeResponsibilityPayloadForEvent(event)
-		if !ok {
-			continue
-		}
-		expected[originEventKey(effectiveOriginPeerID(event, ""), effectiveOriginSequence(event))] = payload
+	for i, record := range in {
+		recordSlice[i] = records.SignedKnowledgeResponsibilityRecord(record)
 	}
-	for _, record := range records {
-		peerID := record.OriginPeerID
-		if strings.TrimSpace(peerID) == "" {
-			peerID = ""
-		}
-		originSequence := record.OriginSequence
-		if originSequence == 0 {
-			originSequence = record.Sequence
-		}
-		payload, ok := expected[originEventKey(peerID, originSequence)]
-		if !ok {
-			continue
-		}
-		if record.PCID != protocols.KnowledgeResponsibilityProfile.CID.String() {
-			return fmt.Errorf("knowledge-responsibility record %d uses unexpected pCID %q", record.Sequence, record.PCID)
-		}
-		envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
-		if err != nil {
-			return fmt.Errorf("decode knowledge-responsibility record %d envelope: %w", record.Sequence, err)
-		}
-		envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("cid knowledge-responsibility record %d envelope: %w", record.Sequence, err)
-		}
-		if envelopeCID.String() != record.EnvelopeCID {
-			return fmt.Errorf("knowledge-responsibility record %d envelope cid mismatch", record.Sequence)
-		}
-		envelope, err := protocols.ParseEnvelope(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("parse knowledge-responsibility record %d envelope: %w", record.Sequence, err)
-		}
-		if envelope.PCID.String() != protocols.KnowledgeResponsibilityProfile.CID.String() {
-			return fmt.Errorf("knowledge-responsibility record %d envelope pCID mismatch", record.Sequence)
-		}
-		signable, err := envelope.SignableBytes()
-		if err != nil {
-			return fmt.Errorf("build knowledge-responsibility record %d signable bytes: %w", record.Sequence, err)
-		}
-		if err := VerifyRuntimeProof(signable, envelope.ProofBytes); err != nil {
-			return fmt.Errorf("verify knowledge-responsibility record %d proof: %w", record.Sequence, err)
-		}
-		var got knowledgeResponsibilityPayload
-		if err := protocols.Unmarshal(envelope.PayloadBytes, &got); err != nil {
-			return fmt.Errorf("decode knowledge-responsibility record %d payload: %w", record.Sequence, err)
-		}
-		if err := compareKnowledgeResponsibilityPayload(payload, got); err != nil {
-			return fmt.Errorf("knowledge-responsibility record %d payload mismatch: %w", record.Sequence, err)
-		}
-	}
-	return nil
+	return records.VerifySignedKnowledgeResponsibilityRecords(eventSlice, recordSlice)
 }
 
 func compareKnowledgeResponsibilityPayload(expected knowledgeResponsibilityPayload, got knowledgeResponsibilityPayload) error {

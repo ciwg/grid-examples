@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
 
-	"github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/protocols"
+	records "github.com/computerscienceiscool/grid-examples/ex5-operational-knowledge-system/promisegrid/records"
 )
 
 type SignedKnowledgeItemRecord struct {
@@ -68,110 +66,20 @@ func knowledgeItemPayloadForEvent(event OperationalEvent) (knowledgeItemPayload,
 // the rest of the runtime still projects through the existing local model.
 // Source: DI-mibor
 func buildSignedKnowledgeItemRecord(identity *RuntimeIdentity, event OperationalEvent) (SignedKnowledgeItemRecord, bool, error) {
-	payload, ok := knowledgeItemPayloadForEvent(event)
-	if !ok {
-		return SignedKnowledgeItemRecord{}, false, nil
-	}
-	payloadBytes, err := protocols.Marshal(payload)
-	if err != nil {
-		return SignedKnowledgeItemRecord{}, false, fmt.Errorf("marshal item payload: %w", err)
-	}
-	envelope := protocols.NewEnvelope(protocols.KnowledgeItemProfile.CID, payloadBytes, nil)
-	signable, err := envelope.SignableBytes()
-	if err != nil {
-		return SignedKnowledgeItemRecord{}, false, fmt.Errorf("build signable item envelope: %w", err)
-	}
-	proofBytes, err := identity.SignProof(signable)
-	if err != nil {
-		return SignedKnowledgeItemRecord{}, false, fmt.Errorf("sign item envelope: %w", err)
-	}
-	envelope = protocols.NewEnvelope(protocols.KnowledgeItemProfile.CID, payloadBytes, proofBytes)
-	envelopeBytes, err := envelope.Bytes()
-	if err != nil {
-		return SignedKnowledgeItemRecord{}, false, fmt.Errorf("encode item envelope: %w", err)
-	}
-	envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-	if err != nil {
-		return SignedKnowledgeItemRecord{}, false, fmt.Errorf("cid item envelope: %w", err)
-	}
-	return SignedKnowledgeItemRecord{
-		Sequence:       event.Sequence,
-		OriginPeerID:   effectiveOriginPeerID(event, identity.PeerID()),
-		OriginSequence: effectiveOriginSequence(event),
-		ItemID:         event.EntityID,
-		EventType:      event.Type,
-		Revision:       event.Revision,
-		PCID:           protocols.KnowledgeItemProfile.CID.String(),
-		EnvelopeCID:    envelopeCID.String(),
-		EnvelopeBase64: base64.StdEncoding.EncodeToString(envelopeBytes),
-		RecordedAt:     event.Timestamp,
-		Implementation: "ex5-local-runtime",
-	}, true, nil
+	record, ok, err := records.BuildSignedKnowledgeItemRecord(identity, records.Event(event))
+	return SignedKnowledgeItemRecord(record), ok, err
 }
 
-func verifySignedKnowledgeItemRecords(events []OperationalEvent, records []SignedKnowledgeItemRecord) error {
-	if len(records) == 0 {
-		return nil
+func verifySignedKnowledgeItemRecords(events []OperationalEvent, in []SignedKnowledgeItemRecord) error {
+	eventSlice := make([]records.Event, len(events))
+	recordSlice := make([]records.SignedKnowledgeItemRecord, len(in))
+	for i, event := range events {
+		eventSlice[i] = records.Event(event)
 	}
-	expected := map[string]knowledgeItemPayload{}
-	for _, event := range events {
-		payload, ok := knowledgeItemPayloadForEvent(event)
-		if !ok {
-			continue
-		}
-		peerID := effectiveOriginPeerID(event, "")
-		expected[originEventKey(peerID, effectiveOriginSequence(event))] = payload
+	for i, record := range in {
+		recordSlice[i] = records.SignedKnowledgeItemRecord(record)
 	}
-	for _, record := range records {
-		peerID := record.OriginPeerID
-		if strings.TrimSpace(peerID) == "" {
-			peerID = ""
-		}
-		originSequence := record.OriginSequence
-		if originSequence == 0 {
-			originSequence = record.Sequence
-		}
-		payload, ok := expected[originEventKey(peerID, originSequence)]
-		if !ok {
-			continue
-		}
-		if record.PCID != protocols.KnowledgeItemProfile.CID.String() {
-			return fmt.Errorf("knowledge-item record %d uses unexpected pCID %q", record.Sequence, record.PCID)
-		}
-		envelopeBytes, err := base64.StdEncoding.DecodeString(record.EnvelopeBase64)
-		if err != nil {
-			return fmt.Errorf("decode knowledge-item record %d envelope: %w", record.Sequence, err)
-		}
-		envelopeCID, err := protocols.CIDForBytes(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("cid knowledge-item record %d envelope: %w", record.Sequence, err)
-		}
-		if envelopeCID.String() != record.EnvelopeCID {
-			return fmt.Errorf("knowledge-item record %d envelope cid mismatch", record.Sequence)
-		}
-		envelope, err := protocols.ParseEnvelope(envelopeBytes)
-		if err != nil {
-			return fmt.Errorf("parse knowledge-item record %d envelope: %w", record.Sequence, err)
-		}
-		if envelope.PCID.String() != protocols.KnowledgeItemProfile.CID.String() {
-			return fmt.Errorf("knowledge-item record %d envelope pCID mismatch", record.Sequence)
-		}
-		signable, err := envelope.SignableBytes()
-		if err != nil {
-			return fmt.Errorf("build knowledge-item record %d signable bytes: %w", record.Sequence, err)
-		}
-		if err := VerifyRuntimeProof(signable, envelope.ProofBytes); err != nil {
-			return fmt.Errorf("verify knowledge-item record %d proof: %w", record.Sequence, err)
-		}
-		var got knowledgeItemPayload
-		if err := protocols.Unmarshal(envelope.PayloadBytes, &got); err != nil {
-			return fmt.Errorf("decode knowledge-item record %d payload: %w", record.Sequence, err)
-		}
-		if err := compareKnowledgeItemPayload(payload, got); err != nil {
-			return fmt.Errorf("knowledge-item record %d payload mismatch: %w", record.Sequence, err)
-		}
-	}
-	return nil
+	return records.VerifySignedKnowledgeItemRecords(eventSlice, recordSlice)
 }
 
 func compareKnowledgeItemPayload(expected knowledgeItemPayload, got knowledgeItemPayload) error {

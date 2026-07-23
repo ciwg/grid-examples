@@ -1,7 +1,7 @@
 # ex5 HTTP API guide
 
-This guide documents the local HTTP adapter that the browser still uses as its
-primary embodiment surface, and that CLI/Neovim still keep as explicit
+This guide documents the local HTTP adapter that still serves the browser UI
+shell and bootstrap metadata, and that CLI/Neovim still keep as explicit
 compatibility transport.
 
 The dedicated remote relay service is documented separately in
@@ -11,20 +11,24 @@ It is intentionally a local embodiment surface, not the final PromiseGrid wire
 contract. The durable history still lives in the ex5 runtime model and
 protocol-family seams described elsewhere.
 
-In current ex5, these HTTP routes are the shipped browser embodiment contract
-and the explicit compatibility transport for CLI and Neovim. They are not the signed
-PromiseGrid peer contract, and route names should not be read as frozen
-`pCID`-selected public wire meaning. Source: `DI-sobek`; `DI-favel`.
+In current ex5, these HTTP routes are the browser shell/bootstrap surface and
+the explicit compatibility transport for CLI and Neovim. The browser's primary
+runtime contract now rides through the Chrome/Chromium native-messaging
+embodiment instead of treating `/api/*` as the main browser semantics layer.
+These route names are not the signed PromiseGrid peer contract, and should not
+be read as frozen `pCID`-selected public wire meaning. Source: `DI-sobek`;
+`DI-favel`; `DI-punek`.
 
 The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `go.mod`, matching the current patch-level default used across the other
 `grid-examples` modules.
 
-The browser still speaks this HTTP adapter directly. CLI and Neovim still keep
-it as compatibility transport, but the direct local Unix-socket contract now
-uses typed runtime `operation` messages for the first inspect/read slice
-instead of forwarding those reads as generic `GET /api/*` socket requests.
-Source: `DI-monuv`.
+The browser UI still loads from this local shell, but operational request,
+review, create, and live-draft traffic now prefer the Chrome/Chromium direct
+embodiment bridge. CLI and Neovim still keep HTTP as compatibility transport,
+while the direct local Unix-socket contract uses typed runtime `operation`
+messages for the first inspect/read slice instead of forwarding those reads as
+generic `GET /api/*` socket requests. Source: `DI-monuv`; `DI-punek`.
 
 ## Core shape
 
@@ -75,15 +79,19 @@ short timeout and falls back immediately to local repo-root inference if the
 HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
 `DI-sorek`; `DI-batov`.
 
-In the current runtime, `embodiments.browser` declares `local_http` as its
-primary adapter and `websocket_over_local_http` as its live-draft transport.
-`embodiments.cli` declares `local_unix_socket` as its primary adapter and marks
-HTTP compatibility as `explicit_opt_in`. `embodiments.neovim` also declares
-`local_unix_socket` as both its primary adapter and live-draft transport, with
-websocket and HTTP listed as compatibility transports that are only available
-through explicit opt-in mode (`oks-nvim --socket=off`). Terminal embodiments
-also repeat the canonical `local_unix_socket_path` inside their own embodiment
-records. Source: `DI-vurak`; `DI-zorav`; `DI-fonuv`.
+In the current runtime, `embodiments.browser` declares
+`chrome_native_messaging` as its primary adapter and `native_messaging` as its
+live-draft transport, with compatibility mode `chrome_or_chromium_required`.
+That means the shipped browser embodiment now requires Chrome or Chromium plus
+the ex5 extension/native host; unsupported browsers do not silently demote to
+the older HTTP request path. `embodiments.cli` declares `local_unix_socket` as
+its primary adapter and marks HTTP compatibility as `explicit_opt_in`.
+`embodiments.neovim` also declares `local_unix_socket` as both its primary
+adapter and live-draft transport, with websocket and HTTP listed as
+compatibility transports that are only available through explicit opt-in mode
+(`oks-nvim --socket=off`). Terminal embodiments also repeat the canonical
+`local_unix_socket_path` inside their own embodiment records. Source:
+`DI-vurak`; `DI-zorav`; `DI-fonuv`; `DI-punek`.
 
 For the currently shipped terminal runtime contract, the direct socket now
 uses typed `operation` messages for:
