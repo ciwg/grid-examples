@@ -65,6 +65,42 @@ func (cli *CLI) localSocketRoundTrip(method string, path string, contentType str
 	if err := json.NewEncoder(conn).Encode(request); err != nil {
 		return 0, nil, err
 	}
+	return cli.readLocalSocketResponse(conn)
+}
+
+// Intent: Let the CLI speak the first typed local read contract directly for
+// inspect/search/review workflows instead of tunneling those reads through the
+// HTTP-shaped socket request envelope. Source: DI-monuv
+func (cli *CLI) localSocketOperation(request service.LocalEmbodimentRequest) (int, []byte, error) {
+	if _, err := os.Stat(cli.SocketPath); err != nil {
+		return 0, nil, errLocalSocketUnavailable
+	}
+	conn, err := net.DialTimeout("unix", cli.SocketPath, 2*time.Second)
+	if err != nil {
+		return 0, nil, errLocalSocketUnavailable
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+	request.Type = "operation"
+	if err := json.NewEncoder(conn).Encode(request); err != nil {
+		return 0, nil, err
+	}
+	return cli.readLocalSocketResponse(conn)
+}
+
+func (cli *CLI) localSocketOperationBody(request service.LocalEmbodimentRequest) ([]byte, error) {
+	status, payload, err := cli.localSocketOperation(request)
+	if err != nil {
+		return nil, err
+	}
+	if status >= 300 {
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(payload)))
+	}
+	return payload, nil
+}
+
+func (cli *CLI) readLocalSocketResponse(conn net.Conn) (int, []byte, error) {
 	var response service.LocalEmbodimentResponse
 	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&response); err != nil {
 		return 0, nil, err

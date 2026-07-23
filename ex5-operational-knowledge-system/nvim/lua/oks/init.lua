@@ -167,6 +167,8 @@ local function socket_path_available()
   return M.config.socket_path and M.config.socket_path ~= "" and uv.fs_stat(M.config.socket_path) ~= nil
 end
 
+local build_search_options
+
 local function compatibility_transport_enabled()
   return M.config.socket_mode == "off"
 end
@@ -413,6 +415,100 @@ local function socket_request(method, path, payload)
     return nil, nil, decoded.message or "socket request failed"
   end
   return decoded.status, decoded.body or "", nil
+end
+
+-- Intent: Move the first Neovim inspect/read slice onto typed local runtime
+-- operations so the primary direct socket contract stops tunneling those
+-- reads through HTTP-shaped request paths. Source: DI-monuv
+local function socket_operation(operation, payload)
+  local pipe = uv.new_pipe(false)
+  local done = false
+  local response_text = ""
+  local connect_err = nil
+  local write_err = nil
+  local request = {
+    type = "operation",
+    operation = operation,
+  }
+  for key, value in pairs(payload or {}) do
+    request[key] = value
+  end
+  pipe:connect(M.config.socket_path, function(err)
+    if err then
+      connect_err = err
+      done = true
+      return
+    end
+    pipe:write(json_encode(request) .. "\n", function(write_error)
+      if write_error then
+        write_err = write_error
+        done = true
+        return
+      end
+      pipe:shutdown(function()
+      end)
+    end)
+    pipe:read_start(function(read_err, chunk)
+      if read_err then
+        connect_err = read_err
+        done = true
+        return
+      end
+      if not chunk then
+        done = true
+        return
+      end
+      response_text = response_text .. chunk
+    end)
+  end)
+  local finished = vim.wait(5000, function()
+    return done
+  end, 10)
+  pcall(pipe.read_stop, pipe)
+  pcall(pipe.close, pipe)
+  if not finished then
+    return nil, nil, "socket operation timed out"
+  end
+  if connect_err then
+    return nil, nil, "socket operation failed: " .. tostring(connect_err)
+  end
+  if write_err then
+    return nil, nil, "socket operation write failed: " .. tostring(write_err)
+  end
+  local decoded = json_decode(response_text)
+  if not decoded then
+    return nil, nil, "socket operation decode failed"
+  end
+  if decoded.type == "error" then
+    return nil, nil, decoded.message or "socket operation failed"
+  end
+  return decoded.status, decoded.body or "", nil
+end
+
+local function read_operation_projection(operation, payload, failure_prefix)
+  -- Intent: Keep Neovim's direct-socket inspect/read slice on typed local
+  -- runtime operations and fail closed when the primary socket contract is not
+  -- available, instead of silently demoting into compatibility transport.
+  -- Source: DI-monuv
+  if not socket_path_available() then
+    notify(direct_socket_required_message(), vim.log.levels.ERROR)
+    return nil
+  end
+  local status, body, err = socket_operation(operation, payload)
+  if err then
+    notify(direct_socket_required_message(), vim.log.levels.ERROR)
+    return nil
+  end
+  if status ~= 200 then
+    notify(failure_prefix .. ": " .. tostring(status), vim.log.levels.ERROR)
+    return nil
+  end
+  local decoded = json_decode(body)
+  if not decoded then
+    notify(failure_prefix .. " decode failed", vim.log.levels.ERROR)
+    return nil
+  end
+  return decoded
 end
 
 -- Intent: Keep the direct local Unix-socket embodiment contract primary for
@@ -1193,6 +1289,33 @@ end
 -- use, instead of inventing a second editor-only search shape. Source:
 -- DI-fanub
 local function build_search_request(command_args)
+  local options, query, err = build_search_options(command_args)
+  if err ~= nil then
+    return nil, nil, err
+  end
+
+  local params = {}
+  if query ~= "" then
+    table.insert(params, "q=" .. url_encode(query))
+  end
+  for _, key in ipairs({ "kind", "status", "outcome", "place_id", "resource_id", "responsibility_id", "problem" }) do
+    local value = options[key]
+    if value ~= nil and value ~= "" then
+      table.insert(params, key .. "=" .. url_encode(tostring(value)))
+    end
+  end
+
+  local path = "/api/search"
+  if #params > 0 then
+    path = path .. "?" .. table.concat(params, "&")
+  end
+  return path, query, nil
+end
+
+build_search_options = function(command_args)
+  -- Intent: Keep Neovim's typed local search operation aligned with the same
+  -- filter vocabulary and validation rules used by the HTTP adapter path.
+  -- Source: DI-monuv
   local tokens = vim.split(vim.trim(command_args or ""), "%s+", { trimempty = true })
   if #tokens == 0 then
     return nil, nil, "search query or filter is required"
@@ -1222,23 +1345,11 @@ local function build_search_request(command_args)
   if query == "" and next(filters) == nil then
     return nil, nil, "search query or filter is required"
   end
-
-  local params = {}
-  if query ~= "" then
-    table.insert(params, "q=" .. url_encode(query))
+  filters.query = query
+  if filters.problem ~= nil and filters.problem ~= "" then
+    filters.problem = filters.problem == "true"
   end
-  for _, key in ipairs({ "kind", "status", "outcome", "place_id", "resource_id", "responsibility_id", "problem" }) do
-    local value = filters[key]
-    if value ~= nil and value ~= "" then
-      table.insert(params, key .. "=" .. url_encode(value))
-    end
-  end
-
-  local path = "/api/search"
-  if #params > 0 then
-    path = path .. "?" .. table.concat(params, "&")
-  end
-  return path, query, nil
+  return filters, query, nil
 end
 
 local function search_projection(path, failure_prefix)
@@ -1531,19 +1642,27 @@ local function inspect_item(item_id)
     notify("item id is required", vim.log.levels.WARN)
     return
   end
-  local status, body, err = request("GET", "/api/items/" .. item_id)
-  if err then
-    notify(err, vim.log.levels.ERROR)
-    return
-  end
-  if status ~= 200 then
-    notify("inspect failed: " .. tostring(status), vim.log.levels.ERROR)
-    return
-  end
-  local decoded = json_decode(body)
-  if not decoded then
-    notify("inspect decode failed", vim.log.levels.ERROR)
-    return
+  local decoded
+  if compatibility_transport_enabled() then
+    local status, body, err = request("GET", "/api/items/" .. item_id)
+    if err then
+      notify(err, vim.log.levels.ERROR)
+      return
+    end
+    if status ~= 200 then
+      notify("inspect failed: " .. tostring(status), vim.log.levels.ERROR)
+      return
+    end
+    decoded = json_decode(body)
+    if not decoded then
+      notify("inspect decode failed", vim.log.levels.ERROR)
+      return
+    end
+  else
+    decoded = read_operation_projection("inspect_item", { item_id = item_id }, "inspect failed")
+    if not decoded then
+      return
+    end
   end
   show_item_detail(item_id, decoded)
   notify("inspected " .. item_id)
@@ -1720,19 +1839,27 @@ local function inspect_run(run_id)
     notify("run id is required", vim.log.levels.WARN)
     return
   end
-  local status, body, err = request("GET", "/api/runs/" .. run_id)
-  if err then
-    notify(err, vim.log.levels.ERROR)
-    return
-  end
-  if status ~= 200 then
-    notify("inspect run failed: " .. tostring(status), vim.log.levels.ERROR)
-    return
-  end
-  local decoded = json_decode(body)
-  if not decoded then
-    notify("inspect run decode failed", vim.log.levels.ERROR)
-    return
+  local decoded
+  if compatibility_transport_enabled() then
+    local status, body, err = request("GET", "/api/runs/" .. run_id)
+    if err then
+      notify(err, vim.log.levels.ERROR)
+      return
+    end
+    if status ~= 200 then
+      notify("inspect run failed: " .. tostring(status), vim.log.levels.ERROR)
+      return
+    end
+    decoded = json_decode(body)
+    if not decoded then
+      notify("inspect run decode failed", vim.log.levels.ERROR)
+      return
+    end
+  else
+    decoded = read_operation_projection("inspect_run", { run_id = run_id }, "inspect run failed")
+    if not decoded then
+      return
+    end
   end
   show_run_detail(run_id, decoded)
   notify("inspected run " .. run_id)
@@ -1761,41 +1888,58 @@ local function inspect_entity(entity_type, entity_id)
     return
   end
 
-  local path
   local name_prefix
   if entity_type == "item" then
-    path = "/api/items/" .. entity_id
     name_prefix = "oks-inspect://"
   elseif entity_type == "run" then
-    path = "/api/runs/" .. entity_id
     name_prefix = "oks-run://"
   elseif entity_type == "place" then
-    path = "/api/places/" .. entity_id
     name_prefix = "oks-place://"
   elseif entity_type == "resource" then
-    path = "/api/resources/" .. entity_id
     name_prefix = "oks-resource://"
   elseif entity_type == "responsibility" then
-    path = "/api/responsibilities/" .. entity_id
     name_prefix = "oks-responsibility://"
   else
     notify("unsupported entity type: " .. entity_type, vim.log.levels.WARN)
     return
   end
 
-  local status, body, err = request("GET", path)
-  if err then
-    notify(err, vim.log.levels.ERROR)
-    return
-  end
-  if status ~= 200 then
-    notify("inspect entity failed: " .. tostring(status), vim.log.levels.ERROR)
-    return
-  end
-  local decoded = json_decode(body)
-  if not decoded then
-    notify("inspect entity decode failed", vim.log.levels.ERROR)
-    return
+  local decoded
+  if compatibility_transport_enabled() then
+    local path
+    if entity_type == "item" then
+      path = "/api/items/" .. entity_id
+    elseif entity_type == "run" then
+      path = "/api/runs/" .. entity_id
+    elseif entity_type == "place" then
+      path = "/api/places/" .. entity_id
+    elseif entity_type == "resource" then
+      path = "/api/resources/" .. entity_id
+    else
+      path = "/api/responsibilities/" .. entity_id
+    end
+    local status, body, err = request("GET", path)
+    if err then
+      notify(err, vim.log.levels.ERROR)
+      return
+    end
+    if status ~= 200 then
+      notify("inspect entity failed: " .. tostring(status), vim.log.levels.ERROR)
+      return
+    end
+    decoded = json_decode(body)
+    if not decoded then
+      notify("inspect entity decode failed", vim.log.levels.ERROR)
+      return
+    end
+  else
+    decoded = read_operation_projection("inspect_entity", {
+      entity_type = entity_type,
+      entity_id = entity_id,
+    }, "inspect entity failed")
+    if not decoded then
+      return
+    end
   end
 
   local lines
@@ -1849,19 +1993,28 @@ function M.search(command_args)
     return
   end
 
-  local status, body, err = request("GET", path)
-  if err then
-    notify(err, vim.log.levels.ERROR)
-    return
-  end
-  if status ~= 200 then
-    notify("search failed: " .. tostring(status), vim.log.levels.ERROR)
-    return
-  end
-  local decoded = json_decode(body)
-  if not decoded then
-    notify("search decode failed", vim.log.levels.ERROR)
-    return
+  local decoded
+  if compatibility_transport_enabled() then
+    local status, body, err = request("GET", path)
+    if err then
+      notify(err, vim.log.levels.ERROR)
+      return
+    end
+    if status ~= 200 then
+      notify("search failed: " .. tostring(status), vim.log.levels.ERROR)
+      return
+    end
+    decoded = json_decode(body)
+    if not decoded then
+      notify("search decode failed", vim.log.levels.ERROR)
+      return
+    end
+  else
+    local options = select(1, build_search_options(command_args))
+    decoded = read_operation_projection("search", { search_options = options }, "search failed")
+    if not decoded then
+      return
+    end
   end
   local suffix = query ~= "" and url_encode(query) or "filters"
   inspect_buffer("oks-search://" .. suffix, search_result_lines(query, decoded))
@@ -1872,6 +2025,21 @@ end
 -- by reusing the existing search projections for draft items and review-worthy
 -- runs before adding write-side approval actions in Neovim. Source: DI-lorav
 function M.pending()
+  if not compatibility_transport_enabled() then
+    local projection = read_operation_projection("pending_review", {}, "pending review failed")
+    if not projection then
+      return
+    end
+    if not validate_pending_runs(projection.unreviewed_runs, "pending_review unreviewed_runs") then
+      return
+    end
+    if not validate_pending_runs(projection.problem_runs, "pending_review problem_runs") then
+      return
+    end
+    inspect_buffer("oks-pending://review", pending_review_lines(projection.draft_items or {}, projection.unreviewed_runs or {}, projection.problem_runs or {}))
+    notify("opened pending review")
+    return
+  end
   local draft = search_projection("/api/search?status=draft", "pending draft search failed")
   if not draft then
     return
@@ -1898,6 +2066,21 @@ end
 -- giving Neovim the same hotspot projection the browser and CLI already use,
 -- without adding a separate editor-only review API. Source: DI-sivok
 function M.problem_review()
+  if not compatibility_transport_enabled() then
+    local review = read_operation_projection("problem_review", {}, "problem review failed")
+    if not review then
+      return
+    end
+    if not validate_problem_groups(review.place_groups, "problem_review place_groups") then
+      return
+    end
+    if not validate_problem_groups(review.resource_groups, "problem_review resource_groups") then
+      return
+    end
+    inspect_buffer("oks-problem-review://review", problem_review_lines(review))
+    notify("opened problem review")
+    return
+  end
   local review = search_projection("/api/problem-review", "problem review failed")
   if not review then
     return

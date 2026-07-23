@@ -20,6 +20,12 @@ The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `go.mod`, matching the current patch-level default used across the other
 `grid-examples` modules.
 
+The browser still speaks this HTTP adapter directly. CLI and Neovim still keep
+it as compatibility transport, but the direct local Unix-socket contract now
+uses typed runtime `operation` messages for the first inspect/read slice
+instead of forwarding those reads as generic `GET /api/*` socket requests.
+Source: `DI-monuv`.
+
 ## Core shape
 
 The server defaults to:
@@ -78,6 +84,19 @@ websocket and HTTP listed as compatibility transports that are only available
 through explicit opt-in mode (`oks-nvim --socket=off`). Terminal embodiments
 also repeat the canonical `local_unix_socket_path` inside their own embodiment
 records. Source: `DI-vurak`; `DI-zorav`; `DI-fonuv`.
+
+For the currently shipped terminal runtime contract, the direct socket now
+uses typed `operation` messages for:
+
+- `inspect_item`
+- `inspect_run`
+- `inspect_entity`
+- `search`
+- `pending_review`
+- `problem_review`
+
+HTTP route names remain the browser adapter and explicit compatibility surface,
+not the primary local terminal contract for those reads. Source: `DI-monuv`.
 
 ## Peer exchange
 

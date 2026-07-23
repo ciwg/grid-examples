@@ -2,11 +2,16 @@ package service
 
 type LocalEmbodimentRequest struct {
 	Type          string            `json:"type"`
+	Operation     string            `json:"operation,omitempty"`
 	Method        string            `json:"method,omitempty"`
 	Path          string            `json:"path,omitempty"`
 	Headers       map[string]string `json:"headers,omitempty"`
 	Body          string            `json:"body,omitempty"`
 	BodyBase64    string            `json:"body_base64,omitempty"`
+	RunID         string            `json:"run_id,omitempty"`
+	EntityType    string            `json:"entity_type,omitempty"`
+	EntityID      string            `json:"entity_id,omitempty"`
+	SearchOptions *SearchOptions    `json:"search_options,omitempty"`
 	ItemID        string            `json:"item_id,omitempty"`
 	ParticipantID string            `json:"participant_id,omitempty"`
 	DisplayName   string            `json:"display_name,omitempty"`

@@ -298,6 +298,38 @@ func (app *App) ProblemReview() ProblemReview {
 	return out
 }
 
+// Intent: Expose one runtime-native pending-review projection for terminal
+// embodiments so draft and review queues do not have to be reconstructed from
+// multiple adapter-shaped search calls over the local socket. Source: DI-monuv
+func (app *App) PendingReview() PendingReviewProjection {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+
+	out := PendingReviewProjection{
+		DraftItems:     []KnowledgeItem{},
+		UnreviewedRuns: []RunRecord{},
+		ProblemRuns:    []RunRecord{},
+	}
+	for _, item := range app.items {
+		if item.Status == ItemStatusDraft {
+			out.DraftItems = append(out.DraftItems, cloneKnowledgeItem(item))
+		}
+	}
+	for _, run := range app.runs {
+		cloned := cloneRun(run)
+		if len(run.Approvals) == 0 {
+			out.UnreviewedRuns = append(out.UnreviewedRuns, cloned)
+		}
+		if len(problemHighlightsForRun(run)) > 0 {
+			out.ProblemRuns = append(out.ProblemRuns, cloned)
+		}
+	}
+	sort.Slice(out.DraftItems, func(i, j int) bool { return out.DraftItems[i].ID < out.DraftItems[j].ID })
+	sort.Slice(out.UnreviewedRuns, func(i, j int) bool { return out.UnreviewedRuns[i].ID < out.UnreviewedRuns[j].ID })
+	sort.Slice(out.ProblemRuns, func(i, j int) bool { return out.ProblemRuns[i].ID < out.ProblemRuns[j].ID })
+	return out
+}
+
 func (app *App) ListPlaces() []Place {
 	app.mu.Lock()
 	defer app.mu.Unlock()

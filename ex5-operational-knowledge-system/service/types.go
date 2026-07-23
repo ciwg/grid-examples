@@ -344,6 +344,12 @@ type ProblemReview struct {
 	ResourceGroups []ProblemReviewGroup `json:"resource_groups"`
 }
 
+type PendingReviewProjection struct {
+	DraftItems     []KnowledgeItem `json:"draft_items"`
+	UnreviewedRuns []RunRecord     `json:"unreviewed_runs"`
+	ProblemRuns    []RunRecord     `json:"problem_runs"`
+}
+
 type ProblemReviewGroup struct {
 	GroupType         string      `json:"group_type"`
 	GroupID           string      `json:"group_id"`

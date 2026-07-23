@@ -24,7 +24,11 @@ func TestNeovimInspectItemRendersProjectedDetail(t *testing.T) {
 	}
 
 	socketPath := filepath.Join(t.TempDir(), "embodiment.sock")
-	go serveSingleNvimSocketResponse(t, socketPath, service.LocalEmbodimentResponse{
+	go serveSingleNvimSocketResponse(t, socketPath, service.LocalEmbodimentRequest{
+		Type:      "operation",
+		Operation: "inspect_item",
+		ItemID:    "ITEM-0001",
+	}, service.LocalEmbodimentResponse{
 		Type:   "response",
 		Status: 200,
 		Body: `{
@@ -263,7 +267,7 @@ vim.cmd("qa!")
 	}
 }
 
-func serveSingleNvimSocketResponse(t *testing.T, socketPath string, response service.LocalEmbodimentResponse) {
+func serveSingleNvimSocketResponse(t *testing.T, socketPath string, expected service.LocalEmbodimentRequest, response service.LocalEmbodimentResponse) {
 	t.Helper()
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
@@ -283,8 +287,8 @@ func serveSingleNvimSocketResponse(t *testing.T, socketPath string, response ser
 	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&request); err != nil {
 		t.Fatalf("decode unix socket request: %v", err)
 	}
-	if request.Type != "request" {
-		t.Fatalf("unexpected socket request type: %+v", request)
+	if request.Type != expected.Type || request.Operation != expected.Operation || request.ItemID != expected.ItemID || request.EntityType != expected.EntityType || request.EntityID != expected.EntityID || request.RunID != expected.RunID {
+		t.Fatalf("unexpected socket request: got=%+v want=%+v", request, expected)
 	}
 	if err := json.NewEncoder(conn).Encode(response); err != nil {
 		t.Fatalf("encode unix socket response: %v", err)

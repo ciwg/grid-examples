@@ -34,6 +34,8 @@ Today it ships:
   existing HTTP live routes preserved as compatibility paths
 - direct local Unix-socket embodiment contracts for CLI and Neovim, with HTTP
   kept only as explicit compatibility transport
+- typed local socket `operation` messages for the terminal inspect/read slice,
+  instead of generic route-shaped socket forwarding for those reads
 - projected read/query views over that history
 - browser over the local HTTP adapter, plus CLI and Neovim over a direct local
   Unix-socket contract
@@ -108,6 +110,13 @@ prefers the local socket and only reaches websocket/HTTP compatibility through
 explicit opt-in. Source: `DI-fudok`; `DI-ravum`; `DI-sobek`; `DI-bavuk`;
 `DI-noruv`; `DI-favel`; `DI-fonuv`.
 
+For the first typed local-contract slice, the terminal embodiments now use
+named `operation` messages for item/run/entity inspection, structured search,
+pending review, and problem review, instead of tunneling those reads through
+generic `method + path` socket forwarding. That makes the primary local socket
+contract more runtime-shaped while keeping HTTP as the browser adapter and the
+terminal compatibility surface. Source: `DI-monuv`.
+
 ### 1a. One dedicated remote relay surface
 
 `ex5` now also ships a separate `operational-relay` binary whose only job is
@@ -137,6 +146,10 @@ underneath them are now also reachable through the direct local Unix-socket
 contract used by the two terminal embodiments. Source: `DI-sobek`;
 `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-votek`; `DI-sarib`; `DI-vamok`;
 `DI-faruv`; `DI-favel`.
+
+That direct local terminal contract is now partly typed above the adapter
+shape: the selected inspect/read workflows no longer need to be forwarded over
+the socket as generic HTTP route requests. Source: `DI-monuv`.
 
 ### 5. `knowledge-item`, `knowledge-approval`, `knowledge-evidence`, `knowledge-link`, `knowledge-responsibility`, `operational-run`, `operational-place`, and `operational-resource` are the current frozen families
 

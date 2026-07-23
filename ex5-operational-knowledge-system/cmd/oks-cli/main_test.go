@@ -103,6 +103,88 @@ func TestCLIUsesLocalSocketTransportWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestCLIShowPlaceUsesTypedLocalOperation(t *testing.T) {
+	socketPath := filepath.Join(t.TempDir(), "embodiment.sock")
+	requests := make(chan service.LocalEmbodimentRequest, 1)
+	go serveSingleLocalSocketRequest(t, socketPath, requests, service.LocalEmbodimentResponse{
+		Type:   "response",
+		Status: 200,
+		Body: `{
+			"id":"PLACE-0001",
+			"kind":"area",
+			"name":"Receiving",
+			"summary":"Inbound inspection area",
+			"parent_id":"PLACE-0000",
+			"child_place_ids":["PLACE-0002"],
+			"resource_ids":["RES-0001"],
+			"related_runs":[{"id":"RUN-0001","kind":"receiving_check","item_id":"ITEM-0001","outcome":"accepted_with_notes","notes":"Outer wrap torn","resource_ids":["RES-0001"]}],
+			"links":[]
+		}`,
+	})
+	waitForCLIUnixSocket(t, socketPath)
+
+	cli := &CLI{SocketPath: socketPath, ServerURL: "http://127.0.0.1:7045"}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"show-place", "PLACE-0001"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("show-place command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if !strings.Contains(stdout.String(), "# Place PLACE-0001") {
+		t.Fatalf("unexpected show-place output: %s", stdout.String())
+	}
+	request := <-requests
+	if request.Type != "operation" || request.Operation != "inspect_entity" || request.EntityType != "place" || request.EntityID != "PLACE-0001" {
+		t.Fatalf("unexpected local socket operation: %+v", request)
+	}
+}
+
+func TestCLIPendingReviewUsesTypedLocalOperation(t *testing.T) {
+	socketPath := filepath.Join(t.TempDir(), "embodiment.sock")
+	requests := make(chan service.LocalEmbodimentRequest, 1)
+	go serveSingleLocalSocketRequest(t, socketPath, requests, service.LocalEmbodimentResponse{
+		Type:   "response",
+		Status: 200,
+		Body: `{
+			"draft_items":[{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Start line A","summary":"Startup checklist"}],
+			"unreviewed_runs":[{"id":"RUN-0001","kind":"procedure","item_id":"ITEM-0001","outcome":"completed","notes":"Shift startup finished","approvals":[]}],
+			"problem_runs":[{"id":"RUN-0002","kind":"receiving_check","item_id":"ITEM-0002","outcome":"accepted_with_notes","notes":"Outer wrap torn","approvals":[{"decision":"noted","actor":"carol"}]}]
+		}`,
+	})
+	waitForCLIUnixSocket(t, socketPath)
+
+	cli := &CLI{SocketPath: socketPath, ServerURL: "http://127.0.0.1:7045"}
+	stdout, restoreStdout, err := captureStdout(t)
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	exitCode, runErr := cli.run([]string{"pending-review"})
+	if runErr != nil {
+		restoreStdout()
+		t.Fatalf("pending-review command: %v", runErr)
+	}
+	if exitCode != 0 {
+		restoreStdout()
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+	restoreStdout()
+	if !strings.Contains(stdout.String(), "# Pending review") {
+		t.Fatalf("unexpected pending-review output: %s", stdout.String())
+	}
+	request := <-requests
+	if request.Type != "operation" || request.Operation != "pending_review" {
+		t.Fatalf("unexpected pending review operation: %+v", request)
+	}
+}
+
 func TestResolveCLITransportConfigTreatsSocketOffAsExplicitHTTPMode(t *testing.T) {
 	serverURL, socketPath := resolveCLITransportConfig("http://127.0.0.1:7045/", "off")
 	if serverURL != "http://127.0.0.1:7045" {

@@ -124,6 +124,8 @@ func (server *LocalEmbodimentServer) handleConn(conn net.Conn) {
 		return
 	}
 	switch request.Type {
+	case "operation":
+		server.handleOperation(conn, request)
 	case "request":
 		server.handleRequest(conn, request)
 	case "live-open":
@@ -132,6 +134,92 @@ func (server *LocalEmbodimentServer) handleConn(conn net.Conn) {
 		if err := server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "error", Message: fmt.Sprintf("unknown local socket request type %q", request.Type)}); err != nil {
 			return
 		}
+	}
+}
+
+// Intent: Move the first terminal inspect/read slice onto typed local runtime
+// operations so the direct socket contract stops tunneling selected workflows
+// through route-shaped HTTP forwarding. Source: DI-monuv
+func (server *LocalEmbodimentServer) handleOperation(conn net.Conn, request LocalEmbodimentRequest) {
+	switch request.Operation {
+	case "inspect_item":
+		item, err := server.app.GetKnowledgeItem(request.ItemID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, item)
+	case "inspect_run":
+		run, err := server.app.GetRun(request.RunID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, run)
+	case "inspect_entity":
+		server.handleInspectEntityOperation(conn, request)
+	case "search":
+		options := SearchOptions{}
+		if request.SearchOptions != nil {
+			options = *request.SearchOptions
+		}
+		server.writeSocketProjection(conn, server.app.SearchWithOptions(options))
+	case "pending_review":
+		server.writeSocketProjection(conn, server.app.PendingReview())
+	case "problem_review":
+		server.writeSocketProjection(conn, server.app.ProblemReview())
+	default:
+		_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{
+			Type:   "response",
+			Status: http.StatusBadRequest,
+			Body:   fmt.Sprintf("unknown local socket operation %q", request.Operation),
+		})
+	}
+}
+
+func (server *LocalEmbodimentServer) handleInspectEntityOperation(conn net.Conn, request LocalEmbodimentRequest) {
+	switch request.EntityType {
+	case "item":
+		item, err := server.app.GetKnowledgeItem(request.EntityID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, item)
+	case "run":
+		run, err := server.app.GetRun(request.EntityID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, run)
+	case "place":
+		place, err := server.app.GetPlace(request.EntityID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, place)
+	case "resource":
+		resource, err := server.app.GetResource(request.EntityID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, resource)
+	case "responsibility":
+		record, err := server.app.GetResponsibility(request.EntityID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, record)
+	default:
+		_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{
+			Type:   "response",
+			Status: http.StatusBadRequest,
+			Body:   fmt.Sprintf("unsupported inspect entity type %q", request.EntityType),
+		})
 	}
 }
 
@@ -275,6 +363,19 @@ func (server *LocalEmbodimentServer) readLiveSocketMessages(decoder *json.Decode
 func (server *LocalEmbodimentServer) writeSocketMessage(conn net.Conn, response LocalEmbodimentResponse) error {
 	encoder := json.NewEncoder(conn)
 	return encoder.Encode(response)
+}
+
+func (server *LocalEmbodimentServer) writeSocketProjection(conn net.Conn, projection any) {
+	payload, err := json.Marshal(projection)
+	if err != nil {
+		_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "error", Message: err.Error()})
+		return
+	}
+	_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{
+		Type:   "response",
+		Status: http.StatusOK,
+		Body:   string(payload),
+	})
 }
 
 func requestBodyBytes(request LocalEmbodimentRequest) ([]byte, error) {

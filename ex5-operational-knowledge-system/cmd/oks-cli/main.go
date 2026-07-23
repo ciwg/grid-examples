@@ -475,6 +475,12 @@ type cliProblemReviewGroup struct {
 	Runs              []cliRunSummary `json:"runs"`
 }
 
+type cliPendingReviewProjection struct {
+	DraftItems     []cliSearchItem `json:"draft_items"`
+	UnreviewedRuns []cliSearchRun  `json:"unreviewed_runs"`
+	ProblemRuns    []cliSearchRun  `json:"problem_runs"`
+}
+
 var allowedSearchFilters = map[string]struct{}{
 	"kind":              {},
 	"status":            {},
@@ -491,7 +497,7 @@ func (cli *CLI) Dashboard() error { return cli.Show("/api/dashboard") }
 // rendering the hierarchy, links, and related runs in a terminal-first review
 // layout that is easier to act on than a raw JSON dump. Source: DI-luzom
 func (cli *CLI) ShowPlace(placeID string) error {
-	body, err := cli.get("/api/places/" + placeID)
+	body, err := cli.entityBody("place", placeID)
 	if err != nil {
 		return err
 	}
@@ -507,7 +513,7 @@ func (cli *CLI) ShowPlace(placeID string) error {
 // while rendering context, links, and related runs in a terminal-first review
 // layout that is easier to act on than a raw JSON dump. Source: DI-luzom
 func (cli *CLI) ShowResource(resourceID string) error {
-	body, err := cli.get("/api/resources/" + resourceID)
+	body, err := cli.entityBody("resource", resourceID)
 	if err != nil {
 		return err
 	}
@@ -524,7 +530,7 @@ func (cli *CLI) ShowResource(resourceID string) error {
 // same terminal-first review layout used by the newer context drilldowns.
 // Source: DI-salup
 func (cli *CLI) ShowResponsibility(responsibilityID string) error {
-	body, err := cli.get("/api/responsibilities/" + responsibilityID)
+	body, err := cli.entityBody("responsibility", responsibilityID)
 	if err != nil {
 		return err
 	}
@@ -540,7 +546,7 @@ func (cli *CLI) ShowResponsibility(responsibilityID string) error {
 // rendering revisions, approvals, related runs, and typed links in a
 // terminal-first review layout instead of a raw JSON dump. Source: DI-salup
 func (cli *CLI) ShowItem(itemID string) error {
-	body, err := cli.get("/api/items/" + itemID)
+	body, err := cli.itemBody(itemID)
 	if err != nil {
 		return err
 	}
@@ -579,7 +585,7 @@ func (cli *CLI) SnapshotItem(itemID string, actor string, body string) error {
 // in a terminal-first review layout instead of a raw JSON dump. Source:
 // DI-salup
 func (cli *CLI) ShowRun(runID string) error {
-	body, err := cli.get("/api/runs/" + runID)
+	body, err := cli.runBody(runID)
 	if err != nil {
 		return err
 	}
@@ -595,7 +601,7 @@ func (cli *CLI) ShowRun(runID string) error {
 // problem-review projection while rendering it as a review-oriented terminal
 // summary instead of a raw JSON blob. Source: DI-ravum
 func (cli *CLI) ProblemReview() error {
-	body, err := cli.get("/api/problem-review")
+	body, err := cli.problemReviewBody()
 	if err != nil {
 		return err
 	}
@@ -612,6 +618,21 @@ func (cli *CLI) ProblemReview() error {
 // review endpoint or drift away from the staged editor workflow. Source:
 // DI-vabok
 func (cli *CLI) PendingReview() error {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		body, err := cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation: "pending_review",
+		})
+		if err != nil {
+			return err
+		}
+		var projection cliPendingReviewProjection
+		if err := json.Unmarshal(body, &projection); err != nil {
+			return fmt.Errorf("pending_review decode: %w", err)
+		}
+		fmt.Println(renderPendingReview(projection.DraftItems, projection.UnreviewedRuns, projection.ProblemRuns))
+		return nil
+	}
+
 	draftSearch, err := cli.getSearch("/api/search?status=draft")
 	if err != nil {
 		return err
@@ -761,6 +782,20 @@ func (cli *CLI) AddEvidence(runID string, actor string, summary string, factsJSO
 // shell-first operators use the same structured filters and problem-only view
 // that already power browser and Neovim drilldowns. Source: DI-mifot
 func (cli *CLI) Search(query string, filters []string) error {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		options, err := buildSearchOptions(query, filters)
+		if err != nil {
+			return err
+		}
+		body, err := cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation:     "search",
+			SearchOptions: &options,
+		})
+		if err != nil {
+			return err
+		}
+		return printJSONBytes(body)
+	}
 	path, err := buildSearchPath(query, filters)
 	if err != nil {
 		return err
@@ -1233,27 +1268,137 @@ func splitCSV(input string) []string {
 	return out
 }
 
-func buildSearchPath(query string, filters []string) (string, error) {
-	values := url.Values{}
-	values.Set("q", query)
+// Intent: Keep the CLI's typed local search operation using the same filter
+// vocabulary as the HTTP adapter so terminal search semantics stay stable while
+// the direct socket contract becomes more runtime-native. Source: DI-monuv
+func buildSearchOptions(query string, filters []string) (service.SearchOptions, error) {
+	options := service.SearchOptions{Query: query}
 	for _, filter := range filters {
 		key, value, ok := strings.Cut(filter, "=")
 		if !ok || strings.TrimSpace(key) == "" {
-			return "", fmt.Errorf("invalid search filter %q; expected key=value", filter)
+			return service.SearchOptions{}, fmt.Errorf("invalid search filter %q; expected key=value", filter)
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
 		if _, ok := allowedSearchFilters[key]; !ok {
-			return "", fmt.Errorf("unsupported search filter %q", key)
+			return service.SearchOptions{}, fmt.Errorf("unsupported search filter %q", key)
 		}
 		if value == "" {
-			return "", fmt.Errorf("search filter %q requires a value", key)
+			return service.SearchOptions{}, fmt.Errorf("search filter %q requires a value", key)
 		}
-		values.Set(key, value)
+		switch key {
+		case "kind":
+			options.Kind = value
+		case "status":
+			options.Status = value
+		case "outcome":
+			options.Outcome = value
+		case "place_id":
+			options.PlaceID = value
+		case "resource_id":
+			options.ResourceID = value
+		case "responsibility_id":
+			options.ResponsibilityID = value
+		case "problem":
+			options.Problem = strings.EqualFold(value, "true")
+		}
+	}
+	return options, nil
+}
+
+func buildSearchPath(query string, filters []string) (string, error) {
+	options, err := buildSearchOptions(query, filters)
+	if err != nil {
+		return "", err
+	}
+	values := url.Values{}
+	values.Set("q", options.Query)
+	if options.Kind != "" {
+		values.Set("kind", options.Kind)
+	}
+	if options.Status != "" {
+		values.Set("status", options.Status)
+	}
+	if options.Outcome != "" {
+		values.Set("outcome", options.Outcome)
+	}
+	if options.PlaceID != "" {
+		values.Set("place_id", options.PlaceID)
+	}
+	if options.ResourceID != "" {
+		values.Set("resource_id", options.ResourceID)
+	}
+	if options.ResponsibilityID != "" {
+		values.Set("responsibility_id", options.ResponsibilityID)
+	}
+	if options.Problem {
+		values.Set("problem", "true")
 	}
 	// Intent: Encode CLI search queries and structured filters before they hit
 	// the HTTP adapter so spaces and reserved URL characters survive the
 	// embodiment boundary without inventing a second search contract. Source:
 	// DI-sifeg; DI-mifot
 	return "/api/search?" + values.Encode(), nil
+}
+
+// Intent: Route direct CLI item inspection through the typed local runtime
+// contract when the Unix socket is primary, while preserving the HTTP adapter
+// as explicit compatibility transport. Source: DI-monuv
+func (cli *CLI) itemBody(itemID string) ([]byte, error) {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		return cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation: "inspect_item",
+			ItemID:    itemID,
+		})
+	}
+	return cli.get("/api/items/" + itemID)
+}
+
+// Intent: Route direct CLI run inspection through the typed local runtime
+// contract when the Unix socket is primary, while preserving the HTTP adapter
+// as explicit compatibility transport. Source: DI-monuv
+func (cli *CLI) runBody(runID string) ([]byte, error) {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		return cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation: "inspect_run",
+			RunID:     runID,
+		})
+	}
+	return cli.get("/api/runs/" + runID)
+}
+
+// Intent: Route direct CLI place/resource/responsibility inspection through
+// the typed local runtime contract when the Unix socket is primary, while
+// preserving the HTTP adapter as explicit compatibility transport. Source:
+// DI-monuv
+func (cli *CLI) entityBody(entityType string, entityID string) ([]byte, error) {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		return cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation:  "inspect_entity",
+			EntityType: entityType,
+			EntityID:   entityID,
+		})
+	}
+	switch entityType {
+	case "place":
+		return cli.get("/api/places/" + entityID)
+	case "resource":
+		return cli.get("/api/resources/" + entityID)
+	case "responsibility":
+		return cli.get("/api/responsibilities/" + entityID)
+	default:
+		return nil, fmt.Errorf("unsupported entity type %q", entityType)
+	}
+}
+
+// Intent: Route the CLI problem-review queue through the typed local runtime
+// contract when the Unix socket is primary, while preserving the HTTP adapter
+// as explicit compatibility transport. Source: DI-monuv
+func (cli *CLI) problemReviewBody() ([]byte, error) {
+	if strings.TrimSpace(cli.SocketPath) != "" {
+		return cli.localSocketOperationBody(service.LocalEmbodimentRequest{
+			Operation: "problem_review",
+		})
+	}
+	return cli.get("/api/problem-review")
 }
