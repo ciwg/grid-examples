@@ -1,0 +1,7 @@
+# Daily heat sealer check
+
+1. Warm the sealer for 10 minutes.
+2. Verify target temperature at 177C.
+3. Record seal quality and any drift.
+4. Escalate if variance exceeds 3C.
+5. Draft follow-up note: add foil-laminate retry guidance before the next release.

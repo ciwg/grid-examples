@@ -6,6 +6,11 @@ leads who want to use the browser without guessing what each panel, field, or
 review area means. It describes the current UI as implemented in
 `web/index.html` and `web/app.js`. Source: `DI-nalor`.
 
+If you are new to ex5, load the checked-in newcomer corpus first and read the
+[User Guide](./user-guide.md) before this field-by-field browser guide. That
+guide names the sample records, the four storylines, and the recommended first
+inspection path through the browser. Source: `DI-rubav`.
+
 The browser now intentionally uses more task-oriented wording in the busiest
 forms. Labels like `Procedure / Checklist`, `Review This Record`, and `Owning
 Role` appear in the UI even though the underlying APIs and stored records still

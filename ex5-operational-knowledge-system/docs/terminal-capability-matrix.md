@@ -4,6 +4,10 @@ This matrix is a current-state capability view for `ex5`. It is meant to act as
 the quick spreadsheet-style summary of what Browser, CLI, and Neovim can do
 today. Source: `DI-movar`.
 
+For a newcomer path that uses the checked-in sample runtime and walks through
+the receiving, inventory, training, and maintenance storylines step by step,
+start with the [User Guide](./user-guide.md). Source: `DI-rubav`.
+
 ## Capability Matrix
 
 | Capability | Browser | CLI | Neovim |

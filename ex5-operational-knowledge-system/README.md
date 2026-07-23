@@ -268,6 +268,18 @@ examples in this repo.
 
 ## Run
 
+Fastest newcomer path:
+
+```bash
+./scripts/load-sample-data.sh /tmp/ex5-newcomer-runtime
+go run ./cmd/operational-knowledge -data-root /tmp/ex5-newcomer-runtime
+```
+
+That checked-in sample runtime gives you one receiving problem thread, one
+inventory discrepancy, one training history thread, one maintenance draft, one
+real attachment, and one canonical walkthrough in
+[docs/user-guide.md](docs/user-guide.md). Source: `DI-rubav`.
+
 Start the server:
 
 ```bash
@@ -279,6 +291,11 @@ Then open:
 ```text
 http://127.0.0.1:7045/
 ```
+
+If you want the browser embodiment, use Chrome or Chromium plus the shipped
+extension/native-host path. If you want the quickest no-extra-setup tour, start
+with the CLI examples below against the sample runtime instead. Source:
+`DI-punek`; `DI-rubav`.
 
 ## CLI
 

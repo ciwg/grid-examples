@@ -1,221 +1,347 @@
 # Ex5 User Guide
 
-This guide is for operators and reviewers who want to use
-`ex5-operational-knowledge-system` as it exists today. It describes the current
-product surface, not planned follow-on work. Source: `DI-movar`.
+This is the primary operator guide for `ex5-operational-knowledge-system`. It
+is written for a newcomer who wants to understand what the system is for, load
+real sample data, and move through the current browser, CLI, and Neovim
+surfaces without guessing. It describes the shipped product surface, not future
+work. Source: `DI-movar`; `DI-rubav`.
 
-## Start The System
+## What Ex5 Is
 
-Run the server:
+`ex5` is a local operational memory system. It keeps operational context,
+versioned knowledge, runs, evidence, approvals, links, and live drafts in one
+runtime so a team can answer practical questions later:
 
-```bash
-go run ./cmd/operational-knowledge
-```
+- what revision existed
+- what run used it
+- what evidence was captured
+- who reviewed it
+- what place, resource, or responsibility it belonged to
 
-Then choose the surface you want:
+The same model covers procedures, receiving checks, inventory audits, training,
+and maintenance because the core problem is durable operational memory, not one
+workflow-specific form. Source: `DI-radok`; `DI-vemok`; `DI-fudok`.
 
-- Browser: open `http://127.0.0.1:7045/`
-- CLI: run `go run ./cmd/oks-cli ...`
-- Neovim: use the shipped `oks` plugin/launcher against the same local server
+## Start Here
 
-All three surfaces talk to the same local runtime and projected state. Source:
-`DI-fudok`; `DI-givot`; `DI-ravum`.
+The fastest honest newcomer path is:
+
+1. Load the checked-in sample corpus into a fresh runtime root.
+2. Start the ex5 server against that runtime root.
+3. Use the CLI to inspect the sample world first.
+4. Use the browser if you have the shipped Chrome/Chromium embodiment set up.
+5. Use Neovim if you want live draft editing inside the editor.
+
+The sample corpus is not mock data. It is a checked-in runtime with real
+append-only history, a real attachment, and one persisted live draft. Source:
+`DI-rubav`.
 
 ## Core Concepts
 
-You will see the same core record types in every surface:
+- Responsibility: who owns or reviews a slice of work.
+- Place: where work happens.
+- Resource: which machine, tool, bin, station, or document is involved.
+- Knowledge item: a versioned operational record such as a receiving check,
+  inventory audit, training item, or maintenance item.
+- Run: a performed event against an exact item revision.
+- Evidence: facts and an optional immutable attachment captured for a run.
+- Approval: a named review record for an item or run.
+- Link: a typed connection between records.
+- Live draft: the current collaborative working body for one item, separate
+  from durable revision history.
 
-- Responsibility: who owns or reviews something
-- Place: where work happens
-- Resource: what bin, station, tool, or container is involved
-- Knowledge item: a versioned operational record such as a procedure,
-  receiving check, training item, maintenance item, or inventory audit
-- Run: a performed event against an exact item revision
-- Evidence: facts and optional attachment captured for a run
-- Approval: a named review record for an item or run
-- Link: a typed connection between records
+Source: `DI-radok`; `DI-zuvob`; `DI-luzaf`; `DI-zanub`; `DI-zoruk`.
 
-Source: `DI-radok`; `DI-zuvob`; `DI-luzaf`; `DI-zanub`.
+## Load The Sample Corpus
 
-## Common Workflow 1: Set Up Context
-
-Create the context records first:
-
-```bash
-go run ./cmd/oks-cli new-responsibility alice "Line lead" "Owns startup and approval routing"
-go run ./cmd/oks-cli new-place alice area Receiving "Inbound receiving and count area"
-go run ./cmd/oks-cli new-resource alice container "RJ45 Bin" "Connectors bin" PLACE-0001
-```
-
-Then inspect them:
+Choose a fresh runtime root and copy the checked-in newcomer corpus into it:
 
 ```bash
-go run ./cmd/oks-cli show-responsibility RESP-0001
-go run ./cmd/oks-cli show-place PLACE-0001
-go run ./cmd/oks-cli show-resource RES-0001
+./scripts/load-sample-data.sh /tmp/ex5-newcomer-runtime
 ```
 
-Those terminal drilldowns now summarize hierarchy, related runs, links, and
-handoff commands instead of raw JSON dumps. Source: `DI-jubav`; `DI-luzom`;
-`DI-salup`.
+The loader fails closed if the target already contains data. That is
+intentional: the newcomer corpus should load into a fresh root instead of
+silently mutating an existing runtime. Source: `DI-rubav`.
 
-## Common Workflow 2: Create A Knowledge Item
+## Start The Runtime
 
-Create a knowledge item for the work you want to preserve:
+Run the server against the loaded sample root:
 
 ```bash
-go run ./cmd/oks-cli new-item alice procedure "Start line A" "Startup procedure" "# Start line A"
-go run ./cmd/oks-cli new-item alice receiving_check "Inspect inbound pallet" "Receiving check for inbound pallet" "# Inspect inbound pallet"
-go run ./cmd/oks-cli new-item alice inventory_audit "Count RJ45 bin" "Cycle count for RJ45 connectors" "# Count RJ45 bin"
+go run ./cmd/operational-knowledge -data-root /tmp/ex5-newcomer-runtime
 ```
 
-Use the browser or Neovim when you want richer ongoing text work on the item
-body. Use the CLI when you want one-shot creation from the terminal. Source:
-`DI-fudok`; `DI-vamor`; `DI-pudor`.
+The server exposes:
 
-## Common Workflow 3: Record A Run
+- the browser shell on `http://127.0.0.1:7045/`
+- the direct local Unix socket at the runtime root
+- the same projected state to browser, CLI, and Neovim
 
-Once work is performed, record a run against an exact item revision:
+Source: `DI-zorav`; `DI-favel`; `DI-fudok`.
+
+## Know The Sample World
+
+The sample corpus keeps all four storylines in one shared runtime:
+
+- Receiving: inbound pallet inspection with a short-count and torn-wrap problem
+- Inventory: RJ45 bin cycle count with a positive variance
+- Training: new receiver onboarding and signoff
+- Maintenance: daily heat sealer check with one active draft follow-up
+
+The main sample records are:
+
+- Responsibilities:
+  - `RESP-0001` Receiving lead
+  - `RESP-0002` Inventory steward
+  - `RESP-0003` Training coordinator
+  - `RESP-0004` Maintenance lead
+- Places:
+  - `PLACE-0001` North Warehouse
+  - `PLACE-0002` Receiving Dock A
+  - `PLACE-0003` Stock Cage 3
+  - `PLACE-0004` Training Bay
+  - `PLACE-0005` Line A
+- Resources:
+  - `RES-0001` Inbound Pallet Camera
+  - `RES-0002` RJ45 Bin
+  - `RES-0003` Training Binder
+  - `RES-0004` Heat Sealer 7
+- Knowledge items:
+  - `RECV-0001` Inspect inbound connector pallet
+  - `INV-0001` Count RJ45 bin
+  - `TRAIN-0001` New receiver onboarding checkoff
+  - `MAINT-0001` Daily heat sealer check
+- Runs:
+  - `RUN-0001` receiving problem thread
+  - `RUN-0002` inventory discrepancy thread
+  - `RUN-0003` training completion
+  - `RUN-0004` maintenance startup check
+
+The corpus also includes:
+
+- one real evidence attachment on `RUN-0001`
+- one persisted live draft on `MAINT-0001`
+- one draft-status item in the pending-review queue
+- two problem hotspots visible in problem review
+
+Source: `DI-rubav`.
+
+## First CLI Tour
+
+Start with the high-level projections:
 
 ```bash
-go run ./cmd/oks-cli record-run bob receiving_check RECV-0001 1 accepted_with_notes "Outer wrap torn" PLACE-0001 RES-0001
-go run ./cmd/oks-cli record-run bob inventory_audit INV-0001 1 completed "Counted receiving bin" PLACE-0001 RES-0001
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock dashboard
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock pending-review
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock problem-review
 ```
 
-This is how the system keeps procedural history attached to the exact revision
-that was used. Source: `DI-zuvob`; `DI-vemok`.
+You should see:
 
-## Common Workflow 4: Add Evidence And Links
+- one draft item: `MAINT-0001`
+- zero unreviewed runs
+- two problem runs: `RUN-0001` and `RUN-0002`
 
-You can add evidence from the terminal:
+The CLI now treats the local Unix socket as the primary terminal contract. Use
+`-socket=off` only when you intentionally want the HTTP compatibility path.
+Source: `DI-zorav`; `DI-monuv`; `DI-rubav`.
+
+## End-To-End Walkthrough
+
+This walkthrough shows how the sample world fits together.
+
+### 1. Inspect The Draft Item
 
 ```bash
-go run ./cmd/oks-cli add-evidence RUN-0001 dave "Dock photo" '{"result":"ok"}' ./evidence.txt
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-item MAINT-0001
 ```
 
-You can also connect records with typed links:
+What to notice:
+
+- `MAINT-0001` is still `draft`
+- it has two durable revisions
+- it already has one completed maintenance run
+- it also has a newer persisted live draft body that has not been snapped yet
+
+This is the clearest example of how ex5 separates durable revision history from
+current working draft state. Source: `DI-zoruk`; `DI-lusov`; `DI-rubav`.
+
+### 2. Review The Receiving Problem
 
 ```bash
-go run ./cmd/oks-cli add-link alice responsibility RESP-0001 knowledge_item PROC-0001 owns "Primary startup procedure"
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-run RUN-0001
 ```
 
-Evidence uploads reuse the same multipart route as the browser, and typed links
-reuse the same validated graph contract as the other surfaces. Source:
-`DI-zanub`; `DI-vuteg`; `DI-luzaf`.
+What to notice:
 
-## Common Workflow 5: Review And Approve
+- the run points to `RECV-0001` revision `1`
+- the outcome is `accepted_with_notes`
+- the evidence facts show `expected_count=240` and `actual_count=238`
+- the attachment `inbound-wrap-photo.txt` is present
+- the run already carries a review note
 
-CLI:
+This is the shortest path to understanding why ex5 stores runs, evidence, and
+approvals separately instead of flattening them into one document blob. Source:
+`DI-zuvob`; `DI-zanub`; `DI-rubav`.
+
+### 3. Review The Inventory Problem
 
 ```bash
-go run ./cmd/oks-cli snapshot-item PROC-0001 alice "# Start line A\nAdd audited latch check"
-go run ./cmd/oks-cli approve-item PROC-0001 1 carol reviewer approved "Ready for use"
-go run ./cmd/oks-cli approve-run RUN-0001 dave approver noted "Shift handoff recorded"
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-run RUN-0002
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock search connector problem=true
 ```
 
-Neovim:
+What to notice:
 
+- the inventory run is `completed`, but it is still problem-worthy because the
+  evidence facts carry a non-zero variance and mismatched counts
+- `problem=true` is not just about free-text notes; it follows the shared
+  problem review logic
+
+Source: `DI-pogul`; `DI-vafuk`; `DI-ralek`; `DI-rubav`.
+
+### 4. Trace Ownership And Context
+
+```bash
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-responsibility RESP-0001
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-place PLACE-0002
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-resource RES-0002
+```
+
+What to notice:
+
+- responsibilities own or review real items and runs
+- places and resources are not decorative metadata; they are part of the
+  searchable operational graph
+- typed links connect the storylines instead of leaving context implicit
+
+Source: `DI-kovup`; `DI-luzaf`; `DI-salup`; `DI-rubav`.
+
+### 5. Compare Training And Maintenance
+
+```bash
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-item TRAIN-0001
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-run RUN-0003
+go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock show-run RUN-0004
+```
+
+What to notice:
+
+- training and maintenance use the same durable model as receiving and
+  inventory
+- the difference is in the item kind, run kind, evidence, approvals, and links
+  around them, not in a different storage system
+
+Source: `DI-vemok`; `DI-kovup`; `DI-rubav`.
+
+## Browser Path
+
+The browser is the broadest embodiment, but it currently requires:
+
+- Chrome or Chromium
+- the shipped unpacked extension under `chrome-extension/`
+- the shipped native host binary from `cmd/operational-browser-host`
+- native-host registration for `operational_browser_host`
+
+If that browser embodiment is not set up yet, start with CLI or Neovim first.
+Unsupported browsers do not silently fall back to the older HTTP browser path.
+Source: `DI-punek`; `DI-fonuv`; `DI-fovek`.
+
+Once the browser embodiment is available, the newcomer sample is easiest to
+read in this order:
+
+1. Review workspace draft queue: find `MAINT-0001`
+2. Review workspace hotspots: inspect the receiving and inventory problems
+3. Known-record search: search for `connector`, `RJ45`, `training`, or
+   `sealer`
+4. Current Record: open one item or run and follow the next-step actions
+5. Author workspace: inspect the live draft for `MAINT-0001`
+6. Operate workspace: review how run logging, evidence, and approvals attach
+   to the current record
+
+For field-by-field browser behavior, use the
+[Browser UI Guide](./browser-ui-guide.md). Source: `DI-nalor`; `DI-rubav`.
+
+## Neovim Path
+
+Neovim is the best newcomer path when you want to inspect and edit the active
+draft without setting up the browser embodiment first.
+
+Open the maintenance draft:
+
+```bash
+OKS_BASE_URL=http://127.0.0.1:7045 ./scripts/oks-nvim MAINT-0001
+```
+
+Useful commands inside Neovim:
+
+- `:OksInfo`
+- `:OksInspect`
+- `:OksPending`
+- `:OksProblemReview`
 - `:OksSnapshot`
 - `:OksApproveItem`
 - `:OksApproveRun`
-- `:OksSupersedeItem`
 
-Snapshot, approval, and supersede actions stay on the existing shared HTTP API
-and refresh the relevant terminal view afterward. `snapshot-item` lets a
-CLI-only operator cut a durable revision by supplying the new body directly,
-while `:OksSnapshot` requires an open live draft and snapshots the current
-editor body using the item's existing title, summary, and tags. Source:
-`DI-muvok`; `DI-jabup`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-dazim`.
+Neovim now prefers the direct local Unix-socket contract and keeps websocket or
+HTTP only as explicit compatibility mode. Source: `DI-fonuv`; `DI-monuv`;
+`DI-rubav`.
 
-## Common Workflow 6: Search And Triage
+## Common Real Tasks After The Tour
 
-Use CLI search and queue views:
+Once you understand the sample world, these are the next useful things to try
+in your own copied runtime:
 
-```bash
-go run ./cmd/oks-cli search "supplier: Acme Parts & variance=-2" kind=receiving_check problem=true place_id=PLACE-0001
-go run ./cmd/oks-cli pending-review
-go run ./cmd/oks-cli problem-review
-```
+- approve or supersede `MAINT-0001`
+- snapshot the active maintenance draft into a new durable revision
+- record a second receiving or inventory run and compare the new history
+- add another typed link from a responsibility to a run or item
+- search by `problem=true`, by `place_id`, or by `responsibility_id`
+- inspect how the draft file, attachment files, and CAS objects changed on disk
 
-Use Neovim for the same staged review shape:
+Because you loaded the sample into your own target root, you can mutate that
+copy freely without changing the checked-in corpus. Source: `DI-rubav`.
 
-- `:OksSearch <query> [kind=...] [status=...] [outcome=...] [place_id=...] [resource_id=...] [responsibility_id=...] [problem=true]`
-- `:OksPending`
-- `:OksProblemReview`
-- `:OksInspect`
-- `:OksInspectRun`
-- `:OksInspectEntity`
+## Troubleshooting
 
-Pending-review queues in both CLI and Neovim now require an explicit
-`approvals` array in the shared run payloads. If the shared projection omits
-that field, the queue fails loudly instead of inventing fake unreviewed work.
-Source: `DI-givot`; `DI-lorav`; `DI-ravum`; `DI-davur`.
+### The loader refuses my target root
 
-## When To Use Which Surface
+The loader intentionally fails if the target already contains files. Pick a new
+empty directory or remove the old scratch runtime first. Source: `DI-rubav`.
 
-Use the browser when you want:
+### The CLI says the local socket is unavailable
 
-- the broadest operational surface
-- a review-first workspace that keeps triage and inspection ahead of setup forms
-- one clear browser home path through the draft review queue before you branch
-  into hotspots or known-record search
-- a single review queue that switches between draft review, problem hotspots,
-  and known-record search instead of showing all three at once
-- a primary-flow layer that points you toward hotspots, draft review, and the
-  most likely next action for the current record
-- a draft-first review queue that gives you one clear landing path before
-  switching to hotspots or known-record search
-- a mode rail that lets you stay in Review, Author, Operate, Create, or Browse
-  intentionally while keeping the browser single-page
-- a current-record review surface that keeps summary, next-step, timeline, and
-  raw JSON in one place
-- shared live browser drafting
-- live draft metrics, writing focus, and quieter authoring support that stays
-  behind disclosure until needed
-- a calmer writing environment with collaboration settings hidden until needed
-- an explicit Review-to-Author handoff so item inspection stays calm until you
-  intentionally switch into Author
-- contextual review panels
-- grouped hotspot review
-- task-first search presets for drafts, receiving problems, inventory counts,
-  and broad run discovery
-- direct record-ID search for known places, resources, responsibilities, items,
-  and runs
-- direct jump actions from the current record into run recording, evidence
-  capture, and approvals
-- an operate-from-current-record panel that keeps the main action path anchored
-  to the record you are already reviewing
-- staged operate choices that let you pick log work, attach evidence, or review
-  first, then open the heavier form only for that action
-- authoring disclosures that keep collaboration settings, revision decisions,
-  and writing context reachable without leaving them fully expanded all the time
+Make sure:
 
-Use the CLI when you want:
+- the server is running against the same data root you loaded
+- you pointed `-socket` at `<data-root>/embodiment.sock`
+- you only use `-socket=off` when you explicitly want HTTP compatibility
 
-- fast shell-first creation or mutation
-- shell-only durable revision snapshots
-- evidence upload
-- terminal search and queue review
-- one-shot drilldown commands
+Source: `DI-zorav`.
 
-Use Neovim when you want:
+### The browser says Chrome/Chromium is required
 
-- live draft editing
-- durable revision snapshots from the current draft
-- in-editor record inspection
-- pending-review browsing
-- approval or supersede actions without leaving the editor
+That is expected on unsupported browsers or when the ex5 extension/native host
+is not installed. Use CLI or Neovim until the browser embodiment is ready.
+Source: `DI-punek`; `DI-fovek`.
 
-Neovim is now enough for continuous item authoring and review, but browser/CLI
-still own the broader create-run-evidence workflows. Source: `DI-jabup`;
-`DI-vogar`.
+### Pending review or problem review looks empty
 
-Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-ravum`.
+Use the checked-in newcomer corpus first. It already contains:
+
+- one draft item
+- two problem runs
+- four approved/noted run reviews
+
+If you mutate your copy heavily, the projections will change with it. Source:
+`DI-rubav`.
 
 ## Where To Read Next
 
-- [Browser UI Guide](./browser-ui-guide.md)
 - [Product Overview](./product-overview.md)
+- [Browser UI Guide](./browser-ui-guide.md)
 - [Terminal Capability Matrix](./terminal-capability-matrix.md)
 - [Features Guide](./features-guide.md)
 - [HTTP API Guide](./http-api-guide.md)
+- [Architecture](./architecture.md)

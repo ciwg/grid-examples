@@ -6,6 +6,11 @@ history, receiving checks, inventory audits, approvals, evidence, and typed
 context links attached to the actual work that happened. Source: `DI-radok`;
 `DI-foluk`; `DI-vemok`; `DI-fudok`.
 
+The newcomer path now starts from one checked-in shared sample runtime plus one
+canonical operator guide, so a new user can inspect a real receiving problem,
+inventory discrepancy, training history thread, and active maintenance draft
+before inventing their own data. Source: `DI-rubav`.
+
 ## What The Product Does
 
 The product keeps operational records as append-only events and then projects
@@ -62,10 +67,11 @@ runtime:
   and linked inspection inside one editor session.
 
 These are not separate backends. They all read and write the same projected
-state through one shared local runtime, with the browser staying on the HTTP
-adapter while CLI and Neovim now prefer the direct local Unix-socket contract.
-Source: `DI-fudok`; `DI-givot`; `DI-lorav`; `DI-vamor`; `DI-bafor`;
-`DI-pudor`; `DI-ravum`; `DI-favel`.
+state through one shared local runtime, with the browser now using the shipped
+Chrome/Chromium native-messaging embodiment and CLI plus Neovim preferring the
+direct local Unix-socket contract. Source: `DI-fudok`; `DI-givot`;
+`DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-ravum`; `DI-favel`;
+`DI-punek`.
 
 ## Current Boundaries
 
@@ -97,10 +103,12 @@ What that means in practice:
 
 What is still not shipped in that layer:
 
-- a browser-side non-HTTP embodiment contract
+- a broader app-agnostic workflow substrate beyond the current record,
+  transport, and store slices
 
-Those are now future-scope choices rather than missing pieces inside the
-current shipped `ex5` PromiseGrid slice. Source: `DI-lavek`.
+That is now future-scope boundary work rather than a missing embodiment-layer
+piece inside the current shipped `ex5` PromiseGrid slice. Source: `DI-lavek`;
+`DI-luvem`; `DI-zufek`.
 
 For the technical claims list, see
 [PromiseGrid Implementation Claims](./promisegrid-implementation-claims.md).
