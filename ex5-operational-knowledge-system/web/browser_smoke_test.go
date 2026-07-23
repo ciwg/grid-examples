@@ -289,6 +289,198 @@ func TestHeadlessBrowserFailsClosedWhenDirectBridgeIsUnavailable(t *testing.T) {
 	}
 }
 
+func TestHeadlessBrowserDoesNotReportLiveConnectedBeforeAcknowledgement(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		withMockBrowserBridge(MustRead("index.html")),
+		[]byte("</body>"),
+		[]byte(`<script>
+window.__oks_test_live_open_behavior = "stall";
+window.__oks_test_live_update_count = 0;
+document.addEventListener("DOMContentLoaded", () => {
+  document.body.dataset.liveUpdateCount = "0";
+});
+const authorModeTimer = setInterval(() => {
+  const button = document.getElementById("mode-author");
+  const detail = document.getElementById("detail-meta");
+  if (!button || !detail || !detail.textContent.includes("ITEM-0001")) {
+    return;
+  }
+  button.click();
+  clearInterval(authorModeTimer);
+}, 250);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":0,"places":0,"resources":0,"procedures":1,"training_items":0,"maintenance_items":0,"receiving_items":0,"inventory_items":0,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":0,"inventory_runs":0,"approvals":0,"evidence":0,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":0,"place_groups":[],"resource_groups":[]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"working_version":1}]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001/live", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":1,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"approvals":[],"revisions":[{"number":1,"title":"Startup checklist","author":"alice","created_at":"2026-07-20T15:59:00Z"}],"responsibility_ids":[],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T15:59:00Z","actor":"alice","title":"Startup checklist"}]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=6500",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	if !strings.Contains(dom, `data-live-update-count="0"`) {
+		t.Fatalf("expected no live heartbeat before acknowledgement\n%s", dom)
+	}
+}
+
+func TestHeadlessBrowserTreatsLiveConflictAsAcknowledgement(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	rootHTML := bytes.Replace(
+		withMockBrowserBridge(MustRead("index.html")),
+		[]byte("</body>"),
+		[]byte(`<script>
+window.__oks_test_live_open_behavior = "conflict-ack";
+window.__oks_test_live_update_count = 0;
+document.addEventListener("DOMContentLoaded", () => {
+  document.body.dataset.liveUpdateCount = "0";
+});
+const authorModeTimer = setInterval(() => {
+  const button = document.getElementById("mode-author");
+  const detail = document.getElementById("detail-meta");
+  if (!button || !detail || !detail.textContent.includes("ITEM-0001")) {
+    return;
+  }
+  button.click();
+  clearInterval(authorModeTimer);
+}, 250);
+</script></body>`),
+		1,
+	)
+
+	mux := http.NewServeMux()
+	addBrowserMetaHandler(mux)
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write(rootHTML)
+	})
+	mux.HandleFunc("/app.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = writer.Write(MustRead("app.js"))
+	})
+	mux.HandleFunc("/style.css", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = writer.Write(MustRead("style.css"))
+	})
+	mux.HandleFunc("/api/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":0,"places":0,"resources":0,"procedures":1,"training_items":0,"maintenance_items":0,"receiving_items":0,"inventory_items":0,"procedure_runs":0,"training_runs":0,"maintenance_runs":0,"receiving_runs":0,"inventory_runs":0,"approvals":0,"evidence":0,"links":0}`)
+	})
+	mux.HandleFunc("/api/problem-review", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"problem_runs":0,"place_groups":[],"resource_groups":[]}`)
+	})
+	mux.HandleFunc("/api/places", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"places":[]}`)
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"resources":[]}`)
+	})
+	mux.HandleFunc("/api/responsibilities", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"responsibilities":[]}`)
+	})
+	mux.HandleFunc("/api/items", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"items":[{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"working_version":1}]}`)
+	})
+	mux.HandleFunc("/api/runs", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"runs":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001/live", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodPost {
+			writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":2,"current_revision":1,"participants":[]}`)
+			return
+		}
+		writeJSON(writer, `{"item_id":"ITEM-0001","title":"Startup checklist","status":"draft","body":"# Startup checklist","version":1,"current_revision":1,"participants":[]}`)
+	})
+	mux.HandleFunc("/api/items/ITEM-0001", func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, `{"id":"ITEM-0001","kind":"procedure","status":"draft","title":"Startup checklist","summary":"Boot line","current_revision":1,"approvals":[],"revisions":[{"number":1,"title":"Startup checklist","author":"alice","created_at":"2026-07-20T15:59:00Z"}],"responsibility_ids":[],"timeline":[{"type":"knowledge_item_created","timestamp":"2026-07-20T15:59:00Z","actor":"alice","title":"Startup checklist"}]}`)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--virtual-time-budget=6500",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	if !strings.Contains(dom, `data-live-update-count="1"`) {
+		t.Fatalf("expected live heartbeat after conflict acknowledgement\n%s", dom)
+	}
+}
+
 func TestHeadlessBrowserHandlesSearchFailureInApp(t *testing.T) {
 	chromePath, err := exec.LookPath("google-chrome")
 	if err != nil {
@@ -1602,7 +1794,21 @@ window.addEventListener("message", async (event) => {
     let headers = request.headers || {};
     let body = request.body || undefined;
     if (!path && request.type === "operation") {
-      if (request.operation === "inspect_item") {
+      if (request.operation === "dashboard") {
+        path = "/api/dashboard";
+      } else if (request.operation === "list_places") {
+        path = "/api/places";
+      } else if (request.operation === "list_resources") {
+        path = "/api/resources";
+      } else if (request.operation === "list_responsibilities") {
+        path = "/api/responsibilities";
+      } else if (request.operation === "list_items") {
+        path = "/api/items";
+      } else if (request.operation === "list_runs") {
+        path = "/api/runs";
+      } else if (request.operation === "load_live_state") {
+        path = "/api/items/" + request.item_id + "/live";
+      } else if (request.operation === "inspect_item") {
         path = "/api/items/" + request.item_id;
       } else if (request.operation === "inspect_run") {
         path = "/api/runs/" + request.run_id;
@@ -1618,7 +1824,7 @@ window.addEventListener("message", async (event) => {
         const options = request.search_options || {};
         for (const [key, value] of Object.entries(options)) {
           if (value !== "" && value !== false) {
-            params.set(key, String(value));
+            params.set(key === "query" ? "q" : key, String(value));
           }
         }
         path = "/api/search?" + params.toString();
@@ -1766,7 +1972,20 @@ window.addEventListener("message", async (event) => {
     return;
   }
   if (message.kind === "live-open") {
+    if (window.__oks_test_live_open_behavior === "stall") {
+      return;
+    }
     const state = await fetch("/api/items/" + message.request.item_id + "/live").then((response) => response.text());
+    if (window.__oks_test_live_open_behavior === "conflict-ack") {
+      reply({
+        kind: "live-message",
+        response: {
+          type: "live-conflict",
+          state: JSON.parse(state),
+        },
+      });
+      return;
+    }
     reply({
       kind: "live-message",
       response: {
@@ -1777,6 +1996,10 @@ window.addEventListener("message", async (event) => {
     return;
   }
   if (message.kind === "live-update") {
+    if (typeof window.__oks_test_live_update_count === "number") {
+      window.__oks_test_live_update_count += 1;
+      document.body.dataset.liveUpdateCount = String(window.__oks_test_live_update_count);
+    }
     const payload = message.request || {};
     const response = await fetch("/api/items/" + (message.request.item_id || "") + "/live", {
       method: "POST",

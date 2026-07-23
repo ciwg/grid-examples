@@ -99,6 +99,19 @@ and local runtime socket successfully. That keeps readiness truth tied to the
 actual direct browser contract instead of only proving that the content script
 is installed. Source: `DI-salov`.
 
+After startup, one-shot browser direct-contract RPCs are bounded at the page
+layer: if the browser posts a direct request and no reply returns within
+1000ms, the pending RPC is cleaned up locally and the UI fails closed with an
+explicit timeout error instead of hanging indefinitely. Healthy replies and
+explicit bridge errors still complete immediately through the same direct lane.
+Source: `DI-zabem`.
+
+The browser live lane is also no longer optimistic: posting `live-open` does
+not by itself mark that embodiment connected. The browser stays in an opening
+state until the first successful runtime `live-state` or `live-conflict` reply
+returns, and active live-lane errors clear connected state again before
+reconnect is scheduled. Source: `DI-talik`.
+
 The current test boundary now reflects that split more honestly: deterministic
 extension/native-host contract tests cover the shipped `background.js` and
 `content.js` readiness, one-shot RPC, and live-port forwarding/disconnect
@@ -122,6 +135,14 @@ For the currently shipped browser direct contract, inspect/search reads still
 use typed operations and the main create/operate mutation slice now also uses
 typed operations for:
 
+- `dashboard`
+- `list_places`
+- `list_resources`
+- `list_responsibilities`
+- `list_items`
+- `list_runs`
+- `load_live_state`
+
 - `create_place`
 - `create_resource`
 - `create_responsibility`
@@ -133,9 +154,11 @@ typed operations for:
 - `add_revision`
 - `supersede_item`
 
-That means the browser now reaches its main durable write workflows over named
-runtime operations instead of generic route-shaped request forwarding, while
-startup/catalog reads remain the next staged follow-on. Source: `DI-lorim`.
+That means the browser now reaches its main dashboard, catalog refresh,
+structured search, live-state bootstrap, and durable write workflows over
+named runtime operations instead of generic route-shaped request forwarding.
+The remaining HTTP role is the browser shell/bootstrap surface plus `/api/meta`
+before the direct embodiment is ready. Source: `DI-lorim`; `DI-ronav`.
 
 ## Peer exchange
 

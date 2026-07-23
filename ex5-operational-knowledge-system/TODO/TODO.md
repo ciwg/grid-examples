@@ -5,6 +5,12 @@
 
 ## Completed
 
+- [x] 140 - Make browser live transport report connected only after a real live-open acknowledgement - `TODO/TODO-vazek-ex5-browser-live-open-acknowledgement.md`
+
+- [x] 139 - Bound browser direct-contract RPC waits so lost extension/native-host replies do not hang the UI - `TODO/TODO-talem-ex5-browser-rpc-timeout-bounds.md`
+
+- [x] 138 - Finish the remaining ex5 browser direct-contract migration above route-shaped forwarding - `TODO/TODO-lunav-ex5-browser-direct-contract-completion.md`
+
 - [x] 137 - Add stronger ex5 browser direct-contract integration coverage beyond the mock bridge - `TODO/TODO-pavur-ex5-browser-direct-contract-integration-coverage.md`
 
 - [x] 136 - Remove the remaining ex5 browser and Neovim transport wording drift - `TODO/TODO-zunek-ex5-browser-neovim-transport-doc-drift.md`

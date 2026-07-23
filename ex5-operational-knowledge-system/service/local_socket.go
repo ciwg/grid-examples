@@ -147,6 +147,38 @@ func (server *LocalEmbodimentServer) handleOperation(conn net.Conn, request Loca
 		// chain cheaply at startup without falling back into route-shaped HTTP
 		// probing or opening a workflow-specific live session. Source: DI-salov
 		server.writeSocketProjection(conn, map[string]bool{"ready": true})
+	case "dashboard":
+		// Intent: Complete the browser's remaining day-to-day read slice on typed
+		// runtime operations so dashboard and catalog refresh stop depending on
+		// generic route-shaped request forwarding. Source: DI-ronav
+		server.writeSocketProjection(conn, server.app.Dashboard())
+	case "list_places":
+		server.writeSocketProjection(conn, map[string]any{"places": server.app.ListPlaces()})
+	case "list_resources":
+		server.writeSocketProjection(conn, map[string]any{"resources": server.app.ListResources()})
+	case "list_responsibilities":
+		server.writeSocketProjection(conn, map[string]any{"responsibilities": server.app.ListResponsibilities()})
+	case "list_items":
+		items, err := server.app.ListKnowledgeItems(request.Kind)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, map[string]any{"items": items})
+	case "list_runs":
+		runs, err := server.app.ListRuns(request.Kind)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusBadRequest, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, map[string]any{"runs": runs})
+	case "load_live_state":
+		state, err := server.app.LiveItemState(request.ItemID)
+		if err != nil {
+			_ = server.writeSocketMessage(conn, LocalEmbodimentResponse{Type: "response", Status: http.StatusNotFound, Body: err.Error()})
+			return
+		}
+		server.writeSocketProjection(conn, state)
 	case "create_place":
 		// Intent: Move the browser create/operate mutation slice onto typed local
 		// runtime operations so durable browser writes stop depending on generic

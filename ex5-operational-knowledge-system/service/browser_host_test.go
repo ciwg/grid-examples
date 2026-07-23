@@ -126,6 +126,116 @@ func TestBrowserHostForwardsRuntimeReadyProbe(t *testing.T) {
 	}
 }
 
+func TestBrowserHostForwardsDashboardAndCollectionReads(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if _, err := app.CreatePlace("alice", "area", "Receiving", "Inbound", "", nil); err != nil {
+		t.Fatalf("create place: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(filepath.Join(t.TempDir(), "runtime-socket"))
+	server := NewLocalEmbodimentServer(app, socketPath)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	for _, operation := range []string{"dashboard", "list_places"} {
+		requestPayload, err := json.Marshal(BrowserHostEnvelope{
+			RequestID:  operation + "-1",
+			SocketPath: socketPath,
+			Request: LocalEmbodimentRequest{
+				Type:      "operation",
+				Operation: operation,
+			},
+		})
+		if err != nil {
+			t.Fatalf("marshal request: %v", err)
+		}
+		input := bytes.NewBuffer(nil)
+		if err := binary.Write(input, binary.LittleEndian, uint32(len(requestPayload))); err != nil {
+			t.Fatalf("write request size: %v", err)
+		}
+		if _, err := input.Write(requestPayload); err != nil {
+			t.Fatalf("write request payload: %v", err)
+		}
+		output := bytes.NewBuffer(nil)
+		host := NewBrowserHost()
+		if err := host.ServeSession(bytes.NewReader(input.Bytes()), output); err != nil {
+			t.Fatalf("serve session: %v", err)
+		}
+		response := decodeBrowserHostResponse(t, output)
+		if response.Response.Status != 200 {
+			t.Fatalf("unexpected host response for %s: %+v", operation, response)
+		}
+	}
+}
+
+func TestBrowserHostForwardsLiveStateBootstrapOperation(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	item, err := app.CreateKnowledgeItem("alice", KnowledgeKindProcedure, "Start line", "startup", "# Start", nil, nil)
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	socketPath := EmbodimentSocketPath(filepath.Join(t.TempDir(), "runtime-socket"))
+	server := NewLocalEmbodimentServer(app, socketPath)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			t.Errorf("listen and serve: %v", err)
+		}
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+	waitForUnixSocket(t, socketPath)
+
+	requestPayload, err := json.Marshal(BrowserHostEnvelope{
+		RequestID:  "live-state-1",
+		SocketPath: socketPath,
+		Request: LocalEmbodimentRequest{
+			Type:      "operation",
+			Operation: "load_live_state",
+			ItemID:    item.ID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	input := bytes.NewBuffer(nil)
+	if err := binary.Write(input, binary.LittleEndian, uint32(len(requestPayload))); err != nil {
+		t.Fatalf("write request size: %v", err)
+	}
+	if _, err := input.Write(requestPayload); err != nil {
+		t.Fatalf("write request payload: %v", err)
+	}
+
+	output := bytes.NewBuffer(nil)
+	host := NewBrowserHost()
+	if err := host.ServeSession(bytes.NewReader(input.Bytes()), output); err != nil {
+		t.Fatalf("serve session: %v", err)
+	}
+	response := decodeBrowserHostResponse(t, output)
+	if response.Response.Status != 200 {
+		t.Fatalf("unexpected host response: %+v", response)
+	}
+	var state LiveItemState
+	if err := json.Unmarshal([]byte(response.Response.Body), &state); err != nil {
+		t.Fatalf("decode state: %v", err)
+	}
+	if state.ItemID != item.ID || state.Body != "# Start" {
+		t.Fatalf("unexpected live state: %+v", state)
+	}
+}
+
 func TestBrowserHostForwardsCreateItemOperation(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "runtime"))
 	if err != nil {

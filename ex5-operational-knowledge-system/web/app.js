@@ -83,6 +83,7 @@ const operateApprovalDetailsEl = document.getElementById("operate-approval-detai
 const participantID = getParticipantID();
 const bridgePendingRPC = new Map();
 const bridgePendingHandshakes = new Map();
+const bridgeRPCDeadlineMS = 1000;
 let bridgeSequence = 0;
 const editorState = {
   itemID: "",
@@ -189,6 +190,10 @@ window.addEventListener("message", (event) => {
       return;
     }
     if (message.request_id === editorState.bridgeRequestID) {
+      editorState.socketConnected = false;
+      if (editorState.itemID) {
+        scheduleLiveReconnect(editorState.itemID, editorState.socketGeneration);
+      }
       showToast(message.error || "Browser bridge error");
       setWorkspaceStatus("Direct browser embodiment unavailable", "error", message.error || "Browser bridge error");
     }
@@ -809,7 +814,27 @@ function bridgeRPC(request) {
   }
   const requestID = nextBridgeRequestID("bridge-rpc");
   return new Promise((resolve, reject) => {
-    bridgePendingRPC.set(requestID, { resolve, reject });
+    // Intent: Bound browser one-shot direct-contract waits at the page layer so
+    // lost bridge replies fail closed and clean up pending promise state
+    // instead of hanging the UI indefinitely. Source: DI-zabem
+    const timer = setTimeout(() => {
+      const entry = bridgePendingRPC.get(requestID);
+      if (!entry) {
+        return;
+      }
+      bridgePendingRPC.delete(requestID);
+      entry.reject(new Error(`Direct browser RPC timed out after ${bridgeRPCDeadlineMS}ms.`));
+    }, bridgeRPCDeadlineMS);
+    bridgePendingRPC.set(requestID, {
+      resolve(value) {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      reject(error) {
+        clearTimeout(timer);
+        reject(error);
+      },
+    });
     postBridgeMessage({
       kind: "rpc",
       request_id: requestID,
@@ -835,6 +860,28 @@ function bytesToBase64(buffer) {
 function directOperationForGET(path) {
   const url = new URL(path, window.location.href);
   const { pathname } = url;
+  if (pathname === "/api/dashboard") {
+    return { type: "operation", operation: "dashboard" };
+  }
+  if (pathname === "/api/places") {
+    return { type: "operation", operation: "list_places" };
+  }
+  if (pathname === "/api/resources") {
+    return { type: "operation", operation: "list_resources" };
+  }
+  if (pathname === "/api/responsibilities") {
+    return { type: "operation", operation: "list_responsibilities" };
+  }
+  if (pathname === "/api/items") {
+    return { type: "operation", operation: "list_items" };
+  }
+  if (pathname === "/api/runs") {
+    return { type: "operation", operation: "list_runs" };
+  }
+  const liveStateMatch = pathname.match(/^\/api\/items\/([^/]+)\/live$/);
+  if (liveStateMatch) {
+    return { type: "operation", operation: "load_live_state", item_id: liveStateMatch[1] };
+  }
   const itemMatch = pathname.match(/^\/api\/items\/([^/]+)$/);
   if (itemMatch) {
     return { type: "operation", operation: "inspect_item", item_id: itemMatch[1] };
@@ -864,7 +911,7 @@ function directOperationForGET(path) {
         kind: url.searchParams.get("kind") || "",
         status: url.searchParams.get("status") || "",
         outcome: url.searchParams.get("outcome") || "",
-        problem_only: url.searchParams.get("problem_only") === "true",
+        problem: url.searchParams.get("problem") === "true",
         place_id: url.searchParams.get("place_id") || "",
         resource_id: url.searchParams.get("resource_id") || "",
         responsibility_id: url.searchParams.get("responsibility_id") || "",
@@ -1958,11 +2005,7 @@ async function runSearch(filters) {
   form.dataset.problem = filters.problem ? "true" : "false";
   searchAdvancedEl.open = hasAdvancedSearchFilters(filters);
   const effectiveFilters = getSearchFilters(form);
-  const response = await fetch(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  const payload = await response.json();
+  const payload = await getJSON(`/api/search?${buildSearchParams(effectiveFilters).toString()}`);
   renderSearchResults(effectiveFilters, payload);
   clearWorkspaceStatus();
 }
@@ -2334,6 +2377,9 @@ async function flushLivePush() {
   if (sendLiveSocketUpdate(true)) {
     return;
   }
+  if (editorState.bridgeRequestID) {
+    throw new Error("Direct browser live transport is still opening.");
+  }
   throw new Error(browserEmbodimentUnavailableMessage());
 }
 
@@ -2407,8 +2453,9 @@ function startLiveTransport() {
 
 function connectLiveSocket(itemID) {
   const requestID = nextBridgeRequestID("bridge-live");
+  editorState.socketGeneration += 1;
   editorState.bridgeRequestID = requestID;
-  editorState.socketConnected = true;
+  editorState.socketConnected = false;
   editorState.transport = "native-messaging";
   postBridgeMessage({
     kind: "live-open",
@@ -2444,6 +2491,12 @@ function handleLiveBridgeResponse(payload) {
   }
   if (!payload.state) {
     return;
+  }
+  // Intent: Treat the first real runtime live reply as the browser's
+  // acknowledgement boundary so connected state reflects confirmed direct
+  // contract truth instead of an optimistic local send. Source: DI-talik
+  if (payload.type === "live-state" || payload.type === "live-conflict") {
+    editorState.socketConnected = true;
   }
   if (payload.type === "live-conflict") {
     editorState.dirty = false;
@@ -2486,6 +2539,9 @@ function sendLiveSocketUpdate(updateBody) {
 
 async function sendLivePresencePOST(typing) {
   if (!sendLiveSocketUpdate(typing)) {
+    if (editorState.bridgeRequestID) {
+      throw new Error("Direct browser live transport is still opening.");
+    }
     throw new Error(browserEmbodimentUnavailableMessage());
   }
 }

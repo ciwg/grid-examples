@@ -132,6 +132,13 @@ place/resource/responsibility/item, record run, add evidence, record approvals,
 add revision, and supersede item now cross the native-messaging embodiment as
 typed runtime intents. Source: `DI-lorim`.
 
+The browser direct contract now also carries the remaining day-to-day read
+slice as named operations: dashboard, collection lists, structured search, and
+live-state bootstrap no longer depend on generic request forwarding after the
+browser embodiment is ready. The local HTTP surface remains the shell/bootstrap
+lane for page load and `/api/meta`, not the primary browser runtime contract.
+Source: `DI-ronav`.
+
 The durable frozen-family record core now also has its first reusable
 substrate boundary under `promisegrid/records/`. That package carries
 identity, origin normalization, canonical durable ID decoration, and
