@@ -103,6 +103,16 @@ func TestCLIUsesLocalSocketTransportWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestResolveCLITransportConfigTreatsSocketOffAsExplicitHTTPMode(t *testing.T) {
+	serverURL, socketPath := resolveCLITransportConfig("http://127.0.0.1:7045/", "off")
+	if serverURL != "http://127.0.0.1:7045" {
+		t.Fatalf("unexpected server URL: %q", serverURL)
+	}
+	if socketPath != "" {
+		t.Fatalf("expected explicit HTTP compatibility mode, got socket path %q", socketPath)
+	}
+}
+
 func TestCLIFailsClosedWhenPreferredLocalSocketIsUnavailable(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

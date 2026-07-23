@@ -34,6 +34,12 @@ Neovim are already strong terminal surfaces, but they are intentionally staged
 and still not perfectly symmetric with the browser. Source: `DI-fudok`;
 `DI-ravum`; `DI-salup`; `DI-lorav`; `DI-jabup`; `DI-vogar`.
 
+CLI transport note: the CLI now treats the direct local Unix socket as the
+required terminal contract by default and fails closed when that socket is
+unavailable. Use `-socket=off` only when you explicitly want the HTTP
+compatibility path. Neovim still keeps HTTP as a compatibility fallback behind
+its socket-first behavior. Source: `DI-zorav`.
+
 ## Terminal-First Summary
 
 ### CLI is strongest for

@@ -493,10 +493,10 @@ too. Terminal users can create one validated graph edge at a time through the
 CLI and see the same server-side endpoint rejection the browser would see if a
 type or record ID is wrong. Source: `DI-vuteg`.
 
-### Equal embodiments
+### Shared embodiments
 
-The browser and CLI are first-class embodiments over the same runtime, but they
-are not equal in depth today.
+The browser, CLI, and Neovim are first-class embodiments over the same
+runtime, but they are not equal in depth today.
 
 Current browser surface:
 

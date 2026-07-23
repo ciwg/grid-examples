@@ -16,9 +16,9 @@ func main() {
 	dataRoot := flag.String("data-root", ".operational-knowledge-system", "runtime data root")
 	flag.Parse()
 
-	// Intent: Start one local ex5 runtime that owns durable history and serves
-	// equal browser and CLI embodiments over the same state root. Source:
-	// DI-radok; DI-zuvob
+	// Intent: Start one local ex5 runtime that owns durable history for the
+	// browser HTTP adapter and the two terminal embodiments over the same state
+	// root. Source: DI-radok; DI-zuvob; DI-zorav
 	app, err := service.NewApp(*dataRoot)
 	if err != nil {
 		log.Fatalf("new app: %v", err)

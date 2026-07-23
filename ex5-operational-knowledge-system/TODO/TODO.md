@@ -5,6 +5,8 @@
 
 ## Completed
 
+- [x] 128 - Close the remaining ex5 terminal contract review follow-on items - `TODO/TODO-rutav-ex5-terminal-contract-review-followup.md`
+
 - [x] 127 - Tighten ex5 terminal transport honesty and align the remaining long-form PromiseGrid docs - `TODO/TODO-musav-ex5-terminal-transport-alignment-pass.md`
 
 - [x] 126 - Remove the remaining ex5 feature-guide PromiseGrid scope drift - `TODO/TODO-luneg-ex5-features-guide-promisegrid-drift.md`

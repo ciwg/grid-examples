@@ -24,13 +24,7 @@ func main() {
 	socketPath := flag.String("socket", "", "local unix socket path, or 'off' to force HTTP compatibility transport")
 	serverURL := flag.String("server", "http://127.0.0.1:7045", "server URL")
 	flag.Parse()
-	resolvedServerURL := strings.TrimRight(*serverURL, "/")
-	resolvedSocketPath := strings.TrimSpace(*socketPath)
-	if strings.EqualFold(resolvedSocketPath, "off") {
-		resolvedSocketPath = ""
-	} else if resolvedSocketPath == "" {
-		resolvedSocketPath = discoverSocketPath(resolvedServerURL)
-	}
+	resolvedServerURL, resolvedSocketPath := resolveCLITransportConfig(*serverURL, *socketPath)
 	cli := &CLI{
 		ServerURL:  resolvedServerURL,
 		SocketPath: resolvedSocketPath,
@@ -42,6 +36,22 @@ func main() {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// Intent: Resolve the CLI's embodiment transport choice in one small helper so
+// the explicit `-socket=off` compatibility path and the runtime-first direct
+// socket path are both testable without subprocess harnessing. Source:
+// DI-lurav
+func resolveCLITransportConfig(serverURL string, socketOption string) (string, string) {
+	resolvedServerURL := strings.TrimRight(serverURL, "/")
+	resolvedSocketPath := strings.TrimSpace(socketOption)
+	if strings.EqualFold(resolvedSocketPath, "off") {
+		return resolvedServerURL, ""
+	}
+	if resolvedSocketPath == "" {
+		resolvedSocketPath = discoverSocketPath(resolvedServerURL)
+	}
+	return resolvedServerURL, resolvedSocketPath
 }
 
 // Intent: Ask the runtime for its canonical socket path before relying on

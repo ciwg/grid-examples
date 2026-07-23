@@ -75,7 +75,9 @@ HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
 In the current runtime, `primary_embodiment_adapter` is `local_http` because
 the browser still projects through this adapter. `terminal_embodiment_adapter`
 is `local_unix_socket`, meaning CLI and Neovim now prefer the direct local
-socket contract while keeping this HTTP surface available as compatibility.
+socket contract. Neovim still keeps this HTTP surface as compatibility
+fallback, while the CLI now requires an explicit `-socket=off` opt-in before
+using HTTP compatibility transport. Source: `DI-zorav`.
 `browser_live_draft_transport` is `websocket_over_local_http`, while
 `neovim_live_draft_transport` is `local_unix_socket`. Source: `DI-bavuk`;
 `DI-favel`; `DI-torak`.
