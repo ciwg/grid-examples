@@ -169,7 +169,10 @@ window.addEventListener("message", (event) => {
     const resolve = bridgePendingHandshakes.get(message.request_id);
     if (resolve) {
       bridgePendingHandshakes.delete(message.request_id);
-      resolve(!!message.ok);
+      resolve({
+        ok: !!message.ok,
+        error: message.error || "",
+      });
     }
     return;
   }
@@ -780,9 +783,13 @@ async function initializeBrowserEmbodiment() {
   if (browserEmbodiment.primary_adapter !== "chrome_native_messaging") {
     throw new Error("runtime does not advertise the direct Chrome/Chromium browser embodiment");
   }
-  const handshakeOK = await bridgeHandshake();
-  if (!handshakeOK) {
-    setWorkspaceStatus("Direct browser embodiment unavailable", "error", browserEmbodimentUnavailableMessage());
+  const handshake = await bridgeHandshake();
+  if (!handshake.ok) {
+    setWorkspaceStatus(
+      "Direct browser embodiment unavailable",
+      "error",
+      handshake.error || browserEmbodimentUnavailableMessage(),
+    );
     return false;
   }
   browserBridgeState.ready = true;
@@ -794,11 +801,14 @@ function bridgeHandshake() {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       bridgePendingHandshakes.delete(requestID);
-      resolve(false);
+      resolve({
+        ok: false,
+        error: "browser bridge handshake timed out",
+      });
     }, 300);
-    bridgePendingHandshakes.set(requestID, (ok) => {
+    bridgePendingHandshakes.set(requestID, (handshake) => {
       clearTimeout(timer);
-      resolve(ok);
+      resolve(handshake);
     });
     postBridgeMessage({
       kind: "handshake",

@@ -36,12 +36,14 @@ window.addEventListener("message", (event) => {
         kind: "handshake",
         request_id: message.request_id,
         ok,
+        error: response && response.error ? response.error : "",
       });
     }).catch(() => {
       postToPage({
         kind: "handshake",
         request_id: message.request_id,
         ok: false,
+        error: "bridge handshake failed before native-host response",
       });
     });
     return;

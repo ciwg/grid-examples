@@ -10,6 +10,7 @@ host_binary="${native_host_root}/operational-browser-host"
 host_manifest_template="${repo_root}/chrome-extension/native-host/operational_browser_host.json"
 host_manifest_local="${native_host_root}/operational_browser_host.json"
 host_manifest_chrome="/home/jj/.config/google-chrome/NativeMessagingHosts/operational_browser_host.json"
+host_manifest_profile="${profile_root}/NativeMessagingHosts/operational_browser_host.json"
 
 # Intent: Turn the browser demo from assumed ambient setup into one explicit,
 # reproducible preflight that prepares sample data, browser-host artifacts, and
@@ -20,7 +21,7 @@ if ! command -v go >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "${demo_root}" "${native_host_root}" "$(dirname -- "${host_manifest_chrome}")"
+mkdir -p "${demo_root}" "${native_host_root}" "$(dirname -- "${host_manifest_chrome}")" "$(dirname -- "${host_manifest_profile}")"
 
 if [ ! -d "${runtime_root}" ]; then
   "${repo_root}/scripts/load-sample-data.sh" "${runtime_root}"
@@ -36,7 +37,7 @@ fi
 )
 chmod 755 "${host_binary}"
 
-python3 - "${host_manifest_template}" "${host_binary}" "${host_manifest_local}" "${host_manifest_chrome}" <<'PY'
+python3 - "${host_manifest_template}" "${host_binary}" "${host_manifest_local}" "${host_manifest_chrome}" "${host_manifest_profile}" <<'PY'
 import pathlib
 import sys
 
@@ -44,11 +45,13 @@ template_path = pathlib.Path(sys.argv[1])
 host_binary = pathlib.Path(sys.argv[2])
 local_manifest = pathlib.Path(sys.argv[3])
 chrome_manifest = pathlib.Path(sys.argv[4])
+profile_manifest = pathlib.Path(sys.argv[5])
 
 text = template_path.read_text()
 text = text.replace("__BROWSER_HOST_PATH__", str(host_binary))
 local_manifest.write_text(text)
 chrome_manifest.write_text(text)
+profile_manifest.write_text(text)
 PY
 
 echo "ex5 demo browser setup is ready"
@@ -56,3 +59,4 @@ echo "runtime root: ${runtime_root}"
 echo "chrome profile: ${profile_root}"
 echo "native host binary: ${host_binary}"
 echo "chrome native-host manifest: ${host_manifest_chrome}"
+echo "profile native-host manifest: ${host_manifest_profile}"
