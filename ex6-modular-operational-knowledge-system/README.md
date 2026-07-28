@@ -38,6 +38,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - claim-level proofs for advertised implementation claims
 - semantic author-level signatures on durable records
 - third-party attestation support for implementation claims
+- runtime-owned attestation policy and quorum for implementation claims
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
@@ -46,7 +47,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`.
 
 ## What Does Not Exist Yet
 
@@ -55,12 +56,11 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - Neovim embodiment
 - ex5 review/search/workflow parity
 - full PromiseGrid proof/signature discipline
-- third-party claim attestation and semantic author-level signatures beyond relay-carriage verification
 - richer author identity beyond the current local runtime signing root
-- attestation policy, trust weight, and quorum beyond raw countersignatures
+- trust weight and richer quorum semantics beyond the current local policy minimums
 - richer relay behavior beyond the current peer-card and explicit allow model
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`.
 
 ## Relay Trust Rule
 
@@ -69,8 +69,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; 
 - `moks relay peer discover <peer-card-url> seed` creates a local `no-pull` `no-push` peer entry
 - `moks relay peer promote <peer-id> <pull|push|both>` upgrades local policy using that stored peer entry
 - pull or push remain disabled until an explicit `moks relay peer allow ...` command changes policy
+- claim attestation trust is local too: `moks relay policy claim set ...` decides how many third-party attestations a claim needs before import
 
-Source: `DI-vemut`; `DI-kasud`; `DI-lutep`.
+Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`.
 
 ## Layout
 

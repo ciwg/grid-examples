@@ -45,6 +45,7 @@ type Runtime struct {
 	history      *store.History
 	cas          *store.CAS
 	peers        *grid.PeerStore
+	policies     *grid.PolicyStore
 	packages     map[string]*activePackage
 	commands     map[string]*activePackage
 	families     map[string]registeredFamily
@@ -68,12 +69,18 @@ func Open(root string) (*Runtime, error) {
 		_ = history.Close()
 		return nil, err
 	}
+	policyStore, err := grid.OpenPolicyStore(filepath.Join(root, "state"))
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
 	runtime := &Runtime{
 		root:         root,
 		packagesRoot: filepath.Join(root, "packages"),
 		history:      history,
 		cas:          casStore,
 		peers:        peerStore,
+		policies:     policyStore,
 		packages:     map[string]*activePackage{},
 		commands:     map[string]*activePackage{},
 		families:     map[string]registeredFamily{},
@@ -196,6 +203,23 @@ func (runtime *Runtime) RevokePeer(peerID string) error {
 
 func (runtime *Runtime) LookupPeer(peerID string) (grid.AllowedPeer, bool) {
 	return runtime.peers.Lookup(peerID)
+}
+
+func (runtime *Runtime) ClaimPolicies() []grid.ClaimTrustPolicy {
+	return runtime.policies.ClaimPolicies()
+}
+
+func (runtime *Runtime) SetClaimPolicy(policy grid.ClaimTrustPolicy) error {
+	for _, peerID := range policy.AllowedAttesters {
+		if _, ok := runtime.LookupPeer(peerID); !ok {
+			return fmt.Errorf("unknown attester peer: %s", peerID)
+		}
+	}
+	return runtime.policies.SetClaimPolicy(policy)
+}
+
+func (runtime *Runtime) RemoveClaimPolicy(protocolPCID string, role string) error {
+	return runtime.policies.RemoveClaimPolicy(protocolPCID, role)
 }
 
 func (runtime *Runtime) PutCAS(body []byte) (string, error) {
@@ -332,6 +356,12 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 	// can distinguish exporter self-claims from third-party attestation.
 	// Source: DI-fogem
 	if err := runtime.peers.VerifyClaimAttestations(batch); err != nil {
+		return err
+	}
+	// Intent: Require local claim-attestation quorum only when local runtime
+	// policy says a claim needs it, so trust remains explicit and operator-owned.
+	// Source: DI-movek
+	if err := runtime.policies.VerifyClaimPolicies(batch, runtime.AllowedPeers()); err != nil {
 		return err
 	}
 	if err := batch.VerifyRecordProofs(); err != nil {

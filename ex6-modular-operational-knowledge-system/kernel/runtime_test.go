@@ -652,6 +652,78 @@ func TestImportBatchRejectsBadThirdPartyClaimAttestation(t *testing.T) {
 	}
 }
 
+func TestImportBatchAcceptsClaimAttestationQuorum(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-2","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attester := newRuntime(t)
+	batch, err = attester.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims: %v", err)
+	}
+	importer := newRuntime(t)
+	if err := importer.AllowPeer(grid.AllowedPeer{
+		PeerID:    attester.LocalPeerID(),
+		BatchURL:  "http://attester.example/relay/batch",
+		ImportURL: "http://attester.example/relay/import",
+		PublicKey: attester.LocalPeerPublicKey(),
+	}); err != nil {
+		t.Fatalf("allow attester peer: %v", err)
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID: claim.ProtocolPCID,
+		Role:         claim.Role,
+		MinAttesters: 1,
+	}); err != nil {
+		t.Fatalf("set claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("import batch with satisfied quorum: %v", err)
+	}
+}
+
+func TestImportBatchRejectsMissingClaimAttestationQuorum(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-3","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attester := newRuntime(t)
+	batch, err = attester.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims: %v", err)
+	}
+	importer := newRuntime(t)
+	if err := importer.AllowPeer(grid.AllowedPeer{
+		PeerID:    attester.LocalPeerID(),
+		BatchURL:  "http://attester.example/relay/batch",
+		ImportURL: "http://attester.example/relay/import",
+		PublicKey: attester.LocalPeerPublicKey(),
+	}); err != nil {
+		t.Fatalf("allow attester peer: %v", err)
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID: claim.ProtocolPCID,
+		Role:         claim.Role,
+		MinAttesters: 2,
+	}); err != nil {
+		t.Fatalf("set claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected claim quorum rejection")
+	}
+}
+
 func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)
@@ -728,6 +800,17 @@ func newRuntime(t *testing.T) *kernel.Runtime {
 		t.Fatalf("register builtin: %v", err)
 	}
 	return runtime
+}
+
+func findClaimByProtocol(t *testing.T, batch grid.Batch, protocolPCID string) grid.ImplementationClaim {
+	t.Helper()
+	for _, claim := range batch.ImplementationClaims {
+		if claim.ProtocolPCID == protocolPCID {
+			return claim
+		}
+	}
+	t.Fatalf("missing implementation claim for %s", protocolPCID)
+	return grid.ImplementationClaim{}
 }
 
 func helperPackageDir(t *testing.T, mismatch bool) string {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/builtin"
@@ -103,6 +104,21 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Printf("%s\t%s\n", runtime.LocalPeerID(), runtime.LocalPeerPublicKey())
 		return nil
+	case matchesPrefix(args, "relay", "policy", "claim", "list"):
+		if len(args) != 4 {
+			return errors.New("usage: relay policy claim list")
+		}
+		return relayPolicyClaimList(runtime)
+	case matchesPrefix(args, "relay", "policy", "claim", "set"):
+		if len(args) != 8 {
+			return errors.New("usage: relay policy claim set <protocol-pcid> <role|*> <min-attesters> <any|peer-id,peer-id>")
+		}
+		return relayPolicyClaimSet(runtime, args[4:])
+	case matchesPrefix(args, "relay", "policy", "claim", "remove"):
+		if len(args) != 6 {
+			return errors.New("usage: relay policy claim remove <protocol-pcid> <role|*>")
+		}
+		return runtime.RemoveClaimPolicy(args[4], args[5])
 	case matchesPrefix(args, "relay", "peer", "list"):
 		return relayPeerList(runtime)
 	case matchesPrefix(args, "relay", "peer", "discover"):
@@ -206,6 +222,37 @@ func relayImport(ctx context.Context, runtime *kernel.Runtime, path string) erro
 		return err
 	}
 	return runtime.ImportBatch(ctx, batch)
+}
+
+func relayPolicyClaimList(runtime *kernel.Runtime) error {
+	for _, policy := range runtime.ClaimPolicies() {
+		attesters := "any-known-peer"
+		if len(policy.AllowedAttesters) > 0 {
+			attesters = strings.Join(policy.AllowedAttesters, ",")
+		}
+		fmt.Printf("%s\t%s\t%d\t%s\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters, attesters)
+	}
+	return nil
+}
+
+func relayPolicyClaimSet(runtime *kernel.Runtime, args []string) error {
+	minAttesters, err := strconv.Atoi(args[2])
+	if err != nil {
+		return err
+	}
+	policy := grid.ClaimTrustPolicy{
+		ProtocolPCID: args[0],
+		Role:         args[1],
+		MinAttesters: minAttesters,
+	}
+	if args[3] != "any" {
+		policy.AllowedAttesters = strings.Split(args[3], ",")
+	}
+	if err := runtime.SetClaimPolicy(policy); err != nil {
+		return err
+	}
+	fmt.Printf("policy set %s %s quorum=%d\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters)
+	return nil
 }
 
 func relayServe(ctx context.Context, runtime *kernel.Runtime, addr string) error {

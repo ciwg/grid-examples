@@ -264,6 +264,20 @@ func TestRelayPeerPromoteUsesSeededMetadata(t *testing.T) {
 	}
 }
 
+func TestRelayPolicyClaimSetAndList(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "relay", "policy", "claim", "set", "pcid:test.echo.v1", "*", "1", "any"); err != nil {
+		t.Fatalf("set claim policy: %v", err)
+	}
+	output, err := runCLI(t, workdir, "relay", "policy", "claim", "list")
+	if err != nil {
+		t.Fatalf("list claim policies: %v", err)
+	}
+	if !strings.Contains(output, "pcid:test.echo.v1\t*\t1\tany-known-peer") {
+		t.Fatalf("unexpected claim policy output: %s", output)
+	}
+}
+
 func TestRelayPullImportsFromPeer(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

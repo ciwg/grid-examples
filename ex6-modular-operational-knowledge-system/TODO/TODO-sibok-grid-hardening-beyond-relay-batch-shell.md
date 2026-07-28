@@ -98,6 +98,14 @@ Intent: Extend trust beyond exporter self-claims by letting outside peers attest
 Constraints: Attestations must be distinct from exporter claim proofs; they sign indexed claims, remain additive to the current batch format, and do not yet express policy weight or quorum.
 Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
 
+ID: DI-movek
+Date: 2026-07-28 22:10:00
+Status: active
+Decision: Add runtime-owned attestation policy and quorum for implementation claims, scoped by protocol pCID and role.
+Intent: Make third-party claim attestations locally meaningful by letting each runtime decide which claims need countersigners and how many independent attesters are enough before import.
+Constraints: Keep policy local to the importing runtime; use minimum-count quorum only for now; reuse known peer registrations as the current attester identity set; do not invent weight, federation, or global consensus semantics yet.
+Affects: `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.
