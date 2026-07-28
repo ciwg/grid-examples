@@ -81,3 +81,11 @@ Decision: Make `moks route plan <protocol-pcid>` include plan introspection that
 Intent: Let operators inspect not just what route won, but why it won under the current layered planner policy.
 Constraints: Keep the current `route plan` JSON surface as the primary output; do not add route execution; explanations must remain deterministic and derived from the current route table and planner policy only.
 Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-fobek
+Date: 2026-07-28 10:58:15
+Status: active
+Decision: Extend route-plan introspection with pairwise comparison detail for every candidate pair, and expose the exact tie-break and policy reasons that made one candidate rank ahead of the other.
+Intent: Let operators inspect the full ordering logic across the whole candidate set instead of only seeing the final winner explanation.
+Constraints: Keep comparison output deterministic and derived only from the current planner rules; do not execute routes; keep the comparison explanation inside the existing `route plan` JSON surface.
+Affects: `kernel/routes.go`, tests, and routing docs.

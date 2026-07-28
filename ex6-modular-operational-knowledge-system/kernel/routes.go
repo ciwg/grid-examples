@@ -22,8 +22,24 @@ type RoutePlanCandidate struct {
 }
 
 type RoutePlanExplanation struct {
-	Order  []string `json:"order,omitempty"`
-	Winner []string `json:"winner,omitempty"`
+	Order       []string              `json:"order,omitempty"`
+	Winner      []string              `json:"winner,omitempty"`
+	Comparisons []RoutePlanComparison `json:"comparisons,omitempty"`
+}
+
+type RoutePlanComparison struct {
+	Left         RoutePlanComparisonSide `json:"left"`
+	Right        RoutePlanComparisonSide `json:"right"`
+	Winner       string                  `json:"winner"`
+	DecisionPath []string                `json:"decision_path,omitempty"`
+}
+
+type RoutePlanComparisonSide struct {
+	PackageID      string `json:"package_id"`
+	PackageVersion string `json:"package_version"`
+	ProtocolPCID   string `json:"protocol_pcid"`
+	Role           string `json:"role"`
+	RouteType      string `json:"route_type"`
 }
 
 type RoutePlanCandidateExplanation struct {
@@ -262,6 +278,7 @@ func (runtime *Runtime) explainRoutePlan(protocolPCID string, candidates []Route
 	if len(explanation.Winner) == 0 {
 		explanation.Winner = []string{"the preferred route remained first after deterministic candidate ordering"}
 	}
+	explanation.Comparisons = runtime.explainAllRouteComparisons(protocolPCID, candidates)
 	return explanation
 }
 
@@ -360,6 +377,118 @@ func (runtime *Runtime) explainWinningComparison(protocolPCID string, winner Rou
 		reasons = append(reasons, "winner remained first after deterministic planner comparison")
 	}
 	return reasons
+}
+
+func (runtime *Runtime) explainAllRouteComparisons(protocolPCID string, candidates []RoutePlanCandidate) []RoutePlanComparison {
+	comparisons := []RoutePlanComparison{}
+	for leftIndex := 0; leftIndex < len(candidates); leftIndex++ {
+		for rightIndex := leftIndex + 1; rightIndex < len(candidates); rightIndex++ {
+			left := candidates[leftIndex]
+			right := candidates[rightIndex]
+			comparison := RoutePlanComparison{
+				Left:         comparisonSide(left.Route),
+				Right:        comparisonSide(right.Route),
+				DecisionPath: runtime.explainPairwiseComparison(protocolPCID, left, right),
+			}
+			if runtime.compareRoutePlanCandidates(protocolPCID, left, right) <= 0 {
+				comparison.Winner = comparisonSideID(left.Route)
+			} else {
+				comparison.Winner = comparisonSideID(right.Route)
+			}
+			comparisons = append(comparisons, comparison)
+		}
+	}
+	return comparisons
+}
+
+func (runtime *Runtime) explainPairwiseComparison(protocolPCID string, left RoutePlanCandidate, right RoutePlanCandidate) []string {
+	reasons := []string{}
+	if left.Executable != right.Executable {
+		if left.Executable {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because it is executable and "+comparisonSideID(right.Route)+" is not")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because it is executable and "+comparisonSideID(left.Route)+" is not")
+		}
+		return reasons
+	}
+	leftPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, left.Route.Role)
+	rightPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, right.Route.Role)
+	leftAvoided := routeAvoided(left.Route, leftPolicy)
+	rightAvoided := routeAvoided(right.Route, rightPolicy)
+	if leftAvoided != rightAvoided {
+		if !leftAvoided && rightAvoided {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because its effective policy does not avoid it while "+comparisonSideID(right.Route)+" is avoided")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because its effective policy does not avoid it while "+comparisonSideID(left.Route)+" is avoided")
+		}
+		return reasons
+	}
+	leftPreferred := routePreferred(left.Route, leftPolicy)
+	rightPreferred := routePreferred(right.Route, rightPolicy)
+	if leftPreferred != rightPreferred {
+		if leftPreferred {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because its effective policy prefers it and "+comparisonSideID(right.Route)+" is neutral")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because its effective policy prefers it and "+comparisonSideID(left.Route)+" is neutral")
+		}
+		return reasons
+	}
+	if diff := compareRouteType(left.Route.RouteType, right.Route.RouteType); diff != 0 {
+		if diff < 0 {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because route type ordering prefers "+left.Route.RouteType+" over "+right.Route.RouteType)
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because route type ordering prefers "+right.Route.RouteType+" over "+left.Route.RouteType)
+		}
+		return reasons
+	}
+	if diff := compareRouteRole(left.Route.Role, right.Route.Role); diff != 0 {
+		if diff < 0 {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because route role ordering prefers "+left.Route.Role+" over "+right.Route.Role)
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because route role ordering prefers "+right.Route.Role+" over "+left.Route.Role)
+		}
+		return reasons
+	}
+	if diff := strings.Compare(left.Route.PackageID, right.Route.PackageID); diff != 0 {
+		if diff < 0 {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because package ID ordering broke the tie")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because package ID ordering broke the tie")
+		}
+		return reasons
+	}
+	if diff := strings.Compare(left.Route.PackageVersion, right.Route.PackageVersion); diff != 0 {
+		if diff < 0 {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because package version ordering broke the tie")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because package version ordering broke the tie")
+		}
+		return reasons
+	}
+	if len(left.Next) != len(right.Next) {
+		if len(left.Next) < len(right.Next) {
+			reasons = append(reasons, comparisonSideID(left.Route)+" ranked ahead because it has fewer downstream hops")
+		} else {
+			reasons = append(reasons, comparisonSideID(right.Route)+" ranked ahead because it has fewer downstream hops")
+		}
+		return reasons
+	}
+	reasons = append(reasons, "the pair remained tied after all deterministic comparison steps")
+	return reasons
+}
+
+func comparisonSide(route grid.RouteRegistration) RoutePlanComparisonSide {
+	return RoutePlanComparisonSide{
+		PackageID:      route.PackageID,
+		PackageVersion: route.PackageVersion,
+		ProtocolPCID:   route.ProtocolPCID,
+		Role:           route.Role,
+		RouteType:      route.RouteType,
+	}
+}
+
+func comparisonSideID(route grid.RouteRegistration) string {
+	return route.PackageID + ":" + route.Role + ":" + route.RouteType
 }
 
 func compareRouteType(left string, right string) int {

@@ -910,6 +910,9 @@ func TestProtocolRoutePlanPolicyCanOverrideByRoleWithinOneProtocol(t *testing.T)
 	if !plan.Preferred.Explanation.PreferredByPolicy {
 		t.Fatalf("expected preferred route to be marked preferred by policy, got %#v", plan.Preferred.Explanation)
 	}
+	if len(plan.Explanation.Comparisons) == 0 {
+		t.Fatalf("expected pairwise comparisons, got %#v", plan.Explanation)
+	}
 }
 
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
