@@ -101,13 +101,13 @@ func run(ctx context.Context, args []string) error {
 		if args[3] != "show" {
 			return errors.New("usage: relay peer local show")
 		}
-		fmt.Println(runtime.LocalPeerID())
+		fmt.Printf("%s\t%s\n", runtime.LocalPeerID(), runtime.LocalPeerPublicKey())
 		return nil
 	case matchesPrefix(args, "relay", "peer", "list"):
 		return relayPeerList(runtime)
 	case matchesPrefix(args, "relay", "peer", "allow"):
-		if len(args) != 7 {
-			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+		if len(args) != 8 {
+			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
 		}
 		return relayPeerAllow(runtime, args[3:])
 	case matchesPrefix(args, "relay", "peer", "revoke"):
@@ -168,7 +168,11 @@ func packageInspect(runtime *kernel.Runtime, id string) error {
 }
 
 func relayExport(runtime *kernel.Runtime, path string) error {
-	body, err := json.MarshalIndent(runtime.ExportBatch(), "", "  ")
+	batch, err := runtime.SignedExportBatch()
+	if err != nil {
+		return err
+	}
+	body, err := json.MarshalIndent(batch, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -199,7 +203,12 @@ func relayServe(ctx context.Context, runtime *kernel.Runtime, addr string) error
 func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /relay/batch", func(writer http.ResponseWriter, _ *http.Request) {
-		body, err := json.MarshalIndent(runtime.ExportBatch(), "", "  ")
+		batch, err := runtime.SignedExportBatch()
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		body, err := json.MarshalIndent(batch, "", "  ")
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
@@ -271,7 +280,11 @@ func relayPush(ctx context.Context, runtime *kernel.Runtime, peerID string) erro
 	if !ok {
 		return fmt.Errorf("peer not allowed: %s", peerID)
 	}
-	body, err := json.Marshal(runtime.ExportBatch())
+	batch, err := runtime.SignedExportBatch()
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(batch)
 	if err != nil {
 		return err
 	}
@@ -331,24 +344,25 @@ func registerBuiltins(runtime *kernel.Runtime) error {
 
 func relayPeerList(runtime *kernel.Runtime) error {
 	for _, peer := range runtime.AllowedPeers() {
-		fmt.Printf("%s\tpull=%t\tpush=%t\tbatch=%s\timport=%s\n", peer.PeerID, peer.AllowPull, peer.AllowPush, peer.BatchURL, peer.ImportURL)
+		fmt.Printf("%s\tpull=%t\tpush=%t\tbatch=%s\timport=%s\tpub=%s\n", peer.PeerID, peer.AllowPull, peer.AllowPush, peer.BatchURL, peer.ImportURL, peer.PublicKey)
 	}
 	return nil
 }
 
 func relayPeerAllow(runtime *kernel.Runtime, args []string) error {
-	allowPull := args[3] == "pull"
-	allowPush := args[4] == "push"
-	if args[3] != "pull" && args[3] != "no-pull" {
-		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+	allowPull := args[4] == "pull"
+	allowPush := args[5] == "push"
+	if args[4] != "pull" && args[4] != "no-pull" {
+		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
 	}
-	if args[4] != "push" && args[4] != "no-push" {
-		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+	if args[5] != "push" && args[5] != "no-push" {
+		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
 	}
 	return runtime.AllowPeer(grid.AllowedPeer{
 		PeerID:    args[0],
 		BatchURL:  args[1],
 		ImportURL: args[2],
+		PublicKey: args[3],
 		AllowPull: allowPull,
 		AllowPush: allowPush,
 	})

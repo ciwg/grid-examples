@@ -24,6 +24,7 @@ type Batch struct {
 	ExportedAt           string                `json:"exported_at"`
 	ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
 	Records              []json.RawMessage     `json:"records"`
+	Signature            string                `json:"signature,omitempty"`
 }
 
 func (batch Batch) Validate() error {
@@ -74,4 +75,24 @@ func (batch Batch) Validate() error {
 		seenRecords[key] = struct{}{}
 	}
 	return nil
+}
+
+func (batch Batch) SigningBytes() ([]byte, error) {
+	// Intent: Sign a stable view of the current relay batch without inventing a
+	// new wire format so live peers can verify who exported the batch.
+	// Source: DI-zotem
+	signable := struct {
+		Format               string                `json:"format"`
+		Implementation       string                `json:"implementation"`
+		ExportedAt           string                `json:"exported_at"`
+		ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
+		Records              []json.RawMessage     `json:"records"`
+	}{
+		Format:               batch.Format,
+		Implementation:       batch.Implementation,
+		ExportedAt:           batch.ExportedAt,
+		ImplementationClaims: batch.ImplementationClaims,
+		Records:              batch.Records,
+	}
+	return json.Marshal(signable)
 }

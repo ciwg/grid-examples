@@ -26,6 +26,14 @@ Intent: Make multi-peer exchange safer by requiring explicit peer registration a
 Constraints: Keep trust policy explicit and local; no automatic peer discovery; no cryptographic signing layer yet.
 Affects: `grid/peers.go`, `kernel/runtime.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
 
+ID: DI-zotem
+Date: 2026-07-28 19:05:00
+Status: active
+Decision: Add signed relay batches with runtime-owned local key material and required peer public keys for live peer exchange.
+Intent: Make pull/push/import trust stronger than peer-ID matching alone by letting runtimes prove which allowed peer exported a live batch.
+Constraints: Sign the current relay batch as a whole instead of inventing a new wire format; keep trust rooted in explicit local peer registration; leave broader record-level proofs and discovery for later slices.
+Affects: `grid/peers.go`, `grid/batch.go`, `kernel/runtime.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

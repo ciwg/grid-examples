@@ -96,6 +96,7 @@ func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 		PeerID:    "peer-target",
 		BatchURL:  "http://peer-target/relay/batch",
 		ImportURL: "http://peer-target/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: true,
 	}); err != nil {
@@ -127,6 +128,7 @@ func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 		PeerID:    source.LocalPeerID(),
 		BatchURL:  server.URL + "/relay/batch",
 		ImportURL: server.URL + "/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: true,
 	}); err != nil {
@@ -161,6 +163,7 @@ func TestRelayPullImportsFromPeer(t *testing.T) {
 		PeerID:    source.LocalPeerID(),
 		BatchURL:  server.URL + "/relay/batch",
 		ImportURL: server.URL + "/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: false,
 	}); err != nil {
@@ -186,6 +189,7 @@ func TestRelayPushPostsToPeer(t *testing.T) {
 		PeerID:    source.LocalPeerID(),
 		BatchURL:  server.URL + "/relay/batch",
 		ImportURL: server.URL + "/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: true,
 	}); err != nil {
@@ -195,6 +199,7 @@ func TestRelayPushPostsToPeer(t *testing.T) {
 		PeerID:    target.LocalPeerID(),
 		BatchURL:  server.URL + "/relay/batch",
 		ImportURL: server.URL + "/relay/import",
+		PublicKey: target.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: true,
 	}); err != nil {
@@ -210,7 +215,10 @@ func TestRelayPushPostsToPeer(t *testing.T) {
 
 func TestRelayImportRejectsUnknownPeer(t *testing.T) {
 	target := newRuntimeForCLI(t)
-	batch := target.ExportBatch()
+	batch, err := target.SignedExportBatch()
+	if err != nil {
+		t.Fatalf("sign batch: %v", err)
+	}
 	body, err := json.Marshal(batch)
 	if err != nil {
 		t.Fatalf("marshal batch: %v", err)
@@ -237,6 +245,7 @@ func TestRelayPullRejectsUnexpectedPeerIdentity(t *testing.T) {
 		PeerID:    "wrong-peer",
 		BatchURL:  server.URL + "/relay/batch",
 		ImportURL: server.URL + "/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
 		AllowPull: true,
 		AllowPush: false,
 	}); err != nil {
@@ -244,6 +253,39 @@ func TestRelayPullRejectsUnexpectedPeerIdentity(t *testing.T) {
 	}
 	if err := relayPull(context.Background(), target, "wrong-peer"); err == nil {
 		t.Fatal("expected peer identity mismatch")
+	}
+}
+
+func TestRelayPullRejectsBadSignature(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
+		t.Fatalf("seed source runtime: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		batch, err := source.SignedExportBatch()
+		if err != nil {
+			t.Fatalf("sign batch: %v", err)
+		}
+		batch.Signature = "00"
+		if err := json.NewEncoder(writer).Encode(batch); err != nil {
+			t.Fatalf("encode batch: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	target := newRuntimeForCLI(t)
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:    source.LocalPeerID(),
+		BatchURL:  server.URL,
+		ImportURL: server.URL + "/relay/import",
+		PublicKey: source.LocalPeerPublicKey(),
+		AllowPull: true,
+		AllowPush: false,
+	}); err != nil {
+		t.Fatalf("allow target peer: %v", err)
+	}
+	if err := relayPull(context.Background(), target, source.LocalPeerID()); err == nil {
+		t.Fatal("expected signature verification failure")
 	}
 }
 

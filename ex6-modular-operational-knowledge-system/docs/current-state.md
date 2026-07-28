@@ -18,10 +18,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks relay export <path>`
 - `moks relay import <path>`
 - `moks relay serve <addr>`
-- `moks relay pull <url>`
-- `moks relay push <url>`
+- `moks relay pull <peer-id>`
+- `moks relay push <peer-id>`
 - `moks relay peer local show`
-- `moks relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>`
+- `moks relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>`
 - `moks relay peer list`
 - `moks relay peer revoke <peer-id>`
 - package manifest validation
@@ -45,20 +45,22 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - exact-byte relay import dedupe and relay batch metadata validation
 - live HTTP peer exchange on top of the current relay batch shape
 - peer allow rules and peer-identity matching on live relay import
+- runtime-owned local relay keypairs and signed live relay batches
+- peer public-key verification on live relay pull/push/import
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`.
 
 ## Not Implemented
 
 - browser embodiment
 - Neovim embodiment
 - ex5 review/search/operate parity
-- full signing/verification discipline
+- record-level signing and broader proof discipline
 - peer discovery and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
-Source: `DI-moksu`; `DI-lupok`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`.
 
 ## Why The Gap Exists
 

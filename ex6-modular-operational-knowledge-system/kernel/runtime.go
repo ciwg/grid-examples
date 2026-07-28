@@ -178,6 +178,10 @@ func (runtime *Runtime) LocalPeerID() string {
 	return runtime.peers.LocalPeerID()
 }
 
+func (runtime *Runtime) LocalPeerPublicKey() string {
+	return runtime.peers.LocalPublicKey()
+}
+
 func (runtime *Runtime) AllowedPeers() []grid.AllowedPeer {
 	return runtime.peers.AllowedPeers()
 }
@@ -251,6 +255,10 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 	}
 }
 
+func (runtime *Runtime) SignedExportBatch() (grid.Batch, error) {
+	return runtime.peers.SignBatch(runtime.ExportBatch())
+}
+
 func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error {
 	// Intent: Treat the current relay shell as idempotent exact-byte carriage so
 	// repeated imports stop re-appending identical durable records while malformed
@@ -267,8 +275,9 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 }
 
 // Intent: Keep live multi-peer exchange behind explicit allow rules and reject
-// batches whose claimed peer identity does not match the configured peer entry.
-// Source: DI-rupem
+// batches whose claimed peer identity or signature does not match the allowed
+// peer entry.
+// Source: DI-zotem
 func (runtime *Runtime) ImportBatchFromPeer(ctx context.Context, peerID string, batch grid.Batch, direction string) error {
 	if strings.TrimSpace(peerID) == "" {
 		return errors.New("peer id is required")
@@ -291,6 +300,9 @@ func (runtime *Runtime) ImportBatchFromPeer(ctx context.Context, peerID string, 
 	}
 	if batch.Implementation != peerID {
 		return fmt.Errorf("batch implementation %s does not match peer %s", batch.Implementation, peerID)
+	}
+	if err := runtime.peers.VerifyPeerBatch(peerID, batch); err != nil {
+		return err
 	}
 	return runtime.ImportBatch(ctx, batch)
 }
