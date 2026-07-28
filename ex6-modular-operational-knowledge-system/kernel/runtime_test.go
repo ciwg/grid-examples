@@ -703,6 +703,15 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if plan.Preferred.Next[0].Preferred.Route.ProtocolPCID != "pcid:moks.parsed.v1" {
 		t.Fatalf("unexpected downstream preferred route: %#v", plan.Preferred.Next[0].Preferred)
 	}
+	if len(plan.Preferred.Explanation.Downstream) != 1 {
+		t.Fatalf("expected one downstream explanation, got %#v", plan.Preferred.Explanation)
+	}
+	if !plan.Preferred.Explanation.Downstream[0].Executable {
+		t.Fatalf("expected executable downstream explanation, got %#v", plan.Preferred.Explanation.Downstream[0])
+	}
+	if plan.Preferred.Explanation.Downstream[0].PreferredRoute == "" {
+		t.Fatalf("expected downstream preferred route summary, got %#v", plan.Preferred.Explanation.Downstream[0])
+	}
 }
 
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {

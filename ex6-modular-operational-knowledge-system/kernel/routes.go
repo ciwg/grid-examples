@@ -43,13 +43,23 @@ type RoutePlanComparisonSide struct {
 }
 
 type RoutePlanCandidateExplanation struct {
-	GlobalPolicy      grid.RoutePlanPolicy  `json:"global_policy"`
-	ProtocolPolicy    *grid.RoutePlanPolicy `json:"protocol_policy,omitempty"`
-	RolePolicy        *grid.RoutePlanPolicy `json:"role_policy,omitempty"`
-	EffectivePolicy   grid.RoutePlanPolicy  `json:"effective_policy"`
-	PreferredByPolicy bool                  `json:"preferred_by_policy"`
-	AvoidedByPolicy   bool                  `json:"avoided_by_policy"`
-	Notes             []string              `json:"notes,omitempty"`
+	GlobalPolicy      grid.RoutePlanPolicy             `json:"global_policy"`
+	ProtocolPolicy    *grid.RoutePlanPolicy            `json:"protocol_policy,omitempty"`
+	RolePolicy        *grid.RoutePlanPolicy            `json:"role_policy,omitempty"`
+	EffectivePolicy   grid.RoutePlanPolicy             `json:"effective_policy"`
+	PreferredByPolicy bool                             `json:"preferred_by_policy"`
+	AvoidedByPolicy   bool                             `json:"avoided_by_policy"`
+	Downstream        []RoutePlanDownstreamExplanation `json:"downstream,omitempty"`
+	Notes             []string                         `json:"notes,omitempty"`
+}
+
+type RoutePlanDownstreamExplanation struct {
+	ProtocolPCID   string                `json:"protocol_pcid"`
+	Executable     bool                  `json:"executable"`
+	PreferredRoute string                `json:"preferred_route,omitempty"`
+	Winner         []string              `json:"winner,omitempty"`
+	Comparisons    []RoutePlanComparison `json:"comparisons,omitempty"`
+	Notes          []string              `json:"notes,omitempty"`
 }
 
 type registeredRoute struct {
@@ -299,6 +309,7 @@ func (runtime *Runtime) explainRoutePlanCandidate(protocolPCID string, candidate
 	if hasRolePolicy {
 		explanation.RolePolicy = &rolePolicy
 	}
+	explanation.Downstream = explainDownstreamPlans(candidate.Next)
 	explanation.Notes = routeExecutabilityNotes(candidate)
 	if explanation.PreferredByPolicy {
 		explanation.Notes = append(explanation.Notes, "effective policy prefers this route's type or role")
@@ -310,6 +321,33 @@ func (runtime *Runtime) explainRoutePlanCandidate(protocolPCID string, candidate
 		explanation.Notes = append(explanation.Notes, "effective policy is neutral for this route")
 	}
 	return explanation
+}
+
+// Intent: Make multi-hop route plans readable end to end by summarizing how
+// each downstream emitted protocol resolved, including its nested winner and
+// pairwise comparison detail. Source: DI-povak
+func explainDownstreamPlans(next []RoutePlan) []RoutePlanDownstreamExplanation {
+	out := []RoutePlanDownstreamExplanation{}
+	for _, plan := range next {
+		explanation := RoutePlanDownstreamExplanation{
+			ProtocolPCID: plan.ProtocolPCID,
+			Executable:   plan.Preferred != nil,
+		}
+		if plan.Preferred != nil {
+			explanation.PreferredRoute = comparisonSideID(plan.Preferred.Route)
+		}
+		if plan.Explanation != nil {
+			explanation.Winner = append([]string{}, plan.Explanation.Winner...)
+			explanation.Comparisons = append([]RoutePlanComparison{}, plan.Explanation.Comparisons...)
+		}
+		if plan.Preferred == nil {
+			explanation.Notes = append(explanation.Notes, "no executable downstream route was available")
+		} else {
+			explanation.Notes = append(explanation.Notes, "downstream protocol resolved to a preferred nested route")
+		}
+		out = append(out, explanation)
+	}
+	return out
 }
 
 func routeExecutabilityNotes(candidate RoutePlanCandidate) []string {

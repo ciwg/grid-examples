@@ -89,3 +89,11 @@ Decision: Extend route-plan introspection with pairwise comparison detail for ev
 Intent: Let operators inspect the full ordering logic across the whole candidate set instead of only seeing the final winner explanation.
 Constraints: Keep comparison output deterministic and derived only from the current planner rules; do not execute routes; keep the comparison explanation inside the existing `route plan` JSON surface.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-povak
+Date: 2026-07-28 11:02:06
+Status: active
+Decision: Add explicit downstream-plan explanation summaries to parser and transform candidates so multi-hop route plans expose nested preferred routes and downstream winner reasons end to end.
+Intent: Let operators understand not just that a parser/transform route depends on downstream protocols, but exactly how those downstream plans resolved.
+Constraints: Reuse the existing recursive route-plan structure; do not execute routes; keep downstream explanations deterministic and derived from the nested route plans already built by the planner.
+Affects: `kernel/routes.go`, tests, and routing docs.
