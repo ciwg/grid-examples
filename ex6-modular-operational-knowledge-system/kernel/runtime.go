@@ -245,16 +245,21 @@ func (runtime *Runtime) ExportBatch() (grid.Batch, error) {
 	for _, entry := range entries {
 		rawRecords = append(rawRecords, append(json.RawMessage{}, entry.Raw...))
 	}
+	claims := runtime.ImplementationClaims()
+	claimProofs, err := runtime.peers.SignClaims(claims)
+	if err != nil {
+		return grid.Batch{}, err
+	}
 	recordSignatures, err := runtime.peers.SignRecords(rawRecords)
 	if err != nil {
 		return grid.Batch{}, err
 	}
-	claims := runtime.ImplementationClaims()
 	return grid.Batch{
 		Format:               grid.RelayBatchFormat,
 		Implementation:       runtime.LocalPeerID(),
 		ExportedAt:           time.Now().UTC().Format(time.RFC3339),
 		ImplementationClaims: claims,
+		ClaimProofs:          claimProofs,
 		Records:              rawRecords,
 		RecordProofs:         grid.ProofsForRecords(rawRecords),
 		RecordSignatures:     recordSignatures,
@@ -279,6 +284,15 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 	// Intent: Verify per-record digests before durable import so receivers can
 	// reject tampered relay contents even when they do not yet understand the
 	// record family semantics. Source: DI-zumep
+	if err := batch.VerifyClaimProofs(); err != nil {
+		return err
+	}
+	// Intent: Verify exported implementation claims against the exporting peer's
+	// key material before treating those claims as trustworthy batch metadata.
+	// Source: DI-luzef
+	if err := runtime.peers.VerifyClaimProofs(batch); err != nil {
+		return err
+	}
 	if err := batch.VerifyRecordProofs(); err != nil {
 		return err
 	}

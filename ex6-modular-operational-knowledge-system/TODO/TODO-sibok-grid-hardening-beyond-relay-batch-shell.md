@@ -74,6 +74,14 @@ Intent: Move durable trust deeper than batch-level signatures by letting receive
 Constraints: These signatures attest relay carriage, not semantic authorship; keep the layer additive to the current batch format; leave claim-level proofs and author-level record signatures for later.
 Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
 
+ID: DI-luzef
+Date: 2026-07-28 20:50:00
+Status: active
+Decision: Add claim-level proofs by having the exporting peer sign each implementation claim it advertises in a relay batch.
+Intent: Make implementation claims trustworthy batch metadata instead of unsigned declarations, while keeping the trust root explicit and local to the exporting peer identity.
+Constraints: These proofs attest what the exporting peer claims to implement, not a global truth about the package; keep the layer additive to the current batch format; leave third-party attestation and richer claim semantics for later.
+Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

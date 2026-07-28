@@ -199,6 +199,25 @@ func (store *PeerStore) SignRecords(records []json.RawMessage) ([]RecordSignatur
 	return signatures, nil
 }
 
+func (store *PeerStore) SignClaims(claims []ImplementationClaim) ([]ClaimProof, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	proofs := make([]ClaimProof, 0, len(claims))
+	for _, claim := range claims {
+		signingBytes := ClaimSigningBytes(claim)
+		proofs = append(proofs, ClaimProof{
+			SignerPeerID: store.config.LocalPeerID,
+			PublicKey:    store.config.LocalPublicKey,
+			Signature:    hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), signingBytes)),
+		})
+	}
+	return proofs, nil
+}
+
 func (store *PeerStore) VerifyPeerBatch(peerID string, batch Batch) error {
 	// Intent: Keep live relay trust rooted in explicit peer registration by
 	// verifying each batch against the allowed peer's configured public key.
@@ -256,6 +275,35 @@ func (store *PeerStore) VerifyRecordSignatures(batch Batch) error {
 		}
 		if !ed25519.Verify(ed25519.PublicKey(publicKey), RecordSigningBytes(batch.Records[index]), sigBytes) {
 			return fmt.Errorf("record signature verification failed at index %d", index)
+		}
+	}
+	return nil
+}
+
+func (store *PeerStore) VerifyClaimProofs(batch Batch) error {
+	// Intent: Verify each advertised implementation claim against the exporting
+	// peer's key material so claim metadata is not just unsigned batch content.
+	// Source: DI-luzef
+	if len(batch.ClaimProofs) == 0 {
+		return nil
+	}
+	if len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
+		return errors.New("claim_proofs must match implementation_claims length")
+	}
+	for index, proof := range batch.ClaimProofs {
+		if peerIDFromPublicKey(proof.PublicKey) != proof.SignerPeerID {
+			return fmt.Errorf("claim proof signer mismatch at index %d", index)
+		}
+		publicKey, err := hex.DecodeString(proof.PublicKey)
+		if err != nil {
+			return err
+		}
+		sigBytes, err := hex.DecodeString(proof.Signature)
+		if err != nil {
+			return err
+		}
+		if !ed25519.Verify(ed25519.PublicKey(publicKey), ClaimSigningBytes(batch.ImplementationClaims[index]), sigBytes) {
+			return fmt.Errorf("claim proof verification failed at index %d", index)
 		}
 	}
 	return nil

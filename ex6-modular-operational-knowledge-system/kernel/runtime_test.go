@@ -473,6 +473,9 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	if len(batch.RecordProofs) != len(batch.Records) {
 		t.Fatalf("expected record proofs to match records, got %d proofs for %d records", len(batch.RecordProofs), len(batch.Records))
 	}
+	if len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
+		t.Fatalf("expected claim proofs to match claims, got %d proofs for %d claims", len(batch.ClaimProofs), len(batch.ImplementationClaims))
+	}
 	if len(batch.RecordSignatures) != len(batch.Records) {
 		t.Fatalf("expected record signatures to match records, got %d signatures for %d records", len(batch.RecordSignatures), len(batch.Records))
 	}
@@ -548,6 +551,32 @@ func TestImportBatchRejectsRecordSignatureMismatch(t *testing.T) {
 	}
 	if len(runtime.History()) != 0 {
 		t.Fatalf("expected no history on signature mismatch, got %d", len(runtime.History()))
+	}
+}
+
+func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		ImplementationClaims: []grid.ImplementationClaim{
+			{PackageID: "helper-egg", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
+		},
+		ClaimProofs: []grid.ClaimProof{{
+			SignerPeerID: "peer-deadbeef",
+			PublicKey:    "deadbeef",
+			Signature:    "deadbeef",
+		}},
+		Records:      []json.RawMessage{raw},
+		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected claim proof mismatch rejection")
+	}
+	if len(runtime.History()) != 0 {
+		t.Fatalf("expected no history on claim proof mismatch, got %d", len(runtime.History()))
 	}
 }
 

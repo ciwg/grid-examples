@@ -25,6 +25,12 @@ type RecordProof struct {
 	Digest string `json:"digest"`
 }
 
+type ClaimProof struct {
+	SignerPeerID string `json:"signer_peer_id"`
+	PublicKey    string `json:"public_key"`
+	Signature    string `json:"signature"`
+}
+
 type RecordSignature struct {
 	SignerPeerID string `json:"signer_peer_id"`
 	PublicKey    string `json:"public_key"`
@@ -36,6 +42,7 @@ type Batch struct {
 	Implementation       string                `json:"implementation"`
 	ExportedAt           string                `json:"exported_at"`
 	ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
+	ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 	Records              []json.RawMessage     `json:"records"`
 	RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 	RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
@@ -74,6 +81,20 @@ func (batch Batch) Validate() error {
 			return fmt.Errorf("duplicate implementation claim: %s", key)
 		}
 		seenClaims[key] = struct{}{}
+	}
+	if len(batch.ClaimProofs) > 0 && len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
+		return errors.New("claim_proofs must match implementation_claims length")
+	}
+	for _, proof := range batch.ClaimProofs {
+		if strings.TrimSpace(proof.SignerPeerID) == "" {
+			return errors.New("claim proof signer_peer_id is required")
+		}
+		if strings.TrimSpace(proof.PublicKey) == "" {
+			return errors.New("claim proof public_key is required")
+		}
+		if strings.TrimSpace(proof.Signature) == "" {
+			return errors.New("claim proof signature is required")
+		}
 	}
 	if len(batch.Records) == 0 {
 		return errors.New("batch records are required")
@@ -123,6 +144,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		Implementation       string                `json:"implementation"`
 		ExportedAt           string                `json:"exported_at"`
 		ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
+		ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 		Records              []json.RawMessage     `json:"records"`
 		RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 		RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
@@ -131,11 +153,20 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		Implementation:       batch.Implementation,
 		ExportedAt:           batch.ExportedAt,
 		ImplementationClaims: batch.ImplementationClaims,
+		ClaimProofs:          batch.ClaimProofs,
 		Records:              batch.Records,
 		RecordProofs:         batch.RecordProofs,
 		RecordSignatures:     batch.RecordSignatures,
 	}
 	return json.Marshal(signable)
+}
+
+func ClaimSigningBytes(claim ImplementationClaim) []byte {
+	body, err := json.Marshal(claim)
+	if err != nil {
+		return []byte(claim.PackageID + "\x00" + claim.PackageVersion + "\x00" + claim.ProtocolPCID + "\x00" + claim.Role + "\x00" + claim.Summary)
+	}
+	return body
 }
 
 func ProofForRecord(raw json.RawMessage) RecordProof {
@@ -167,6 +198,19 @@ func (batch Batch) VerifyRecordProofs() error {
 		if batch.RecordProofs[index].Digest != expected.Digest {
 			return fmt.Errorf("record proof mismatch at index %d", index)
 		}
+	}
+	return nil
+}
+
+func (batch Batch) VerifyClaimProofs() error {
+	// Intent: Carry per-claim proofs so receivers can verify that the exporting
+	// peer actually signed the implementation claims it is advertising.
+	// Source: DI-luzef
+	if len(batch.ClaimProofs) == 0 {
+		return nil
+	}
+	if len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
+		return errors.New("claim_proofs must match implementation_claims length")
 	}
 	return nil
 }
