@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
@@ -60,6 +61,7 @@ type RoutePlanTraceFilter struct {
 type RoutePlanTraceSummary struct {
 	ProtocolPCID string                `json:"protocol_pcid"`
 	Scope        string                `json:"scope"`
+	HopPath      string                `json:"hop_path,omitempty"`
 	TotalSteps   int                   `json:"total_steps"`
 	ShownSteps   int                   `json:"shown_steps"`
 	HiddenSteps  int                   `json:"hidden_steps"`
@@ -156,7 +158,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
 	plan.Explanation.DownstreamTraceSummaries = collectDownstreamTraceSummaries(plan)
 	return plan
 }
@@ -168,7 +170,7 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	}
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", fullTrace, plan.Explanation.Trace, filter)
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", fullTrace, plan.Explanation.Trace, filter)
 	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, filter)
 	return plan
 }
@@ -247,7 +249,7 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 			Kind:   "downstream",
 			Target: protocolPCID,
 		})
-		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
+		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
 	}
 	return plan
 }
@@ -397,31 +399,28 @@ func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
 // operators can see each downstream scope directly in traced route-plan output.
 // Source: DI-rukav
 func collectDownstreamTraceSummaries(plan RoutePlan) []RoutePlanTraceSummary {
-	seen := map[string]struct{}{}
 	out := []RoutePlanTraceSummary{}
-	collectDownstreamTraceSummariesFromCandidates(plan.Candidates, seen, &out)
+	collectDownstreamTraceSummariesFromCandidates(plan.Candidates, "root", &out)
 	slices.SortFunc(out, func(left, right RoutePlanTraceSummary) int {
-		if diff := strings.Compare(left.ProtocolPCID, right.ProtocolPCID); diff != 0 {
+		if diff := strings.Compare(left.HopPath, right.HopPath); diff != 0 {
 			return diff
 		}
-		return strings.Compare(left.Scope, right.Scope)
+		return strings.Compare(left.ProtocolPCID, right.ProtocolPCID)
 	})
 	return out
 }
 
-func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandidate, seen map[string]struct{}, out *[]RoutePlanTraceSummary) {
-	for _, candidate := range candidates {
-		for _, next := range candidate.Next {
+func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandidate, pathPrefix string, out *[]RoutePlanTraceSummary) {
+	for candidateIndex, candidate := range candidates {
+		for nextIndex, next := range candidate.Next {
+			hopPath := downstreamHopPath(pathPrefix, candidate.Route, candidateIndex, next.ProtocolPCID, nextIndex)
 			if next.Explanation != nil && next.Explanation.TraceSummary != nil {
 				summary := *next.Explanation.TraceSummary
 				summary.Scope = "downstream"
-				key := summary.ProtocolPCID + "|" + summary.Scope
-				if _, exists := seen[key]; !exists {
-					seen[key] = struct{}{}
-					*out = append(*out, summary)
-				}
+				summary.HopPath = hopPath
+				*out = append(*out, summary)
 			}
-			collectDownstreamTraceSummariesFromCandidates(next.Candidates, seen, out)
+			collectDownstreamTraceSummariesFromCandidates(next.Candidates, hopPath, out)
 		}
 	}
 }
@@ -449,10 +448,11 @@ func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter Ro
 // Intent: Keep filtered route traces honest and scoped by showing which
 // protocol hop the summary describes, whether it is root or downstream, and
 // how many planner steps remain after filtering. Source: DI-zafek
-func traceSummary(protocolPCID string, scope string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
+func traceSummary(protocolPCID string, scope string, hopPath string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
 	summary := &RoutePlanTraceSummary{
 		ProtocolPCID: protocolPCID,
 		Scope:        scope,
+		HopPath:      hopPath,
 		TotalSteps:   len(full),
 		ShownSteps:   len(shown),
 		HiddenSteps:  len(full) - len(shown),
@@ -462,6 +462,17 @@ func traceSummary(protocolPCID string, scope string, full []RoutePlanTraceStep, 
 		summary.Filter = &filterCopy
 	}
 	return summary
+}
+
+// Intent: Give each downstream summary a stable path label so repeated hops to
+// the same protocol remain distinguishable in traced route-plan output.
+// Source: DI-vatuk
+func downstreamHopPath(pathPrefix string, route grid.RouteRegistration, candidateIndex int, protocolPCID string, nextIndex int) string {
+	return pathPrefix +
+		" > " + comparisonSideID(route) +
+		"#" + strconv.Itoa(candidateIndex+1) +
+		" > " + protocolPCID +
+		"#" + strconv.Itoa(nextIndex+1)
 }
 
 func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {
@@ -563,7 +574,7 @@ func (runtime *Runtime) explainRoutePlanCandidate(protocolPCID string, candidate
 	if hasRolePolicy {
 		explanation.RolePolicy = &rolePolicy
 	}
-	explanation.Downstream = explainDownstreamPlans(candidate.Next)
+	explanation.Downstream = explainDownstreamPlans(candidate.Route, candidate.Next)
 	explanation.Notes = routeExecutabilityNotes(candidate)
 	if explanation.PreferredByPolicy {
 		explanation.Notes = append(explanation.Notes, "effective policy prefers this route's type or role")
@@ -580,9 +591,9 @@ func (runtime *Runtime) explainRoutePlanCandidate(protocolPCID string, candidate
 // Intent: Make multi-hop route plans readable end to end by summarizing how
 // each downstream emitted protocol resolved, including its nested winner and
 // pairwise comparison detail. Source: DI-povak
-func explainDownstreamPlans(next []RoutePlan) []RoutePlanDownstreamExplanation {
+func explainDownstreamPlans(route grid.RouteRegistration, next []RoutePlan) []RoutePlanDownstreamExplanation {
 	out := []RoutePlanDownstreamExplanation{}
-	for _, plan := range next {
+	for index, plan := range next {
 		explanation := RoutePlanDownstreamExplanation{
 			ProtocolPCID: plan.ProtocolPCID,
 			Executable:   plan.Preferred != nil,
@@ -594,6 +605,7 @@ func explainDownstreamPlans(next []RoutePlan) []RoutePlanDownstreamExplanation {
 			if plan.Explanation.TraceSummary != nil {
 				traceSummary := *plan.Explanation.TraceSummary
 				traceSummary.Scope = "downstream"
+				traceSummary.HopPath = downstreamHopPath("root", route, 0, plan.ProtocolPCID, index)
 				explanation.TraceSummary = &traceSummary
 			}
 			explanation.Winner = append([]string{}, plan.Explanation.Winner...)

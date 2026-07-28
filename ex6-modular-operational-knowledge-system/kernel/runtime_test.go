@@ -722,11 +722,17 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if tracePlan.Explanation.TraceSummary.Scope != "root" || tracePlan.Explanation.TraceSummary.ProtocolPCID != "pcid:moks.raw.v1" {
 		t.Fatalf("expected root trace summary scope metadata, got %#v", tracePlan.Explanation.TraceSummary)
 	}
+	if tracePlan.Explanation.TraceSummary.HopPath != "root" {
+		t.Fatalf("expected root trace summary hop path, got %#v", tracePlan.Explanation.TraceSummary)
+	}
 	if len(tracePlan.Explanation.DownstreamTraceSummaries) != 1 {
 		t.Fatalf("expected one top-level downstream trace summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
 	if tracePlan.Explanation.DownstreamTraceSummaries[0].Scope != "downstream" || tracePlan.Explanation.DownstreamTraceSummaries[0].ProtocolPCID != "pcid:moks.parsed.v1" {
 		t.Fatalf("expected top-level downstream trace summary scope metadata, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
+	}
+	if tracePlan.Explanation.DownstreamTraceSummaries[0].HopPath != "root > parser-agent:parser:parser#1 > pcid:moks.parsed.v1#1" {
+		t.Fatalf("expected top-level downstream trace summary hop path, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
 	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
 		Kind:   "downstream",
@@ -746,6 +752,80 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.Scope != "downstream" || tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.ProtocolPCID != "pcid:moks.parsed.v1" {
 		t.Fatalf("expected downstream trace summary scope metadata, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
+	}
+	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopPath != "root > parser-agent:parser:parser#1 > pcid:moks.parsed.v1#1" {
+		t.Fatalf("expected downstream trace summary hop path, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
+	}
+}
+
+func TestProtocolRoutePlanTraceKeepsRepeatedDownstreamProtocolsDistinct(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	alphaParser := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "alpha-parser",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.multi.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.shared.v1"},
+					Summary:        "Parses multi envelopes via alpha path.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	betaParser := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "beta-parser",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.multi.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.shared.v1"},
+					Summary:        "Parses multi envelopes via beta path.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.shared.v1",
+					Role:         "handler",
+					Summary:      "Handles shared parsed envelopes.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(alphaParser); err != nil {
+		t.Fatalf("register alpha parser: %v", err)
+	}
+	if err := runtime.RegisterBuiltin(betaParser); err != nil {
+		t.Fatalf("register beta parser: %v", err)
+	}
+	tracePlan := runtime.ProtocolRoutePlanTrace("pcid:moks.multi.v1")
+	if tracePlan.Explanation == nil {
+		t.Fatalf("expected trace explanation, got %#v", tracePlan)
+	}
+	if len(tracePlan.Explanation.DownstreamTraceSummaries) != 2 {
+		t.Fatalf("expected two downstream trace summaries, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
+	}
+	first := tracePlan.Explanation.DownstreamTraceSummaries[0]
+	second := tracePlan.Explanation.DownstreamTraceSummaries[1]
+	if first.ProtocolPCID != "pcid:moks.shared.v1" || second.ProtocolPCID != "pcid:moks.shared.v1" {
+		t.Fatalf("expected repeated shared downstream protocol, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
+	}
+	if first.HopPath == second.HopPath {
+		t.Fatalf("expected distinct hop paths for repeated downstream protocol, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
 }
 

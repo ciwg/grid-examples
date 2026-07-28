@@ -159,6 +159,9 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	if !strings.Contains(output, `"scope": "root"`) || !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
 		t.Fatalf("route plan trace missing scope metadata: %s", output)
 	}
+	if !strings.Contains(output, `"hop_path": "root"`) {
+		t.Fatalf("route plan trace missing root hop path: %s", output)
+	}
 }
 
 func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {

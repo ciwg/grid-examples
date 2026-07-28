@@ -137,3 +137,11 @@ Decision: Add top-level downstream trace summaries to traced route-plan output s
 Intent: Let operators see separate downstream-hop trace summaries without having to drill into candidate explanation blocks.
 Constraints: Reuse recursive traced subplans; keep the existing root trace summary; do not change planner execution or remove downstream summaries from candidate explanations.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-vatuk
+Date: 2026-07-28 11:19:10
+Status: active
+Decision: Add stable hop-path labels to route trace summaries and use them to distinguish repeated downstream hops that share the same `protocol_pcid`.
+Intent: Let operators tell same-protocol downstream hops apart in traced route-plan output.
+Constraints: Keep the current protocol and scope metadata; preserve deterministic ordering; do not change planner execution.
+Affects: `kernel/routes.go`, tests, and routing docs.
