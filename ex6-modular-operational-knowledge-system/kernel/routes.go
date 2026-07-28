@@ -53,9 +53,13 @@ type RoutePlanTraceStep struct {
 	Details  []string `json:"details,omitempty"`
 }
 
-type RoutePlanTraceFilter struct {
+type RoutePlanTraceFilterClause struct {
 	Kind   string `json:"kind,omitempty"`
 	Target string `json:"target,omitempty"`
+}
+
+type RoutePlanTraceFilter struct {
+	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
 }
 
 type RoutePlanTraceSummary struct {
@@ -249,8 +253,9 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		// downstream explanations can say which protocol scope they describe
 		// without flattening everything into the root summary. Source: DI-zafek
 		scopedTrace := filterRoutePlanTrace(trace.steps, RoutePlanTraceFilter{
-			Kind:   "downstream",
-			Target: protocolPCID,
+			Clauses: []RoutePlanTraceFilterClause{
+				{Kind: "downstream", Target: protocolPCID},
+			},
 		})
 		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", 0, 0, scopedTrace, scopedTrace, RoutePlanTraceFilter{})
 	}
@@ -357,31 +362,43 @@ func boolString(value bool) string {
 // operators focus on one candidate path or one downstream protocol without
 // changing the underlying planner behavior. Source: DI-dovak
 func filterRoutePlanTrace(steps []RoutePlanTraceStep, filter RoutePlanTraceFilter) []RoutePlanTraceStep {
-	kind := strings.TrimSpace(filter.Kind)
-	target := strings.TrimSpace(filter.Target)
-	if kind == "" || target == "" {
+	if len(filter.Clauses) == 0 {
 		return steps
 	}
 	filtered := []RoutePlanTraceStep{}
 	for _, step := range steps {
-		switch kind {
-		case "candidate":
-			if stepMatchesCandidate(step, target) {
-				filtered = append(filtered, step)
-			}
-		case "downstream":
-			if step.Protocol == target {
-				filtered = append(filtered, step)
-			}
-		case "depth":
-			if stepMatchesDepth(step, target) {
-				filtered = append(filtered, step)
-			}
-		default:
-			return steps
+		if stepMatchesFilter(step, filter) {
+			filtered = append(filtered, step)
 		}
 	}
 	return renumberTraceSteps(filtered)
+}
+
+func stepMatchesFilter(step RoutePlanTraceStep, filter RoutePlanTraceFilter) bool {
+	for _, clause := range filter.Clauses {
+		kind := strings.TrimSpace(clause.Kind)
+		target := strings.TrimSpace(clause.Target)
+		if kind == "" || target == "" {
+			return true
+		}
+		switch kind {
+		case "candidate":
+			if !stepMatchesCandidate(step, target) {
+				return false
+			}
+		case "downstream":
+			if step.Protocol != target {
+				return false
+			}
+		case "depth":
+			if !stepMatchesDepth(step, target) {
+				return false
+			}
+		default:
+			return true
+		}
+	}
+	return true
 }
 
 func stepMatchesCandidate(step RoutePlanTraceStep, target string) bool {
@@ -497,27 +514,43 @@ func assignHopIndices(summaries []RoutePlanTraceSummary) {
 }
 
 func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter RoutePlanTraceFilter) []RoutePlanTraceSummary {
-	kind := strings.TrimSpace(filter.Kind)
-	target := strings.TrimSpace(filter.Target)
-	if kind == "" || target == "" {
+	if len(filter.Clauses) == 0 {
 		return summaries
 	}
 	filtered := []RoutePlanTraceSummary{}
 	for _, summary := range summaries {
-		switch kind {
-		case "downstream":
-			if summary.ProtocolPCID == target {
-				filtered = append(filtered, summary)
-			}
-		case "depth":
-			if summaryMatchesDepth(summary, target) {
-				filtered = append(filtered, summary)
-			}
-		default:
+		if summaryMatchesFilter(summary, filter) {
 			filtered = append(filtered, summary)
 		}
 	}
 	return filtered
+}
+
+func summaryMatchesFilter(summary RoutePlanTraceSummary, filter RoutePlanTraceFilter) bool {
+	for _, clause := range filter.Clauses {
+		kind := strings.TrimSpace(clause.Kind)
+		target := strings.TrimSpace(clause.Target)
+		if kind == "" || target == "" {
+			return true
+		}
+		switch kind {
+		case "downstream":
+			if summary.ProtocolPCID != target {
+				return false
+			}
+		case "depth":
+			if !summaryMatchesDepth(summary, target) {
+				return false
+			}
+		case "candidate":
+			if !strings.Contains(summary.HopPath, target) && !strings.Contains(summary.HopSummary, target) {
+				return false
+			}
+		default:
+			return true
+		}
+	}
+	return true
 }
 
 func summaryMatchesDepth(summary RoutePlanTraceSummary, target string) bool {
@@ -546,8 +579,10 @@ func traceSummary(protocolPCID string, scope string, hopPath string, hopSummary 
 		ShownSteps:   len(shown),
 		HiddenSteps:  len(full) - len(shown),
 	}
-	if strings.TrimSpace(filter.Kind) != "" && strings.TrimSpace(filter.Target) != "" {
-		filterCopy := filter
+	if len(filter.Clauses) > 0 {
+		filterCopy := RoutePlanTraceFilter{
+			Clauses: append([]RoutePlanTraceFilterClause{}, filter.Clauses...),
+		}
 		summary.Filter = &filterCopy
 	}
 	return summary

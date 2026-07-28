@@ -98,26 +98,36 @@ func run(ctx context.Context, args []string) error {
 		}
 		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
-		if len(args) != 3 && len(args) != 4 && len(args) != 6 {
-			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
+		if len(args) != 3 && len(args) != 4 && len(args) < 6 {
+			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>] ...]")
 		}
 		trace := false
 		filter := kernel.RoutePlanTraceFilter{}
 		if len(args) == 4 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>] ...]")
 			}
 			trace = true
 		}
-		if len(args) == 6 {
+		if len(args) >= 6 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>] ...]")
 			}
-			if args[4] != "candidate" && args[4] != "downstream" && args[4] != "depth" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
+			if len(args[4:])%2 != 0 {
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>] ...]")
 			}
 			trace = true
-			filter = kernel.RoutePlanTraceFilter{Kind: args[4], Target: args[5]}
+			clauses := []kernel.RoutePlanTraceFilterClause{}
+			for index := 4; index < len(args); index += 2 {
+				if args[index] != "candidate" && args[index] != "downstream" && args[index] != "depth" {
+					return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>] ...]")
+				}
+				clauses = append(clauses, kernel.RoutePlanTraceFilterClause{
+					Kind:   args[index],
+					Target: args[index+1],
+				})
+			}
+			filter = kernel.RoutePlanTraceFilter{Clauses: clauses}
 		}
 		return routePlan(runtime, args[2], trace, filter)
 	case matchesPrefix(args, "route", "inspect"):

@@ -195,6 +195,17 @@ func TestRoutePlanTraceCanFocusOnDepth(t *testing.T) {
 	}
 }
 
+func TestRoutePlanTraceCanCombineFilters(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "depth", "0", "candidate", "context:family-validator:direct")
+	if err != nil {
+		t.Fatalf("route plan trace combined filters: %v", err)
+	}
+	if !strings.Contains(output, `"clauses"`) || !strings.Contains(output, `"kind": "depth"`) || !strings.Contains(output, `"kind": "candidate"`) {
+		t.Fatalf("combined trace filter missing clauses: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

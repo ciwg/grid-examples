@@ -747,8 +747,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 		t.Fatalf("expected top-level downstream trace summary depth/index, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
 	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
-		Kind:   "downstream",
-		Target: "pcid:moks.parsed.v1",
+		Clauses: []kernel.RoutePlanTraceFilterClause{
+			{Kind: "downstream", Target: "pcid:moks.parsed.v1"},
+		},
 	})
 	if focusedTrace.Explanation == nil || len(focusedTrace.Explanation.Trace) == 0 {
 		t.Fatalf("expected focused downstream trace, got %#v", focusedTrace.Explanation)
@@ -895,18 +896,75 @@ func TestProtocolRoutePlanTraceCanFilterByDepth(t *testing.T) {
 		t.Fatalf("register nested parser: %v", err)
 	}
 	depthOne := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.depth.root.v1", kernel.RoutePlanTraceFilter{
-		Kind:   "depth",
-		Target: "1",
+		Clauses: []kernel.RoutePlanTraceFilterClause{
+			{Kind: "depth", Target: "1"},
+		},
 	})
 	if len(depthOne.Explanation.DownstreamTraceSummaries) != 1 || depthOne.Explanation.DownstreamTraceSummaries[0].HopDepth != 1 {
 		t.Fatalf("expected only depth-1 summaries, got %#v", depthOne.Explanation.DownstreamTraceSummaries)
 	}
 	depthTwoPlus := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.depth.root.v1", kernel.RoutePlanTraceFilter{
-		Kind:   "depth",
-		Target: "2+",
+		Clauses: []kernel.RoutePlanTraceFilterClause{
+			{Kind: "depth", Target: "2+"},
+		},
 	})
 	if len(depthTwoPlus.Explanation.DownstreamTraceSummaries) != 1 || depthTwoPlus.Explanation.DownstreamTraceSummaries[0].HopDepth != 2 {
 		t.Fatalf("expected only depth-2+ summaries, got %#v", depthTwoPlus.Explanation.DownstreamTraceSummaries)
+	}
+}
+
+func TestProtocolRoutePlanTraceCanCombineFilters(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	nested := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "combined-parser",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.combined.root.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.combined.mid.v1"},
+					Summary:        "Root parser.",
+				},
+				{
+					ProtocolPCID:   "pcid:moks.combined.mid.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.combined.leaf.v1"},
+					Summary:        "Mid parser.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.combined.leaf.v1",
+					Role:         "handler",
+					Summary:      "Leaf handler.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(nested); err != nil {
+		t.Fatalf("register combined parser: %v", err)
+	}
+	filtered := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.combined.root.v1", kernel.RoutePlanTraceFilter{
+		Clauses: []kernel.RoutePlanTraceFilterClause{
+			{Kind: "depth", Target: "2"},
+			{Kind: "downstream", Target: "pcid:moks.combined.leaf.v1"},
+		},
+	})
+	if len(filtered.Explanation.DownstreamTraceSummaries) != 1 {
+		t.Fatalf("expected one combined-filter downstream summary, got %#v", filtered.Explanation.DownstreamTraceSummaries)
+	}
+	if filtered.Explanation.DownstreamTraceSummaries[0].HopDepth != 2 || filtered.Explanation.DownstreamTraceSummaries[0].ProtocolPCID != "pcid:moks.combined.leaf.v1" {
+		t.Fatalf("unexpected combined-filter downstream summary, got %#v", filtered.Explanation.DownstreamTraceSummaries[0])
 	}
 }
 

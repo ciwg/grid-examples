@@ -169,3 +169,11 @@ Decision: Add a `depth` trace filter mode that accepts exact depth like `1` and 
 Intent: Let operators inspect only direct downstream hops, only deeper hops, or the full trace without changing the planner itself.
 Constraints: Reuse the current trace filtering surface; keep existing `candidate` and `downstream` modes; treat malformed depth filters as no-op fallback to the full trace.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-zumok
+Date: 2026-07-28 11:39:30
+Status: active
+Decision: Allow combined trace filters by treating trace filters as an ordered list of `kind target` clauses combined with logical AND.
+Intent: Let operators narrow traces across multiple dimensions in one request, such as depth plus downstream protocol.
+Constraints: Preserve the current single-clause forms; keep clause order accepted but semantically commutative; malformed clauses fall back to the unfiltered trace.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
