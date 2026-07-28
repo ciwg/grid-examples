@@ -725,6 +725,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if tracePlan.Explanation.TraceSummary.HopPath != "root" {
 		t.Fatalf("expected root trace summary hop path, got %#v", tracePlan.Explanation.TraceSummary)
 	}
+	if tracePlan.Explanation.TraceSummary.HopSummary != "root" {
+		t.Fatalf("expected root trace summary hop summary, got %#v", tracePlan.Explanation.TraceSummary)
+	}
 	if len(tracePlan.Explanation.DownstreamTraceSummaries) != 1 {
 		t.Fatalf("expected one top-level downstream trace summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
@@ -733,6 +736,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if tracePlan.Explanation.DownstreamTraceSummaries[0].HopPath != "root > parser-agent:parser:parser#1 > pcid:moks.parsed.v1#1" {
 		t.Fatalf("expected top-level downstream trace summary hop path, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
+	}
+	if tracePlan.Explanation.DownstreamTraceSummaries[0].HopSummary != "parser-agent:parser:parser [1] -> pcid:moks.parsed.v1 [1]" {
+		t.Fatalf("expected top-level downstream trace summary hop summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
 	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
 		Kind:   "downstream",
@@ -755,6 +761,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopPath != "root > parser-agent:parser:parser#1 > pcid:moks.parsed.v1#1" {
 		t.Fatalf("expected downstream trace summary hop path, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
+	}
+	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopSummary != "parser-agent:parser:parser [1] -> pcid:moks.parsed.v1 [1]" {
+		t.Fatalf("expected downstream trace summary hop summary, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
 	}
 }
 
@@ -826,6 +835,9 @@ func TestProtocolRoutePlanTraceKeepsRepeatedDownstreamProtocolsDistinct(t *testi
 	}
 	if first.HopPath == second.HopPath {
 		t.Fatalf("expected distinct hop paths for repeated downstream protocol, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
+	}
+	if first.HopSummary == second.HopSummary {
+		t.Fatalf("expected distinct hop summaries for repeated downstream protocol, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
 }
 

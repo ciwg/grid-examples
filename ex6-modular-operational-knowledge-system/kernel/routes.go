@@ -62,6 +62,7 @@ type RoutePlanTraceSummary struct {
 	ProtocolPCID string                `json:"protocol_pcid"`
 	Scope        string                `json:"scope"`
 	HopPath      string                `json:"hop_path,omitempty"`
+	HopSummary   string                `json:"hop_summary,omitempty"`
 	TotalSteps   int                   `json:"total_steps"`
 	ShownSteps   int                   `json:"shown_steps"`
 	HiddenSteps  int                   `json:"hidden_steps"`
@@ -158,7 +159,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
 	plan.Explanation.DownstreamTraceSummaries = collectDownstreamTraceSummaries(plan)
 	return plan
 }
@@ -170,7 +171,7 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	}
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", fullTrace, plan.Explanation.Trace, filter)
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", fullTrace, plan.Explanation.Trace, filter)
 	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, filter)
 	return plan
 }
@@ -249,7 +250,7 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 			Kind:   "downstream",
 			Target: protocolPCID,
 		})
-		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
+		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
 	}
 	return plan
 }
@@ -414,10 +415,12 @@ func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandida
 	for candidateIndex, candidate := range candidates {
 		for nextIndex, next := range candidate.Next {
 			hopPath := downstreamHopPath(pathPrefix, candidate.Route, candidateIndex, next.ProtocolPCID, nextIndex)
+			hopSummary := downstreamHopSummary(candidate.Route, candidateIndex, next.ProtocolPCID, nextIndex)
 			if next.Explanation != nil && next.Explanation.TraceSummary != nil {
 				summary := *next.Explanation.TraceSummary
 				summary.Scope = "downstream"
 				summary.HopPath = hopPath
+				summary.HopSummary = hopSummary
 				*out = append(*out, summary)
 			}
 			collectDownstreamTraceSummariesFromCandidates(next.Candidates, hopPath, out)
@@ -448,11 +451,12 @@ func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter Ro
 // Intent: Keep filtered route traces honest and scoped by showing which
 // protocol hop the summary describes, whether it is root or downstream, and
 // how many planner steps remain after filtering. Source: DI-zafek
-func traceSummary(protocolPCID string, scope string, hopPath string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
+func traceSummary(protocolPCID string, scope string, hopPath string, hopSummary string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
 	summary := &RoutePlanTraceSummary{
 		ProtocolPCID: protocolPCID,
 		Scope:        scope,
 		HopPath:      hopPath,
+		HopSummary:   hopSummary,
 		TotalSteps:   len(full),
 		ShownSteps:   len(shown),
 		HiddenSteps:  len(full) - len(shown),
@@ -473,6 +477,16 @@ func downstreamHopPath(pathPrefix string, route grid.RouteRegistration, candidat
 		"#" + strconv.Itoa(candidateIndex+1) +
 		" > " + protocolPCID +
 		"#" + strconv.Itoa(nextIndex+1)
+}
+
+// Intent: Keep downstream trace summaries readable at a glance by exposing a
+// short textual hop description beside the full structured hop path.
+// Source: DI-lupav
+func downstreamHopSummary(route grid.RouteRegistration, candidateIndex int, protocolPCID string, nextIndex int) string {
+	return comparisonSideID(route) +
+		" [" + strconv.Itoa(candidateIndex+1) + "] -> " +
+		protocolPCID +
+		" [" + strconv.Itoa(nextIndex+1) + "]"
 }
 
 func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {
@@ -606,6 +620,7 @@ func explainDownstreamPlans(route grid.RouteRegistration, next []RoutePlan) []Ro
 				traceSummary := *plan.Explanation.TraceSummary
 				traceSummary.Scope = "downstream"
 				traceSummary.HopPath = downstreamHopPath("root", route, 0, plan.ProtocolPCID, index)
+				traceSummary.HopSummary = downstreamHopSummary(route, 0, plan.ProtocolPCID, index)
 				explanation.TraceSummary = &traceSummary
 			}
 			explanation.Winner = append([]string{}, plan.Explanation.Winner...)

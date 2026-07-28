@@ -145,3 +145,11 @@ Decision: Add stable hop-path labels to route trace summaries and use them to di
 Intent: Let operators tell same-protocol downstream hops apart in traced route-plan output.
 Constraints: Keep the current protocol and scope metadata; preserve deterministic ordering; do not change planner execution.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-lupav
+Date: 2026-07-28 11:24:05
+Status: active
+Decision: Add a short human-readable `hop_summary` string alongside `hop_path` in route trace summaries.
+Intent: Let operators scan multi-hop trace output faster without parsing the full structured path label.
+Constraints: Derive the summary from the same deterministic route metadata as `hop_path`; keep `hop_path` as the exact identity field.
+Affects: `kernel/routes.go`, tests, and routing docs.
