@@ -35,8 +35,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - a starter package template for outside authors
 - basket-mediated durable writes for installed executable packages
 - runnable built-in and installed-package examples
+- exact-byte relay import dedupe and relay batch metadata validation
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`.
 
 ## Not Implemented
 
@@ -72,4 +73,4 @@ Best next product work:
 2. harden and deepen the current package set
 3. harden relay/peer behavior beyond the current batch shell
 
-Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
+Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.

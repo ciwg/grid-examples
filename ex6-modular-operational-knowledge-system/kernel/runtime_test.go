@@ -421,6 +421,42 @@ func TestBatchFormatValidation(t *testing.T) {
 	}
 }
 
+func TestBatchMetadataValidation(t *testing.T) {
+	runtime := newRuntime(t)
+	err := runtime.ImportBatch(context.Background(), grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		Records:        []json.RawMessage{json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)},
+	})
+	if err == nil {
+		t.Fatal("expected missing implementation error")
+	}
+}
+
+func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		ImplementationClaims: []grid.ImplementationClaim{
+			{PackageID: "helper-egg", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
+		},
+		Records: []json.RawMessage{raw},
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("first import: %v", err)
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("second import: %v", err)
+	}
+	if len(runtime.History()) != 1 {
+		t.Fatalf("expected exact-byte dedupe after repeated import, got %d", len(runtime.History()))
+	}
+}
+
 func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	runtime := newRuntime(t)
 	batch := runtime.ExportBatch()

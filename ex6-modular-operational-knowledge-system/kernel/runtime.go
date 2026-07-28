@@ -200,7 +200,8 @@ func (runtime *Runtime) AppendRecord(ctx context.Context, raw []byte) (records.E
 			}
 		}
 	}
-	return runtime.history.AppendRaw(raw)
+	envelope, _, err = runtime.history.AppendRaw(raw)
+	return envelope, err
 }
 
 func (runtime *Runtime) History() []store.StoredEnvelope {
@@ -224,8 +225,11 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 }
 
 func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error {
-	if batch.Format != grid.RelayBatchFormat {
-		return fmt.Errorf("unsupported batch format: %s", batch.Format)
+	// Intent: Treat the current relay shell as idempotent exact-byte carriage so
+	// repeated imports stop re-appending identical durable records while malformed
+	// batch metadata is rejected before touching local history. Source: DI-sibok
+	if err := batch.Validate(); err != nil {
+		return err
 	}
 	for _, raw := range batch.Records {
 		if _, err := runtime.AppendRecord(ctx, raw); err != nil {
