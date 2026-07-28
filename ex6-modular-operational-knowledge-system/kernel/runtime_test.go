@@ -16,6 +16,7 @@ import (
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
 	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/procedures"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
+	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/training"
 )
 
 func TestBuiltinPackageCommandAndCAS(t *testing.T) {
@@ -138,6 +139,33 @@ func TestProceduresPackageCommands(t *testing.T) {
 	}
 	if !strings.Contains(inspect, "title: DockCheck") || !strings.Contains(inspect, "uses: run-2") {
 		t.Fatalf("unexpected procedure inspect: %s", inspect)
+	}
+}
+
+func TestTrainingPackageCommands(t *testing.T) {
+	runtime := newRuntime(t)
+	if _, err := runtime.RunCommand(context.Background(), []string{"training", "create", "train-1", "ForkliftBasics", "Forklift-safety-basics"}); err != nil {
+		t.Fatalf("create training: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"training", "record-session", "train-1", "run-3", "alice", "bob", "passed", "completed-lab"}); err != nil {
+		t.Fatalf("record training session: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"training", "certify", "train-1", "comp-1", "alice", "certified", "ready-for-shift"}); err != nil {
+		t.Fatalf("certify training: %v", err)
+	}
+	listing, err := runtime.RunCommand(context.Background(), []string{"training", "list"})
+	if err != nil {
+		t.Fatalf("list training: %v", err)
+	}
+	if !strings.Contains(listing, "train-1\tForkliftBasics\tsessions=1\tcompletions=1") {
+		t.Fatalf("unexpected training listing: %s", listing)
+	}
+	inspect, err := runtime.RunCommand(context.Background(), []string{"training", "inspect", "train-1"})
+	if err != nil {
+		t.Fatalf("inspect training: %v", err)
+	}
+	if !strings.Contains(inspect, "title: ForkliftBasics") || !strings.Contains(inspect, "run-3:alice->bob") || !strings.Contains(inspect, "alice:certified") {
+		t.Fatalf("unexpected training inspect: %s", inspect)
 	}
 }
 
@@ -357,6 +385,9 @@ func newRuntime(t *testing.T) *kernel.Runtime {
 	}
 	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
 		t.Fatalf("register procedures package: %v", err)
+	}
+	if err := runtime.RegisterBuiltin(trainingpkg.Package()); err != nil {
+		t.Fatalf("register training package: %v", err)
 	}
 	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {
 		t.Fatalf("register builtin: %v", err)

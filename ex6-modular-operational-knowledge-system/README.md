@@ -11,11 +11,12 @@ It is the start of a new standalone product where:
 - packages own business behavior
 - built-in and installed packages use the same basket contract
 
-Current status: this repo contains the runtime foundation, the first five
+Current status: this repo contains the runtime foundation, the first six
 first-party built-in packages (`context`, `knowledge`, `runs`, `links`,
-`procedures`), and one small built-in example package. It does **not** yet
-contain the full ex5 capability set as ex6 packages. Source: `DI-moksu`;
-`DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`; `DI-figar`; `DI-tusav`.
+`procedures`, `training`), and one small built-in example package. It does
+**not** yet contain the full ex5 capability set as ex6 packages. Source:
+`DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`; `DI-figar`;
+`DI-tusav`; `DI-sivuk`.
 
 ## What Exists Today
 
@@ -31,12 +32,12 @@ contain the full ex5 capability set as ex6 packages. Source: `DI-moksu`;
 - CAS storage
 - relay batch export and import
 - unknown-family exact-byte retention
-- the first five first-party built-in packages:
-  `context`, `knowledge`, `runs`, `links`, and `procedures`
+- the first six first-party built-in packages:
+  `context`, `knowledge`, `runs`, `links`, `procedures`, and `training`
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-rovum`; `DI-nupad`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-rovum`; `DI-nupad`.
 
 ## What Does Not Exist Yet
 

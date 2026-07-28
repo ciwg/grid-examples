@@ -17,6 +17,7 @@ import (
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
 	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/procedures"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
+	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/training"
 )
 
 func main() {
@@ -51,6 +52,9 @@ func run(ctx context.Context, args []string) error {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(trainingpkg.Package()); err != nil {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {

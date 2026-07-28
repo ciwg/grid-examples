@@ -42,7 +42,7 @@ Source: `DI-moksu`; `DI-lupok`.
 | approvals | `runs` package first, maybe later split |
 | typed links | `links` package |
 | procedure-specific behavior | `procedures` package |
-| training-specific behavior | later `training` package |
+| training-specific behavior | `training` package |
 | maintenance-specific behavior | later `maintenance` package |
 | receiving-check behavior | later `receiving` package |
 | inventory-audit behavior | later `inventory` package |
@@ -91,6 +91,16 @@ Start with fewer larger eggs:
 5. `procedures`
 
 Later domain eggs can extend from there. Source: `DI-moksu`.
+
+## Next Domain Eggs
+
+With `training` now implemented, the next domain eggs are:
+
+1. `maintenance`
+2. `receiving`
+3. `inventory`
+
+Source: `DI-sivuk`.
 
 ## First Five Package Ownership
 
