@@ -165,6 +165,9 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	if !strings.Contains(output, `"hop_summary": "root"`) {
 		t.Fatalf("route plan trace missing root hop summary: %s", output)
 	}
+	if !strings.Contains(output, `"hop_depth": 0`) || !strings.Contains(output, `"hop_index": 0`) {
+		t.Fatalf("route plan trace missing root hop depth/index: %s", output)
+	}
 }
 
 func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {

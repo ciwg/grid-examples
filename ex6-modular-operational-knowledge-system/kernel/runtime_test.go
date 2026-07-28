@@ -728,6 +728,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if tracePlan.Explanation.TraceSummary.HopSummary != "root" {
 		t.Fatalf("expected root trace summary hop summary, got %#v", tracePlan.Explanation.TraceSummary)
 	}
+	if tracePlan.Explanation.TraceSummary.HopDepth != 0 || tracePlan.Explanation.TraceSummary.HopIndex != 0 {
+		t.Fatalf("expected root trace summary depth/index, got %#v", tracePlan.Explanation.TraceSummary)
+	}
 	if len(tracePlan.Explanation.DownstreamTraceSummaries) != 1 {
 		t.Fatalf("expected one top-level downstream trace summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
@@ -739,6 +742,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if tracePlan.Explanation.DownstreamTraceSummaries[0].HopSummary != "parser-agent:parser:parser [1] -> pcid:moks.parsed.v1 [1]" {
 		t.Fatalf("expected top-level downstream trace summary hop summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
+	}
+	if tracePlan.Explanation.DownstreamTraceSummaries[0].HopDepth != 1 || tracePlan.Explanation.DownstreamTraceSummaries[0].HopIndex != 1 {
+		t.Fatalf("expected top-level downstream trace summary depth/index, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
 	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
 		Kind:   "downstream",
@@ -764,6 +770,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopSummary != "parser-agent:parser:parser [1] -> pcid:moks.parsed.v1 [1]" {
 		t.Fatalf("expected downstream trace summary hop summary, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
+	}
+	if tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopDepth != 1 || tracePlan.Preferred.Explanation.Downstream[0].TraceSummary.HopIndex != 1 {
+		t.Fatalf("expected downstream trace summary depth/index, got %#v", tracePlan.Preferred.Explanation.Downstream[0].TraceSummary)
 	}
 }
 
@@ -838,6 +847,9 @@ func TestProtocolRoutePlanTraceKeepsRepeatedDownstreamProtocolsDistinct(t *testi
 	}
 	if first.HopSummary == second.HopSummary {
 		t.Fatalf("expected distinct hop summaries for repeated downstream protocol, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
+	}
+	if first.HopDepth != 1 || second.HopDepth != 1 || first.HopIndex != 1 || second.HopIndex != 2 {
+		t.Fatalf("expected deterministic downstream hop depth/index metadata, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
 	}
 }
 

@@ -26,6 +26,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - traced route plans now expose top-level downstream trace summaries for nested protocol hops
 - downstream trace summaries now carry stable hop-path labels
 - downstream trace summaries now carry short hop-summary strings
+- trace summaries now carry hop-depth and hop-index metadata
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

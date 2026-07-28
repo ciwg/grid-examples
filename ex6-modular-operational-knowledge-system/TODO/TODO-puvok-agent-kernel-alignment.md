@@ -153,3 +153,11 @@ Decision: Add a short human-readable `hop_summary` string alongside `hop_path` i
 Intent: Let operators scan multi-hop trace output faster without parsing the full structured path label.
 Constraints: Derive the summary from the same deterministic route metadata as `hop_path`; keep `hop_path` as the exact identity field.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-sovak
+Date: 2026-07-28 11:28:40
+Status: active
+Decision: Add `hop_depth` and `hop_index` metadata to route trace summaries so downstream hops can be sorted and filtered by distance from the root protocol.
+Intent: Make multi-hop trace output easier to analyze programmatically and operationally.
+Constraints: Keep the metadata deterministic; use depth `0` and index `0` for the root summary; preserve existing hop identity fields.
+Affects: `kernel/routes.go`, tests, and routing docs.

@@ -63,6 +63,8 @@ type RoutePlanTraceSummary struct {
 	Scope        string                `json:"scope"`
 	HopPath      string                `json:"hop_path,omitempty"`
 	HopSummary   string                `json:"hop_summary,omitempty"`
+	HopDepth     int                   `json:"hop_depth"`
+	HopIndex     int                   `json:"hop_index"`
 	TotalSteps   int                   `json:"total_steps"`
 	ShownSteps   int                   `json:"shown_steps"`
 	HiddenSteps  int                   `json:"hidden_steps"`
@@ -159,7 +161,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", 0, 0, trace.steps, trace.steps, RoutePlanTraceFilter{})
 	plan.Explanation.DownstreamTraceSummaries = collectDownstreamTraceSummaries(plan)
 	return plan
 }
@@ -171,7 +173,7 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	}
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
-	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", fullTrace, plan.Explanation.Trace, filter)
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", 0, 0, fullTrace, plan.Explanation.Trace, filter)
 	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, filter)
 	return plan
 }
@@ -250,7 +252,7 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 			Kind:   "downstream",
 			Target: protocolPCID,
 		})
-		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
+		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", 0, 0, scopedTrace, scopedTrace, RoutePlanTraceFilter{})
 	}
 	return plan
 }
@@ -401,30 +403,48 @@ func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
 // Source: DI-rukav
 func collectDownstreamTraceSummaries(plan RoutePlan) []RoutePlanTraceSummary {
 	out := []RoutePlanTraceSummary{}
-	collectDownstreamTraceSummariesFromCandidates(plan.Candidates, "root", &out)
+	collectDownstreamTraceSummariesFromCandidates(plan.Candidates, "root", 0, &out)
 	slices.SortFunc(out, func(left, right RoutePlanTraceSummary) int {
+		if left.HopDepth != right.HopDepth {
+			if left.HopDepth < right.HopDepth {
+				return -1
+			}
+			return 1
+		}
 		if diff := strings.Compare(left.HopPath, right.HopPath); diff != 0 {
 			return diff
 		}
 		return strings.Compare(left.ProtocolPCID, right.ProtocolPCID)
 	})
+	assignHopIndices(out)
 	return out
 }
 
-func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandidate, pathPrefix string, out *[]RoutePlanTraceSummary) {
+func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandidate, pathPrefix string, depth int, out *[]RoutePlanTraceSummary) {
 	for candidateIndex, candidate := range candidates {
 		for nextIndex, next := range candidate.Next {
 			hopPath := downstreamHopPath(pathPrefix, candidate.Route, candidateIndex, next.ProtocolPCID, nextIndex)
 			hopSummary := downstreamHopSummary(candidate.Route, candidateIndex, next.ProtocolPCID, nextIndex)
+			hopDepth := depth + 1
 			if next.Explanation != nil && next.Explanation.TraceSummary != nil {
 				summary := *next.Explanation.TraceSummary
 				summary.Scope = "downstream"
 				summary.HopPath = hopPath
 				summary.HopSummary = hopSummary
+				summary.HopDepth = hopDepth
 				*out = append(*out, summary)
 			}
-			collectDownstreamTraceSummariesFromCandidates(next.Candidates, hopPath, out)
+			collectDownstreamTraceSummariesFromCandidates(next.Candidates, hopPath, hopDepth, out)
 		}
+	}
+}
+
+func assignHopIndices(summaries []RoutePlanTraceSummary) {
+	counts := map[int]int{}
+	for index := range summaries {
+		depth := summaries[index].HopDepth
+		counts[depth]++
+		summaries[index].HopIndex = counts[depth]
 	}
 }
 
@@ -451,12 +471,14 @@ func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter Ro
 // Intent: Keep filtered route traces honest and scoped by showing which
 // protocol hop the summary describes, whether it is root or downstream, and
 // how many planner steps remain after filtering. Source: DI-zafek
-func traceSummary(protocolPCID string, scope string, hopPath string, hopSummary string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
+func traceSummary(protocolPCID string, scope string, hopPath string, hopSummary string, hopDepth int, hopIndex int, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
 	summary := &RoutePlanTraceSummary{
 		ProtocolPCID: protocolPCID,
 		Scope:        scope,
 		HopPath:      hopPath,
 		HopSummary:   hopSummary,
+		HopDepth:     hopDepth,
+		HopIndex:     hopIndex,
 		TotalSteps:   len(full),
 		ShownSteps:   len(shown),
 		HiddenSteps:  len(full) - len(shown),
@@ -621,6 +643,8 @@ func explainDownstreamPlans(route grid.RouteRegistration, next []RoutePlan) []Ro
 				traceSummary.Scope = "downstream"
 				traceSummary.HopPath = downstreamHopPath("root", route, 0, plan.ProtocolPCID, index)
 				traceSummary.HopSummary = downstreamHopSummary(route, 0, plan.ProtocolPCID, index)
+				traceSummary.HopDepth = 1
+				traceSummary.HopIndex = index + 1
 				explanation.TraceSummary = &traceSummary
 			}
 			explanation.Winner = append([]string{}, plan.Explanation.Winner...)
