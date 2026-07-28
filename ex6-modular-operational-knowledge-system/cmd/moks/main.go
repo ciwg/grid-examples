@@ -59,14 +59,19 @@ func run(ctx context.Context, args []string) error {
 		}
 		return routeList(runtime)
 	case matchesPrefix(args, "route", "policy", "show"):
-		if len(args) != 3 && len(args) != 4 {
-			return errors.New("usage: route policy show [<protocol-pcid>]")
+		if len(args) != 3 && len(args) != 4 && len(args) != 5 {
+			return errors.New("usage: route policy show [<protocol-pcid> [<role>]]")
 		}
 		protocolPCID := ""
+		role := ""
 		if len(args) == 4 {
 			protocolPCID = args[3]
 		}
-		return routePolicyShow(runtime, protocolPCID)
+		if len(args) == 5 {
+			protocolPCID = args[3]
+			role = args[4]
+		}
+		return routePolicyShow(runtime, protocolPCID, role)
 	case matchesPrefix(args, "route", "policy", "set"):
 		if len(args) != 7 {
 			return errors.New("usage: route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->")
@@ -82,6 +87,16 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route policy remove <protocol-pcid>")
 		}
 		return routePolicyRemove(runtime, args[3])
+	case matchesPrefix(args, "route", "policy", "set-for-role"):
+		if len(args) != 9 {
+			return errors.New("usage: route policy set-for-role <protocol-pcid> <role> <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->")
+		}
+		return routePolicySetForRole(runtime, args[3], args[4], args[5:])
+	case matchesPrefix(args, "route", "policy", "remove-role"):
+		if len(args) != 5 {
+			return errors.New("usage: route policy remove-role <protocol-pcid> <role>")
+		}
+		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
 		if len(args) != 3 {
 			return errors.New("usage: route plan <protocol-pcid>")
@@ -291,7 +306,27 @@ func routePlan(runtime *kernel.Runtime, protocolPCID string) error {
 // Intent: Make planner policy inspectable both globally and for one input
 // protocol so operators can see the inherited effective route preferences that
 // the kernel will actually use. Source: DI-posek
-func routePolicyShow(runtime *kernel.Runtime, protocolPCID string) error {
+func routePolicyShow(runtime *kernel.Runtime, protocolPCID string, role string) error {
+	if strings.TrimSpace(protocolPCID) != "" && strings.TrimSpace(role) != "" {
+		body, err := json.MarshalIndent(struct {
+			ProtocolPCID string               `json:"protocol_pcid"`
+			Role         string               `json:"role"`
+			Global       grid.RoutePlanPolicy `json:"global"`
+			Protocol     grid.RoutePlanPolicy `json:"protocol"`
+			Effective    grid.RoutePlanPolicy `json:"effective"`
+		}{
+			ProtocolPCID: protocolPCID,
+			Role:         role,
+			Global:       runtime.RoutePlanPolicy(),
+			Protocol:     runtime.EffectiveRoutePlanPolicy(protocolPCID),
+			Effective:    runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, role),
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
+		return nil
+	}
 	if strings.TrimSpace(protocolPCID) != "" {
 		body, err := json.MarshalIndent(struct {
 			ProtocolPCID string               `json:"protocol_pcid"`
@@ -309,11 +344,13 @@ func routePolicyShow(runtime *kernel.Runtime, protocolPCID string) error {
 		return nil
 	}
 	body, err := json.MarshalIndent(struct {
-		Global    grid.RoutePlanPolicy           `json:"global"`
-		Protocols []grid.ProtocolRoutePlanPolicy `json:"protocols,omitempty"`
+		Global        grid.RoutePlanPolicy               `json:"global"`
+		Protocols     []grid.ProtocolRoutePlanPolicy     `json:"protocols,omitempty"`
+		ProtocolRoles []grid.ProtocolRoleRoutePlanPolicy `json:"protocol_roles,omitempty"`
 	}{
-		Global:    runtime.RoutePlanPolicy(),
-		Protocols: runtime.ProtocolRoutePlanPolicies(),
+		Global:        runtime.RoutePlanPolicy(),
+		Protocols:     runtime.ProtocolRoutePlanPolicies(),
+		ProtocolRoles: runtime.ProtocolRoleRoutePlanPolicies(),
 	}, "", "  ")
 	if err != nil {
 		return err
@@ -345,6 +382,23 @@ func routePolicyRemove(runtime *kernel.Runtime, protocolPCID string) error {
 		return err
 	}
 	fmt.Printf("route policy removed for %s\n", protocolPCID)
+	return nil
+}
+
+func routePolicySetForRole(runtime *kernel.Runtime, protocolPCID string, role string, args []string) error {
+	policy := parseRoutePlanPolicyArgs(args)
+	if err := runtime.SetProtocolRoleRoutePlanPolicy(protocolPCID, role, policy); err != nil {
+		return err
+	}
+	fmt.Printf("route policy set for %s role %s\n", protocolPCID, role)
+	return nil
+}
+
+func routePolicyRemoveRole(runtime *kernel.Runtime, protocolPCID string, role string) error {
+	if err := runtime.RemoveProtocolRoleRoutePlanPolicy(protocolPCID, role); err != nil {
+		return err
+	}
+	fmt.Printf("route policy removed for %s role %s\n", protocolPCID, role)
 	return nil
 }
 

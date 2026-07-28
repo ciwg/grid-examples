@@ -33,10 +33,17 @@ type ProtocolRoutePlanPolicy struct {
 	RoutePlanPolicy
 }
 
+type ProtocolRoleRoutePlanPolicy struct {
+	ProtocolPCID string `json:"protocol_pcid"`
+	Role         string `json:"role"`
+	RoutePlanPolicy
+}
+
 type TrustPolicy struct {
-	ClaimPolicies             []ClaimTrustPolicy        `json:"claim_policies"`
-	RoutePlanPolicy           RoutePlanPolicy           `json:"route_plan_policy,omitempty"`
-	ProtocolRoutePlanPolicies []ProtocolRoutePlanPolicy `json:"protocol_route_plan_policies,omitempty"`
+	ClaimPolicies                 []ClaimTrustPolicy            `json:"claim_policies"`
+	RoutePlanPolicy               RoutePlanPolicy               `json:"route_plan_policy,omitempty"`
+	ProtocolRoutePlanPolicies     []ProtocolRoutePlanPolicy     `json:"protocol_route_plan_policies,omitempty"`
+	ProtocolRoleRoutePlanPolicies []ProtocolRoleRoutePlanPolicy `json:"protocol_role_route_plan_policies,omitempty"`
 }
 
 type PolicyStore struct {
@@ -96,6 +103,16 @@ func (store *PolicyStore) ProtocolRoutePlanPolicies() []ProtocolRoutePlanPolicy 
 	return out
 }
 
+func (store *PolicyStore) ProtocolRoleRoutePlanPolicies() []ProtocolRoleRoutePlanPolicy {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	out := make([]ProtocolRoleRoutePlanPolicy, 0, len(store.policy.ProtocolRoleRoutePlanPolicies))
+	for _, policy := range store.policy.ProtocolRoleRoutePlanPolicies {
+		out = append(out, cloneProtocolRoleRoutePlanPolicy(policy))
+	}
+	return out
+}
+
 // Intent: Let route planning keep one global default policy while still
 // adapting route preferences for specific input protocols when local operators
 // know a given pCID needs different routing behavior. Source: DI-posek
@@ -103,6 +120,22 @@ func (store *PolicyStore) EffectiveRoutePlanPolicy(protocolPCID string) RoutePla
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	return effectiveRoutePlanPolicyLocked(store.policy.RoutePlanPolicy, store.policy.ProtocolRoutePlanPolicies, protocolPCID)
+}
+
+// Intent: Let operators steer candidate selection within one protocol by
+// layering exact-role overrides on top of the global and per-protocol route
+// policy instead of forcing all roles for that protocol to share one policy.
+// Source: DI-rivuk
+func (store *PolicyStore) EffectiveRoutePlanPolicyForRole(protocolPCID string, role string) RoutePlanPolicy {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	return effectiveRoutePlanPolicyForRoleLocked(
+		store.policy.RoutePlanPolicy,
+		store.policy.ProtocolRoutePlanPolicies,
+		store.policy.ProtocolRoleRoutePlanPolicies,
+		protocolPCID,
+		role,
+	)
 }
 
 func (store *PolicyStore) SetRoutePlanPolicy(policy RoutePlanPolicy) error {
@@ -148,6 +181,45 @@ func (store *PolicyStore) SetProtocolRoutePlanPolicy(protocolPCID string, policy
 	return store.persistLocked()
 }
 
+func (store *PolicyStore) SetProtocolRoleRoutePlanPolicy(protocolPCID string, role string, policy RoutePlanPolicy) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	protocolPCID = strings.TrimSpace(protocolPCID)
+	role = strings.TrimSpace(role)
+	if protocolPCID == "" {
+		return errors.New("protocol_pcid is required")
+	}
+	if role == "" {
+		return errors.New("role is required")
+	}
+	policy = normalizeRoutePlanPolicy(policy)
+	if err := validateRoutePlanPolicy(policy); err != nil {
+		return err
+	}
+	replaced := false
+	for index := range store.policy.ProtocolRoleRoutePlanPolicies {
+		current := store.policy.ProtocolRoleRoutePlanPolicies[index]
+		if current.ProtocolPCID == protocolPCID && current.Role == role {
+			store.policy.ProtocolRoleRoutePlanPolicies[index] = ProtocolRoleRoutePlanPolicy{
+				ProtocolPCID:    protocolPCID,
+				Role:            role,
+				RoutePlanPolicy: policy,
+			}
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		store.policy.ProtocolRoleRoutePlanPolicies = append(store.policy.ProtocolRoleRoutePlanPolicies, ProtocolRoleRoutePlanPolicy{
+			ProtocolPCID:    protocolPCID,
+			Role:            role,
+			RoutePlanPolicy: policy,
+		})
+	}
+	sortProtocolRoleRoutePlanPolicies(store.policy.ProtocolRoleRoutePlanPolicies)
+	return store.persistLocked()
+}
+
 func (store *PolicyStore) RemoveProtocolRoutePlanPolicy(protocolPCID string) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -165,6 +237,27 @@ func (store *PolicyStore) RemoveProtocolRoutePlanPolicy(protocolPCID string) err
 		return fmt.Errorf("unknown protocol route plan policy: %s", protocolPCID)
 	}
 	store.policy.ProtocolRoutePlanPolicies = filtered
+	return store.persistLocked()
+}
+
+func (store *PolicyStore) RemoveProtocolRoleRoutePlanPolicy(protocolPCID string, role string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	protocolPCID = strings.TrimSpace(protocolPCID)
+	role = strings.TrimSpace(role)
+	filtered := store.policy.ProtocolRoleRoutePlanPolicies[:0]
+	found := false
+	for _, policy := range store.policy.ProtocolRoleRoutePlanPolicies {
+		if policy.ProtocolPCID == protocolPCID && policy.Role == role {
+			found = true
+			continue
+		}
+		filtered = append(filtered, policy)
+	}
+	if !found {
+		return fmt.Errorf("unknown protocol role route plan policy: %s %s", protocolPCID, role)
+	}
+	store.policy.ProtocolRoleRoutePlanPolicies = filtered
 	return store.persistLocked()
 }
 
@@ -309,8 +402,22 @@ func (store *PolicyStore) validateLocked() error {
 		routeSeen[policy.ProtocolPCID] = struct{}{}
 		store.policy.ProtocolRoutePlanPolicies[index] = policy
 	}
+	roleSeen := map[string]struct{}{}
+	for index, policy := range store.policy.ProtocolRoleRoutePlanPolicies {
+		policy = normalizeProtocolRoleRoutePlanPolicy(policy)
+		if err := validateProtocolRoleRoutePlanPolicy(policy); err != nil {
+			return err
+		}
+		key := policy.ProtocolPCID + "\x00" + policy.Role
+		if _, exists := roleSeen[key]; exists {
+			return fmt.Errorf("duplicate protocol role route plan policy: %s %s", policy.ProtocolPCID, policy.Role)
+		}
+		roleSeen[key] = struct{}{}
+		store.policy.ProtocolRoleRoutePlanPolicies[index] = policy
+	}
 	sortClaimPolicies(store.policy.ClaimPolicies)
 	sortProtocolRoutePlanPolicies(store.policy.ProtocolRoutePlanPolicies)
+	sortProtocolRoleRoutePlanPolicies(store.policy.ProtocolRoleRoutePlanPolicies)
 	return nil
 }
 
@@ -481,8 +588,23 @@ func cloneProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) ProtocolRouteP
 	}
 }
 
+func cloneProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) ProtocolRoleRoutePlanPolicy {
+	return ProtocolRoleRoutePlanPolicy{
+		ProtocolPCID:    policy.ProtocolPCID,
+		Role:            policy.Role,
+		RoutePlanPolicy: cloneRoutePlanPolicy(policy.RoutePlanPolicy),
+	}
+}
+
 func normalizeProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) ProtocolRoutePlanPolicy {
 	policy.ProtocolPCID = strings.TrimSpace(policy.ProtocolPCID)
+	policy.RoutePlanPolicy = normalizeRoutePlanPolicy(policy.RoutePlanPolicy)
+	return policy
+}
+
+func normalizeProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) ProtocolRoleRoutePlanPolicy {
+	policy.ProtocolPCID = strings.TrimSpace(policy.ProtocolPCID)
+	policy.Role = strings.TrimSpace(policy.Role)
 	policy.RoutePlanPolicy = normalizeRoutePlanPolicy(policy.RoutePlanPolicy)
 	return policy
 }
@@ -490,6 +612,16 @@ func normalizeProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) ProtocolRo
 func validateProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) error {
 	if policy.ProtocolPCID == "" {
 		return errors.New("protocol_pcid is required")
+	}
+	return validateRoutePlanPolicy(policy.RoutePlanPolicy)
+}
+
+func validateProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) error {
+	if policy.ProtocolPCID == "" {
+		return errors.New("protocol_pcid is required")
+	}
+	if policy.Role == "" {
+		return errors.New("role is required")
 	}
 	return validateRoutePlanPolicy(policy.RoutePlanPolicy)
 }
@@ -521,9 +653,51 @@ func effectiveRoutePlanPolicyLocked(global RoutePlanPolicy, overrides []Protocol
 	return effective
 }
 
+func effectiveRoutePlanPolicyForRoleLocked(
+	global RoutePlanPolicy,
+	protocolOverrides []ProtocolRoutePlanPolicy,
+	roleOverrides []ProtocolRoleRoutePlanPolicy,
+	protocolPCID string,
+	role string,
+) RoutePlanPolicy {
+	effective := effectiveRoutePlanPolicyLocked(global, protocolOverrides, protocolPCID)
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return effective
+	}
+	for _, override := range roleOverrides {
+		if override.ProtocolPCID != protocolPCID || override.Role != role {
+			continue
+		}
+		if len(override.PreferRouteTypes) > 0 {
+			effective.PreferRouteTypes = append([]string{}, override.PreferRouteTypes...)
+		}
+		if len(override.AvoidRouteTypes) > 0 {
+			effective.AvoidRouteTypes = append([]string{}, override.AvoidRouteTypes...)
+		}
+		if len(override.PreferRoles) > 0 {
+			effective.PreferRoles = append([]string{}, override.PreferRoles...)
+		}
+		if len(override.AvoidRoles) > 0 {
+			effective.AvoidRoles = append([]string{}, override.AvoidRoles...)
+		}
+		break
+	}
+	return effective
+}
+
 func sortProtocolRoutePlanPolicies(policies []ProtocolRoutePlanPolicy) {
 	slices.SortFunc(policies, func(left, right ProtocolRoutePlanPolicy) int {
 		return strings.Compare(left.ProtocolPCID, right.ProtocolPCID)
+	})
+}
+
+func sortProtocolRoleRoutePlanPolicies(policies []ProtocolRoleRoutePlanPolicy) {
+	slices.SortFunc(policies, func(left, right ProtocolRoleRoutePlanPolicy) int {
+		if left.ProtocolPCID != right.ProtocolPCID {
+			return strings.Compare(left.ProtocolPCID, right.ProtocolPCID)
+		}
+		return strings.Compare(left.Role, right.Role)
 	})
 }
 

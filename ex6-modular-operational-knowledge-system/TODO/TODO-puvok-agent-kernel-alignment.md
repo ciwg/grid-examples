@@ -65,3 +65,11 @@ Decision: Keep the current global route-plan policy as the default, add per-`pro
 Intent: Let the routing planner adapt to protocol-specific needs without forcing one global route preference order onto every protocol.
 Constraints: Keep the claim-derived route table as the only planning input; preserve deterministic planning; treat empty override fields as inherit-from-global instead of clearing global defaults.
 Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-rivuk
+Date: 2026-07-28 11:04:00
+Status: active
+Decision: Add role-scoped route-plan policy overrides keyed by `protocol_pcid + role`, apply them on top of the global and per-protocol planner policy, and let the planner evaluate each candidate route against the effective policy for that candidate role.
+Intent: Let one protocol prefer one route role while still avoiding another without forcing every role on that protocol through one shared preference set.
+Constraints: Keep route planning deterministic; preserve global and per-protocol inheritance; do not add route execution yet; treat role-scoped overrides as explicit exact-role policy, not wildcard matching.
+Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.

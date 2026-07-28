@@ -855,6 +855,54 @@ func TestProtocolRoutePlanPolicyCanOverrideOneProtocolOnly(t *testing.T) {
 	}
 }
 
+func TestProtocolRoutePlanPolicyCanOverrideByRoleWithinOneProtocol(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	rolePackage := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "role-agent",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{ProtocolPCID: "pcid:moks.roleful.v1", Role: "handler", Summary: "Handles roleful envelopes."},
+				{ProtocolPCID: "pcid:moks.roleful.v1", Role: "domain-behavior", Summary: "Applies domain behavior for roleful envelopes."},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(rolePackage); err != nil {
+		t.Fatalf("register role package: %v", err)
+	}
+	plan := runtime.ProtocolRoutePlan("pcid:moks.roleful.v1")
+	if plan.Preferred == nil || plan.Preferred.Route.Role != "handler" {
+		t.Fatalf("expected handler to win by default, got %#v", plan.Preferred)
+	}
+	if err := runtime.SetProtocolRoleRoutePlanPolicy("pcid:moks.roleful.v1", "domain-behavior", grid.RoutePlanPolicy{
+		PreferRoles: []string{"domain-behavior"},
+	}); err != nil {
+		t.Fatalf("set role route plan policy for domain-behavior: %v", err)
+	}
+	if err := runtime.SetProtocolRoleRoutePlanPolicy("pcid:moks.roleful.v1", "handler", grid.RoutePlanPolicy{
+		AvoidRoles: []string{"handler"},
+	}); err != nil {
+		t.Fatalf("set role route plan policy for handler: %v", err)
+	}
+	plan = runtime.ProtocolRoutePlan("pcid:moks.roleful.v1")
+	if plan.Preferred == nil || plan.Preferred.Route.Role != "domain-behavior" {
+		t.Fatalf("expected domain-behavior to win under role policy, got %#v", plan.Preferred)
+	}
+	effective := runtime.EffectiveRoutePlanPolicyForRole("pcid:moks.roleful.v1", "domain-behavior")
+	if !slices.Equal(effective.PreferRoles, []string{"domain-behavior"}) {
+		t.Fatalf("unexpected effective prefer roles: %#v", effective.PreferRoles)
+	}
+}
+
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)

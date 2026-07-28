@@ -83,12 +83,12 @@ Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 - `moks route list` shows the current protocol routes that the runtime has derived from active package claims
 - `moks route inspect <protocol-pcid>` returns the matching direct/parser/transform routes as JSON
 - `moks route plan <protocol-pcid>` returns the kernel's preferred executable route plan plus ordered candidates
-- `moks route policy show [<protocol-pcid>]`, `moks route policy set ...`, `moks route policy set-for <protocol-pcid> ...`, and `moks route policy remove <protocol-pcid>` control planner preferences for route types and roles globally and per input protocol
+- `moks route policy show [<protocol-pcid> [<role>]]`, `moks route policy set ...`, `moks route policy set-for <protocol-pcid> ...`, `moks route policy remove <protocol-pcid>`, `moks route policy set-for-role <protocol-pcid> <role> ...`, and `moks route policy remove-role <protocol-pcid> <role>` control planner preferences globally, per input protocol, and per input protocol plus route role
 - a registered family now requires a matching `family-validator` route claim for its `protocol_pcid`
 - relay export now carries those route registrations as batch metadata too
 - parser and transform routes can declare `emits_protocols` to describe the next-hop protocols they produce
 
-Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`.
+Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`.
 
 ## Layout
 

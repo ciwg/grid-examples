@@ -195,6 +195,43 @@ func TestRoutePolicySetForProtocolAndShowEffective(t *testing.T) {
 	}
 }
 
+func TestRoutePolicySetForRoleAndShowEffective(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "policy", "set-for-role", "pcid:moks.context.place.v1", "family-validator", "-", "-", "family-validator", "-"); err != nil {
+		t.Fatalf("route policy set-for-role: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "policy", "show")
+	if err != nil {
+		t.Fatalf("route policy show: %v", err)
+	}
+	if !strings.Contains(output, `"protocol_roles": [`) || !strings.Contains(output, `"role": "family-validator"`) {
+		t.Fatalf("route policy show missing protocol role override: %s", output)
+	}
+	effective, err := runCLI(t, workdir, "route", "policy", "show", "pcid:moks.context.place.v1", "family-validator")
+	if err != nil {
+		t.Fatalf("route policy show for protocol role: %v", err)
+	}
+	if !strings.Contains(effective, `"role": "family-validator"`) {
+		t.Fatalf("route policy effective output missing role: %s", effective)
+	}
+	if !strings.Contains(effective, `"protocol"`) || !strings.Contains(effective, `"effective"`) {
+		t.Fatalf("route policy effective output missing protocol/effective blocks: %s", effective)
+	}
+	if !strings.Contains(effective, `"prefer_roles": [`) || !strings.Contains(effective, `"family-validator"`) {
+		t.Fatalf("route policy effective output missing family-validator preference: %s", effective)
+	}
+	if _, err := runCLI(t, workdir, "route", "policy", "remove-role", "pcid:moks.context.place.v1", "family-validator"); err != nil {
+		t.Fatalf("route policy remove-role: %v", err)
+	}
+	afterRemove, err := runCLI(t, workdir, "route", "policy", "show")
+	if err != nil {
+		t.Fatalf("route policy show after remove-role: %v", err)
+	}
+	if strings.Contains(afterRemove, `"role": "family-validator"`) {
+		t.Fatalf("route policy role override still present after remove-role: %s", afterRemove)
+	}
+}
+
 func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

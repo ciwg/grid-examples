@@ -114,12 +114,8 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		}
 		plan.Candidates = append(plan.Candidates, candidate)
 	}
-	// Intent: Keep route planning protocol-aware by combining global planner
-	// defaults with per-protocol overrides instead of forcing one route ordering
-	// on every pCID. Source: DI-posek
-	policy := runtime.EffectiveRoutePlanPolicy(protocolPCID)
 	slices.SortFunc(plan.Candidates, func(left, right RoutePlanCandidate) int {
-		return compareRoutePlanCandidates(left, right, policy)
+		return runtime.compareRoutePlanCandidates(protocolPCID, left, right)
 	})
 	for index := range plan.Candidates {
 		if plan.Candidates[index].Executable {
@@ -130,14 +126,17 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 	return plan
 }
 
-func compareRoutePlanCandidates(left RoutePlanCandidate, right RoutePlanCandidate, policy grid.RoutePlanPolicy) int {
+// Intent: Keep route planning protocol-aware and role-aware by evaluating each
+// candidate with the effective global, per-protocol, and per-protocol-role
+// policy that applies to that route. Source: DI-rivuk
+func (runtime *Runtime) compareRoutePlanCandidates(protocolPCID string, left RoutePlanCandidate, right RoutePlanCandidate) int {
 	if left.Executable != right.Executable {
 		if left.Executable {
 			return -1
 		}
 		return 1
 	}
-	if diff := comparePolicyPreference(left.Route, right.Route, policy); diff != 0 {
+	if diff := runtime.comparePolicyPreference(protocolPCID, left.Route, right.Route); diff != 0 {
 		return diff
 	}
 	if diff := compareRouteRegistrations(left.Route, right.Route); diff != 0 {
@@ -152,19 +151,21 @@ func compareRoutePlanCandidates(left RoutePlanCandidate, right RoutePlanCandidat
 	return 0
 }
 
-func comparePolicyPreference(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
-	if diff := compareAvoided(left, right, policy); diff != 0 {
+func (runtime *Runtime) comparePolicyPreference(protocolPCID string, left grid.RouteRegistration, right grid.RouteRegistration) int {
+	leftPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, left.Role)
+	rightPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, right.Role)
+	if diff := compareAvoided(left, right, leftPolicy, rightPolicy); diff != 0 {
 		return diff
 	}
-	if diff := comparePreferred(left, right, policy); diff != 0 {
+	if diff := comparePreferred(left, right, leftPolicy, rightPolicy); diff != 0 {
 		return diff
 	}
 	return 0
 }
 
-func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
-	leftAvoided := routeAvoided(left, policy)
-	rightAvoided := routeAvoided(right, policy)
+func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {
+	leftAvoided := routeAvoided(left, leftPolicy)
+	rightAvoided := routeAvoided(right, rightPolicy)
 	if leftAvoided == rightAvoided {
 		return 0
 	}
@@ -174,9 +175,9 @@ func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, p
 	return -1
 }
 
-func comparePreferred(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
-	leftPreferred := routePreferred(left, policy)
-	rightPreferred := routePreferred(right, policy)
+func comparePreferred(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {
+	leftPreferred := routePreferred(left, leftPolicy)
+	rightPreferred := routePreferred(right, rightPolicy)
 	if leftPreferred == rightPreferred {
 		return 0
 	}
