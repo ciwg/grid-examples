@@ -239,11 +239,15 @@ func (runtime *Runtime) History() []store.StoredEnvelope {
 	return runtime.history.Entries()
 }
 
-func (runtime *Runtime) ExportBatch() grid.Batch {
+func (runtime *Runtime) ExportBatch() (grid.Batch, error) {
 	entries := runtime.history.Entries()
 	rawRecords := make([]json.RawMessage, 0, len(entries))
 	for _, entry := range entries {
 		rawRecords = append(rawRecords, append(json.RawMessage{}, entry.Raw...))
+	}
+	recordSignatures, err := runtime.peers.SignRecords(rawRecords)
+	if err != nil {
+		return grid.Batch{}, err
 	}
 	claims := runtime.ImplementationClaims()
 	return grid.Batch{
@@ -253,11 +257,16 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 		ImplementationClaims: claims,
 		Records:              rawRecords,
 		RecordProofs:         grid.ProofsForRecords(rawRecords),
-	}
+		RecordSignatures:     recordSignatures,
+	}, nil
 }
 
 func (runtime *Runtime) SignedExportBatch() (grid.Batch, error) {
-	return runtime.peers.SignBatch(runtime.ExportBatch())
+	batch, err := runtime.ExportBatch()
+	if err != nil {
+		return grid.Batch{}, err
+	}
+	return runtime.peers.SignBatch(batch)
 }
 
 func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error {
@@ -271,6 +280,11 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 	// reject tampered relay contents even when they do not yet understand the
 	// record family semantics. Source: DI-zumep
 	if err := batch.VerifyRecordProofs(); err != nil {
+		return err
+	}
+	// Intent: Verify relay-carriage signatures per record so import does not rely
+	// solely on the enclosing batch signature for transport trust. Source: DI-ravud
+	if err := runtime.peers.VerifyRecordSignatures(batch); err != nil {
 		return err
 	}
 	for _, raw := range batch.Records {

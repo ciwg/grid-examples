@@ -25,6 +25,12 @@ type RecordProof struct {
 	Digest string `json:"digest"`
 }
 
+type RecordSignature struct {
+	SignerPeerID string `json:"signer_peer_id"`
+	PublicKey    string `json:"public_key"`
+	Signature    string `json:"signature"`
+}
+
 type Batch struct {
 	Format               string                `json:"format"`
 	Implementation       string                `json:"implementation"`
@@ -32,6 +38,7 @@ type Batch struct {
 	ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
 	Records              []json.RawMessage     `json:"records"`
 	RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
+	RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
 	Signature            string                `json:"signature,omitempty"`
 }
 
@@ -90,6 +97,20 @@ func (batch Batch) Validate() error {
 			return errors.New("record proof digest is required")
 		}
 	}
+	if len(batch.RecordSignatures) > 0 && len(batch.RecordSignatures) != len(batch.Records) {
+		return errors.New("record_signatures must match records length")
+	}
+	for _, signature := range batch.RecordSignatures {
+		if strings.TrimSpace(signature.SignerPeerID) == "" {
+			return errors.New("record signature signer_peer_id is required")
+		}
+		if strings.TrimSpace(signature.PublicKey) == "" {
+			return errors.New("record signature public_key is required")
+		}
+		if strings.TrimSpace(signature.Signature) == "" {
+			return errors.New("record signature signature is required")
+		}
+	}
 	return nil
 }
 
@@ -104,6 +125,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
 		Records              []json.RawMessage     `json:"records"`
 		RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
+		RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
 	}{
 		Format:               batch.Format,
 		Implementation:       batch.Implementation,
@@ -111,12 +133,13 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		ImplementationClaims: batch.ImplementationClaims,
 		Records:              batch.Records,
 		RecordProofs:         batch.RecordProofs,
+		RecordSignatures:     batch.RecordSignatures,
 	}
 	return json.Marshal(signable)
 }
 
 func ProofForRecord(raw json.RawMessage) RecordProof {
-	canonical := canonicalRecordBytes(raw)
+	canonical := RecordSigningBytes(raw)
 	sum := sha256.Sum256(canonical)
 	return RecordProof{Digest: "sha256:" + hex.EncodeToString(sum[:])}
 }
@@ -148,7 +171,7 @@ func (batch Batch) VerifyRecordProofs() error {
 	return nil
 }
 
-func canonicalRecordBytes(raw json.RawMessage) []byte {
+func RecordSigningBytes(raw json.RawMessage) []byte {
 	var compact bytes.Buffer
 	if err := json.Compact(&compact, raw); err != nil {
 		return append([]byte{}, raw...)

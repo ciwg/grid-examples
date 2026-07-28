@@ -66,6 +66,14 @@ Intent: Strengthen trust beyond whole-batch signatures by letting receivers dete
 Constraints: Keep the current batch format additive for now; export proofs on new batches and verify them when present; do not yet invent a full claim-proof or record-signature wire layer.
 Affects: `grid/batch.go`, `kernel/runtime.go`, runtime tests, CLI relay tests, README, and ex6 current-state docs.
 
+ID: DI-ravud
+Date: 2026-07-28 20:35:00
+Status: active
+Decision: Add relay-carriage record signatures by the exporting peer and verify them during import.
+Intent: Move durable trust deeper than batch-level signatures by letting receivers validate each carried record against the exporting peer's stable identity and key material.
+Constraints: These signatures attest relay carriage, not semantic authorship; keep the layer additive to the current batch format; leave claim-level proofs and author-level record signatures for later.
+Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

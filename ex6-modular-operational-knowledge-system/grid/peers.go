@@ -180,6 +180,25 @@ func (store *PeerStore) SignBatch(batch Batch) (Batch, error) {
 	return batch, nil
 }
 
+func (store *PeerStore) SignRecords(records []json.RawMessage) ([]RecordSignature, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	signatures := make([]RecordSignature, 0, len(records))
+	for _, record := range records {
+		signingBytes := RecordSigningBytes(record)
+		signatures = append(signatures, RecordSignature{
+			SignerPeerID: store.config.LocalPeerID,
+			PublicKey:    store.config.LocalPublicKey,
+			Signature:    hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), signingBytes)),
+		})
+	}
+	return signatures, nil
+}
+
 func (store *PeerStore) VerifyPeerBatch(peerID string, batch Batch) error {
 	// Intent: Keep live relay trust rooted in explicit peer registration by
 	// verifying each batch against the allowed peer's configured public key.
@@ -208,6 +227,36 @@ func (store *PeerStore) VerifyPeerBatch(peerID string, batch Batch) error {
 	}
 	if !ed25519.Verify(ed25519.PublicKey(publicKey), signingBytes, signature) {
 		return errors.New("batch signature verification failed")
+	}
+	return nil
+}
+
+func (store *PeerStore) VerifyRecordSignatures(batch Batch) error {
+	// Intent: Bind each carried record to the exporting peer's key material so
+	// receivers can verify relay-carriage signatures per record, not just once
+	// for the enclosing batch.
+	// Source: DI-ravud
+	if len(batch.RecordSignatures) == 0 {
+		return nil
+	}
+	if len(batch.RecordSignatures) != len(batch.Records) {
+		return errors.New("record_signatures must match records length")
+	}
+	for index, signature := range batch.RecordSignatures {
+		if peerIDFromPublicKey(signature.PublicKey) != signature.SignerPeerID {
+			return fmt.Errorf("record signature signer mismatch at index %d", index)
+		}
+		publicKey, err := hex.DecodeString(signature.PublicKey)
+		if err != nil {
+			return err
+		}
+		sigBytes, err := hex.DecodeString(signature.Signature)
+		if err != nil {
+			return err
+		}
+		if !ed25519.Verify(ed25519.PublicKey(publicKey), RecordSigningBytes(batch.Records[index]), sigBytes) {
+			return fmt.Errorf("record signature verification failed at index %d", index)
+		}
 	}
 	return nil
 }

@@ -54,6 +54,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - optional seeded peer registration that still starts as `no-pull` and `no-push`
 - peer-policy promotion shortcuts that reuse stored metadata
 - per-record digest proofs on relay batches
+- per-record relay-carriage signatures by the exporting peer
 
 Discovery rule:
 - discovery is not trust
@@ -61,19 +62,19 @@ Discovery rule:
 - seeded discovery writes a local peer entry, but it still cannot pull or push until explicitly allowed
 - policy promotion changes trust locally without re-fetching peer metadata
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`.
 
 ## Not Implemented
 
 - browser embodiment
 - Neovim embodiment
 - ex5 review/search/operate parity
-- claim-level proofs, record-level signatures, and broader proof discipline
+- claim-level proofs, semantic author-level record signatures, and broader proof discipline
 - automatic peer discovery with implicit trust and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`.
 
 ## Why The Gap Exists
 

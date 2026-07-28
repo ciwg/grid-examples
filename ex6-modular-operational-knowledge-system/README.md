@@ -34,6 +34,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - relay batch export and import
 - signed live relay batches
 - per-record relay digest proofs
+- per-record relay-carriage signatures by the exporting peer
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
@@ -42,7 +43,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`.
 
 ## What Does Not Exist Yet
 
@@ -52,9 +53,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - ex5 review/search/workflow parity
 - full PromiseGrid proof/signature discipline
 - claim-level proofs and record-level signatures beyond digest verification
+- semantic author-level signatures distinct from relay-carriage signatures
 - richer relay behavior beyond the current peer-card and explicit allow model
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`.
 
 ## Relay Trust Rule
 

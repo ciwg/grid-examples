@@ -355,7 +355,10 @@ func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 	if _, err := runtimeA.AppendRecord(context.Background(), unknownRaw); err != nil {
 		t.Fatalf("append unknown raw: %v", err)
 	}
-	exported := runtimeA.ExportBatch()
+	exported, err := runtimeA.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
 	if got := string(exported.Records[0]); got != string(unknownRaw) {
 		t.Fatalf("expected exact bytes preserved, got %s", got)
 	}
@@ -460,12 +463,18 @@ func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 
 func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	runtime := newRuntime(t)
-	batch := runtime.ExportBatch()
+	batch, err := runtime.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
 	if batch.Implementation != runtime.LocalPeerID() {
 		t.Fatalf("unexpected implementation: %s", batch.Implementation)
 	}
 	if len(batch.RecordProofs) != len(batch.Records) {
 		t.Fatalf("expected record proofs to match records, got %d proofs for %d records", len(batch.RecordProofs), len(batch.Records))
+	}
+	if len(batch.RecordSignatures) != len(batch.Records) {
+		t.Fatalf("expected record signatures to match records, got %d signatures for %d records", len(batch.RecordSignatures), len(batch.Records))
 	}
 	if len(batch.ImplementationClaims) < 2 {
 		t.Fatal("expected implementation claims")
@@ -516,6 +525,29 @@ func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
 	}
 	if len(runtime.History()) != 0 {
 		t.Fatalf("expected no history on proof mismatch, got %d", len(runtime.History()))
+	}
+}
+
+func TestImportBatchRejectsRecordSignatureMismatch(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		Records:        []json.RawMessage{raw},
+		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+		RecordSignatures: []grid.RecordSignature{{
+			SignerPeerID: "peer-deadbeef",
+			PublicKey:    "deadbeef",
+			Signature:    "deadbeef",
+		}},
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected record signature mismatch rejection")
+	}
+	if len(runtime.History()) != 0 {
+		t.Fatalf("expected no history on signature mismatch, got %d", len(runtime.History()))
 	}
 }
 
