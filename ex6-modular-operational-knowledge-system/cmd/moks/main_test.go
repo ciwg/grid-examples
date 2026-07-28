@@ -273,7 +273,7 @@ func TestRelayPolicyClaimSetAndList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list claim policies: %v", err)
 	}
-	if !strings.Contains(output, "pcid:test.echo.v1\t*\t1\t0\tany-known-peer\tany-class") {
+	if !strings.Contains(output, "pcid:test.echo.v1\t*\t1\t0\t0\tany-known-peer\tany-class\tany-federation") {
 		t.Fatalf("unexpected claim policy output: %s", output)
 	}
 }
@@ -304,8 +304,42 @@ func TestRelayPeerClassifyAndWeightedPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list weighted claim policies: %v", err)
 	}
-	if !strings.Contains(policies, "pcid:test.echo.v1\t*\t1\t3\tany-known-peer\tauditor") {
+	if !strings.Contains(policies, "pcid:test.echo.v1\t*\t1\t3\t0\tany-known-peer\tauditor\tany-federation") {
 		t.Fatalf("unexpected weighted policy output: %s", policies)
+	}
+}
+
+func TestRelayPeerFederateAndFederatedPolicy(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "relay", "peer", "discover", server.URL+"/relay/peer-card", "seed"); err != nil {
+		t.Fatalf("discover and seed peer: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "relay", "peer", "classify", source.LocalPeerID(), "auditor", "3"); err != nil {
+		t.Fatalf("classify peer: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "relay", "peer", "federate", source.LocalPeerID(), "fed-a"); err != nil {
+		t.Fatalf("federate peer: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "relay", "policy", "claim", "set-federated", "pcid:test.echo.v1", "*", "1", "3", "1", "any", "auditor", "fed-a"); err != nil {
+		t.Fatalf("set federated claim policy: %v", err)
+	}
+	output, err := runCLI(t, workdir, "relay", "peer", "list")
+	if err != nil {
+		t.Fatalf("list peers: %v", err)
+	}
+	if !strings.Contains(output, "\tfederation=fed-a\t") {
+		t.Fatalf("unexpected peer federation output: %s", output)
+	}
+	policies, err := runCLI(t, workdir, "relay", "policy", "claim", "list")
+	if err != nil {
+		t.Fatalf("list federated claim policies: %v", err)
+	}
+	if !strings.Contains(policies, "pcid:test.echo.v1\t*\t1\t3\t1\tany-known-peer\tauditor\tfed-a") {
+		t.Fatalf("unexpected federated policy output: %s", policies)
 	}
 }
 

@@ -119,6 +119,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: relay policy claim set-weighted <protocol-pcid> <role|*> <min-attesters> <min-weight> <any|peer-id,peer-id> <any|class,class>")
 		}
 		return relayPolicyClaimSetWeighted(runtime, args[4:])
+	case matchesPrefix(args, "relay", "policy", "claim", "set-federated"):
+		if len(args) != 12 {
+			return errors.New("usage: relay policy claim set-federated <protocol-pcid> <role|*> <min-attesters> <min-weight> <min-federations> <any|peer-id,peer-id> <any|class,class> <any|federation,federation>")
+		}
+		return relayPolicyClaimSetFederated(runtime, args[4:])
 	case matchesPrefix(args, "relay", "policy", "claim", "remove"):
 		if len(args) != 6 {
 			return errors.New("usage: relay policy claim remove <protocol-pcid> <role|*>")
@@ -153,6 +158,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: relay peer classify <peer-id> <class> <weight>")
 		}
 		return relayPeerClassify(runtime, args[3], args[4], args[5])
+	case matchesPrefix(args, "relay", "peer", "federate"):
+		if len(args) != 5 {
+			return errors.New("usage: relay peer federate <peer-id> <federation>")
+		}
+		return relayPeerFederate(runtime, args[3], args[4])
 	case matchesPrefix(args, "relay", "peer", "revoke"):
 		if len(args) != 5 {
 			return errors.New("usage: relay peer revoke <peer-id>")
@@ -244,7 +254,11 @@ func relayPolicyClaimList(runtime *kernel.Runtime) error {
 		if len(policy.AllowedClasses) > 0 {
 			classes = strings.Join(policy.AllowedClasses, ",")
 		}
-		fmt.Printf("%s\t%s\t%d\t%d\t%s\t%s\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters, policy.MinTrustWeight, attesters, classes)
+		federations := "any-federation"
+		if len(policy.AllowedFederations) > 0 {
+			federations = strings.Join(policy.AllowedFederations, ",")
+		}
+		fmt.Printf("%s\t%s\t%d\t%d\t%d\t%s\t%s\t%s\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters, policy.MinTrustWeight, policy.MinFederations, attesters, classes, federations)
 	}
 	return nil
 }
@@ -294,6 +308,42 @@ func relayPolicyClaimSetWeighted(runtime *kernel.Runtime, args []string) error {
 		return err
 	}
 	fmt.Printf("policy set %s %s quorum=%d weight=%d\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters, policy.MinTrustWeight)
+	return nil
+}
+
+func relayPolicyClaimSetFederated(runtime *kernel.Runtime, args []string) error {
+	minAttesters, err := strconv.Atoi(args[2])
+	if err != nil {
+		return err
+	}
+	minWeight, err := strconv.Atoi(args[3])
+	if err != nil {
+		return err
+	}
+	minFederations, err := strconv.Atoi(args[4])
+	if err != nil {
+		return err
+	}
+	policy := grid.ClaimTrustPolicy{
+		ProtocolPCID:   args[0],
+		Role:           args[1],
+		MinAttesters:   minAttesters,
+		MinTrustWeight: minWeight,
+		MinFederations: minFederations,
+	}
+	if args[5] != "any" {
+		policy.AllowedAttesters = strings.Split(args[5], ",")
+	}
+	if args[6] != "any" {
+		policy.AllowedClasses = strings.Split(args[6], ",")
+	}
+	if args[7] != "any" {
+		policy.AllowedFederations = strings.Split(args[7], ",")
+	}
+	if err := runtime.SetClaimPolicy(policy); err != nil {
+		return err
+	}
+	fmt.Printf("policy set %s %s quorum=%d weight=%d federations=%d\n", policy.ProtocolPCID, policy.Role, policy.MinAttesters, policy.MinTrustWeight, policy.MinFederations)
 	return nil
 }
 
@@ -453,12 +503,15 @@ func relayPeerDiscover(ctx context.Context, runtime *kernel.Runtime, cardURL str
 	seeded := false
 	if seed {
 		if err := runtime.AllowPeer(grid.AllowedPeer{
-			PeerID:    card.PeerID,
-			BatchURL:  card.BatchURL,
-			ImportURL: card.ImportURL,
-			PublicKey: card.PublicKey,
-			AllowPull: false,
-			AllowPush: false,
+			PeerID:            card.PeerID,
+			BatchURL:          card.BatchURL,
+			ImportURL:         card.ImportURL,
+			PublicKey:         card.PublicKey,
+			AllowPull:         false,
+			AllowPush:         false,
+			AttesterClass:     "peer",
+			AttestationWeight: 1,
+			Federation:        "independent",
 		}); err != nil {
 			return err
 		}
@@ -554,7 +607,7 @@ func registerBuiltins(runtime *kernel.Runtime) error {
 
 func relayPeerList(runtime *kernel.Runtime) error {
 	for _, peer := range runtime.AllowedPeers() {
-		fmt.Printf("%s\tpull=%t\tpush=%t\tclass=%s\tweight=%d\tbatch=%s\timport=%s\tpub=%s\n", peer.PeerID, peer.AllowPull, peer.AllowPush, peer.AttesterClass, peer.AttestationWeight, peer.BatchURL, peer.ImportURL, peer.PublicKey)
+		fmt.Printf("%s\tpull=%t\tpush=%t\tclass=%s\tweight=%d\tfederation=%s\tbatch=%s\timport=%s\tpub=%s\n", peer.PeerID, peer.AllowPull, peer.AllowPush, peer.AttesterClass, peer.AttestationWeight, peer.Federation, peer.BatchURL, peer.ImportURL, peer.PublicKey)
 	}
 	return nil
 }
@@ -577,6 +630,7 @@ func relayPeerAllow(runtime *kernel.Runtime, args []string) error {
 		AllowPush:         allowPush,
 		AttesterClass:     "peer",
 		AttestationWeight: 1,
+		Federation:        "independent",
 	})
 }
 
@@ -615,5 +669,13 @@ func relayPeerClassify(runtime *kernel.Runtime, peerID string, attesterClass str
 		return err
 	}
 	fmt.Printf("classified %s class=%s weight=%d\n", peerID, attesterClass, weight)
+	return nil
+}
+
+func relayPeerFederate(runtime *kernel.Runtime, peerID string, federation string) error {
+	if err := runtime.SetPeerFederation(peerID, federation); err != nil {
+		return err
+	}
+	fmt.Printf("federated %s federation=%s\n", peerID, federation)
 	return nil
 }

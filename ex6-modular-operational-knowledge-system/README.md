@@ -40,6 +40,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - third-party attestation support for implementation claims
 - runtime-owned attestation policy and quorum for implementation claims
 - weighted attestation trust and attester classes for implementation claims
+- federated trust semantics with distinct federation spread for implementation claims
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
@@ -48,7 +49,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 
 ## What Does Not Exist Yet
 
@@ -58,10 +59,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - ex5 review/search/workflow parity
 - full PromiseGrid proof/signature discipline
 - richer author identity beyond the current local runtime signing root
-- richer federated trust semantics beyond the current local weights/classes policy
+- richer cross-runtime federation semantics beyond the current local labels and spread policy
 - richer relay behavior beyond the current peer-card and explicit allow model
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 
 ## Relay Trust Rule
 
@@ -70,9 +71,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; 
 - `moks relay peer discover <peer-card-url> seed` creates a local `no-pull` `no-push` peer entry
 - `moks relay peer promote <peer-id> <pull|push|both>` upgrades local policy using that stored peer entry
 - pull or push remain disabled until an explicit `moks relay peer allow ...` command changes policy
-- claim attestation trust is local too: `moks relay peer classify ...` assigns class/weight and `moks relay policy claim set-weighted ...` decides what trust is enough before import
+- claim attestation trust is local too: `moks relay peer classify ...` assigns class/weight, `moks relay peer federate ...` assigns federation, and `moks relay policy claim set-federated ...` decides what spread is enough before import
 
-Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`.
+Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 
 ## Layout
 

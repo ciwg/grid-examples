@@ -11,12 +11,14 @@ import (
 )
 
 type ClaimTrustPolicy struct {
-	ProtocolPCID     string   `json:"protocol_pcid"`
-	Role             string   `json:"role"`
-	MinAttesters     int      `json:"min_attesters"`
-	MinTrustWeight   int      `json:"min_trust_weight,omitempty"`
-	AllowedAttesters []string `json:"allowed_attesters,omitempty"`
-	AllowedClasses   []string `json:"allowed_classes,omitempty"`
+	ProtocolPCID       string   `json:"protocol_pcid"`
+	Role               string   `json:"role"`
+	MinAttesters       int      `json:"min_attesters"`
+	MinTrustWeight     int      `json:"min_trust_weight,omitempty"`
+	MinFederations     int      `json:"min_federations,omitempty"`
+	AllowedAttesters   []string `json:"allowed_attesters,omitempty"`
+	AllowedClasses     []string `json:"allowed_classes,omitempty"`
+	AllowedFederations []string `json:"allowed_federations,omitempty"`
 }
 
 type TrustPolicy struct {
@@ -109,17 +111,18 @@ func (store *PolicyStore) RemoveClaimPolicy(protocolPCID string, role string) er
 }
 
 // Intent: Keep claim-attestation trust local and explicit by evaluating import
-// quorums against runtime-owned policy instead of treating any valid
-// countersignature as automatically sufficient. Source: DI-movek
+// quorums, weights, and federation spread against runtime-owned policy instead
+// of treating any valid countersignature as automatically sufficient. Source: DI-rumek
 func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedPeer) error {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	for index, claim := range batch.ImplementationClaims {
 		policy, ok := store.matchClaimPolicyLocked(claim)
-		if !ok || (policy.MinAttesters == 0 && policy.MinTrustWeight == 0) {
+		if !ok || (policy.MinAttesters == 0 && policy.MinTrustWeight == 0 && policy.MinFederations == 0) {
 			continue
 		}
 		matched := map[string]struct{}{}
+		federations := map[string]struct{}{}
 		weight := 0
 		for _, attestation := range batch.ClaimAttestations {
 			if attestation.ClaimIndex != index {
@@ -135,10 +138,14 @@ func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedP
 			if len(policy.AllowedClasses) > 0 && !slices.Contains(policy.AllowedClasses, peer.AttesterClass) {
 				continue
 			}
+			if len(policy.AllowedFederations) > 0 && !slices.Contains(policy.AllowedFederations, peer.Federation) {
+				continue
+			}
 			if _, exists := matched[attestation.SignerPeerID]; exists {
 				continue
 			}
 			matched[attestation.SignerPeerID] = struct{}{}
+			federations[peer.Federation] = struct{}{}
 			weight += peer.AttestationWeight
 		}
 		if len(matched) < policy.MinAttesters {
@@ -157,6 +164,15 @@ func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedP
 				claim.Role,
 				policy.MinTrustWeight,
 				weight,
+			)
+		}
+		if len(federations) < policy.MinFederations {
+			return fmt.Errorf(
+				"claim attestation federation spread failed for %s role %s: need %d, got %d",
+				claim.ProtocolPCID,
+				claim.Role,
+				policy.MinFederations,
+				len(federations),
 			)
 		}
 	}
@@ -217,6 +233,9 @@ func validateClaimTrustPolicy(policy ClaimTrustPolicy) error {
 	if policy.MinTrustWeight < 0 {
 		return errors.New("min_trust_weight must be zero or greater")
 	}
+	if policy.MinFederations < 0 {
+		return errors.New("min_federations must be zero or greater")
+	}
 	seen := map[string]struct{}{}
 	for _, peerID := range policy.AllowedAttesters {
 		if strings.TrimSpace(peerID) == "" {
@@ -237,8 +256,21 @@ func validateClaimTrustPolicy(policy ClaimTrustPolicy) error {
 		}
 		seenClasses[class] = struct{}{}
 	}
+	seenFederations := map[string]struct{}{}
+	for _, federation := range policy.AllowedFederations {
+		if strings.TrimSpace(federation) == "" {
+			return errors.New("allowed_federations cannot contain blanks")
+		}
+		if _, exists := seenFederations[federation]; exists {
+			return fmt.Errorf("duplicate allowed_federation: %s", federation)
+		}
+		seenFederations[federation] = struct{}{}
+	}
 	if len(policy.AllowedAttesters) > 0 && policy.MinAttesters > len(policy.AllowedAttesters) {
 		return errors.New("min_attesters cannot exceed allowed_attesters length")
+	}
+	if len(policy.AllowedFederations) > 0 && policy.MinFederations > len(policy.AllowedFederations) {
+		return errors.New("min_federations cannot exceed allowed_federations length")
 	}
 	return nil
 }
@@ -256,6 +288,11 @@ func normalizeClaimTrustPolicy(policy ClaimTrustPolicy) ClaimTrustPolicy {
 	}
 	slices.Sort(policy.AllowedClasses)
 	policy.AllowedClasses = slices.Compact(policy.AllowedClasses)
+	for index := range policy.AllowedFederations {
+		policy.AllowedFederations[index] = strings.TrimSpace(policy.AllowedFederations[index])
+	}
+	slices.Sort(policy.AllowedFederations)
+	policy.AllowedFederations = slices.Compact(policy.AllowedFederations)
 	return policy
 }
 

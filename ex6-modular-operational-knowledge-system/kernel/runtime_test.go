@@ -819,6 +819,123 @@ func TestImportBatchRejectsWrongAttesterClass(t *testing.T) {
 	}
 }
 
+func TestImportBatchAcceptsFederatedClaimTrust(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-6","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attesterA := newRuntime(t)
+	attesterB := newRuntime(t)
+	batch, err = attesterA.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims A: %v", err)
+	}
+	batch, err = attesterB.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims B: %v", err)
+	}
+	importer := newRuntime(t)
+	for _, peer := range []struct {
+		id         string
+		pub        string
+		class      string
+		weight     int
+		federation string
+	}{
+		{attesterA.LocalPeerID(), attesterA.LocalPeerPublicKey(), "auditor", 2, "fed-a"},
+		{attesterB.LocalPeerID(), attesterB.LocalPeerPublicKey(), "auditor", 2, "fed-b"},
+	} {
+		if err := importer.AllowPeer(grid.AllowedPeer{
+			PeerID:            peer.id,
+			BatchURL:          "http://example/relay/batch",
+			ImportURL:         "http://example/relay/import",
+			PublicKey:         peer.pub,
+			AttesterClass:     peer.class,
+			AttestationWeight: peer.weight,
+			Federation:        peer.federation,
+		}); err != nil {
+			t.Fatalf("allow federated peer %s: %v", peer.id, err)
+		}
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID:       claim.ProtocolPCID,
+		Role:               claim.Role,
+		MinAttesters:       2,
+		MinTrustWeight:     3,
+		MinFederations:     2,
+		AllowedClasses:     []string{"auditor"},
+		AllowedFederations: []string{"fed-a", "fed-b"},
+	}); err != nil {
+		t.Fatalf("set federated claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("import batch with federated trust: %v", err)
+	}
+}
+
+func TestImportBatchRejectsSingleFederationSpread(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-7","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attesterA := newRuntime(t)
+	attesterB := newRuntime(t)
+	batch, err = attesterA.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims A: %v", err)
+	}
+	batch, err = attesterB.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims B: %v", err)
+	}
+	importer := newRuntime(t)
+	for _, peer := range []struct {
+		id     string
+		pub    string
+		class  string
+		weight int
+	}{
+		{attesterA.LocalPeerID(), attesterA.LocalPeerPublicKey(), "auditor", 2},
+		{attesterB.LocalPeerID(), attesterB.LocalPeerPublicKey(), "auditor", 2},
+	} {
+		if err := importer.AllowPeer(grid.AllowedPeer{
+			PeerID:            peer.id,
+			BatchURL:          "http://example/relay/batch",
+			ImportURL:         "http://example/relay/import",
+			PublicKey:         peer.pub,
+			AttesterClass:     peer.class,
+			AttestationWeight: peer.weight,
+			Federation:        "fed-a",
+		}); err != nil {
+			t.Fatalf("allow federated peer %s: %v", peer.id, err)
+		}
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID:       claim.ProtocolPCID,
+		Role:               claim.Role,
+		MinAttesters:       2,
+		MinTrustWeight:     3,
+		MinFederations:     2,
+		AllowedClasses:     []string{"auditor"},
+		AllowedFederations: []string{"fed-a", "fed-b"},
+	}); err != nil {
+		t.Fatalf("set federated claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected federation spread rejection")
+	}
+}
+
 func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)

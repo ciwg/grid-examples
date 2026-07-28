@@ -201,6 +201,10 @@ func (runtime *Runtime) SetPeerTrust(peerID string, attesterClass string, weight
 	return runtime.peers.SetPeerTrust(peerID, attesterClass, weight)
 }
 
+func (runtime *Runtime) SetPeerFederation(peerID string, federation string) error {
+	return runtime.peers.SetPeerFederation(peerID, federation)
+}
+
 func (runtime *Runtime) RevokePeer(peerID string) error {
 	return runtime.peers.RemoveAllowedPeer(peerID)
 }

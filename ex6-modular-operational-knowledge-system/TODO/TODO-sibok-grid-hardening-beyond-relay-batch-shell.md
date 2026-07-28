@@ -114,6 +114,14 @@ Intent: Move beyond simple minimum-count quorum so a runtime can distinguish str
 Constraints: Keep class and weight local to the importing runtime; default discovered or allowed peers to class `peer` and weight `1`; do not claim federation, reputation markets, or global consensus semantics.
 Affects: `grid/peers.go`, `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
 
+ID: DI-rumek
+Date: 2026-07-28 23:05:00
+Status: active
+Decision: Extend local claim-attestation policy with federation labels and minimum distinct federation spread.
+Intent: Make trust stronger than raw local weights by letting an importing runtime require attestations from more than one federation, while still keeping federation semantics explicit and local.
+Constraints: Federation labels remain local metadata on known peers; spread is counted by distinct federation labels among matched attesters; do not claim global federation discovery, federation PKI, or cross-runtime consensus semantics.
+Affects: `grid/peers.go`, `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

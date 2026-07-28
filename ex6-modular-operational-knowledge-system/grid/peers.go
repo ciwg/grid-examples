@@ -26,6 +26,7 @@ type AllowedPeer struct {
 	AllowPush         bool   `json:"allow_push"`
 	AttesterClass     string `json:"attester_class,omitempty"`
 	AttestationWeight int    `json:"attestation_weight,omitempty"`
+	Federation        string `json:"federation,omitempty"`
 }
 
 type PeerConfig struct {
@@ -150,6 +151,20 @@ func (store *PeerStore) SetPeerTrust(peerID string, attesterClass string, weight
 		}
 		store.config.AllowedPeers[index].AttesterClass = strings.TrimSpace(attesterClass)
 		store.config.AllowedPeers[index].AttestationWeight = weight
+		store.config.AllowedPeers[index] = normalizeAllowedPeer(store.config.AllowedPeers[index])
+		return store.persistLocked()
+	}
+	return fmt.Errorf("unknown peer: %s", peerID)
+}
+
+func (store *PeerStore) SetPeerFederation(peerID string, federation string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	for index := range store.config.AllowedPeers {
+		if store.config.AllowedPeers[index].PeerID != peerID {
+			continue
+		}
+		store.config.AllowedPeers[index].Federation = strings.TrimSpace(federation)
 		store.config.AllowedPeers[index] = normalizeAllowedPeer(store.config.AllowedPeers[index])
 		return store.persistLocked()
 	}
@@ -478,6 +493,9 @@ func validateAllowedPeer(peer AllowedPeer) error {
 	if peer.AttestationWeight <= 0 {
 		return errors.New("attestation_weight must be greater than zero")
 	}
+	if strings.TrimSpace(peer.Federation) == "" {
+		return errors.New("federation is required")
+	}
 	return nil
 }
 
@@ -488,6 +506,10 @@ func normalizeAllowedPeer(peer AllowedPeer) AllowedPeer {
 	}
 	if peer.AttestationWeight <= 0 {
 		peer.AttestationWeight = 1
+	}
+	peer.Federation = strings.TrimSpace(peer.Federation)
+	if peer.Federation == "" {
+		peer.Federation = "independent"
 	}
 	return peer
 }
