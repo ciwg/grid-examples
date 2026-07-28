@@ -187,8 +187,44 @@ func TestRelayPeerCardAndDiscover(t *testing.T) {
 	if !strings.Contains(output, "peer_id: "+source.LocalPeerID()) {
 		t.Fatalf("discover output missing peer id: %s", output)
 	}
+	if !strings.Contains(output, "seeded_untrusted: false") {
+		t.Fatalf("discover output missing unseeded state: %s", output)
+	}
 	if !strings.Contains(output, "allow_command: moks relay peer allow "+source.LocalPeerID()) {
 		t.Fatalf("discover output missing allow command: %s", output)
+	}
+}
+
+func TestRelayPeerDiscoverSeedCreatesUntrustedPeerEntry(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "relay", "peer", "discover", server.URL+"/relay/peer-card", "seed")
+	if err != nil {
+		t.Fatalf("discover and seed peer: %v", err)
+	}
+	if !strings.Contains(output, "seeded_untrusted: true") {
+		t.Fatalf("discover output missing seeded state: %s", output)
+	}
+
+	runtime, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open seeded runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	peer, ok := runtime.LookupPeer(source.LocalPeerID())
+	if !ok {
+		t.Fatal("expected seeded peer entry")
+	}
+	if peer.AllowPull || peer.AllowPush {
+		t.Fatalf("expected seeded peer to remain untrusted, got pull=%t push=%t", peer.AllowPull, peer.AllowPush)
+	}
+	if peer.PublicKey != source.LocalPeerPublicKey() {
+		t.Fatalf("unexpected seeded public key: %s", peer.PublicKey)
 	}
 }
 

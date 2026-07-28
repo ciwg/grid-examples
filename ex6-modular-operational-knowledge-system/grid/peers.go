@@ -247,6 +247,9 @@ func (store *PeerStore) persistLocked() error {
 }
 
 func validateAllowedPeer(peer AllowedPeer) error {
+	// Intent: Allow explicit local registration of untrusted peers so discovery
+	// can seed metadata without silently granting pull or push rights.
+	// Source: DI-kasud
 	if strings.TrimSpace(peer.PeerID) == "" {
 		return errors.New("peer_id is required")
 	}
@@ -258,9 +261,6 @@ func validateAllowedPeer(peer AllowedPeer) error {
 	}
 	if strings.TrimSpace(peer.PublicKey) == "" {
 		return errors.New("public_key is required")
-	}
-	if !peer.AllowPull && !peer.AllowPush {
-		return errors.New("peer must allow pull, push, or both")
 	}
 	return nil
 }

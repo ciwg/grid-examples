@@ -42,6 +42,14 @@ Intent: Let operators learn a peer's identity, public key, and relay endpoints f
 Constraints: Discovery must not silently enable pull or push; reuse the current live relay surface; keep peer registration human-auditable by printing the exact allow command to run next.
 Affects: `grid/peers.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
 
+ID: DI-kasud
+Date: 2026-07-28 19:35:00
+Status: active
+Decision: Let peer discovery optionally seed a local peer entry with `no-pull` and `no-push`, while keeping plain discovery read-only by default.
+Intent: Remove manual transcription from the operator flow without collapsing discovery into trust or enabling exchange permissions implicitly.
+Constraints: Seeding must remain explicit; seeded peers stay untrusted for exchange until a later `relay peer allow ... pull|push` command changes policy; discovery output must state that boundary clearly.
+Affects: `cmd/moks`, relay tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

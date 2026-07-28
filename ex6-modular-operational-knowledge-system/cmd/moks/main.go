@@ -106,10 +106,17 @@ func run(ctx context.Context, args []string) error {
 	case matchesPrefix(args, "relay", "peer", "list"):
 		return relayPeerList(runtime)
 	case matchesPrefix(args, "relay", "peer", "discover"):
-		if len(args) != 4 {
-			return errors.New("usage: relay peer discover <peer-card-url>")
+		if len(args) != 4 && len(args) != 5 {
+			return errors.New("usage: relay peer discover <peer-card-url> [seed]")
 		}
-		return relayPeerDiscover(ctx, runtime, args[3])
+		seed := false
+		if len(args) == 5 {
+			if args[4] != "seed" {
+				return errors.New("usage: relay peer discover <peer-card-url> [seed]")
+			}
+			seed = true
+		}
+		return relayPeerDiscover(ctx, runtime, args[3], seed)
 	case matchesPrefix(args, "relay", "peer", "allow"):
 		if len(args) != 8 {
 			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
@@ -340,21 +347,49 @@ func relayPush(ctx context.Context, runtime *kernel.Runtime, peerID string) erro
 	return nil
 }
 
-func relayPeerDiscover(ctx context.Context, _ *kernel.Runtime, cardURL string) error {
+func relayPeerDiscover(ctx context.Context, runtime *kernel.Runtime, cardURL string, seed bool) error {
 	// Intent: Keep discovery separate from trust by fetching peer metadata and
-	// printing the exact allow command instead of auto-enabling pull or push.
-	// Source: DI-vemut
+	// only seeding a no-pull/no-push local entry when the operator explicitly
+	// asks for it.
+	// Source: DI-kasud
 	card, err := fetchPeerCard(ctx, cardURL)
 	if err != nil {
 		return err
 	}
+	seeded := false
+	if seed {
+		if err := runtime.AllowPeer(grid.AllowedPeer{
+			PeerID:    card.PeerID,
+			BatchURL:  card.BatchURL,
+			ImportURL: card.ImportURL,
+			PublicKey: card.PublicKey,
+			AllowPull: false,
+			AllowPush: false,
+		}); err != nil {
+			return err
+		}
+		seeded = true
+	}
 	fmt.Printf(
-		"peer_id: %s\npublic_key: %s\nbatch_url: %s\nimport_url: %s\ndiscover_url: %s\nallow_command: moks relay peer allow %s %s %s %s no-pull no-push\n",
+		"peer_id: %s\npublic_key: %s\nbatch_url: %s\nimport_url: %s\ndiscover_url: %s\nseeded_untrusted: %t\nallow_command: moks relay peer allow %s %s %s %s no-pull no-push\nenable_pull_command: moks relay peer allow %s %s %s %s pull no-push\nenable_push_command: moks relay peer allow %s %s %s %s no-pull push\nenable_both_command: moks relay peer allow %s %s %s %s pull push\n",
 		card.PeerID,
 		card.PublicKey,
 		card.BatchURL,
 		card.ImportURL,
 		card.DiscoverURL,
+		seeded,
+		card.PeerID,
+		card.BatchURL,
+		card.ImportURL,
+		card.PublicKey,
+		card.PeerID,
+		card.BatchURL,
+		card.ImportURL,
+		card.PublicKey,
+		card.PeerID,
+		card.BatchURL,
+		card.ImportURL,
+		card.PublicKey,
 		card.PeerID,
 		card.BatchURL,
 		card.ImportURL,
