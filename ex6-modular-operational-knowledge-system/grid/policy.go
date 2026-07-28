@@ -103,6 +103,18 @@ func (store *PolicyStore) ProtocolRoutePlanPolicies() []ProtocolRoutePlanPolicy 
 	return out
 }
 
+func (store *PolicyStore) ProtocolRoutePlanPolicy(protocolPCID string) (RoutePlanPolicy, bool) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	protocolPCID = strings.TrimSpace(protocolPCID)
+	for _, policy := range store.policy.ProtocolRoutePlanPolicies {
+		if policy.ProtocolPCID == protocolPCID {
+			return cloneRoutePlanPolicy(policy.RoutePlanPolicy), true
+		}
+	}
+	return RoutePlanPolicy{}, false
+}
+
 func (store *PolicyStore) ProtocolRoleRoutePlanPolicies() []ProtocolRoleRoutePlanPolicy {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -111,6 +123,19 @@ func (store *PolicyStore) ProtocolRoleRoutePlanPolicies() []ProtocolRoleRoutePla
 		out = append(out, cloneProtocolRoleRoutePlanPolicy(policy))
 	}
 	return out
+}
+
+func (store *PolicyStore) ProtocolRoleRoutePlanPolicy(protocolPCID string, role string) (RoutePlanPolicy, bool) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	protocolPCID = strings.TrimSpace(protocolPCID)
+	role = strings.TrimSpace(role)
+	for _, policy := range store.policy.ProtocolRoleRoutePlanPolicies {
+		if policy.ProtocolPCID == protocolPCID && policy.Role == role {
+			return cloneRoutePlanPolicy(policy.RoutePlanPolicy), true
+		}
+	}
+	return RoutePlanPolicy{}, false
 }
 
 // Intent: Let route planning keep one global default policy while still

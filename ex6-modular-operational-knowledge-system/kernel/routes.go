@@ -8,15 +8,32 @@ import (
 )
 
 type RoutePlan struct {
-	ProtocolPCID string               `json:"protocol_pcid"`
-	Preferred    *RoutePlanCandidate  `json:"preferred,omitempty"`
-	Candidates   []RoutePlanCandidate `json:"candidates,omitempty"`
+	ProtocolPCID string                `json:"protocol_pcid"`
+	Preferred    *RoutePlanCandidate   `json:"preferred,omitempty"`
+	Candidates   []RoutePlanCandidate  `json:"candidates,omitempty"`
+	Explanation  *RoutePlanExplanation `json:"explanation,omitempty"`
 }
 
 type RoutePlanCandidate struct {
-	Route      grid.RouteRegistration `json:"route"`
-	Executable bool                   `json:"executable"`
-	Next       []RoutePlan            `json:"next,omitempty"`
+	Route       grid.RouteRegistration        `json:"route"`
+	Executable  bool                          `json:"executable"`
+	Next        []RoutePlan                   `json:"next,omitempty"`
+	Explanation RoutePlanCandidateExplanation `json:"explanation,omitempty"`
+}
+
+type RoutePlanExplanation struct {
+	Order  []string `json:"order,omitempty"`
+	Winner []string `json:"winner,omitempty"`
+}
+
+type RoutePlanCandidateExplanation struct {
+	GlobalPolicy      grid.RoutePlanPolicy  `json:"global_policy"`
+	ProtocolPolicy    *grid.RoutePlanPolicy `json:"protocol_policy,omitempty"`
+	RolePolicy        *grid.RoutePlanPolicy `json:"role_policy,omitempty"`
+	EffectivePolicy   grid.RoutePlanPolicy  `json:"effective_policy"`
+	PreferredByPolicy bool                  `json:"preferred_by_policy"`
+	AvoidedByPolicy   bool                  `json:"avoided_by_policy"`
+	Notes             []string              `json:"notes,omitempty"`
 }
 
 type registeredRoute struct {
@@ -118,11 +135,15 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		return runtime.compareRoutePlanCandidates(protocolPCID, left, right)
 	})
 	for index := range plan.Candidates {
+		plan.Candidates[index].Explanation = runtime.explainRoutePlanCandidate(protocolPCID, plan.Candidates[index])
+	}
+	for index := range plan.Candidates {
 		if plan.Candidates[index].Executable {
 			plan.Preferred = &plan.Candidates[index]
 			break
 		}
 	}
+	plan.Explanation = runtime.explainRoutePlan(protocolPCID, plan.Candidates, plan.Preferred)
 	return plan
 }
 
@@ -206,6 +227,139 @@ func compareRouteRegistrations(left grid.RouteRegistration, right grid.RouteRegi
 		return diff
 	}
 	return strings.Compare(left.PackageVersion, right.PackageVersion)
+}
+
+// Intent: Make route-plan output explainable by exposing the policy layers and
+// deterministic ranking reasons that caused one candidate to beat another.
+// Source: DI-lavik
+func (runtime *Runtime) explainRoutePlan(protocolPCID string, candidates []RoutePlanCandidate, preferred *RoutePlanCandidate) *RoutePlanExplanation {
+	explanation := &RoutePlanExplanation{
+		Order: []string{
+			"executable routes rank before non-executable routes",
+			"global, protocol, and exact-role planner policy layers apply prefer and avoid rules",
+			"route type, route role, package identity, and downstream hop count break ties deterministically",
+		},
+	}
+	if preferred == nil {
+		explanation.Winner = []string{"no executable route was available for this protocol"}
+		return explanation
+	}
+	if len(candidates) == 1 {
+		explanation.Winner = []string{"only one candidate route exists for this protocol"}
+		return explanation
+	}
+	for _, candidate := range candidates {
+		if candidate.Route.PackageID == preferred.Route.PackageID &&
+			candidate.Route.ProtocolPCID == preferred.Route.ProtocolPCID &&
+			candidate.Route.Role == preferred.Route.Role &&
+			candidate.Route.RouteType == preferred.Route.RouteType &&
+			candidate.Route.PackageVersion == preferred.Route.PackageVersion {
+			continue
+		}
+		explanation.Winner = runtime.explainWinningComparison(protocolPCID, *preferred, candidate)
+		break
+	}
+	if len(explanation.Winner) == 0 {
+		explanation.Winner = []string{"the preferred route remained first after deterministic candidate ordering"}
+	}
+	return explanation
+}
+
+func (runtime *Runtime) explainRoutePlanCandidate(protocolPCID string, candidate RoutePlanCandidate) RoutePlanCandidateExplanation {
+	globalPolicy := runtime.RoutePlanPolicy()
+	protocolPolicy, hasProtocolPolicy := runtime.ProtocolRoutePlanPolicy(protocolPCID)
+	rolePolicy, hasRolePolicy := runtime.ProtocolRoleRoutePlanPolicy(protocolPCID, candidate.Route.Role)
+	effectivePolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, candidate.Route.Role)
+	explanation := RoutePlanCandidateExplanation{
+		GlobalPolicy:      globalPolicy,
+		EffectivePolicy:   effectivePolicy,
+		PreferredByPolicy: routePreferred(candidate.Route, effectivePolicy),
+		AvoidedByPolicy:   routeAvoided(candidate.Route, effectivePolicy),
+	}
+	if hasProtocolPolicy {
+		explanation.ProtocolPolicy = &protocolPolicy
+	}
+	if hasRolePolicy {
+		explanation.RolePolicy = &rolePolicy
+	}
+	explanation.Notes = routeExecutabilityNotes(candidate)
+	if explanation.PreferredByPolicy {
+		explanation.Notes = append(explanation.Notes, "effective policy prefers this route's type or role")
+	}
+	if explanation.AvoidedByPolicy {
+		explanation.Notes = append(explanation.Notes, "effective policy avoids this route's type or role")
+	}
+	if !explanation.PreferredByPolicy && !explanation.AvoidedByPolicy {
+		explanation.Notes = append(explanation.Notes, "effective policy is neutral for this route")
+	}
+	return explanation
+}
+
+func routeExecutabilityNotes(candidate RoutePlanCandidate) []string {
+	switch candidate.Route.RouteType {
+	case "", "direct":
+		if candidate.Executable {
+			return []string{"direct routes are executable immediately"}
+		}
+		return []string{"direct route was marked non-executable unexpectedly"}
+	case "parser", "transform":
+		if len(candidate.Route.EmitsProtocols) == 0 {
+			return []string{"route is not executable because it emits no downstream protocols"}
+		}
+		if candidate.Executable {
+			return []string{"all emitted protocols resolved to executable downstream plans"}
+		}
+		return []string{"route is not executable because at least one emitted protocol has no preferred downstream plan"}
+	default:
+		return []string{"route type is unknown to the planner and is treated as non-executable"}
+	}
+}
+
+func (runtime *Runtime) explainWinningComparison(protocolPCID string, winner RoutePlanCandidate, loser RoutePlanCandidate) []string {
+	reasons := []string{}
+	if winner.Executable != loser.Executable {
+		if winner.Executable {
+			reasons = append(reasons, "winner is executable while the next candidate is not")
+		} else {
+			reasons = append(reasons, "winner remained ahead despite executability parity")
+		}
+	}
+	winnerPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, winner.Route.Role)
+	loserPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, loser.Route.Role)
+	winnerAvoided := routeAvoided(winner.Route, winnerPolicy)
+	loserAvoided := routeAvoided(loser.Route, loserPolicy)
+	if winnerAvoided != loserAvoided {
+		if !winnerAvoided && loserAvoided {
+			reasons = append(reasons, "winner is not avoided by its effective policy while the next candidate is avoided")
+		} else {
+			reasons = append(reasons, "winner remained ahead despite being avoided")
+		}
+	}
+	winnerPreferred := routePreferred(winner.Route, winnerPolicy)
+	loserPreferred := routePreferred(loser.Route, loserPolicy)
+	if winnerPreferred != loserPreferred {
+		if winnerPreferred && !loserPreferred {
+			reasons = append(reasons, "winner is preferred by its effective policy while the next candidate is neutral")
+		} else {
+			reasons = append(reasons, "winner remained ahead without a preference advantage")
+		}
+	}
+	if diff := compareRouteType(winner.Route.RouteType, loser.Route.RouteType); diff != 0 {
+		reasons = append(reasons, "route type ordering broke the tie")
+	}
+	if diff := compareRouteRole(winner.Route.Role, loser.Route.Role); diff != 0 {
+		reasons = append(reasons, "route role ordering broke the tie")
+	}
+	if winner.Route.PackageID != loser.Route.PackageID || winner.Route.PackageVersion != loser.Route.PackageVersion {
+		reasons = append(reasons, "package identity broke the remaining tie")
+	}
+	if len(winner.Next) != len(loser.Next) {
+		reasons = append(reasons, "downstream hop count broke the final tie")
+	}
+	if len(reasons) == 0 {
+		reasons = append(reasons, "winner remained first after deterministic planner comparison")
+	}
+	return reasons
 }
 
 func compareRouteType(left string, right string) int {

@@ -133,6 +133,9 @@ func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 	if !strings.Contains(output, `"executable": true`) {
 		t.Fatalf("route plan missing executable preferred route: %s", output)
 	}
+	if !strings.Contains(output, `"explanation"`) || !strings.Contains(output, `"winner"`) {
+		t.Fatalf("route plan missing explanation: %s", output)
+	}
 }
 
 func TestRoutePolicySetAndShow(t *testing.T) {

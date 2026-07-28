@@ -73,3 +73,11 @@ Decision: Add role-scoped route-plan policy overrides keyed by `protocol_pcid + 
 Intent: Let one protocol prefer one route role while still avoiding another without forcing every role on that protocol through one shared preference set.
 Constraints: Keep route planning deterministic; preserve global and per-protocol inheritance; do not add route execution yet; treat role-scoped overrides as explicit exact-role policy, not wildcard matching.
 Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-lavik
+Date: 2026-07-28 10:53:52
+Status: active
+Decision: Make `moks route plan <protocol-pcid>` include plan introspection that explains candidate executability, the active global/protocol/role policy layers for each route, and why the winning route outranked the next candidate.
+Intent: Let operators inspect not just what route won, but why it won under the current layered planner policy.
+Constraints: Keep the current `route plan` JSON surface as the primary output; do not add route execution; explanations must remain deterministic and derived from the current route table and planner policy only.
+Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.

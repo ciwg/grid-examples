@@ -248,8 +248,16 @@ func (runtime *Runtime) ProtocolRoutePlanPolicies() []grid.ProtocolRoutePlanPoli
 	return runtime.policies.ProtocolRoutePlanPolicies()
 }
 
+func (runtime *Runtime) ProtocolRoutePlanPolicy(protocolPCID string) (grid.RoutePlanPolicy, bool) {
+	return runtime.policies.ProtocolRoutePlanPolicy(protocolPCID)
+}
+
 func (runtime *Runtime) ProtocolRoleRoutePlanPolicies() []grid.ProtocolRoleRoutePlanPolicy {
 	return runtime.policies.ProtocolRoleRoutePlanPolicies()
+}
+
+func (runtime *Runtime) ProtocolRoleRoutePlanPolicy(protocolPCID string, role string) (grid.RoutePlanPolicy, bool) {
+	return runtime.policies.ProtocolRoleRoutePlanPolicy(protocolPCID, role)
 }
 
 func (runtime *Runtime) EffectiveRoutePlanPolicy(protocolPCID string) grid.RoutePlanPolicy {

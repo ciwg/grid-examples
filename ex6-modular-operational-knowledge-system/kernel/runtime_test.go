@@ -901,6 +901,15 @@ func TestProtocolRoutePlanPolicyCanOverrideByRoleWithinOneProtocol(t *testing.T)
 	if !slices.Equal(effective.PreferRoles, []string{"domain-behavior"}) {
 		t.Fatalf("unexpected effective prefer roles: %#v", effective.PreferRoles)
 	}
+	if len(plan.Explanation.Winner) == 0 {
+		t.Fatalf("expected plan winner explanation, got %#v", plan.Explanation)
+	}
+	if len(plan.Preferred.Explanation.Notes) == 0 {
+		t.Fatalf("expected candidate explanation notes, got %#v", plan.Preferred.Explanation)
+	}
+	if !plan.Preferred.Explanation.PreferredByPolicy {
+		t.Fatalf("expected preferred route to be marked preferred by policy, got %#v", plan.Preferred.Explanation)
+	}
 }
 
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
