@@ -106,6 +106,14 @@ Intent: Make third-party claim attestations locally meaningful by letting each r
 Constraints: Keep policy local to the importing runtime; use minimum-count quorum only for now; reuse known peer registrations as the current attester identity set; do not invent weight, federation, or global consensus semantics yet.
 Affects: `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
 
+ID: DI-ravok
+Date: 2026-07-28 22:40:00
+Status: active
+Decision: Extend local claim-attestation policy with attester classes and trust weights, and let peer entries carry local class/weight metadata.
+Intent: Move beyond simple minimum-count quorum so a runtime can distinguish stronger and weaker countersigners while still keeping trust decisions local and explicit.
+Constraints: Keep class and weight local to the importing runtime; default discovered or allowed peers to class `peer` and weight `1`; do not claim federation, reputation markets, or global consensus semantics.
+Affects: `grid/peers.go`, `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

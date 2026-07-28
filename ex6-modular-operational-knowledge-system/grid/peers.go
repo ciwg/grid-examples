@@ -18,12 +18,14 @@ import (
 )
 
 type AllowedPeer struct {
-	PeerID    string `json:"peer_id"`
-	BatchURL  string `json:"batch_url"`
-	ImportURL string `json:"import_url"`
-	PublicKey string `json:"public_key"`
-	AllowPull bool   `json:"allow_pull"`
-	AllowPush bool   `json:"allow_push"`
+	PeerID            string `json:"peer_id"`
+	BatchURL          string `json:"batch_url"`
+	ImportURL         string `json:"import_url"`
+	PublicKey         string `json:"public_key"`
+	AllowPull         bool   `json:"allow_pull"`
+	AllowPush         bool   `json:"allow_push"`
+	AttesterClass     string `json:"attester_class,omitempty"`
+	AttestationWeight int    `json:"attestation_weight,omitempty"`
 }
 
 type PeerConfig struct {
@@ -118,6 +120,7 @@ func (store *PeerStore) Lookup(peerID string) (AllowedPeer, bool) {
 func (store *PeerStore) SetAllowedPeer(peer AllowedPeer) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	peer = normalizeAllowedPeer(peer)
 	if err := validateAllowedPeer(peer); err != nil {
 		return err
 	}
@@ -136,6 +139,21 @@ func (store *PeerStore) SetAllowedPeer(peer AllowedPeer) error {
 		return strings.Compare(left.PeerID, right.PeerID)
 	})
 	return store.persistLocked()
+}
+
+func (store *PeerStore) SetPeerTrust(peerID string, attesterClass string, weight int) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	for index := range store.config.AllowedPeers {
+		if store.config.AllowedPeers[index].PeerID != peerID {
+			continue
+		}
+		store.config.AllowedPeers[index].AttesterClass = strings.TrimSpace(attesterClass)
+		store.config.AllowedPeers[index].AttestationWeight = weight
+		store.config.AllowedPeers[index] = normalizeAllowedPeer(store.config.AllowedPeers[index])
+		return store.persistLocked()
+	}
+	return fmt.Errorf("unknown peer: %s", peerID)
 }
 
 func (store *PeerStore) RemoveAllowedPeer(peerID string) error {
@@ -454,7 +472,24 @@ func validateAllowedPeer(peer AllowedPeer) error {
 	if strings.TrimSpace(peer.PublicKey) == "" {
 		return errors.New("public_key is required")
 	}
+	if strings.TrimSpace(peer.AttesterClass) == "" {
+		return errors.New("attester_class is required")
+	}
+	if peer.AttestationWeight <= 0 {
+		return errors.New("attestation_weight must be greater than zero")
+	}
 	return nil
+}
+
+func normalizeAllowedPeer(peer AllowedPeer) AllowedPeer {
+	peer.AttesterClass = strings.TrimSpace(peer.AttesterClass)
+	if peer.AttesterClass == "" {
+		peer.AttesterClass = "peer"
+	}
+	if peer.AttestationWeight <= 0 {
+		peer.AttestationWeight = 1
+	}
+	return peer
 }
 
 func (card PeerCard) Validate() error {

@@ -724,6 +724,101 @@ func TestImportBatchRejectsMissingClaimAttestationQuorum(t *testing.T) {
 	}
 }
 
+func TestImportBatchAcceptsWeightedClaimTrust(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-4","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attesterA := newRuntime(t)
+	attesterB := newRuntime(t)
+	batch, err = attesterA.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims A: %v", err)
+	}
+	batch, err = attesterB.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims B: %v", err)
+	}
+	importer := newRuntime(t)
+	for _, peer := range []struct {
+		id     string
+		pub    string
+		class  string
+		weight int
+	}{
+		{attesterA.LocalPeerID(), attesterA.LocalPeerPublicKey(), "auditor", 2},
+		{attesterB.LocalPeerID(), attesterB.LocalPeerPublicKey(), "supplier", 1},
+	} {
+		if err := importer.AllowPeer(grid.AllowedPeer{
+			PeerID:            peer.id,
+			BatchURL:          "http://example/relay/batch",
+			ImportURL:         "http://example/relay/import",
+			PublicKey:         peer.pub,
+			AttesterClass:     peer.class,
+			AttestationWeight: peer.weight,
+		}); err != nil {
+			t.Fatalf("allow attester peer %s: %v", peer.id, err)
+		}
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID:   claim.ProtocolPCID,
+		Role:           claim.Role,
+		MinAttesters:   1,
+		MinTrustWeight: 2,
+		AllowedClasses: []string{"auditor"},
+	}); err != nil {
+		t.Fatalf("set weighted claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("import batch with weighted trust: %v", err)
+	}
+}
+
+func TestImportBatchRejectsWrongAttesterClass(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-5","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	claim := findClaimByProtocol(t, batch, contextpkg.PlaceProtocol)
+	attester := newRuntime(t)
+	batch, err = attester.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims: %v", err)
+	}
+	importer := newRuntime(t)
+	if err := importer.AllowPeer(grid.AllowedPeer{
+		PeerID:            attester.LocalPeerID(),
+		BatchURL:          "http://example/relay/batch",
+		ImportURL:         "http://example/relay/import",
+		PublicKey:         attester.LocalPeerPublicKey(),
+		AttesterClass:     "supplier",
+		AttestationWeight: 3,
+	}); err != nil {
+		t.Fatalf("allow attester peer: %v", err)
+	}
+	if err := importer.SetClaimPolicy(grid.ClaimTrustPolicy{
+		ProtocolPCID:   claim.ProtocolPCID,
+		Role:           claim.Role,
+		MinAttesters:   1,
+		MinTrustWeight: 2,
+		AllowedClasses: []string{"auditor"},
+	}); err != nil {
+		t.Fatalf("set weighted claim policy: %v", err)
+	}
+	if err := importer.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected claim trust class rejection")
+	}
+}
+
 func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)

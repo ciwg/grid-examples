@@ -14,7 +14,9 @@ type ClaimTrustPolicy struct {
 	ProtocolPCID     string   `json:"protocol_pcid"`
 	Role             string   `json:"role"`
 	MinAttesters     int      `json:"min_attesters"`
+	MinTrustWeight   int      `json:"min_trust_weight,omitempty"`
 	AllowedAttesters []string `json:"allowed_attesters,omitempty"`
+	AllowedClasses   []string `json:"allowed_classes,omitempty"`
 }
 
 type TrustPolicy struct {
@@ -112,27 +114,32 @@ func (store *PolicyStore) RemoveClaimPolicy(protocolPCID string, role string) er
 func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedPeer) error {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
-	known := map[string]struct{}{}
-	for _, peer := range knownPeers {
-		known[peer.PeerID] = struct{}{}
-	}
 	for index, claim := range batch.ImplementationClaims {
 		policy, ok := store.matchClaimPolicyLocked(claim)
-		if !ok || policy.MinAttesters == 0 {
+		if !ok || (policy.MinAttesters == 0 && policy.MinTrustWeight == 0) {
 			continue
 		}
 		matched := map[string]struct{}{}
+		weight := 0
 		for _, attestation := range batch.ClaimAttestations {
 			if attestation.ClaimIndex != index {
 				continue
 			}
-			if _, ok := known[attestation.SignerPeerID]; !ok {
+			peer, ok := findKnownPeer(knownPeers, attestation.SignerPeerID)
+			if !ok {
 				continue
 			}
 			if len(policy.AllowedAttesters) > 0 && !slices.Contains(policy.AllowedAttesters, attestation.SignerPeerID) {
 				continue
 			}
+			if len(policy.AllowedClasses) > 0 && !slices.Contains(policy.AllowedClasses, peer.AttesterClass) {
+				continue
+			}
+			if _, exists := matched[attestation.SignerPeerID]; exists {
+				continue
+			}
 			matched[attestation.SignerPeerID] = struct{}{}
+			weight += peer.AttestationWeight
 		}
 		if len(matched) < policy.MinAttesters {
 			return fmt.Errorf(
@@ -141,6 +148,15 @@ func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedP
 				claim.Role,
 				policy.MinAttesters,
 				len(matched),
+			)
+		}
+		if weight < policy.MinTrustWeight {
+			return fmt.Errorf(
+				"claim attestation trust weight failed for %s role %s: need %d, got %d",
+				claim.ProtocolPCID,
+				claim.Role,
+				policy.MinTrustWeight,
+				weight,
 			)
 		}
 	}
@@ -198,6 +214,9 @@ func validateClaimTrustPolicy(policy ClaimTrustPolicy) error {
 	if policy.MinAttesters < 0 {
 		return errors.New("min_attesters must be zero or greater")
 	}
+	if policy.MinTrustWeight < 0 {
+		return errors.New("min_trust_weight must be zero or greater")
+	}
 	seen := map[string]struct{}{}
 	for _, peerID := range policy.AllowedAttesters {
 		if strings.TrimSpace(peerID) == "" {
@@ -207,6 +226,16 @@ func validateClaimTrustPolicy(policy ClaimTrustPolicy) error {
 			return fmt.Errorf("duplicate allowed_attester: %s", peerID)
 		}
 		seen[peerID] = struct{}{}
+	}
+	seenClasses := map[string]struct{}{}
+	for _, class := range policy.AllowedClasses {
+		if strings.TrimSpace(class) == "" {
+			return errors.New("allowed_classes cannot contain blanks")
+		}
+		if _, exists := seenClasses[class]; exists {
+			return fmt.Errorf("duplicate allowed_class: %s", class)
+		}
+		seenClasses[class] = struct{}{}
 	}
 	if len(policy.AllowedAttesters) > 0 && policy.MinAttesters > len(policy.AllowedAttesters) {
 		return errors.New("min_attesters cannot exceed allowed_attesters length")
@@ -222,6 +251,11 @@ func normalizeClaimTrustPolicy(policy ClaimTrustPolicy) ClaimTrustPolicy {
 	}
 	slices.Sort(policy.AllowedAttesters)
 	policy.AllowedAttesters = slices.Compact(policy.AllowedAttesters)
+	for index := range policy.AllowedClasses {
+		policy.AllowedClasses[index] = strings.TrimSpace(policy.AllowedClasses[index])
+	}
+	slices.Sort(policy.AllowedClasses)
+	policy.AllowedClasses = slices.Compact(policy.AllowedClasses)
 	return policy
 }
 
@@ -240,4 +274,13 @@ func sortClaimPolicies(policies []ClaimTrustPolicy) {
 		}
 		return strings.Compare(left.Role, right.Role)
 	})
+}
+
+func findKnownPeer(peers []AllowedPeer, peerID string) (AllowedPeer, bool) {
+	for _, peer := range peers {
+		if peer.PeerID == peerID {
+			return peer, true
+		}
+	}
+	return AllowedPeer{}, false
 }

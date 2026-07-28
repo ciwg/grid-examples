@@ -197,6 +197,10 @@ func (runtime *Runtime) AllowPeer(peer grid.AllowedPeer) error {
 	return runtime.peers.SetAllowedPeer(peer)
 }
 
+func (runtime *Runtime) SetPeerTrust(peerID string, attesterClass string, weight int) error {
+	return runtime.peers.SetPeerTrust(peerID, attesterClass, weight)
+}
+
 func (runtime *Runtime) RevokePeer(peerID string) error {
 	return runtime.peers.RemoveAllowedPeer(peerID)
 }
@@ -326,7 +330,7 @@ func (runtime *Runtime) AttestBatchClaims(batch grid.Batch) (grid.Batch, error) 
 	if err != nil {
 		return grid.Batch{}, err
 	}
-	batch.ClaimAttestations = append(batch.ClaimAttestations[:0], attestations...)
+	batch.ClaimAttestations = append(batch.ClaimAttestations, attestations...)
 	return batch, nil
 }
 

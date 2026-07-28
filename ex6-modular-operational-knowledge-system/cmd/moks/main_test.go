@@ -273,8 +273,39 @@ func TestRelayPolicyClaimSetAndList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list claim policies: %v", err)
 	}
-	if !strings.Contains(output, "pcid:test.echo.v1\t*\t1\tany-known-peer") {
+	if !strings.Contains(output, "pcid:test.echo.v1\t*\t1\t0\tany-known-peer\tany-class") {
 		t.Fatalf("unexpected claim policy output: %s", output)
+	}
+}
+
+func TestRelayPeerClassifyAndWeightedPolicy(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "relay", "peer", "discover", server.URL+"/relay/peer-card", "seed"); err != nil {
+		t.Fatalf("discover and seed peer: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "relay", "peer", "classify", source.LocalPeerID(), "auditor", "3"); err != nil {
+		t.Fatalf("classify peer: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "relay", "policy", "claim", "set-weighted", "pcid:test.echo.v1", "*", "1", "3", "any", "auditor"); err != nil {
+		t.Fatalf("set weighted claim policy: %v", err)
+	}
+	output, err := runCLI(t, workdir, "relay", "peer", "list")
+	if err != nil {
+		t.Fatalf("list peers: %v", err)
+	}
+	if !strings.Contains(output, "\tclass=auditor\tweight=3\t") {
+		t.Fatalf("unexpected peer list output: %s", output)
+	}
+	policies, err := runCLI(t, workdir, "relay", "policy", "claim", "list")
+	if err != nil {
+		t.Fatalf("list weighted claim policies: %v", err)
+	}
+	if !strings.Contains(policies, "pcid:test.echo.v1\t*\t1\t3\tany-known-peer\tauditor") {
+		t.Fatalf("unexpected weighted policy output: %s", policies)
 	}
 }
 

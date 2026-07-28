@@ -25,10 +25,12 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks relay peer discover <peer-card-url> seed`
 - `moks relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>`
 - `moks relay peer promote <peer-id> <pull|push|both>`
+- `moks relay peer classify <peer-id> <class> <weight>`
 - `moks relay peer list`
 - `moks relay peer revoke <peer-id>`
 - `moks relay policy claim list`
 - `moks relay policy claim set <protocol-pcid> <role|*> <min-attesters> <any|peer-id,peer-id>`
+- `moks relay policy claim set-weighted <protocol-pcid> <role|*> <min-attesters> <min-weight> <any|peer-id,peer-id> <any|class,class>`
 - `moks relay policy claim remove <protocol-pcid> <role|*>`
 - package manifest validation
 - installed-package self-check
@@ -62,6 +64,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - semantic author-level signatures on durable records
 - third-party attestation support for implementation claims
 - runtime-owned attestation policy and quorum for implementation claims
+- weighted attestation trust and attester classes
 
 Discovery rule:
 - discovery is not trust
@@ -69,19 +72,19 @@ Discovery rule:
 - seeded discovery writes a local peer entry, but it still cannot pull or push until explicitly allowed
 - policy promotion changes trust locally without re-fetching peer metadata
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`.
 
 ## Not Implemented
 
 - browser embodiment
 - Neovim embodiment
 - ex5 review/search/operate parity
-- richer author identity, weighted attestation trust, and broader proof discipline
+- richer author identity, federated trust semantics, and broader proof discipline
 - automatic peer discovery with implicit trust and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`.
 
 ## Why The Gap Exists
 
