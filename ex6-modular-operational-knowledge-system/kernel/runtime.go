@@ -49,6 +49,7 @@ type Runtime struct {
 	packages     map[string]*activePackage
 	commands     map[string]*activePackage
 	families     map[string]registeredFamily
+	routes       []registeredRoute
 }
 
 func Open(root string) (*Runtime, error) {
@@ -84,6 +85,7 @@ func Open(root string) (*Runtime, error) {
 		packages:     map[string]*activePackage{},
 		commands:     map[string]*activePackage{},
 		families:     map[string]registeredFamily{},
+		routes:       []registeredRoute{},
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
@@ -150,6 +152,13 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 		if _, exists := runtime.families[family.Name]; exists {
 			return fmt.Errorf("family already registered: %s", family.Name)
 		}
+		// Intent: Treat family validation as an explicit routing promise so the
+		// current runtime moves toward pCID-declared routing roles instead of
+		// leaving family handling implicit in local package ownership alone.
+		// Source: DI-rutom
+		if !pkg.manifest.HasClaim(family.ProtocolPCID, "family-validator") {
+			return fmt.Errorf("family %s requires family-validator claim for protocol %s", family.Name, family.ProtocolPCID)
+		}
 	}
 	runtime.packages[pkg.manifest.ID] = pkg
 	for _, command := range pkg.manifest.Commands {
@@ -160,6 +169,15 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 			owner:        pkg,
 			protocolPCID: family.ProtocolPCID,
 		}
+	}
+	for _, claim := range pkg.manifest.Claims {
+		runtime.routes = append(runtime.routes, registeredRoute{
+			owner:        pkg,
+			protocolPCID: claim.ProtocolPCID,
+			role:         claim.Role,
+			summary:      claim.Summary,
+			families:     pkg.manifest.FamiliesForProtocol(claim.ProtocolPCID),
+		})
 	}
 	return nil
 }
@@ -422,7 +440,7 @@ func (runtime *Runtime) ImportBatchFromPeer(ctx context.Context, peerID string, 
 }
 
 // Intent: Publish explicit per-package protocol claims so relay exports say
-// what the active eggs believe they implement instead of implying that through
+// what the active packages believe they implement instead of implying that through
 // local layout or family names alone. Source: DI-lupok
 func (runtime *Runtime) ImplementationClaims() []grid.ImplementationClaim {
 	claims := []grid.ImplementationClaim{}

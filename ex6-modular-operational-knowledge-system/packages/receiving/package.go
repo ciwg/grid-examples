@@ -74,8 +74,11 @@ func Package() kernel.BuiltinPackage {
 			{Name: DispositionFamily, ProtocolPCID: DispositionProtocol},
 		},
 		Claims: []pkgmeta.ImplementationClaim{
+			{ProtocolPCID: ItemProtocol, Role: "family-validator", Summary: "Validates receiving item records."},
 			{ProtocolPCID: ItemProtocol, Role: "domain-behavior", Summary: "Declares receiving items over the knowledge family."},
+			{ProtocolPCID: ReceiptProtocol, Role: "family-validator", Summary: "Validates receipt records."},
 			{ProtocolPCID: ReceiptProtocol, Role: "domain-behavior", Summary: "Declares receipt records over the runs family."},
+			{ProtocolPCID: DispositionProtocol, Role: "family-validator", Summary: "Validates receiving disposition records."},
 			{ProtocolPCID: DispositionProtocol, Role: "domain-behavior", Summary: "Declares receiving dispositions tied to place and resource context."},
 		},
 	}

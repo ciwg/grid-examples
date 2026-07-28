@@ -40,7 +40,15 @@ A package manifest currently declares:
 - protocol implementation claims
 
 Every declared family must be covered by an explicit protocol implementation
-claim. Source: `DI-lupok`.
+claim.
+
+Current routing rule:
+
+- those claims are also the runtime's intermediate route registrations
+- if a package declares a family, it must declare a matching
+  `family-validator` claim for that family's `protocol_pcid`
+
+Source: `DI-lupok`; `DI-rutom`.
 
 ## Current Activation Model
 

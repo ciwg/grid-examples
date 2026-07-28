@@ -72,8 +72,11 @@ func Package() kernel.BuiltinPackage {
 			{Name: CompletionFamily, ProtocolPCID: CompletionProtocol},
 		},
 		Claims: []pkgmeta.ImplementationClaim{
+			{ProtocolPCID: ItemProtocol, Role: "family-validator", Summary: "Validates training item records."},
 			{ProtocolPCID: ItemProtocol, Role: "domain-behavior", Summary: "Declares training items over the knowledge family."},
+			{ProtocolPCID: SessionProtocol, Role: "family-validator", Summary: "Validates training session records."},
 			{ProtocolPCID: SessionProtocol, Role: "domain-behavior", Summary: "Declares training sessions over the runs family."},
+			{ProtocolPCID: CompletionProtocol, Role: "family-validator", Summary: "Validates training completion records."},
 			{ProtocolPCID: CompletionProtocol, Role: "domain-behavior", Summary: "Declares training completion records."},
 		},
 	}

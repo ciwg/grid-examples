@@ -54,7 +54,13 @@ It refines it:
 - parsing can become another kernel role
 - app packages become agents that register promise-based protocol handling
 
-Source: `DI-puvok`.
+Current concrete step:
+
+- package claims now register explicit protocol routes inside the kernel
+- registered families must declare a matching `family-validator` route claim
+- `moks route list` exposes the current route table so routing is visible as a kernel service
+
+Source: `DI-puvok`; `DI-rutom`.
 
 ## Practical effect on next design work
 
@@ -66,4 +72,4 @@ When we touch kernel/app boundaries next, prefer changes that move ex6 toward:
 - optional parser-agent hops
 - organic protocol growth without forcing one giant protocol document
 
-Source: `DI-puvok`.
+Source: `DI-puvok`; `DI-rutom`.

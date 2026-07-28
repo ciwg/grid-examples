@@ -132,6 +132,26 @@ func (manifest Manifest) Equal(other Manifest) bool {
 		equalClaims(left.Claims, right.Claims)
 }
 
+func (manifest Manifest) HasClaim(protocolPCID string, role string) bool {
+	for _, claim := range manifest.Claims {
+		if claim.ProtocolPCID == protocolPCID && claim.Role == role {
+			return true
+		}
+	}
+	return false
+}
+
+func (manifest Manifest) FamiliesForProtocol(protocolPCID string) []string {
+	families := []string{}
+	for _, family := range manifest.Families {
+		if family.ProtocolPCID == protocolPCID {
+			families = append(families, family.Name)
+		}
+	}
+	slices.Sort(families)
+	return families
+}
+
 func sortManifest(manifest *Manifest) {
 	slices.SortFunc(manifest.Commands, func(left, right Command) int {
 		return strings.Compare(left.Key(), right.Key())

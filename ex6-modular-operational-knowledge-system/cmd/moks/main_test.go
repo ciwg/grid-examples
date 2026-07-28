@@ -59,11 +59,11 @@ func TestBuiltinQuickstartFlow(t *testing.T) {
 	}
 }
 
-func TestInstalledWriterEggExample(t *testing.T) {
+func TestInstalledWriterAgentExample(t *testing.T) {
 	workdir := t.TempDir()
 	exampleDir := filepath.Join(repoRoot(t), "examples", "writer-agent")
 	if output, err := runCLI(t, workdir, "package", "install", exampleDir); err != nil {
-		t.Fatalf("install writer egg: %v", err)
+		t.Fatalf("install writer agent: %v", err)
 	} else if !strings.Contains(output, "installed writer-agent") {
 		t.Fatalf("unexpected install output: %s", output)
 	}
@@ -84,6 +84,20 @@ func TestInstalledWriterEggExample(t *testing.T) {
 	}
 	if !bytes.Contains(body, []byte("writer.note.v1")) {
 		t.Fatalf("writer relay export missing record family: %s", string(body))
+	}
+}
+
+func TestRouteListShowsProtocolRoutes(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "list")
+	if err != nil {
+		t.Fatalf("route list: %v", err)
+	}
+	if !strings.Contains(output, "pcid:moks.context.place.v1\tfamily-validator\tcontext\t0.1.0\tmoks.context.place.v1") {
+		t.Fatalf("route list missing context place validator: %s", output)
+	}
+	if !strings.Contains(output, "pcid:moks.ops.note.v1\tfamily-validator\tops-note\t0.1.0\tmoks.ops.note.v1") {
+		t.Fatalf("route list missing ops note validator: %s", output)
 	}
 }
 

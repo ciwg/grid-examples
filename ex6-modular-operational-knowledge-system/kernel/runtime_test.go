@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -350,6 +351,42 @@ func TestInstalledPackageManifestMismatchRejected(t *testing.T) {
 	}
 }
 
+func TestInstalledPackageFamilyRequiresValidatorRoute(t *testing.T) {
+	runtime := newRuntime(t)
+	packageDir := helperPackageDir(t, false)
+	manifestPath := filepath.Join(packageDir, "moks-package.json")
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	manifest["claims"] = []map[string]any{
+		{"protocol_pcid": "pcid:helper.echo.v1", "role": "reader", "summary": "Validates helper echo envelopes."},
+	}
+	updated, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(manifestPath, updated, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	scriptPath := filepath.Join(packageDir, "helper-agent.sh")
+	scriptBody, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("read script: %v", err)
+	}
+	updatedScript := strings.ReplaceAll(string(scriptBody), `"role":"family-validator"`, `"role":"reader"`)
+	if err := os.WriteFile(scriptPath, []byte(updatedScript), 0o755); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+	if _, err := runtime.InstallPackageDir(context.Background(), packageDir); err == nil || !strings.Contains(err.Error(), "family helper.echo.v1 requires family-validator claim") {
+		t.Fatalf("expected family-validator route rejection, got %v", err)
+	}
+}
+
 func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 	unknownRaw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtimeA := newRuntime(t)
@@ -539,6 +576,33 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	}
 	if !foundOps || !foundContext || !foundKnowledge || !foundRuns || !foundLinks || !foundProcedures {
 		t.Fatalf("expected ops and context claims, got %#v", batch.ImplementationClaims)
+	}
+}
+
+func TestProtocolRoutesIncludeBuiltinClaims(t *testing.T) {
+	runtime := newRuntime(t)
+	routes := runtime.ProtocolRoutes()
+	if len(routes) == 0 {
+		t.Fatal("expected protocol routes")
+	}
+	foundContext := false
+	foundOps := false
+	for _, route := range routes {
+		if route.ProtocolPCID == contextpkg.PlaceProtocol && route.Role == "family-validator" && route.PackageID == "context" {
+			foundContext = true
+			if !slices.Equal(route.Families, []string{"moks.context.place.v1"}) {
+				t.Fatalf("unexpected context route families: %#v", route.Families)
+			}
+		}
+		if route.ProtocolPCID == builtin.OpsFamilyProtocol && route.Role == "family-validator" && route.PackageID == "ops-note" {
+			foundOps = true
+			if !slices.Equal(route.Families, []string{"moks.ops.note.v1"}) {
+				t.Fatalf("unexpected ops route families: %#v", route.Families)
+			}
+		}
+	}
+	if !foundContext || !foundOps {
+		t.Fatalf("expected builtin protocol routes, got %#v", routes)
 	}
 }
 

@@ -27,6 +27,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - manifest plus self-check activation for installed packages
 - built-in package registration
 - command routing
+- explicit protocol route registration derived from package claims
 - family registration
 - explicit per-package protocol implementation claims
 - append-only durable history
@@ -49,7 +50,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`.
 
 ## What Does Not Exist Yet
 
@@ -75,12 +76,19 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; 
 
 Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 
+## Route Inspection
+
+- `moks route list` shows the current protocol routes that the runtime has derived from active package claims
+- a registered family now requires a matching `family-validator` route claim for its `protocol_pcid`
+
+Source: `DI-rutom`.
+
 ## Layout
 
 - `cmd/moks/`
   runtime CLI entrypoint
 - `kernel/`
-  runtime package activation, routing, family registry, relay export/import
+  runtime package activation, routing service, family registry, relay export/import
 - `packages/`
   package manifest and installed-package runner support
 - `packages/<package-id>/`

@@ -75,8 +75,11 @@ func Package() kernel.BuiltinPackage {
 			{Name: ReconcileFamily, ProtocolPCID: ReconcileProtocol},
 		},
 		Claims: []pkgmeta.ImplementationClaim{
+			{ProtocolPCID: ItemProtocol, Role: "family-validator", Summary: "Validates inventory item records."},
 			{ProtocolPCID: ItemProtocol, Role: "domain-behavior", Summary: "Declares inventory items over the knowledge family."},
+			{ProtocolPCID: CountProtocol, Role: "family-validator", Summary: "Validates inventory count records."},
 			{ProtocolPCID: CountProtocol, Role: "domain-behavior", Summary: "Declares inventory count records over the runs family."},
+			{ProtocolPCID: ReconcileProtocol, Role: "family-validator", Summary: "Validates inventory reconciliation records."},
 			{ProtocolPCID: ReconcileProtocol, Role: "domain-behavior", Summary: "Declares inventory reconciliation records tied to place and resource context."},
 		},
 	}

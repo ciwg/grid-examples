@@ -49,7 +49,9 @@ func Package() kernel.BuiltinPackage {
 			{Name: UseFamily, ProtocolPCID: UseProtocol},
 		},
 		Claims: []pkgmeta.ImplementationClaim{
+			{ProtocolPCID: ItemProtocol, Role: "family-validator", Summary: "Validates procedure item records."},
 			{ProtocolPCID: ItemProtocol, Role: "domain-behavior", Summary: "Declares procedure items over the knowledge family."},
+			{ProtocolPCID: UseProtocol, Role: "family-validator", Summary: "Validates procedure use records."},
 			{ProtocolPCID: UseProtocol, Role: "domain-behavior", Summary: "Declares procedure use records over the runs family."},
 		},
 	}

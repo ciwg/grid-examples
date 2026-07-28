@@ -53,6 +53,11 @@ func run(ctx context.Context, args []string) error {
 		return errors.New("command is required")
 	}
 	switch {
+	case matchesPrefix(args, "route", "list"):
+		if len(args) != 2 {
+			return errors.New("usage: route list")
+		}
+		return routeList(runtime)
 	case matchesPrefix(args, "package", "list"):
 		return packageList(runtime)
 	case matchesPrefix(args, "package", "inspect"):
@@ -203,6 +208,22 @@ func matchesPrefix(args []string, prefix ...string) bool {
 func packageList(runtime *kernel.Runtime) error {
 	for _, manifest := range runtime.PackageManifests() {
 		fmt.Printf("%s\t%s\n", manifest.ID, manifest.Version)
+	}
+	return nil
+}
+
+func routeList(runtime *kernel.Runtime) error {
+	// Intent: Let operators inspect the explicit route table that the kernel has
+	// derived from package claims so the current routing role is visible and
+	// debuggable from the CLI. Source: DI-rutom
+	for _, route := range runtime.ProtocolRoutes() {
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
+			route.ProtocolPCID,
+			route.Role,
+			route.PackageID,
+			route.PackageVersion,
+			strings.Join(route.Families, ","),
+		)
 	}
 	return nil
 }

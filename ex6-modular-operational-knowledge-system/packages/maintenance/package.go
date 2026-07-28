@@ -74,8 +74,11 @@ func Package() kernel.BuiltinPackage {
 			{Name: FindingFamily, ProtocolPCID: FindingProtocol},
 		},
 		Claims: []pkgmeta.ImplementationClaim{
+			{ProtocolPCID: ItemProtocol, Role: "family-validator", Summary: "Validates maintenance item records."},
 			{ProtocolPCID: ItemProtocol, Role: "domain-behavior", Summary: "Declares maintenance items over the knowledge family."},
+			{ProtocolPCID: ServiceProtocol, Role: "family-validator", Summary: "Validates maintenance service records."},
 			{ProtocolPCID: ServiceProtocol, Role: "domain-behavior", Summary: "Declares maintenance service records over the runs family."},
+			{ProtocolPCID: FindingProtocol, Role: "family-validator", Summary: "Validates maintenance finding records."},
 			{ProtocolPCID: FindingProtocol, Role: "domain-behavior", Summary: "Declares maintenance findings tied to a resource."},
 		},
 	}
