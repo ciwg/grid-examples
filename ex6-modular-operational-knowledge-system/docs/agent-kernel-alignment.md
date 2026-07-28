@@ -60,10 +60,11 @@ Current concrete step:
 - registered families must declare a matching `family-validator` route claim
 - `moks route list` exposes the current route table so routing is visible as a kernel service
 - `moks route inspect <protocol-pcid>` lets route consumers query one input protocol directly
+- `moks route plan <protocol-pcid>` lets route consumers ask what executable route plan the kernel would choose
 - relay export now carries those route registrations so routing roles are visible across runtimes too
 - route claims can now describe direct handlers versus parser/transform hops with emitted next-hop protocols
 
-Source: `DI-puvok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`.
+Source: `DI-puvok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`.
 
 ## Practical effect on next design work
 

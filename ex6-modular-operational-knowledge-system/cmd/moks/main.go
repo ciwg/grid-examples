@@ -58,6 +58,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route list")
 		}
 		return routeList(runtime)
+	case matchesPrefix(args, "route", "plan"):
+		if len(args) != 3 {
+			return errors.New("usage: route plan <protocol-pcid>")
+		}
+		return routePlan(runtime, args[2])
 	case matchesPrefix(args, "route", "inspect"):
 		if len(args) != 3 {
 			return errors.New("usage: route inspect <protocol-pcid>")
@@ -240,6 +245,18 @@ func routeInspect(runtime *kernel.Runtime, protocolPCID string) error {
 	// consumers can ask what direct handlers or hops exist for one input pCID.
 	// Source: DI-fotav
 	body, err := json.MarshalIndent(runtime.ProtocolRoutesForProtocol(protocolPCID), "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func routePlan(runtime *kernel.Runtime, protocolPCID string) error {
+	// Intent: Expose the kernel's preferred executable route choice for one
+	// input pCID so route consumers can ask what the kernel would actually use.
+	// Source: DI-pabut
+	body, err := json.MarshalIndent(runtime.ProtocolRoutePlan(protocolPCID), "", "  ")
 	if err != nil {
 		return err
 	}

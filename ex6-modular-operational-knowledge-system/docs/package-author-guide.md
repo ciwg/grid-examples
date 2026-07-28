@@ -53,8 +53,10 @@ Current routing rule:
 - plain direct handlers can omit `route_type` and default to `direct`
 - local consumers can query one input protocol with
   `moks route inspect <protocol-pcid>`
+- local consumers can ask for the kernel's preferred executable route plan with
+  `moks route plan <protocol-pcid>`
 
-Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`.
+Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`.
 
 ## Current Activation Model
 

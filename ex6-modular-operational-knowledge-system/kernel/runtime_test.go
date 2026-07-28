@@ -690,6 +690,73 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if filtered[0].RouteType != "parser" {
 		t.Fatalf("expected parser route type, got %#v", filtered)
 	}
+	plan := runtime.ProtocolRoutePlan("pcid:moks.raw.v1")
+	if plan.Preferred == nil {
+		t.Fatalf("expected preferred parser plan, got %#v", plan)
+	}
+	if plan.Preferred.Route.RouteType != "parser" {
+		t.Fatalf("expected parser preferred route, got %#v", plan.Preferred)
+	}
+	if len(plan.Preferred.Next) != 1 || plan.Preferred.Next[0].Preferred == nil {
+		t.Fatalf("expected downstream preferred route, got %#v", plan.Preferred)
+	}
+	if plan.Preferred.Next[0].Preferred.Route.ProtocolPCID != "pcid:moks.parsed.v1" {
+		t.Fatalf("unexpected downstream preferred route: %#v", plan.Preferred.Next[0].Preferred)
+	}
+}
+
+func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	hybridPackage := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "hybrid-agent",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID: "pcid:moks.hybrid.v1",
+					Role:         "handler",
+					Summary:      "Handles hybrid envelopes directly.",
+				},
+				{
+					ProtocolPCID:   "pcid:moks.hybrid.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.hybrid.parsed.v1"},
+					Summary:        "Parses hybrid envelopes.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.hybrid.parsed.v1",
+					Role:         "handler",
+					Summary:      "Handles parsed hybrid envelopes.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(hybridPackage); err != nil {
+		t.Fatalf("register hybrid package: %v", err)
+	}
+	plan := runtime.ProtocolRoutePlan("pcid:moks.hybrid.v1")
+	if plan.Preferred == nil {
+		t.Fatalf("expected preferred route, got %#v", plan)
+	}
+	if plan.Preferred.Route.RouteType != "direct" {
+		t.Fatalf("expected direct route to win, got %#v", plan.Preferred)
+	}
+	if plan.Preferred.Route.Role != "handler" {
+		t.Fatalf("expected direct handler to win, got %#v", plan.Preferred)
+	}
+	if len(plan.Candidates) < 2 {
+		t.Fatalf("expected direct and parser candidates, got %#v", plan.Candidates)
+	}
 }
 
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {

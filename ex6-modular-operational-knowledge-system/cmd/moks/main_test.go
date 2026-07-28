@@ -118,6 +118,23 @@ func TestRouteInspectShowsProtocolRoutesForPCID(t *testing.T) {
 	}
 }
 
+func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1")
+	if err != nil {
+		t.Fatalf("route plan: %v", err)
+	}
+	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+		t.Fatalf("route plan missing protocol: %s", output)
+	}
+	if !strings.Contains(output, `"preferred"`) {
+		t.Fatalf("route plan missing preferred plan: %s", output)
+	}
+	if !strings.Contains(output, `"executable": true`) {
+		t.Fatalf("route plan missing executable preferred route: %s", output)
+	}
+}
+
 func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

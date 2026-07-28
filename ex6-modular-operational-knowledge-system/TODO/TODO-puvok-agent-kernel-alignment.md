@@ -41,3 +41,11 @@ Decision: Add a real routing query surface that filters routes by input `protoco
 Intent: Let route consumers ask what handlers or hops exist for one protocol without scraping the whole route table.
 Constraints: Query the existing claim-derived route table only; do not execute parser/transform hops yet; keep missing-protocol queries deterministic and non-fatal.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, CLI/runtime tests, and routing docs.
+
+ID: DI-pabut
+Date: 2026-07-28 10:38:28
+Status: active
+Decision: Add a route-plan selector for one input `protocol_pcid`, prefer executable direct paths over parser/transform hops, and expose the preferred plan plus ordered candidates as `moks route plan <protocol-pcid>`.
+Intent: Move ex6 from route discovery toward actual kernel routing choice while keeping the current route table as the single source of truth.
+Constraints: Choose plans from the current claim-derived route table only; treat parser/transform paths as executable only when their emitted protocols also resolve to preferred downstream plans; do not execute any plan yet.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, CLI/runtime tests, and routing docs.
