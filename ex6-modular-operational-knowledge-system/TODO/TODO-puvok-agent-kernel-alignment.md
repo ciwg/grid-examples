@@ -57,3 +57,11 @@ Decision: Make route-plan ordering policy-driven with runtime-owned global prefe
 Intent: Replace one fixed built-in plan order with explicit operator-owned routing preference while keeping the planner deterministic.
 Constraints: First slice is global, not per-protocol; prefer/avoid changes ordering but does not by itself make a non-executable route executable; keep the current route table as the only planning input.
 Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-posek
+Date: 2026-07-28 10:47:56
+Status: active
+Decision: Keep the current global route-plan policy as the default, add per-`protocol_pcid` route-plan policy overrides, and have per-protocol overrides replace only the specific prefer/avoid fields they set while inheriting all other fields from the global policy.
+Intent: Let the routing planner adapt to protocol-specific needs without forcing one global route preference order onto every protocol.
+Constraints: Keep the claim-derived route table as the only planning input; preserve deterministic planning; treat empty override fields as inherit-from-global instead of clearing global defaults.
+Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.

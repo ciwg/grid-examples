@@ -152,6 +152,49 @@ func TestRoutePolicySetAndShow(t *testing.T) {
 	}
 }
 
+func TestRoutePolicySetForProtocolAndShowEffective(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "policy", "set", "direct", "-", "-", "-"); err != nil {
+		t.Fatalf("route policy set: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "route", "policy", "set-for", "pcid:moks.context.place.v1", "parser", "direct", "-", "-"); err != nil {
+		t.Fatalf("route policy set-for: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "policy", "show")
+	if err != nil {
+		t.Fatalf("route policy show: %v", err)
+	}
+	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+		t.Fatalf("route policy show missing protocol override: %s", output)
+	}
+	effective, err := runCLI(t, workdir, "route", "policy", "show", "pcid:moks.context.place.v1")
+	if err != nil {
+		t.Fatalf("route policy show for protocol: %v", err)
+	}
+	if !strings.Contains(effective, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+		t.Fatalf("route policy effective output missing protocol: %s", effective)
+	}
+	if !strings.Contains(effective, `"global"`) || !strings.Contains(effective, `"effective"`) {
+		t.Fatalf("route policy effective output missing global/effective blocks: %s", effective)
+	}
+	if !strings.Contains(effective, `"prefer_route_types": [`) || !strings.Contains(effective, `"parser"`) {
+		t.Fatalf("route policy effective output missing parser override: %s", effective)
+	}
+	if !strings.Contains(effective, `"avoid_route_types": [`) || !strings.Contains(effective, `"direct"`) {
+		t.Fatalf("route policy effective output missing direct avoidance: %s", effective)
+	}
+	if _, err := runCLI(t, workdir, "route", "policy", "remove", "pcid:moks.context.place.v1"); err != nil {
+		t.Fatalf("route policy remove: %v", err)
+	}
+	afterRemove, err := runCLI(t, workdir, "route", "policy", "show")
+	if err != nil {
+		t.Fatalf("route policy show after remove: %v", err)
+	}
+	if strings.Contains(afterRemove, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+		t.Fatalf("route policy override still present after remove: %s", afterRemove)
+	}
+}
+
 func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

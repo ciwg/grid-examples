@@ -114,7 +114,10 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		}
 		plan.Candidates = append(plan.Candidates, candidate)
 	}
-	policy := runtime.RoutePlanPolicy()
+	// Intent: Keep route planning protocol-aware by combining global planner
+	// defaults with per-protocol overrides instead of forcing one route ordering
+	// on every pCID. Source: DI-posek
+	policy := runtime.EffectiveRoutePlanPolicy(protocolPCID)
 	slices.SortFunc(plan.Candidates, func(left, right RoutePlanCandidate) int {
 		return compareRoutePlanCandidates(left, right, policy)
 	})

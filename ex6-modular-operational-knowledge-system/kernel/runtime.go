@@ -244,8 +244,24 @@ func (runtime *Runtime) RoutePlanPolicy() grid.RoutePlanPolicy {
 	return runtime.policies.RoutePlanPolicy()
 }
 
+func (runtime *Runtime) ProtocolRoutePlanPolicies() []grid.ProtocolRoutePlanPolicy {
+	return runtime.policies.ProtocolRoutePlanPolicies()
+}
+
+func (runtime *Runtime) EffectiveRoutePlanPolicy(protocolPCID string) grid.RoutePlanPolicy {
+	return runtime.policies.EffectiveRoutePlanPolicy(protocolPCID)
+}
+
 func (runtime *Runtime) SetRoutePlanPolicy(policy grid.RoutePlanPolicy) error {
 	return runtime.policies.SetRoutePlanPolicy(policy)
+}
+
+func (runtime *Runtime) SetProtocolRoutePlanPolicy(protocolPCID string, policy grid.RoutePlanPolicy) error {
+	return runtime.policies.SetProtocolRoutePlanPolicy(protocolPCID, policy)
+}
+
+func (runtime *Runtime) RemoveProtocolRoutePlanPolicy(protocolPCID string) error {
+	return runtime.policies.RemoveProtocolRoutePlanPolicy(protocolPCID)
 }
 
 func (runtime *Runtime) SetClaimPolicy(policy grid.ClaimTrustPolicy) error {
