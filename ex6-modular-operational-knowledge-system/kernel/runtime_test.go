@@ -20,6 +20,7 @@ import (
 	receivingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/receiving"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
 	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/training"
+	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/records"
 )
 
 func TestBuiltinPackageCommandAndCAS(t *testing.T) {
@@ -359,8 +360,18 @@ func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("export batch: %v", err)
 	}
-	if got := string(exported.Records[0]); got != string(unknownRaw) {
-		t.Fatalf("expected exact bytes preserved, got %s", got)
+	exportedEnvelope, err := records.Parse(exported.Records[0])
+	if err != nil {
+		t.Fatalf("parse exported envelope: %v", err)
+	}
+	if exportedEnvelope.Family != "helper.echo.v1" {
+		t.Fatalf("unexpected family: %s", exportedEnvelope.Family)
+	}
+	if string(exportedEnvelope.Payload) != `{"message":"hello"}` {
+		t.Fatalf("expected payload preserved, got %s", string(exportedEnvelope.Payload))
+	}
+	if exportedEnvelope.AuthorSignature == "" {
+		t.Fatal("expected authored unknown record to be signed")
 	}
 	runtimeB := newRuntime(t)
 	if err := runtimeB.ImportBatch(context.Background(), exported); err != nil {
@@ -375,6 +386,24 @@ func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 	}
 	if runtimeB.History()[0].Envelope.Family != "helper.echo.v1" {
 		t.Fatalf("unexpected family: %s", runtimeB.History()[0].Envelope.Family)
+	}
+}
+
+func TestAppendRecordAddsSemanticAuthorSignature(t *testing.T) {
+	runtime := newRuntime(t)
+	raw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	envelope, err := runtime.AppendRecord(context.Background(), raw)
+	if err != nil {
+		t.Fatalf("append record: %v", err)
+	}
+	if envelope.AuthorKeyID != runtime.LocalPeerID() {
+		t.Fatalf("unexpected author key id: %s", envelope.AuthorKeyID)
+	}
+	if envelope.AuthorPublicKey != runtime.LocalPeerPublicKey() {
+		t.Fatalf("unexpected author public key: %s", envelope.AuthorPublicKey)
+	}
+	if envelope.AuthorSignature == "" {
+		t.Fatal("expected author signature to be added")
 	}
 }
 
@@ -577,6 +606,42 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 	}
 	if len(runtime.History()) != 0 {
 		t.Fatalf("expected no history on claim proof mismatch, got %d", len(runtime.History()))
+	}
+}
+
+func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		Records:        []json.RawMessage{raw},
+		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
+		t.Fatalf("import legacy unsigned author record: %v", err)
+	}
+	if len(runtime.History()) != 1 {
+		t.Fatalf("expected imported history, got %d", len(runtime.History()))
+	}
+}
+
+func TestImportBatchRejectsBadSemanticAuthorSignature(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"},"author_key_id":"peer-deadbeef","author_public_key":"deadbeef","author_signature":"deadbeef"}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		Records:        []json.RawMessage{raw},
+		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected semantic author signature rejection")
+	}
+	if len(runtime.History()) != 0 {
+		t.Fatalf("expected no history on bad semantic author signature, got %d", len(runtime.History()))
 	}
 }
 

@@ -210,8 +210,28 @@ func (runtime *Runtime) GetCAS(objectID string) ([]byte, error) {
 // preserving unknown-family carriage as durable exact bytes for the grid.
 // Source: DI-lupok
 func (runtime *Runtime) AppendRecord(ctx context.Context, raw []byte) (records.Envelope, error) {
+	return runtime.appendRecord(ctx, raw, true)
+}
+
+func (runtime *Runtime) appendRecord(ctx context.Context, raw []byte, signLocal bool) (records.Envelope, error) {
 	envelope, err := records.Parse(raw)
 	if err != nil {
+		return records.Envelope{}, err
+	}
+	if signLocal && !envelope.HasAuthorSignature() {
+		// Intent: Sign locally authored durable records once at creation time so
+		// later relay trust can distinguish semantic authoring from carriage.
+		// Source: DI-sovem
+		envelope, err = runtime.peers.SignAuthorEnvelope(envelope)
+		if err != nil {
+			return records.Envelope{}, err
+		}
+		raw = records.MustMarshal(envelope)
+	}
+	// Intent: Verify embedded semantic author signatures before durable storage
+	// so bad author proofs are rejected even outside relay exchange.
+	// Source: DI-sovem
+	if err := runtime.peers.VerifyAuthorEnvelope(envelope); err != nil {
 		return records.Envelope{}, err
 	}
 	if registered, exists := runtime.families[envelope.Family]; exists {
@@ -302,7 +322,7 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 		return err
 	}
 	for _, raw := range batch.Records {
-		if _, err := runtime.AppendRecord(ctx, raw); err != nil {
+		if _, err := runtime.appendRecord(ctx, raw, false); err != nil {
 			return err
 		}
 	}

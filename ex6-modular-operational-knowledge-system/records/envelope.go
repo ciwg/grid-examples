@@ -10,12 +10,15 @@ import (
 
 // Envelope is the ex6 durable carriage unit for package-defined record families.
 type Envelope struct {
-	Family       string          `json:"family"`
-	ProtocolPCID string          `json:"protocol_pcid"`
-	RecordID     string          `json:"record_id"`
-	Signer       string          `json:"signer"`
-	Timestamp    string          `json:"timestamp"`
-	Payload      json.RawMessage `json:"payload"`
+	Family          string          `json:"family"`
+	ProtocolPCID    string          `json:"protocol_pcid"`
+	RecordID        string          `json:"record_id"`
+	Signer          string          `json:"signer"`
+	Timestamp       string          `json:"timestamp"`
+	Payload         json.RawMessage `json:"payload"`
+	AuthorKeyID     string          `json:"author_key_id,omitempty"`
+	AuthorPublicKey string          `json:"author_public_key,omitempty"`
+	AuthorSignature string          `json:"author_signature,omitempty"`
 }
 
 func (envelope Envelope) Validate() error {
@@ -37,6 +40,17 @@ func (envelope Envelope) Validate() error {
 	if len(envelope.Payload) == 0 {
 		return errors.New("payload is required")
 	}
+	if envelope.HasAuthorSignature() {
+		if strings.TrimSpace(envelope.AuthorKeyID) == "" {
+			return errors.New("author_key_id is required when author signature is present")
+		}
+		if strings.TrimSpace(envelope.AuthorPublicKey) == "" {
+			return errors.New("author_public_key is required when author signature is present")
+		}
+		if strings.TrimSpace(envelope.AuthorSignature) == "" {
+			return errors.New("author_signature is required when author signature is present")
+		}
+	}
 	return nil
 }
 
@@ -57,4 +71,29 @@ func MustMarshal(envelope Envelope) []byte {
 		panic(err)
 	}
 	return body
+}
+
+func (envelope Envelope) HasAuthorSignature() bool {
+	return strings.TrimSpace(envelope.AuthorKeyID) != "" ||
+		strings.TrimSpace(envelope.AuthorPublicKey) != "" ||
+		strings.TrimSpace(envelope.AuthorSignature) != ""
+}
+
+func (envelope Envelope) SigningBytes() ([]byte, error) {
+	signable := struct {
+		Family       string          `json:"family"`
+		ProtocolPCID string          `json:"protocol_pcid"`
+		RecordID     string          `json:"record_id"`
+		Signer       string          `json:"signer"`
+		Timestamp    string          `json:"timestamp"`
+		Payload      json.RawMessage `json:"payload"`
+	}{
+		Family:       envelope.Family,
+		ProtocolPCID: envelope.ProtocolPCID,
+		RecordID:     envelope.RecordID,
+		Signer:       envelope.Signer,
+		Timestamp:    envelope.Timestamp,
+		Payload:      envelope.Payload,
+	}
+	return json.Marshal(signable)
 }

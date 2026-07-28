@@ -82,6 +82,14 @@ Intent: Make implementation claims trustworthy batch metadata instead of unsigne
 Constraints: These proofs attest what the exporting peer claims to implement, not a global truth about the package; keep the layer additive to the current batch format; leave third-party attestation and richer claim semantics for later.
 Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
 
+ID: DI-sovem
+Date: 2026-07-28 21:10:00
+Status: active
+Decision: Add semantic author-level signatures to durable record envelopes, signing local records at authoring time and verifying embedded author signatures during import and append.
+Intent: Move trust from "the exporting peer carried this record" to "the named record content was signed when authored," while remaining backward-compatible with older unsigned records.
+Constraints: Keep the signature layer additive and optional for legacy records; semantic author signatures are separate from relay-carriage signatures; use the local runtime key as the current author-signing root until richer author identity exists.
+Affects: `records/envelope.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

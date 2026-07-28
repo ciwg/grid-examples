@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/records"
 )
 
 type AllowedPeer struct {
@@ -218,6 +220,23 @@ func (store *PeerStore) SignClaims(claims []ImplementationClaim) ([]ClaimProof, 
 	return proofs, nil
 }
 
+func (store *PeerStore) SignAuthorEnvelope(envelope records.Envelope) (records.Envelope, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)
+	if err != nil {
+		return records.Envelope{}, err
+	}
+	signingBytes, err := envelope.SigningBytes()
+	if err != nil {
+		return records.Envelope{}, err
+	}
+	envelope.AuthorKeyID = store.config.LocalPeerID
+	envelope.AuthorPublicKey = store.config.LocalPublicKey
+	envelope.AuthorSignature = hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), signingBytes))
+	return envelope, nil
+}
+
 func (store *PeerStore) VerifyPeerBatch(peerID string, batch Batch) error {
 	// Intent: Keep live relay trust rooted in explicit peer registration by
 	// verifying each batch against the allowed peer's configured public key.
@@ -305,6 +324,35 @@ func (store *PeerStore) VerifyClaimProofs(batch Batch) error {
 		if !ed25519.Verify(ed25519.PublicKey(publicKey), ClaimSigningBytes(batch.ImplementationClaims[index]), sigBytes) {
 			return fmt.Errorf("claim proof verification failed at index %d", index)
 		}
+	}
+	return nil
+}
+
+func (store *PeerStore) VerifyAuthorEnvelope(envelope records.Envelope) error {
+	// Intent: Verify semantic author signatures on durable records so receivers
+	// can trust that the named record content was signed at authoring time, not
+	// only during later relay carriage.
+	// Source: DI-sovem
+	if !envelope.HasAuthorSignature() {
+		return nil
+	}
+	if peerIDFromPublicKey(envelope.AuthorPublicKey) != envelope.AuthorKeyID {
+		return errors.New("author key id does not match author public key")
+	}
+	publicKey, err := hex.DecodeString(envelope.AuthorPublicKey)
+	if err != nil {
+		return err
+	}
+	signature, err := hex.DecodeString(envelope.AuthorSignature)
+	if err != nil {
+		return err
+	}
+	signingBytes, err := envelope.SigningBytes()
+	if err != nil {
+		return err
+	}
+	if !ed25519.Verify(ed25519.PublicKey(publicKey), signingBytes, signature) {
+		return errors.New("author signature verification failed")
 	}
 	return nil
 }
