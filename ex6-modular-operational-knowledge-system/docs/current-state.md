@@ -5,10 +5,10 @@ This document is intentionally blunt.
 `ex6` is **not done**.
 
 It currently contains the runtime foundation, one small built-in example
-package, and the first eight real first-party built-in packages. It does not
+package, and the first nine real first-party built-in packages. It does not
 yet contain the full operational knowledge product as a set of ex6 packages.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
 
 ## Implemented
 
@@ -30,7 +30,8 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - one real first-party built-in package: `training`
 - one real first-party built-in package: `maintenance`
 - one real first-party built-in package: `receiving`
-- first-party package source directories for the current 8-package spine
+- one real first-party built-in package: `inventory`
+- first-party package source directories for the current 9-package spine
 - a starter package template for outside authors
 - basket-mediated durable writes for installed executable packages
 - runnable built-in and installed-package examples
@@ -45,7 +46,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`.
 - full signing/verification discipline
 - richer PromiseGrid relay/peer behavior
 - scaffold command for new packages
-- later domain packages: `inventory`
+- later domain packages beyond the current first-pass ex5 set
 
 Source: `DI-moksu`; `DI-lupok`.
 
@@ -59,16 +60,16 @@ The current repo state reflects a deliberate kernel-first slice:
 That first step happened.
 The second step has now started with the built-in `context`, `knowledge`,
 `runs`, `links`, `procedures`, `training`, `maintenance`, and `receiving`
-eggs, but the rest is still mostly open.
+eggs plus `inventory`, but the rest is still mostly open.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
 
 ## Next Product Work
 
 Best next product work:
 
 1. make package creation easier than manual template copying
-2. add the next domain package: `inventory`
+2. harden and deepen the current package set
 3. harden relay/peer behavior beyond the current batch shell
 
-Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sivuk`; `DI-ramek`; `DI-zibek`.
+Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.

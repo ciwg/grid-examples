@@ -12,6 +12,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/kernel"
 	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/context"
+	inventorypkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/inventory"
 	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/knowledge"
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
 	maintenancepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/maintenance"
@@ -234,6 +235,39 @@ func TestReceivingPackageCommands(t *testing.T) {
 	}
 }
 
+func TestInventoryPackageCommands(t *testing.T) {
+	runtime := newRuntime(t)
+	if _, err := runtime.RunCommand(context.Background(), []string{"context", "place", "create", "place-3", "Warehouse", "Main-storage"}); err != nil {
+		t.Fatalf("create inventory place: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"context", "resource", "create", "res-4", "BoltBin", "Bin-of-bolts", "place-3"}); err != nil {
+		t.Fatalf("create inventory resource: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"inventory", "create", "inv-1", "place-3", "BoltAudit", "Cycle-count-bolt-bin"}); err != nil {
+		t.Fatalf("create inventory item: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"inventory", "record-count", "inv-1", "run-6", "place-3", "ellen", "42", "matched", "count-confirmed"}); err != nil {
+		t.Fatalf("record inventory count: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"inventory", "record-reconcile", "inv-1", "rec-1", "balanced", "res-4", "no-adjustment-needed"}); err != nil {
+		t.Fatalf("record inventory reconciliation: %v", err)
+	}
+	listing, err := runtime.RunCommand(context.Background(), []string{"inventory", "list"})
+	if err != nil {
+		t.Fatalf("list inventory: %v", err)
+	}
+	if !strings.Contains(listing, "inv-1\tplace-3\tBoltAudit\tcounts=1\treconciles=1") {
+		t.Fatalf("unexpected inventory listing: %s", listing)
+	}
+	inspect, err := runtime.RunCommand(context.Background(), []string{"inventory", "inspect", "inv-1"})
+	if err != nil {
+		t.Fatalf("inspect inventory: %v", err)
+	}
+	if !strings.Contains(inspect, "place_id: place-3") || !strings.Contains(inspect, "run-6:ellen=42@place-3") || !strings.Contains(inspect, "rec-1:balanced@res-4") {
+		t.Fatalf("unexpected inventory inspect: %s", inspect)
+	}
+}
+
 func TestInstalledPackageManifestSelfCheck(t *testing.T) {
 	runtime := newRuntime(t)
 	packageDir := helperPackageDir(t, false)
@@ -441,6 +475,9 @@ func newRuntime(t *testing.T) *kernel.Runtime {
 	}
 	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {
 		t.Fatalf("register knowledge package: %v", err)
+	}
+	if err := runtime.RegisterBuiltin(inventorypkg.Package()); err != nil {
+		t.Fatalf("register inventory package: %v", err)
 	}
 	if err := runtime.RegisterBuiltin(runspkg.Package()); err != nil {
 		t.Fatalf("register runs package: %v", err)

@@ -11,12 +11,13 @@ It is the start of a new standalone product where:
 - packages own business behavior
 - built-in and installed packages use the same basket contract
 
-Current status: this repo contains the runtime foundation, the first eight
+Current status: this repo contains the runtime foundation, the first nine
 first-party built-in packages (`context`, `knowledge`, `runs`, `links`,
-`procedures`, `training`, `maintenance`, `receiving`), and one small built-in
-example package. It does **not** yet contain the full ex5 capability set as
-ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`;
-`DI-pamuk`; `DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`.
+`procedures`, `training`, `maintenance`, `receiving`, `inventory`), and one
+small built-in example package. It does **not** yet contain the full ex5
+capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
+`DI-vakod`; `DI-pamuk`; `DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`;
+`DI-zibek`; `DI-lavom`.
 
 ## What Exists Today
 
@@ -32,12 +33,12 @@ ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`;
 - CAS storage
 - relay batch export and import
 - unknown-family exact-byte retention
-- the first eight first-party built-in packages:
-  `context`, `knowledge`, `runs`, `links`, `procedures`, `training`, `maintenance`, and `receiving`
+- the first nine first-party built-in packages:
+  `context`, `knowledge`, `runs`, `links`, `procedures`, `training`, `maintenance`, `receiving`, and `inventory`
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-rovum`; `DI-nupad`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`.
 
 ## What Does Not Exist Yet
 

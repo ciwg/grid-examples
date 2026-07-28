@@ -13,6 +13,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/kernel"
 	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/context"
+	inventorypkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/inventory"
 	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/knowledge"
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
 	maintenancepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/maintenance"
@@ -45,6 +46,9 @@ func run(ctx context.Context, args []string) error {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(inventorypkg.Package()); err != nil {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(runspkg.Package()); err != nil {
