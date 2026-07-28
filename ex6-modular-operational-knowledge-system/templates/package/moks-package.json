@@ -1,0 +1,25 @@
+{
+  "id": "replace-me",
+  "version": "0.1.0",
+  "description": "Example ex6 package",
+  "executable": "./package.sh",
+  "commands": [
+    {
+      "path": ["replace", "me"],
+      "summary": "Example command"
+    }
+  ],
+  "families": [
+    {
+      "name": "replace.me.v1",
+      "protocol_pcid": "pcid:replace.me.v1"
+    }
+  ],
+  "claims": [
+    {
+      "protocol_pcid": "pcid:replace.me.v1",
+      "role": "family-validator",
+      "summary": "Validates replace.me.v1 envelopes."
+    }
+  ]
+}
