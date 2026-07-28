@@ -38,6 +38,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - package manifest validation
 - installed-package self-check
 - explicit route registration derived from package claims
+- exported route metadata alongside relay claims
 - append-only durable history
 - CAS object storage
 - one built-in example package: `ops-note`
@@ -77,7 +78,7 @@ Discovery rule:
 - seeded discovery writes a local peer entry, but it still cannot pull or push until explicitly allowed
 - policy promotion changes trust locally without re-fetching peer metadata
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`; `DI-ruvot`.
 
 ## Not Implemented
 

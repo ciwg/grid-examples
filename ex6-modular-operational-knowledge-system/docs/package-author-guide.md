@@ -47,8 +47,10 @@ Current routing rule:
 - those claims are also the runtime's intermediate route registrations
 - if a package declares a family, it must declare a matching
   `family-validator` claim for that family's `protocol_pcid`
+- relay export carries the derived route registrations so peers can inspect
+  routing roles from batch metadata too
 
-Source: `DI-lupok`; `DI-rutom`.
+Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`.
 
 ## Current Activation Model
 

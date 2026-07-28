@@ -21,6 +21,15 @@ type ImplementationClaim struct {
 	PackageVersion string `json:"package_version"`
 }
 
+type RouteRegistration struct {
+	PackageID      string   `json:"package_id"`
+	PackageVersion string   `json:"package_version"`
+	ProtocolPCID   string   `json:"protocol_pcid"`
+	Role           string   `json:"role"`
+	Summary        string   `json:"summary,omitempty"`
+	Families       []string `json:"families,omitempty"`
+}
+
 type RecordProof struct {
 	Digest string `json:"digest"`
 }
@@ -49,6 +58,7 @@ type Batch struct {
 	Implementation       string                `json:"implementation"`
 	ExportedAt           string                `json:"exported_at"`
 	ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
+	Routes               []RouteRegistration   `json:"routes,omitempty"`
 	ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 	ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
 	Records              []json.RawMessage     `json:"records"`
@@ -89,6 +99,42 @@ func (batch Batch) Validate() error {
 			return fmt.Errorf("duplicate implementation claim: %s", key)
 		}
 		seenClaims[key] = struct{}{}
+	}
+	seenRoutes := map[string]struct{}{}
+	// Intent: Keep exported route metadata derivative of exported claims so
+	// runtimes can observe routing roles across the grid without creating a
+	// second independent declaration surface. Source: DI-ruvot
+	for _, route := range batch.Routes {
+		if strings.TrimSpace(route.PackageID) == "" {
+			return errors.New("route package_id is required")
+		}
+		if strings.TrimSpace(route.PackageVersion) == "" {
+			return errors.New("route package_version is required")
+		}
+		if strings.TrimSpace(route.ProtocolPCID) == "" {
+			return errors.New("route protocol_pcid is required")
+		}
+		if strings.TrimSpace(route.Role) == "" {
+			return errors.New("route role is required")
+		}
+		key := route.PackageID + "\x00" + route.PackageVersion + "\x00" + route.ProtocolPCID + "\x00" + route.Role
+		if _, exists := seenRoutes[key]; exists {
+			return fmt.Errorf("duplicate route registration: %s", key)
+		}
+		if _, exists := seenClaims[key]; !exists {
+			return fmt.Errorf("route registration missing matching claim: %s", key)
+		}
+		familyNames := map[string]struct{}{}
+		for _, family := range route.Families {
+			if strings.TrimSpace(family) == "" {
+				return fmt.Errorf("route family is required for %s", key)
+			}
+			if _, exists := familyNames[family]; exists {
+				return fmt.Errorf("duplicate route family %q for %s", family, key)
+			}
+			familyNames[family] = struct{}{}
+		}
+		seenRoutes[key] = struct{}{}
 	}
 	if len(batch.ClaimProofs) > 0 && len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
 		return errors.New("claim_proofs must match implementation_claims length")
@@ -166,6 +212,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		Implementation       string                `json:"implementation"`
 		ExportedAt           string                `json:"exported_at"`
 		ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
+		Routes               []RouteRegistration   `json:"routes,omitempty"`
 		ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 		ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
 		Records              []json.RawMessage     `json:"records"`
@@ -176,6 +223,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		Implementation:       batch.Implementation,
 		ExportedAt:           batch.ExportedAt,
 		ImplementationClaims: batch.ImplementationClaims,
+		Routes:               batch.Routes,
 		ClaimProofs:          batch.ClaimProofs,
 		ClaimAttestations:    batch.ClaimAttestations,
 		Records:              batch.Records,

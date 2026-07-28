@@ -542,6 +542,9 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	if len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
 		t.Fatalf("expected claim proofs to match claims, got %d proofs for %d claims", len(batch.ClaimProofs), len(batch.ImplementationClaims))
 	}
+	if len(batch.Routes) == 0 {
+		t.Fatal("expected exported routes")
+	}
 	if len(batch.RecordSignatures) != len(batch.Records) {
 		t.Fatalf("expected record signatures to match records, got %d signatures for %d records", len(batch.RecordSignatures), len(batch.Records))
 	}
@@ -576,6 +579,16 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	}
 	if !foundOps || !foundContext || !foundKnowledge || !foundRuns || !foundLinks || !foundProcedures {
 		t.Fatalf("expected ops and context claims, got %#v", batch.ImplementationClaims)
+	}
+	foundContextRoute := false
+	for _, route := range batch.Routes {
+		if route.ProtocolPCID == contextpkg.PlaceProtocol && route.Role == "family-validator" && route.PackageID == "context" {
+			foundContextRoute = true
+			break
+		}
+	}
+	if !foundContextRoute {
+		t.Fatalf("expected exported context route, got %#v", batch.Routes)
 	}
 }
 
@@ -670,6 +683,27 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 	}
 	if len(runtime.History()) != 0 {
 		t.Fatalf("expected no history on claim proof mismatch, got %d", len(runtime.History()))
+	}
+}
+
+func TestImportBatchRejectsRouteClaimMismatch(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		ImplementationClaims: []grid.ImplementationClaim{
+			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
+		},
+		Routes: []grid.RouteRegistration{
+			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "reader", Families: []string{"helper.echo.v1"}},
+		},
+		Records:      []json.RawMessage{raw},
+		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "route registration missing matching claim") {
+		t.Fatalf("expected route claim mismatch rejection, got %v", err)
 	}
 }
 

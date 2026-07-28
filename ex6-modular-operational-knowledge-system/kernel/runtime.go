@@ -324,11 +324,15 @@ func (runtime *Runtime) ExportBatch() (grid.Batch, error) {
 	if err != nil {
 		return grid.Batch{}, err
 	}
+	// Intent: Export the claim-derived route table alongside claims so relay
+	// peers can see the current routing-role model instead of inferring it from
+	// local package activation only. Source: DI-ruvot
 	return grid.Batch{
 		Format:               grid.RelayBatchFormat,
 		Implementation:       runtime.LocalPeerID(),
 		ExportedAt:           time.Now().UTC().Format(time.RFC3339),
 		ImplementationClaims: claims,
+		Routes:               runtime.ProtocolRoutes(),
 		ClaimProofs:          claimProofs,
 		Records:              rawRecords,
 		RecordProofs:         grid.ProofsForRecords(rawRecords),

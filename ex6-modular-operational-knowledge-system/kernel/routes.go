@@ -3,16 +3,9 @@ package kernel
 import (
 	"slices"
 	"strings"
-)
 
-type ProtocolRoute struct {
-	PackageID      string
-	PackageVersion string
-	ProtocolPCID   string
-	Role           string
-	Summary        string
-	Families       []string
-}
+	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
+)
 
 type registeredRoute struct {
 	owner        *activePackage
@@ -25,10 +18,10 @@ type registeredRoute struct {
 // Intent: Expose the kernel's current claim-derived route table so routing is
 // visible as a first-class service role instead of staying implicit in package
 // activation alone. Source: DI-rutom
-func (runtime *Runtime) ProtocolRoutes() []ProtocolRoute {
-	routes := make([]ProtocolRoute, 0, len(runtime.routes))
+func (runtime *Runtime) ProtocolRoutes() []grid.RouteRegistration {
+	routes := make([]grid.RouteRegistration, 0, len(runtime.routes))
 	for _, route := range runtime.routes {
-		routes = append(routes, ProtocolRoute{
+		routes = append(routes, grid.RouteRegistration{
 			PackageID:      route.owner.manifest.ID,
 			PackageVersion: route.owner.manifest.Version,
 			ProtocolPCID:   route.protocolPCID,
@@ -37,7 +30,7 @@ func (runtime *Runtime) ProtocolRoutes() []ProtocolRoute {
 			Families:       append([]string{}, route.families...),
 		})
 	}
-	slices.SortFunc(routes, func(left, right ProtocolRoute) int {
+	slices.SortFunc(routes, func(left, right grid.RouteRegistration) int {
 		if diff := strings.Compare(left.ProtocolPCID, right.ProtocolPCID); diff != 0 {
 			return diff
 		}

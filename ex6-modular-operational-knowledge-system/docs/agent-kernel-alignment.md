@@ -59,8 +59,9 @@ Current concrete step:
 - package claims now register explicit protocol routes inside the kernel
 - registered families must declare a matching `family-validator` route claim
 - `moks route list` exposes the current route table so routing is visible as a kernel service
+- relay export now carries those route registrations so routing roles are visible across runtimes too
 
-Source: `DI-puvok`; `DI-rutom`.
+Source: `DI-puvok`; `DI-rutom`; `DI-ruvot`.
 
 ## Practical effect on next design work
 
