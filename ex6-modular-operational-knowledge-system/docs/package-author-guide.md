@@ -55,8 +55,10 @@ Current routing rule:
   `moks route inspect <protocol-pcid>`
 - local consumers can ask for the kernel's preferred executable route plan with
   `moks route plan <protocol-pcid>`
+- operators can tune route-plan ordering with
+  `moks route policy show` and `moks route policy set ...`
 
-Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`.
+Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`.
 
 ## Current Activation Model
 

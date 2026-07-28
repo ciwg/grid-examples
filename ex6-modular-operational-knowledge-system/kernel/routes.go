@@ -114,7 +114,10 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		}
 		plan.Candidates = append(plan.Candidates, candidate)
 	}
-	slices.SortFunc(plan.Candidates, compareRoutePlanCandidates)
+	policy := runtime.RoutePlanPolicy()
+	slices.SortFunc(plan.Candidates, func(left, right RoutePlanCandidate) int {
+		return compareRoutePlanCandidates(left, right, policy)
+	})
 	for index := range plan.Candidates {
 		if plan.Candidates[index].Executable {
 			plan.Preferred = &plan.Candidates[index]
@@ -124,12 +127,15 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 	return plan
 }
 
-func compareRoutePlanCandidates(left RoutePlanCandidate, right RoutePlanCandidate) int {
+func compareRoutePlanCandidates(left RoutePlanCandidate, right RoutePlanCandidate, policy grid.RoutePlanPolicy) int {
 	if left.Executable != right.Executable {
 		if left.Executable {
 			return -1
 		}
 		return 1
+	}
+	if diff := comparePolicyPreference(left.Route, right.Route, policy); diff != 0 {
+		return diff
 	}
 	if diff := compareRouteRegistrations(left.Route, right.Route); diff != 0 {
 		return diff
@@ -141,6 +147,48 @@ func compareRoutePlanCandidates(left RoutePlanCandidate, right RoutePlanCandidat
 		return 1
 	}
 	return 0
+}
+
+func comparePolicyPreference(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
+	if diff := compareAvoided(left, right, policy); diff != 0 {
+		return diff
+	}
+	if diff := comparePreferred(left, right, policy); diff != 0 {
+		return diff
+	}
+	return 0
+}
+
+func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
+	leftAvoided := routeAvoided(left, policy)
+	rightAvoided := routeAvoided(right, policy)
+	if leftAvoided == rightAvoided {
+		return 0
+	}
+	if leftAvoided {
+		return 1
+	}
+	return -1
+}
+
+func comparePreferred(left grid.RouteRegistration, right grid.RouteRegistration, policy grid.RoutePlanPolicy) int {
+	leftPreferred := routePreferred(left, policy)
+	rightPreferred := routePreferred(right, policy)
+	if leftPreferred == rightPreferred {
+		return 0
+	}
+	if leftPreferred {
+		return -1
+	}
+	return 1
+}
+
+func routePreferred(route grid.RouteRegistration, policy grid.RoutePlanPolicy) bool {
+	return slices.Contains(policy.PreferRouteTypes, route.RouteType) || slices.Contains(policy.PreferRoles, route.Role)
+}
+
+func routeAvoided(route grid.RouteRegistration, policy grid.RoutePlanPolicy) bool {
+	return slices.Contains(policy.AvoidRouteTypes, route.RouteType) || slices.Contains(policy.AvoidRoles, route.Role)
 }
 
 func compareRouteRegistrations(left grid.RouteRegistration, right grid.RouteRegistration) int {

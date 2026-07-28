@@ -21,8 +21,16 @@ type ClaimTrustPolicy struct {
 	AllowedFederations []string `json:"allowed_federations,omitempty"`
 }
 
+type RoutePlanPolicy struct {
+	PreferRouteTypes []string `json:"prefer_route_types,omitempty"`
+	AvoidRouteTypes  []string `json:"avoid_route_types,omitempty"`
+	PreferRoles      []string `json:"prefer_roles,omitempty"`
+	AvoidRoles       []string `json:"avoid_roles,omitempty"`
+}
+
 type TrustPolicy struct {
-	ClaimPolicies []ClaimTrustPolicy `json:"claim_policies"`
+	ClaimPolicies   []ClaimTrustPolicy `json:"claim_policies"`
+	RoutePlanPolicy RoutePlanPolicy    `json:"route_plan_policy,omitempty"`
 }
 
 type PolicyStore struct {
@@ -64,6 +72,23 @@ func (store *PolicyStore) ClaimPolicies() []ClaimTrustPolicy {
 	out := make([]ClaimTrustPolicy, len(store.policy.ClaimPolicies))
 	copy(out, store.policy.ClaimPolicies)
 	return out
+}
+
+func (store *PolicyStore) RoutePlanPolicy() RoutePlanPolicy {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	return cloneRoutePlanPolicy(store.policy.RoutePlanPolicy)
+}
+
+func (store *PolicyStore) SetRoutePlanPolicy(policy RoutePlanPolicy) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	policy = normalizeRoutePlanPolicy(policy)
+	if err := validateRoutePlanPolicy(policy); err != nil {
+		return err
+	}
+	store.policy.RoutePlanPolicy = policy
+	return store.persistLocked()
 }
 
 func (store *PolicyStore) SetClaimPolicy(policy ClaimTrustPolicy) error {
@@ -190,6 +215,10 @@ func (store *PolicyStore) validateLocked() error {
 			return fmt.Errorf("duplicate claim policy: %s %s", policy.ProtocolPCID, policy.Role)
 		}
 		seen[key] = struct{}{}
+	}
+	store.policy.RoutePlanPolicy = normalizeRoutePlanPolicy(store.policy.RoutePlanPolicy)
+	if err := validateRoutePlanPolicy(store.policy.RoutePlanPolicy); err != nil {
+		return err
 	}
 	sortClaimPolicies(store.policy.ClaimPolicies)
 	return nil
@@ -320,4 +349,60 @@ func findKnownPeer(peers []AllowedPeer, peerID string) (AllowedPeer, bool) {
 		}
 	}
 	return AllowedPeer{}, false
+}
+
+func validateRoutePlanPolicy(policy RoutePlanPolicy) error {
+	if err := validateDistinctNonBlank(policy.PreferRouteTypes, "prefer_route_types"); err != nil {
+		return err
+	}
+	if err := validateDistinctNonBlank(policy.AvoidRouteTypes, "avoid_route_types"); err != nil {
+		return err
+	}
+	if err := validateDistinctNonBlank(policy.PreferRoles, "prefer_roles"); err != nil {
+		return err
+	}
+	if err := validateDistinctNonBlank(policy.AvoidRoles, "avoid_roles"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func normalizeRoutePlanPolicy(policy RoutePlanPolicy) RoutePlanPolicy {
+	policy.PreferRouteTypes = normalizeStringList(policy.PreferRouteTypes)
+	policy.AvoidRouteTypes = normalizeStringList(policy.AvoidRouteTypes)
+	policy.PreferRoles = normalizeStringList(policy.PreferRoles)
+	policy.AvoidRoles = normalizeStringList(policy.AvoidRoles)
+	return policy
+}
+
+func cloneRoutePlanPolicy(policy RoutePlanPolicy) RoutePlanPolicy {
+	return RoutePlanPolicy{
+		PreferRouteTypes: append([]string{}, policy.PreferRouteTypes...),
+		AvoidRouteTypes:  append([]string{}, policy.AvoidRouteTypes...),
+		PreferRoles:      append([]string{}, policy.PreferRoles...),
+		AvoidRoles:       append([]string{}, policy.AvoidRoles...),
+	}
+}
+
+func normalizeStringList(values []string) []string {
+	out := append([]string{}, values...)
+	for index := range out {
+		out[index] = strings.TrimSpace(out[index])
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+func validateDistinctNonBlank(values []string, field string) error {
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s cannot contain blanks", field)
+		}
+		if _, exists := seen[value]; exists {
+			return fmt.Errorf("duplicate %s entry: %s", field, value)
+		}
+		seen[value] = struct{}{}
+	}
+	return nil
 }

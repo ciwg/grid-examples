@@ -61,10 +61,11 @@ Current concrete step:
 - `moks route list` exposes the current route table so routing is visible as a kernel service
 - `moks route inspect <protocol-pcid>` lets route consumers query one input protocol directly
 - `moks route plan <protocol-pcid>` lets route consumers ask what executable route plan the kernel would choose
+- route-planning policy now lets operators prefer or avoid route types and roles without changing package claims
 - relay export now carries those route registrations so routing roles are visible across runtimes too
 - route claims can now describe direct handlers versus parser/transform hops with emitted next-hop protocols
 
-Source: `DI-puvok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`.
+Source: `DI-puvok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`.
 
 ## Practical effect on next design work
 

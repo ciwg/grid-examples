@@ -58,6 +58,16 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route list")
 		}
 		return routeList(runtime)
+	case matchesPrefix(args, "route", "policy", "show"):
+		if len(args) != 3 {
+			return errors.New("usage: route policy show")
+		}
+		return routePolicyShow(runtime)
+	case matchesPrefix(args, "route", "policy", "set"):
+		if len(args) != 7 {
+			return errors.New("usage: route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->")
+		}
+		return routePolicySet(runtime, args[3:])
 	case matchesPrefix(args, "route", "plan"):
 		if len(args) != 3 {
 			return errors.New("usage: route plan <protocol-pcid>")
@@ -262,6 +272,36 @@ func routePlan(runtime *kernel.Runtime, protocolPCID string) error {
 	}
 	fmt.Println(string(body))
 	return nil
+}
+
+func routePolicyShow(runtime *kernel.Runtime) error {
+	body, err := json.MarshalIndent(runtime.RoutePlanPolicy(), "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func routePolicySet(runtime *kernel.Runtime, args []string) error {
+	policy := grid.RoutePlanPolicy{
+		PreferRouteTypes: parsePolicyListArg(args[0]),
+		AvoidRouteTypes:  parsePolicyListArg(args[1]),
+		PreferRoles:      parsePolicyListArg(args[2]),
+		AvoidRoles:       parsePolicyListArg(args[3]),
+	}
+	if err := runtime.SetRoutePlanPolicy(policy); err != nil {
+		return err
+	}
+	fmt.Println("route policy set")
+	return nil
+}
+
+func parsePolicyListArg(raw string) []string {
+	if raw == "-" {
+		return nil
+	}
+	return strings.Split(raw, ",")
 }
 
 func packageInspect(runtime *kernel.Runtime, id string) error {

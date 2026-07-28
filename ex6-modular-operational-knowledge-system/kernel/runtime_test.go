@@ -759,6 +759,46 @@ func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	}
 }
 
+func TestProtocolRoutePlanPolicyCanPreferParserOverDirect(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	hybridPackage := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "hybrid-agent",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{ProtocolPCID: "pcid:moks.hybrid.v1", Role: "handler", Summary: "Handles hybrid envelopes directly."},
+				{ProtocolPCID: "pcid:moks.hybrid.v1", Role: "parser", RouteType: "parser", EmitsProtocols: []string{"pcid:moks.hybrid.parsed.v1"}, Summary: "Parses hybrid envelopes."},
+				{ProtocolPCID: "pcid:moks.hybrid.parsed.v1", Role: "handler", Summary: "Handles parsed hybrid envelopes."},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(hybridPackage); err != nil {
+		t.Fatalf("register hybrid package: %v", err)
+	}
+	if err := runtime.SetRoutePlanPolicy(grid.RoutePlanPolicy{
+		PreferRouteTypes: []string{"parser"},
+		AvoidRouteTypes:  []string{"direct"},
+	}); err != nil {
+		t.Fatalf("set route plan policy: %v", err)
+	}
+	plan := runtime.ProtocolRoutePlan("pcid:moks.hybrid.v1")
+	if plan.Preferred == nil {
+		t.Fatalf("expected preferred route, got %#v", plan)
+	}
+	if plan.Preferred.Route.RouteType != "parser" {
+		t.Fatalf("expected parser route to win under policy, got %#v", plan.Preferred)
+	}
+}
+
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)

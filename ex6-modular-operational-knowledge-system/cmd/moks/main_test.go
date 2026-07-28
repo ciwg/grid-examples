@@ -135,6 +135,23 @@ func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 	}
 }
 
+func TestRoutePolicySetAndShow(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {
+		t.Fatalf("route policy set: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "policy", "show")
+	if err != nil {
+		t.Fatalf("route policy show: %v", err)
+	}
+	if !strings.Contains(output, `"prefer_route_types": [`) || !strings.Contains(output, `"parser"`) {
+		t.Fatalf("route policy show missing prefer_route_types: %s", output)
+	}
+	if !strings.Contains(output, `"avoid_route_types": [`) || !strings.Contains(output, `"direct"`) {
+		t.Fatalf("route policy show missing avoid_route_types: %s", output)
+	}
+}
+
 func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

@@ -49,3 +49,11 @@ Decision: Add a route-plan selector for one input `protocol_pcid`, prefer execut
 Intent: Move ex6 from route discovery toward actual kernel routing choice while keeping the current route table as the single source of truth.
 Constraints: Choose plans from the current claim-derived route table only; treat parser/transform paths as executable only when their emitted protocols also resolve to preferred downstream plans; do not execute any plan yet.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, CLI/runtime tests, and routing docs.
+
+ID: DI-matek
+Date: 2026-07-28 10:40:49
+Status: active
+Decision: Make route-plan ordering policy-driven with runtime-owned global prefer/avoid lists for route types and roles, persist that policy beside the existing runtime policy state, and expose it through CLI show/set commands.
+Intent: Replace one fixed built-in plan order with explicit operator-owned routing preference while keeping the planner deterministic.
+Constraints: First slice is global, not per-protocol; prefer/avoid changes ordering but does not by itself make a non-executable route executable; keep the current route table as the only planning input.
+Affects: `grid/policy.go`, `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.

@@ -240,6 +240,14 @@ func (runtime *Runtime) ClaimPolicies() []grid.ClaimTrustPolicy {
 	return runtime.policies.ClaimPolicies()
 }
 
+func (runtime *Runtime) RoutePlanPolicy() grid.RoutePlanPolicy {
+	return runtime.policies.RoutePlanPolicy()
+}
+
+func (runtime *Runtime) SetRoutePlanPolicy(policy grid.RoutePlanPolicy) error {
+	return runtime.policies.SetRoutePlanPolicy(policy)
+}
+
 func (runtime *Runtime) SetClaimPolicy(policy grid.ClaimTrustPolicy) error {
 	for _, peerID := range policy.AllowedAttesters {
 		if _, ok := runtime.LookupPeer(peerID); !ok {
