@@ -99,22 +99,22 @@ func run(ctx context.Context, args []string) error {
 		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
 		if len(args) != 3 && len(args) != 4 && len(args) != 6 {
-			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
 		}
 		trace := false
 		filter := kernel.RoutePlanTraceFilter{}
 		if len(args) == 4 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
 			}
 			trace = true
 		}
 		if len(args) == 6 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
 			}
-			if args[4] != "candidate" && args[4] != "downstream" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+			if args[4] != "candidate" && args[4] != "downstream" && args[4] != "depth" {
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>]]")
 			}
 			trace = true
 			filter = kernel.RoutePlanTraceFilter{Kind: args[4], Target: args[5]}

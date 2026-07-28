@@ -90,13 +90,14 @@ Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 - downstream trace summaries now carry stable `hop_path` labels so repeated same-`protocol_pcid` hops stay distinguishable
 - downstream trace summaries now also carry short `hop_summary` strings for faster scanning
 - trace summaries now carry `hop_depth` and `hop_index` metadata for sorting and filtering by distance from root
+- `moks route plan <protocol-pcid> trace depth <n|n+>` narrows trace output by hop depth
 - focused traces now report total, shown, and hidden step counts plus the active filter
 - `moks route policy show [<protocol-pcid> [<role>]]`, `moks route policy set ...`, `moks route policy set-for <protocol-pcid> ...`, `moks route policy remove <protocol-pcid>`, `moks route policy set-for-role <protocol-pcid> <role> ...`, and `moks route policy remove-role <protocol-pcid> <role>` control planner preferences globally, per input protocol, and per input protocol plus route role
 - a registered family now requires a matching `family-validator` route claim for its `protocol_pcid`
 - relay export now carries those route registrations as batch metadata too
 - parser and transform routes can declare `emits_protocols` to describe the next-hop protocols they produce
 
-Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`; `DI-rusom`; `DI-dovak`; `DI-buvok`; `DI-zafek`; `DI-rukav`; `DI-vatuk`; `DI-lupav`; `DI-sovak`.
+Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`; `DI-rusom`; `DI-dovak`; `DI-buvok`; `DI-zafek`; `DI-rukav`; `DI-vatuk`; `DI-lupav`; `DI-sovak`; `DI-vobek`.
 
 ## Layout
 

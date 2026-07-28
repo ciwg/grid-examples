@@ -853,6 +853,63 @@ func TestProtocolRoutePlanTraceKeepsRepeatedDownstreamProtocolsDistinct(t *testi
 	}
 }
 
+func TestProtocolRoutePlanTraceCanFilterByDepth(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	nested := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "nested-parser",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.depth.root.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.depth.mid.v1"},
+					Summary:        "Root parser.",
+				},
+				{
+					ProtocolPCID:   "pcid:moks.depth.mid.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.depth.leaf.v1"},
+					Summary:        "Mid parser.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.depth.leaf.v1",
+					Role:         "handler",
+					Summary:      "Leaf handler.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(nested); err != nil {
+		t.Fatalf("register nested parser: %v", err)
+	}
+	depthOne := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.depth.root.v1", kernel.RoutePlanTraceFilter{
+		Kind:   "depth",
+		Target: "1",
+	})
+	if len(depthOne.Explanation.DownstreamTraceSummaries) != 1 || depthOne.Explanation.DownstreamTraceSummaries[0].HopDepth != 1 {
+		t.Fatalf("expected only depth-1 summaries, got %#v", depthOne.Explanation.DownstreamTraceSummaries)
+	}
+	depthTwoPlus := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.depth.root.v1", kernel.RoutePlanTraceFilter{
+		Kind:   "depth",
+		Target: "2+",
+	})
+	if len(depthTwoPlus.Explanation.DownstreamTraceSummaries) != 1 || depthTwoPlus.Explanation.DownstreamTraceSummaries[0].HopDepth != 2 {
+		t.Fatalf("expected only depth-2+ summaries, got %#v", depthTwoPlus.Explanation.DownstreamTraceSummaries)
+	}
+}
+
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
 	runtime, err := kernel.Open(runtimeRoot)

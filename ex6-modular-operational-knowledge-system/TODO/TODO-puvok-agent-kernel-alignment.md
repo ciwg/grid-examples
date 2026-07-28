@@ -161,3 +161,11 @@ Decision: Add `hop_depth` and `hop_index` metadata to route trace summaries so d
 Intent: Make multi-hop trace output easier to analyze programmatically and operationally.
 Constraints: Keep the metadata deterministic; use depth `0` and index `0` for the root summary; preserve existing hop identity fields.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-vobek
+Date: 2026-07-28 11:33:20
+Status: active
+Decision: Add a `depth` trace filter mode that accepts exact depth like `1` and inclusive lower-bound depth like `2+`.
+Intent: Let operators inspect only direct downstream hops, only deeper hops, or the full trace without changing the planner itself.
+Constraints: Reuse the current trace filtering surface; keep existing `candidate` and `downstream` modes; treat malformed depth filters as no-op fallback to the full trace.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.

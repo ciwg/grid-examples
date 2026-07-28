@@ -373,6 +373,10 @@ func filterRoutePlanTrace(steps []RoutePlanTraceStep, filter RoutePlanTraceFilte
 			if step.Protocol == target {
 				filtered = append(filtered, step)
 			}
+		case "depth":
+			if stepMatchesDepth(step, target) {
+				filtered = append(filtered, step)
+			}
 		default:
 			return steps
 		}
@@ -387,6 +391,50 @@ func stepMatchesCandidate(step RoutePlanTraceStep, target string) bool {
 		}
 	}
 	return false
+}
+
+func stepMatchesDepth(step RoutePlanTraceStep, target string) bool {
+	depth, atLeast, ok := parseDepthFilter(target)
+	if !ok {
+		return true
+	}
+	stepDepth, found := traceStepDepth(step)
+	if !found {
+		return false
+	}
+	if atLeast {
+		return stepDepth >= depth
+	}
+	return stepDepth == depth
+}
+
+func traceStepDepth(step RoutePlanTraceStep) (int, bool) {
+	for _, detail := range step.Details {
+		if strings.HasPrefix(detail, "depth=") {
+			value := strings.TrimPrefix(detail, "depth=")
+			depth, err := strconv.Atoi(value)
+			if err == nil {
+				return depth, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func parseDepthFilter(target string) (int, bool, bool) {
+	value := strings.TrimSpace(target)
+	if value == "" {
+		return 0, false, false
+	}
+	atLeast := strings.HasSuffix(value, "+")
+	if atLeast {
+		value = strings.TrimSuffix(value, "+")
+	}
+	depth, err := strconv.Atoi(value)
+	if err != nil || depth < 0 {
+		return 0, false, false
+	}
+	return depth, atLeast, true
 }
 
 func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
@@ -461,11 +509,26 @@ func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter Ro
 			if summary.ProtocolPCID == target {
 				filtered = append(filtered, summary)
 			}
+		case "depth":
+			if summaryMatchesDepth(summary, target) {
+				filtered = append(filtered, summary)
+			}
 		default:
 			filtered = append(filtered, summary)
 		}
 	}
 	return filtered
+}
+
+func summaryMatchesDepth(summary RoutePlanTraceSummary, target string) bool {
+	depth, atLeast, ok := parseDepthFilter(target)
+	if !ok {
+		return true
+	}
+	if atLeast {
+		return summary.HopDepth >= depth
+	}
+	return summary.HopDepth == depth
 }
 
 // Intent: Keep filtered route traces honest and scoped by showing which

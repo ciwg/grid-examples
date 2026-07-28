@@ -184,6 +184,17 @@ func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
 	}
 }
 
+func TestRoutePlanTraceCanFocusOnDepth(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "depth", "0")
+	if err != nil {
+		t.Fatalf("route plan trace depth focus: %v", err)
+	}
+	if !strings.Contains(output, `"filter"`) || !strings.Contains(output, `"target": "0"`) {
+		t.Fatalf("focused depth trace missing filter target: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {
