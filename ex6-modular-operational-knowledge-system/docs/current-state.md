@@ -23,6 +23,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks route plan <protocol-pcid> trace candidate <package-id:role:route-type>`
 - `moks route plan <protocol-pcid> trace downstream <protocol-pcid>`
 - route-plan trace summaries now distinguish root and downstream protocol scope
+- traced route plans now expose top-level downstream trace summaries for nested protocol hops
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

@@ -722,6 +722,12 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if tracePlan.Explanation.TraceSummary.Scope != "root" || tracePlan.Explanation.TraceSummary.ProtocolPCID != "pcid:moks.raw.v1" {
 		t.Fatalf("expected root trace summary scope metadata, got %#v", tracePlan.Explanation.TraceSummary)
 	}
+	if len(tracePlan.Explanation.DownstreamTraceSummaries) != 1 {
+		t.Fatalf("expected one top-level downstream trace summary, got %#v", tracePlan.Explanation.DownstreamTraceSummaries)
+	}
+	if tracePlan.Explanation.DownstreamTraceSummaries[0].Scope != "downstream" || tracePlan.Explanation.DownstreamTraceSummaries[0].ProtocolPCID != "pcid:moks.parsed.v1" {
+		t.Fatalf("expected top-level downstream trace summary scope metadata, got %#v", tracePlan.Explanation.DownstreamTraceSummaries[0])
+	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
 		Kind:   "downstream",
 		Target: "pcid:moks.parsed.v1",
@@ -731,6 +737,9 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	}
 	if focusedTrace.Explanation.TraceSummary == nil || focusedTrace.Explanation.TraceSummary.HiddenSteps < 0 {
 		t.Fatalf("expected focused trace summary, got %#v", focusedTrace.Explanation)
+	}
+	if len(focusedTrace.Explanation.DownstreamTraceSummaries) != 1 || focusedTrace.Explanation.DownstreamTraceSummaries[0].ProtocolPCID != "pcid:moks.parsed.v1" {
+		t.Fatalf("expected focused downstream trace summary list, got %#v", focusedTrace.Explanation.DownstreamTraceSummaries)
 	}
 	if len(tracePlan.Preferred.Explanation.Downstream) != 1 || tracePlan.Preferred.Explanation.Downstream[0].TraceSummary == nil {
 		t.Fatalf("expected downstream trace summary in traced plan, got %#v", tracePlan.Preferred.Explanation)

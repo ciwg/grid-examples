@@ -129,3 +129,11 @@ Decision: Add explicit trace scope metadata to route-plan summaries so each summ
 Intent: Let operators distinguish the root protocol trace summary from nested downstream trace summaries when parser and transform routes produce multi-hop plans.
 Constraints: Reuse the existing trace data and downstream-plan explanation shape; do not change planner execution or focused-trace filtering.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-rukav
+Date: 2026-07-28 11:13:40
+Status: active
+Decision: Add top-level downstream trace summaries to traced route-plan output so nested protocol hops expose their own scoped counts directly in the trace payload.
+Intent: Let operators see separate downstream-hop trace summaries without having to drill into candidate explanation blocks.
+Constraints: Reuse recursive traced subplans; keep the existing root trace summary; do not change planner execution or remove downstream summaries from candidate explanations.
+Affects: `kernel/routes.go`, tests, and routing docs.

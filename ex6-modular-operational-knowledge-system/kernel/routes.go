@@ -22,11 +22,12 @@ type RoutePlanCandidate struct {
 }
 
 type RoutePlanExplanation struct {
-	Order        []string               `json:"order,omitempty"`
-	Winner       []string               `json:"winner,omitempty"`
-	Comparisons  []RoutePlanComparison  `json:"comparisons,omitempty"`
-	TraceSummary *RoutePlanTraceSummary `json:"trace_summary,omitempty"`
-	Trace        []RoutePlanTraceStep   `json:"trace,omitempty"`
+	Order                    []string                `json:"order,omitempty"`
+	Winner                   []string                `json:"winner,omitempty"`
+	Comparisons              []RoutePlanComparison   `json:"comparisons,omitempty"`
+	TraceSummary             *RoutePlanTraceSummary  `json:"trace_summary,omitempty"`
+	DownstreamTraceSummaries []RoutePlanTraceSummary `json:"downstream_trace_summaries,omitempty"`
+	Trace                    []RoutePlanTraceStep    `json:"trace,omitempty"`
 }
 
 type RoutePlanComparison struct {
@@ -156,6 +157,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 	}
 	plan.Explanation.Trace = trace.steps
 	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
+	plan.Explanation.DownstreamTraceSummaries = collectDownstreamTraceSummaries(plan)
 	return plan
 }
 
@@ -167,6 +169,7 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
 	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", fullTrace, plan.Explanation.Trace, filter)
+	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, filter)
 	return plan
 }
 
@@ -388,6 +391,59 @@ func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
 		out[index].Step = index + 1
 	}
 	return out
+}
+
+// Intent: Expose nested protocol-hop summaries alongside the root trace so
+// operators can see each downstream scope directly in traced route-plan output.
+// Source: DI-rukav
+func collectDownstreamTraceSummaries(plan RoutePlan) []RoutePlanTraceSummary {
+	seen := map[string]struct{}{}
+	out := []RoutePlanTraceSummary{}
+	collectDownstreamTraceSummariesFromCandidates(plan.Candidates, seen, &out)
+	slices.SortFunc(out, func(left, right RoutePlanTraceSummary) int {
+		if diff := strings.Compare(left.ProtocolPCID, right.ProtocolPCID); diff != 0 {
+			return diff
+		}
+		return strings.Compare(left.Scope, right.Scope)
+	})
+	return out
+}
+
+func collectDownstreamTraceSummariesFromCandidates(candidates []RoutePlanCandidate, seen map[string]struct{}, out *[]RoutePlanTraceSummary) {
+	for _, candidate := range candidates {
+		for _, next := range candidate.Next {
+			if next.Explanation != nil && next.Explanation.TraceSummary != nil {
+				summary := *next.Explanation.TraceSummary
+				summary.Scope = "downstream"
+				key := summary.ProtocolPCID + "|" + summary.Scope
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					*out = append(*out, summary)
+				}
+			}
+			collectDownstreamTraceSummariesFromCandidates(next.Candidates, seen, out)
+		}
+	}
+}
+
+func filterDownstreamTraceSummaries(summaries []RoutePlanTraceSummary, filter RoutePlanTraceFilter) []RoutePlanTraceSummary {
+	kind := strings.TrimSpace(filter.Kind)
+	target := strings.TrimSpace(filter.Target)
+	if kind == "" || target == "" {
+		return summaries
+	}
+	filtered := []RoutePlanTraceSummary{}
+	for _, summary := range summaries {
+		switch kind {
+		case "downstream":
+			if summary.ProtocolPCID == target {
+				filtered = append(filtered, summary)
+			}
+		default:
+			filtered = append(filtered, summary)
+		}
+	}
+	return filtered
 }
 
 // Intent: Keep filtered route traces honest and scoped by showing which
