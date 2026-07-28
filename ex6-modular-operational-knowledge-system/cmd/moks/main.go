@@ -217,12 +217,14 @@ func routeList(runtime *kernel.Runtime) error {
 	// derived from package claims so the current routing role is visible and
 	// debuggable from the CLI. Source: DI-rutom
 	for _, route := range runtime.ProtocolRoutes() {
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			route.ProtocolPCID,
 			route.Role,
+			route.RouteType,
 			route.PackageID,
 			route.PackageVersion,
 			strings.Join(route.Families, ","),
+			strings.Join(route.EmitsProtocols, ","),
 		)
 	}
 	return nil

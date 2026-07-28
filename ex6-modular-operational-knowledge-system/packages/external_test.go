@@ -100,3 +100,16 @@ esac
 		t.Fatalf("unmarshal record: %v", err)
 	}
 }
+
+func TestManifestValidateRequiresEmitsForParserClaims(t *testing.T) {
+	manifest := Manifest{
+		ID:      "parser-agent",
+		Version: "0.1.0",
+		Claims: []ImplementationClaim{
+			{ProtocolPCID: "pcid:raw.example.v1", Role: "parser", RouteType: "parser"},
+		},
+	}
+	if err := manifest.Validate(); err == nil {
+		t.Fatal("expected parser claim validation failure")
+	}
+}

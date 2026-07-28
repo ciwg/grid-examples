@@ -29,6 +29,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - command routing
 - explicit protocol route registration derived from package claims
 - exported route metadata in relay batches
+- explicit route types: `direct`, `parser`, and `transform`
 - family registration
 - explicit per-package protocol implementation claims
 - append-only durable history
@@ -82,8 +83,9 @@ Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 - `moks route list` shows the current protocol routes that the runtime has derived from active package claims
 - a registered family now requires a matching `family-validator` route claim for its `protocol_pcid`
 - relay export now carries those route registrations as batch metadata too
+- parser and transform routes can declare `emits_protocols` to describe the next-hop protocols they produce
 
-Source: `DI-rutom`; `DI-ruvot`.
+Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`.
 
 ## Layout
 

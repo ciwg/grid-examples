@@ -49,8 +49,10 @@ Current routing rule:
   `family-validator` claim for that family's `protocol_pcid`
 - relay export carries the derived route registrations so peers can inspect
   routing roles from batch metadata too
+- parser or transform claims must declare `route_type` plus `emits_protocols`
+- plain direct handlers can omit `route_type` and default to `direct`
 
-Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`.
+Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`.
 
 ## Current Activation Model
 

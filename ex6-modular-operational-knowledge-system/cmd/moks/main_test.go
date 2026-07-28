@@ -93,10 +93,10 @@ func TestRouteListShowsProtocolRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("route list: %v", err)
 	}
-	if !strings.Contains(output, "pcid:moks.context.place.v1\tfamily-validator\tcontext\t0.1.0\tmoks.context.place.v1") {
+	if !strings.Contains(output, "pcid:moks.context.place.v1\tfamily-validator\tdirect\tcontext\t0.1.0\tmoks.context.place.v1\t") {
 		t.Fatalf("route list missing context place validator: %s", output)
 	}
-	if !strings.Contains(output, "pcid:moks.ops.note.v1\tfamily-validator\tops-note\t0.1.0\tmoks.ops.note.v1") {
+	if !strings.Contains(output, "pcid:moks.ops.note.v1\tfamily-validator\tdirect\tops-note\t0.1.0\tmoks.ops.note.v1\t") {
 		t.Fatalf("route list missing ops note validator: %s", output)
 	}
 }

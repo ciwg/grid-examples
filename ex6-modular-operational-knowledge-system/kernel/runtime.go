@@ -171,10 +171,15 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 		}
 	}
 	for _, claim := range pkg.manifest.Claims {
+		// Intent: Keep the route table aligned with explicit multi-hop route
+		// metadata so parser/transform roles are visible next to direct handlers.
+		// Source: DI-lafek
 		runtime.routes = append(runtime.routes, registeredRoute{
 			owner:        pkg,
 			protocolPCID: claim.ProtocolPCID,
 			role:         claim.Role,
+			routeType:    claim.NormalizedRouteType(),
+			emits:        claim.SortedEmitsProtocols(),
 			summary:      claim.Summary,
 			families:     pkg.manifest.FamiliesForProtocol(claim.ProtocolPCID),
 		})
@@ -455,6 +460,8 @@ func (runtime *Runtime) ImplementationClaims() []grid.ImplementationClaim {
 				PackageVersion: pkg.Version,
 				ProtocolPCID:   claim.ProtocolPCID,
 				Role:           claim.Role,
+				RouteType:      claim.NormalizedRouteType(),
+				EmitsProtocols: claim.SortedEmitsProtocols(),
 				Summary:        claim.Summary,
 			})
 		}

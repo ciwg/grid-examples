@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -14,11 +15,13 @@ import (
 const RelayBatchFormat = "moks-relay-batch-v1"
 
 type ImplementationClaim struct {
-	PackageID      string `json:"package_id"`
-	ProtocolPCID   string `json:"protocol_pcid"`
-	Role           string `json:"role"`
-	Summary        string `json:"summary,omitempty"`
-	PackageVersion string `json:"package_version"`
+	PackageID      string   `json:"package_id"`
+	ProtocolPCID   string   `json:"protocol_pcid"`
+	Role           string   `json:"role"`
+	RouteType      string   `json:"route_type,omitempty"`
+	EmitsProtocols []string `json:"emits_protocols,omitempty"`
+	Summary        string   `json:"summary,omitempty"`
+	PackageVersion string   `json:"package_version"`
 }
 
 type RouteRegistration struct {
@@ -26,6 +29,8 @@ type RouteRegistration struct {
 	PackageVersion string   `json:"package_version"`
 	ProtocolPCID   string   `json:"protocol_pcid"`
 	Role           string   `json:"role"`
+	RouteType      string   `json:"route_type,omitempty"`
+	EmitsProtocols []string `json:"emits_protocols,omitempty"`
 	Summary        string   `json:"summary,omitempty"`
 	Families       []string `json:"families,omitempty"`
 }
@@ -81,6 +86,7 @@ func (batch Batch) Validate() error {
 		return fmt.Errorf("batch exported_at must be RFC3339: %w", err)
 	}
 	seenClaims := map[string]struct{}{}
+	claimsByKey := map[string]ImplementationClaim{}
 	for _, claim := range batch.ImplementationClaims {
 		if strings.TrimSpace(claim.PackageID) == "" {
 			return errors.New("claim package_id is required")
@@ -94,11 +100,24 @@ func (batch Batch) Validate() error {
 		if strings.TrimSpace(claim.Role) == "" {
 			return errors.New("claim role is required")
 		}
+		switch normalizedRouteType(claim.RouteType) {
+		case "direct":
+			if len(claim.EmitsProtocols) > 0 {
+				return errors.New("direct claim must not declare emits_protocols")
+			}
+		case "parser", "transform":
+			if len(claim.EmitsProtocols) == 0 {
+				return fmt.Errorf("%s claim must declare emits_protocols", normalizedRouteType(claim.RouteType))
+			}
+		default:
+			return fmt.Errorf("unsupported claim route_type: %s", claim.RouteType)
+		}
 		key := claim.PackageID + "\x00" + claim.PackageVersion + "\x00" + claim.ProtocolPCID + "\x00" + claim.Role
 		if _, exists := seenClaims[key]; exists {
 			return fmt.Errorf("duplicate implementation claim: %s", key)
 		}
 		seenClaims[key] = struct{}{}
+		claimsByKey[key] = normalizedClaim(claim)
 	}
 	seenRoutes := map[string]struct{}{}
 	// Intent: Keep exported route metadata derivative of exported claims so
@@ -121,8 +140,18 @@ func (batch Batch) Validate() error {
 		if _, exists := seenRoutes[key]; exists {
 			return fmt.Errorf("duplicate route registration: %s", key)
 		}
-		if _, exists := seenClaims[key]; !exists {
+		claim, exists := claimsByKey[key]
+		if !exists {
 			return fmt.Errorf("route registration missing matching claim: %s", key)
+		}
+		// Intent: Preserve parser/transform hop metadata across relay export so
+		// route consumers can distinguish direct handlers from multi-hop routes.
+		// Source: DI-lafek
+		if normalizedRouteType(route.RouteType) != normalizedRouteType(claim.RouteType) {
+			return fmt.Errorf("route registration route_type mismatch for %s", key)
+		}
+		if !slicesEqualStrings(sortedStrings(route.EmitsProtocols), sortedStrings(claim.EmitsProtocols)) {
+			return fmt.Errorf("route registration emits_protocols mismatch for %s", key)
 		}
 		familyNames := map[string]struct{}{}
 		for _, family := range route.Families {
@@ -234,6 +263,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 }
 
 func ClaimSigningBytes(claim ImplementationClaim) []byte {
+	claim = normalizedClaim(claim)
 	body, err := json.Marshal(claim)
 	if err != nil {
 		return []byte(claim.PackageID + "\x00" + claim.PackageVersion + "\x00" + claim.ProtocolPCID + "\x00" + claim.Role + "\x00" + claim.Summary)
@@ -242,6 +272,7 @@ func ClaimSigningBytes(claim ImplementationClaim) []byte {
 }
 
 func ClaimAttestationSigningBytes(claimIndex int, claim ImplementationClaim) []byte {
+	claim = normalizedClaim(claim)
 	signable := struct {
 		ClaimIndex int                 `json:"claim_index"`
 		Claim      ImplementationClaim `json:"claim"`
@@ -254,6 +285,38 @@ func ClaimAttestationSigningBytes(claimIndex int, claim ImplementationClaim) []b
 		return append([]byte(fmt.Sprintf("%d\x00", claimIndex)), ClaimSigningBytes(claim)...)
 	}
 	return body
+}
+
+func normalizedRouteType(routeType string) string {
+	trimmed := strings.TrimSpace(routeType)
+	if trimmed == "" {
+		return "direct"
+	}
+	return trimmed
+}
+
+func normalizedClaim(claim ImplementationClaim) ImplementationClaim {
+	claim.RouteType = normalizedRouteType(claim.RouteType)
+	claim.EmitsProtocols = sortedStrings(claim.EmitsProtocols)
+	return claim
+}
+
+func sortedStrings(values []string) []string {
+	out := append([]string{}, values...)
+	slices.Sort(out)
+	return out
+}
+
+func slicesEqualStrings(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func ProofForRecord(raw json.RawMessage) RecordProof {

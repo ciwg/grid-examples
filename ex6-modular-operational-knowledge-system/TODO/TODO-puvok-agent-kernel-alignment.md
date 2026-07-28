@@ -25,3 +25,11 @@ Decision: Export the claim-derived route model in relay batch metadata, keep all
 Intent: Make routing roles visible across runtimes so ex6 does not hide the routing model inside one local process while it is moving toward a more agent-shaped kernel.
 Constraints: Reuse the current batch/signature surface where possible; do not invent parser-agent metadata yet; keep route metadata derivative of package claims rather than a second independent declaration source.
 Affects: `grid/` batch types and validation, `kernel/` batch export and route translation, runtime tests, and ex6 docs describing routing roles.
+
+ID: DI-lafek
+Date: 2026-07-28 10:30:40
+Status: active
+Decision: Let package claims model explicit `direct`, `parser`, and `transform` route types, require parser/transform routes to declare their emitted protocols, and carry that metadata through the route table and relay exports.
+Intent: Make multi-hop routing visible in ex6 so the current kernel can describe “parser first, then app handler” style flows without pretending every protocol route is a direct terminal handler.
+Constraints: Keep the claim-derived route model as the single source of truth; default missing route type to `direct`; do not yet implement runtime parser execution or parser-specific trust policy.
+Affects: `packages/manifest.go`, `kernel/routes.go`, `kernel/runtime.go`, relay batch metadata, CLI route inspection, tests, and routing docs.

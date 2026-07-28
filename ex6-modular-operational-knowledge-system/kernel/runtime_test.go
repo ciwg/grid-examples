@@ -12,6 +12,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/builtin"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/kernel"
+	pkgmeta "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages"
 	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/context"
 	inventorypkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/inventory"
 	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/knowledge"
@@ -603,12 +604,18 @@ func TestProtocolRoutesIncludeBuiltinClaims(t *testing.T) {
 	for _, route := range routes {
 		if route.ProtocolPCID == contextpkg.PlaceProtocol && route.Role == "family-validator" && route.PackageID == "context" {
 			foundContext = true
+			if route.RouteType != "direct" {
+				t.Fatalf("unexpected context route type: %s", route.RouteType)
+			}
 			if !slices.Equal(route.Families, []string{"moks.context.place.v1"}) {
 				t.Fatalf("unexpected context route families: %#v", route.Families)
 			}
 		}
 		if route.ProtocolPCID == builtin.OpsFamilyProtocol && route.Role == "family-validator" && route.PackageID == "ops-note" {
 			foundOps = true
+			if route.RouteType != "direct" {
+				t.Fatalf("unexpected ops route type: %s", route.RouteType)
+			}
 			if !slices.Equal(route.Families, []string{"moks.ops.note.v1"}) {
 				t.Fatalf("unexpected ops route families: %#v", route.Families)
 			}
@@ -616,6 +623,65 @@ func TestProtocolRoutesIncludeBuiltinClaims(t *testing.T) {
 	}
 	if !foundContext || !foundOps {
 		t.Fatalf("expected builtin protocol routes, got %#v", routes)
+	}
+}
+
+func TestProtocolRoutesCanModelParserHop(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	parserPackage := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "parser-agent",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.raw.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.parsed.v1"},
+					Summary:        "Parses raw envelopes into parsed ones.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.parsed.v1",
+					Role:         "handler",
+					Summary:      "Handles parsed envelopes directly.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(parserPackage); err != nil {
+		t.Fatalf("register parser package: %v", err)
+	}
+	routes := runtime.ProtocolRoutes()
+	foundParser := false
+	foundHandler := false
+	for _, route := range routes {
+		if route.PackageID == "parser-agent" && route.ProtocolPCID == "pcid:moks.raw.v1" {
+			foundParser = true
+			if route.RouteType != "parser" {
+				t.Fatalf("unexpected parser route type: %s", route.RouteType)
+			}
+			if !slices.Equal(route.EmitsProtocols, []string{"pcid:moks.parsed.v1"}) {
+				t.Fatalf("unexpected parser emits protocols: %#v", route.EmitsProtocols)
+			}
+		}
+		if route.PackageID == "parser-agent" && route.ProtocolPCID == "pcid:moks.parsed.v1" {
+			foundHandler = true
+			if route.RouteType != "direct" {
+				t.Fatalf("unexpected handler route type: %s", route.RouteType)
+			}
+		}
+	}
+	if !foundParser || !foundHandler {
+		t.Fatalf("expected parser hop routes, got %#v", routes)
 	}
 }
 
@@ -704,6 +770,27 @@ func TestImportBatchRejectsRouteClaimMismatch(t *testing.T) {
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "route registration missing matching claim") {
 		t.Fatalf("expected route claim mismatch rejection, got %v", err)
+	}
+}
+
+func TestImportBatchRejectsRouteParserMetadataMismatch(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		ImplementationClaims: []grid.ImplementationClaim{
+			{PackageID: "parser-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "parser", RouteType: "parser", EmitsProtocols: []string{"pcid:helper.parsed.v1"}},
+		},
+		Routes: []grid.RouteRegistration{
+			{PackageID: "parser-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "parser", RouteType: "transform", EmitsProtocols: []string{"pcid:helper.parsed.v1"}},
+		},
+		Records:      []json.RawMessage{raw},
+		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "route registration route_type mismatch") {
+		t.Fatalf("expected route parser metadata mismatch rejection, got %v", err)
 	}
 }
 

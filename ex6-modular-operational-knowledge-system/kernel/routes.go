@@ -11,6 +11,8 @@ type registeredRoute struct {
 	owner        *activePackage
 	protocolPCID string
 	role         string
+	routeType    string
+	emits        []string
 	summary      string
 	families     []string
 }
@@ -26,6 +28,8 @@ func (runtime *Runtime) ProtocolRoutes() []grid.RouteRegistration {
 			PackageVersion: route.owner.manifest.Version,
 			ProtocolPCID:   route.protocolPCID,
 			Role:           route.role,
+			RouteType:      route.routeType,
+			EmitsProtocols: append([]string{}, route.emits...),
 			Summary:        route.summary,
 			Families:       append([]string{}, route.families...),
 		})
@@ -35,6 +39,9 @@ func (runtime *Runtime) ProtocolRoutes() []grid.RouteRegistration {
 			return diff
 		}
 		if diff := strings.Compare(left.Role, right.Role); diff != 0 {
+			return diff
+		}
+		if diff := strings.Compare(left.RouteType, right.RouteType); diff != 0 {
 			return diff
 		}
 		return strings.Compare(left.PackageID, right.PackageID)

@@ -25,9 +25,11 @@ type Family struct {
 }
 
 type ImplementationClaim struct {
-	ProtocolPCID string `json:"protocol_pcid"`
-	Role         string `json:"role"`
-	Summary      string `json:"summary,omitempty"`
+	ProtocolPCID   string   `json:"protocol_pcid"`
+	Role           string   `json:"role"`
+	RouteType      string   `json:"route_type,omitempty"`
+	EmitsProtocols []string `json:"emits_protocols,omitempty"`
+	Summary        string   `json:"summary,omitempty"`
 }
 
 type Manifest struct {
@@ -89,6 +91,31 @@ func (manifest Manifest) Validate() error {
 		}
 		if strings.TrimSpace(claim.Role) == "" {
 			return fmt.Errorf("claim role is required for package %s", manifest.ID)
+		}
+		// Intent: Keep route-shape meaning inside package claims so parser and
+		// transform hops use the same declaration surface as direct handlers.
+		// Source: DI-lafek
+		switch claim.NormalizedRouteType() {
+		case "direct":
+			if len(claim.EmitsProtocols) > 0 {
+				return fmt.Errorf("direct claim %s for package %s must not declare emits_protocols", claim.ProtocolPCID, manifest.ID)
+			}
+		case "parser", "transform":
+			if len(claim.EmitsProtocols) == 0 {
+				return fmt.Errorf("%s claim %s for package %s must declare emits_protocols", claim.NormalizedRouteType(), claim.ProtocolPCID, manifest.ID)
+			}
+			seenEmits := map[string]struct{}{}
+			for _, emit := range claim.EmitsProtocols {
+				if strings.TrimSpace(emit) == "" {
+					return fmt.Errorf("%s claim %s for package %s has empty emits_protocols entry", claim.NormalizedRouteType(), claim.ProtocolPCID, manifest.ID)
+				}
+				if _, exists := seenEmits[emit]; exists {
+					return fmt.Errorf("%s claim %s for package %s has duplicate emits_protocols entry %s", claim.NormalizedRouteType(), claim.ProtocolPCID, manifest.ID, emit)
+				}
+				seenEmits[emit] = struct{}{}
+			}
+		default:
+			return fmt.Errorf("unsupported route_type %q for package %s", claim.RouteType, manifest.ID)
 		}
 		key := claim.ProtocolPCID + "\x00" + claim.Role
 		if _, exists := claimedProtocols[key]; exists {
@@ -152,6 +179,20 @@ func (manifest Manifest) FamiliesForProtocol(protocolPCID string) []string {
 	return families
 }
 
+func (claim ImplementationClaim) NormalizedRouteType() string {
+	routeType := strings.TrimSpace(claim.RouteType)
+	if routeType == "" {
+		return "direct"
+	}
+	return routeType
+}
+
+func (claim ImplementationClaim) SortedEmitsProtocols() []string {
+	emits := append([]string{}, claim.EmitsProtocols...)
+	slices.Sort(emits)
+	return emits
+}
+
 func sortManifest(manifest *Manifest) {
 	slices.SortFunc(manifest.Commands, func(left, right Command) int {
 		return strings.Compare(left.Key(), right.Key())
@@ -162,8 +203,15 @@ func sortManifest(manifest *Manifest) {
 	slices.SortFunc(manifest.Claims, func(left, right ImplementationClaim) int {
 		leftKey := left.ProtocolPCID + "\x00" + left.Role
 		rightKey := right.ProtocolPCID + "\x00" + right.Role
-		return strings.Compare(leftKey, rightKey)
+		if diff := strings.Compare(leftKey, rightKey); diff != 0 {
+			return diff
+		}
+		return strings.Compare(left.NormalizedRouteType(), right.NormalizedRouteType())
 	})
+	for index := range manifest.Claims {
+		manifest.Claims[index].RouteType = manifest.Claims[index].NormalizedRouteType()
+		manifest.Claims[index].EmitsProtocols = manifest.Claims[index].SortedEmitsProtocols()
+	}
 }
 
 func equalCommands(left []Command, right []Command) bool {
@@ -195,7 +243,11 @@ func equalClaims(left []ImplementationClaim, right []ImplementationClaim) bool {
 		return false
 	}
 	for index := range left {
-		if left[index] != right[index] {
+		if left[index].ProtocolPCID != right[index].ProtocolPCID ||
+			left[index].Role != right[index].Role ||
+			left[index].Summary != right[index].Summary ||
+			left[index].NormalizedRouteType() != right[index].NormalizedRouteType() ||
+			!slices.Equal(left[index].SortedEmitsProtocols(), right[index].SortedEmitsProtocols()) {
 			return false
 		}
 	}
