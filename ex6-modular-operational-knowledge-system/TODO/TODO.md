@@ -7,6 +7,7 @@
 - [x] tusav - procedures package foundation
 - [x] sivuk - training package foundation
 - [x] ramek - maintenance package foundation
+- [x] zibek - receiving package foundation
 - [x] rovum - package template and scaffolding flow
 - [ ] sibok - grid hardening beyond relay batch shell
 - [x] nupad - operator docs and runnable examples

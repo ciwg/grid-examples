@@ -16,6 +16,7 @@ import (
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
 	maintenancepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/maintenance"
 	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/procedures"
+	receivingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/receiving"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
 	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/training"
 )
@@ -197,6 +198,39 @@ func TestMaintenancePackageCommands(t *testing.T) {
 	}
 	if !strings.Contains(inspect, "resource_id: res-2") || !strings.Contains(inspect, "run-4:carol@res-2") || !strings.Contains(inspect, "find-1:serviceable") {
 		t.Fatalf("unexpected maintenance inspect: %s", inspect)
+	}
+}
+
+func TestReceivingPackageCommands(t *testing.T) {
+	runtime := newRuntime(t)
+	if _, err := runtime.RunCommand(context.Background(), []string{"context", "place", "create", "place-2", "Dock", "Inbound-dock"}); err != nil {
+		t.Fatalf("create receiving place: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"context", "resource", "create", "res-3", "PalletA", "Pallet-load", "place-2"}); err != nil {
+		t.Fatalf("create receiving resource: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"receiving", "create", "recv-1", "place-2", "InboundPallet", "Receive-pallet-a"}); err != nil {
+		t.Fatalf("create receiving item: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"receiving", "record-receipt", "recv-1", "run-5", "place-2", "dave", "accepted", "count-matched"}); err != nil {
+		t.Fatalf("record receipt: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"receiving", "record-disposition", "recv-1", "disp-1", "stock", "res-3", "moved-to-storage"}); err != nil {
+		t.Fatalf("record disposition: %v", err)
+	}
+	listing, err := runtime.RunCommand(context.Background(), []string{"receiving", "list"})
+	if err != nil {
+		t.Fatalf("list receiving: %v", err)
+	}
+	if !strings.Contains(listing, "recv-1\tplace-2\tInboundPallet\treceipts=1\tdispositions=1") {
+		t.Fatalf("unexpected receiving listing: %s", listing)
+	}
+	inspect, err := runtime.RunCommand(context.Background(), []string{"receiving", "inspect", "recv-1"})
+	if err != nil {
+		t.Fatalf("inspect receiving: %v", err)
+	}
+	if !strings.Contains(inspect, "place_id: place-2") || !strings.Contains(inspect, "run-5:dave@place-2") || !strings.Contains(inspect, "disp-1:stock@res-3") {
+		t.Fatalf("unexpected receiving inspect: %s", inspect)
 	}
 }
 
@@ -416,6 +450,9 @@ func newRuntime(t *testing.T) *kernel.Runtime {
 	}
 	if err := runtime.RegisterBuiltin(maintenancepkg.Package()); err != nil {
 		t.Fatalf("register maintenance package: %v", err)
+	}
+	if err := runtime.RegisterBuiltin(receivingpkg.Package()); err != nil {
+		t.Fatalf("register receiving package: %v", err)
 	}
 	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
 		t.Fatalf("register procedures package: %v", err)

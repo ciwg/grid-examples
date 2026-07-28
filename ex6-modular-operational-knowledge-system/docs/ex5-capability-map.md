@@ -44,7 +44,7 @@ Source: `DI-moksu`; `DI-lupok`.
 | procedure-specific behavior | `procedures` package |
 | training-specific behavior | `training` package |
 | maintenance-specific behavior | `maintenance` package |
-| receiving-check behavior | later `receiving` package |
+| receiving-check behavior | `receiving` package |
 | inventory-audit behavior | later `inventory` package |
 | browser embodiment | not core; later optional embodiment |
 | Neovim embodiment | not core; later optional embodiment |
@@ -94,12 +94,12 @@ Later domain eggs can extend from there. Source: `DI-moksu`.
 
 ## Next Domain Eggs
 
-With `training` and `maintenance` now implemented, the next domain eggs are:
+With `training`, `maintenance`, and `receiving` now implemented, the next
+domain egg is:
 
-1. `receiving`
-2. `inventory`
+1. `inventory`
 
-Source: `DI-sivuk`; `DI-ramek`.
+Source: `DI-sivuk`; `DI-ramek`; `DI-zibek`.
 
 ## First Five Package Ownership
 
