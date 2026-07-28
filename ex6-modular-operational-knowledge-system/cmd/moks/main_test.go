@@ -228,6 +228,42 @@ func TestRelayPeerDiscoverSeedCreatesUntrustedPeerEntry(t *testing.T) {
 	}
 }
 
+func TestRelayPeerPromoteUsesSeededMetadata(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "relay", "peer", "discover", server.URL+"/relay/peer-card", "seed"); err != nil {
+		t.Fatalf("discover and seed peer: %v", err)
+	}
+	output, err := runCLI(t, workdir, "relay", "peer", "promote", source.LocalPeerID(), "both")
+	if err != nil {
+		t.Fatalf("promote seeded peer: %v", err)
+	}
+	if !strings.Contains(output, "promoted "+source.LocalPeerID()+" pull=true push=true") {
+		t.Fatalf("unexpected promote output: %s", output)
+	}
+
+	runtime, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open promoted runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	peer, ok := runtime.LookupPeer(source.LocalPeerID())
+	if !ok {
+		t.Fatal("expected promoted peer entry")
+	}
+	if !peer.AllowPull || !peer.AllowPush {
+		t.Fatalf("expected promoted peer to allow both, got pull=%t push=%t", peer.AllowPull, peer.AllowPush)
+	}
+	if peer.BatchURL != server.URL+"/relay/batch" || peer.ImportURL != server.URL+"/relay/import" {
+		t.Fatalf("expected stored peer metadata to be reused, got batch=%s import=%s", peer.BatchURL, peer.ImportURL)
+	}
+}
+
 func TestRelayPullImportsFromPeer(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

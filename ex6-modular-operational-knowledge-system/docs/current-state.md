@@ -24,6 +24,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks relay peer discover <peer-card-url>`
 - `moks relay peer discover <peer-card-url> seed`
 - `moks relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>`
+- `moks relay peer promote <peer-id> <pull|push|both>`
 - `moks relay peer list`
 - `moks relay peer revoke <peer-id>`
 - package manifest validation
@@ -51,13 +52,15 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - peer public-key verification on live relay pull/push/import
 - relay peer-card discovery without automatic trust grants
 - optional seeded peer registration that still starts as `no-pull` and `no-push`
+- peer-policy promotion shortcuts that reuse stored metadata
 
 Discovery rule:
 - discovery is not trust
 - plain discovery fetches metadata and prints next commands only
 - seeded discovery writes a local peer entry, but it still cannot pull or push until explicitly allowed
+- policy promotion changes trust locally without re-fetching peer metadata
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`.
 
 ## Not Implemented
 
@@ -69,7 +72,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; 
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`.
 
 ## Why The Gap Exists
 

@@ -34,13 +34,14 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - relay batch export and import
 - signed live relay batches
 - explicit peer discovery and optional untrusted local seeding
+- peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
 - the first nine first-party built-in packages:
   `context`, `knowledge`, `runs`, `links`, `procedures`, `training`, `maintenance`, `receiving`, and `inventory`
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`.
 
 ## What Does Not Exist Yet
 
@@ -59,9 +60,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`.
 - discovery is not trust
 - `moks relay peer discover <peer-card-url>` only fetches and prints peer metadata plus next commands
 - `moks relay peer discover <peer-card-url> seed` creates a local `no-pull` `no-push` peer entry
+- `moks relay peer promote <peer-id> <pull|push|both>` upgrades local policy using that stored peer entry
 - pull or push remain disabled until an explicit `moks relay peer allow ...` command changes policy
 
-Source: `DI-vemut`; `DI-kasud`.
+Source: `DI-vemut`; `DI-kasud`; `DI-lutep`.
 
 ## Layout
 

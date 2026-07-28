@@ -122,6 +122,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
 		}
 		return relayPeerAllow(runtime, args[3:])
+	case matchesPrefix(args, "relay", "peer", "promote"):
+		if len(args) != 5 {
+			return errors.New("usage: relay peer promote <peer-id> <pull|push|both>")
+		}
+		return relayPeerPromote(runtime, args[3], args[4])
 	case matchesPrefix(args, "relay", "peer", "revoke"):
 		if len(args) != 5 {
 			return errors.New("usage: relay peer revoke <peer-id>")
@@ -482,4 +487,30 @@ func relayPeerAllow(runtime *kernel.Runtime, args []string) error {
 		AllowPull: allowPull,
 		AllowPush: allowPush,
 	})
+}
+
+func relayPeerPromote(runtime *kernel.Runtime, peerID string, mode string) error {
+	// Intent: Promote a discovered peer's exchange policy without forcing the
+	// operator to retype stored metadata, while keeping the trust step explicit.
+	// Source: DI-lutep
+	peer, ok := runtime.LookupPeer(peerID)
+	if !ok {
+		return fmt.Errorf("unknown peer: %s", peerID)
+	}
+	switch mode {
+	case "pull":
+		peer.AllowPull = true
+	case "push":
+		peer.AllowPush = true
+	case "both":
+		peer.AllowPull = true
+		peer.AllowPush = true
+	default:
+		return errors.New("usage: relay peer promote <peer-id> <pull|push|both>")
+	}
+	if err := runtime.AllowPeer(peer); err != nil {
+		return err
+	}
+	fmt.Printf("promoted %s pull=%t push=%t\n", peer.PeerID, peer.AllowPull, peer.AllowPush)
+	return nil
 }

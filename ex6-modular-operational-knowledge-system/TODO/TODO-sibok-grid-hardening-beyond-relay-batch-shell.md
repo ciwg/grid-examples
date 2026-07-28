@@ -50,6 +50,14 @@ Intent: Remove manual transcription from the operator flow without collapsing di
 Constraints: Seeding must remain explicit; seeded peers stay untrusted for exchange until a later `relay peer allow ... pull|push` command changes policy; discovery output must state that boundary clearly.
 Affects: `cmd/moks`, relay tests, README, and ex6 current-state docs.
 
+ID: DI-lutep
+Date: 2026-07-28 20:00:00
+Status: active
+Decision: Add peer-policy promotion shortcuts that reuse stored peer metadata and only change pull/push policy.
+Intent: Finish the explicit trust workflow by letting operators promote a seeded peer without retyping batch URLs, import URLs, or public keys.
+Constraints: Promotion must stay explicit and local; it may only operate on already registered peers; it must not fetch fresh metadata during promotion.
+Affects: `cmd/moks`, relay tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.
