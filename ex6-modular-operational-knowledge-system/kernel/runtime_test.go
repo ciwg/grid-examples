@@ -80,6 +80,14 @@ func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 	}
 }
 
+func TestKnownFamilyProtocolMismatchRejected(t *testing.T) {
+	runtime := newRuntime(t)
+	raw := []byte(`{"family":"moks.ops.note.v1","protocol_pcid":"pcid:wrong","record_id":"bad-1","signer":"ops-note","timestamp":"2026-07-28T00:00:00Z","payload":{"title":"x","body_ref":"sha256:abc"}}`)
+	if _, err := runtime.AppendRecord(context.Background(), raw); err == nil {
+		t.Fatal("expected protocol mismatch rejection")
+	}
+}
+
 func TestHistorySurvivesRestart(t *testing.T) {
 	root := t.TempDir()
 	runtime, err := kernel.Open(root)
@@ -118,6 +126,20 @@ func TestBatchFormatValidation(t *testing.T) {
 	}
 }
 
+func TestExportBatchIncludesImplementationClaims(t *testing.T) {
+	runtime := newRuntime(t)
+	batch := runtime.ExportBatch()
+	if batch.Implementation != "moks-ex6" {
+		t.Fatalf("unexpected implementation: %s", batch.Implementation)
+	}
+	if len(batch.ImplementationClaims) == 0 {
+		t.Fatal("expected implementation claims")
+	}
+	if batch.ImplementationClaims[0].ProtocolPCID != builtin.OpsFamilyProtocol {
+		t.Fatalf("unexpected protocol claim: %s", batch.ImplementationClaims[0].ProtocolPCID)
+	}
+}
+
 func newRuntime(t *testing.T) *kernel.Runtime {
 	t.Helper()
 	runtime, err := kernel.Open(t.TempDir())
@@ -142,7 +164,7 @@ set -eu
 case "$1" in
   describe)
     cat <<'EOF'
-{"id":"helper-egg","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}]}
+{"id":"helper-egg","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}],"claims":[{"protocol_pcid":"pcid:helper.echo.v1","role":"family-validator","summary":"Validates helper echo envelopes."}]}
 EOF
     ;;
   validate)
@@ -182,6 +204,9 @@ esac
 		},
 		"families": []map[string]any{
 			{"name": "helper.echo.v1", "protocol_pcid": "pcid:helper.echo.v1"},
+		},
+		"claims": []map[string]any{
+			{"protocol_pcid": "pcid:helper.echo.v1", "role": "family-validator", "summary": "Validates helper echo envelopes."},
 		},
 	}
 	if mismatch {

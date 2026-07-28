@@ -24,13 +24,20 @@ type Family struct {
 	ProtocolPCID string `json:"protocol_pcid"`
 }
 
+type ImplementationClaim struct {
+	ProtocolPCID string `json:"protocol_pcid"`
+	Role         string `json:"role"`
+	Summary      string `json:"summary,omitempty"`
+}
+
 type Manifest struct {
-	ID          string    `json:"id"`
-	Version     string    `json:"version"`
-	Description string    `json:"description,omitempty"`
-	Executable  string    `json:"executable,omitempty"`
-	Commands    []Command `json:"commands,omitempty"`
-	Families    []Family  `json:"families,omitempty"`
+	ID          string                `json:"id"`
+	Version     string                `json:"version"`
+	Description string                `json:"description,omitempty"`
+	Executable  string                `json:"executable,omitempty"`
+	Commands    []Command             `json:"commands,omitempty"`
+	Families    []Family              `json:"families,omitempty"`
+	Claims      []ImplementationClaim `json:"claims,omitempty"`
 }
 
 func LoadManifest(path string) (Manifest, error) {
@@ -75,6 +82,24 @@ func (manifest Manifest) Validate() error {
 		commandKeys[key] = struct{}{}
 	}
 	familyNames := map[string]struct{}{}
+	claimedProtocols := map[string]struct{}{}
+	for _, claim := range manifest.Claims {
+		if strings.TrimSpace(claim.ProtocolPCID) == "" {
+			return fmt.Errorf("claim protocol_pcid is required for package %s", manifest.ID)
+		}
+		if strings.TrimSpace(claim.Role) == "" {
+			return fmt.Errorf("claim role is required for package %s", manifest.ID)
+		}
+		key := claim.ProtocolPCID + "\x00" + claim.Role
+		if _, exists := claimedProtocols[key]; exists {
+			return fmt.Errorf("duplicate claim %q for package %s", claim.ProtocolPCID, manifest.ID)
+		}
+		claimedProtocols[key] = struct{}{}
+	}
+	claimedProtocolSet := map[string]struct{}{}
+	for _, claim := range manifest.Claims {
+		claimedProtocolSet[claim.ProtocolPCID] = struct{}{}
+	}
 	for _, family := range manifest.Families {
 		if strings.TrimSpace(family.Name) == "" {
 			return fmt.Errorf("family name is required for package %s", manifest.ID)
@@ -84,6 +109,9 @@ func (manifest Manifest) Validate() error {
 		}
 		if _, exists := familyNames[family.Name]; exists {
 			return fmt.Errorf("duplicate family %q", family.Name)
+		}
+		if _, exists := claimedProtocolSet[family.ProtocolPCID]; !exists {
+			return fmt.Errorf("family %s protocol_pcid %s is not covered by a claim", family.Name, family.ProtocolPCID)
 		}
 		familyNames[family.Name] = struct{}{}
 	}
@@ -100,7 +128,8 @@ func (manifest Manifest) Equal(other Manifest) bool {
 		left.Description == right.Description &&
 		left.Executable == right.Executable &&
 		equalCommands(left.Commands, right.Commands) &&
-		equalFamilies(left.Families, right.Families)
+		equalFamilies(left.Families, right.Families) &&
+		equalClaims(left.Claims, right.Claims)
 }
 
 func sortManifest(manifest *Manifest) {
@@ -109,6 +138,11 @@ func sortManifest(manifest *Manifest) {
 	})
 	slices.SortFunc(manifest.Families, func(left, right Family) int {
 		return strings.Compare(left.Name, right.Name)
+	})
+	slices.SortFunc(manifest.Claims, func(left, right ImplementationClaim) int {
+		leftKey := left.ProtocolPCID + "\x00" + left.Role
+		rightKey := right.ProtocolPCID + "\x00" + right.Role
+		return strings.Compare(leftKey, rightKey)
 	})
 }
 
@@ -125,6 +159,18 @@ func equalCommands(left []Command, right []Command) bool {
 }
 
 func equalFamilies(left []Family, right []Family) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalClaims(left []ImplementationClaim, right []ImplementationClaim) bool {
 	if len(left) != len(right) {
 		return false
 	}

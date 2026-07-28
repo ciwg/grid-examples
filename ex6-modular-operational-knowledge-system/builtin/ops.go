@@ -35,6 +35,13 @@ func OpsPackage() kernel.BuiltinPackage {
 		Families: []packages.Family{
 			{Name: OpsFamily, ProtocolPCID: OpsFamilyProtocol},
 		},
+		Claims: []packages.ImplementationClaim{
+			{
+				ProtocolPCID: OpsFamilyProtocol,
+				Role:         "family-validator",
+				Summary:      "Validates and stores operational note envelopes for the built-in note family.",
+			},
+		},
 	}
 	return kernel.BuiltinPackage{
 		Manifest: manifest,

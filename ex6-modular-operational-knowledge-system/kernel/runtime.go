@@ -34,6 +34,11 @@ type activePackage struct {
 	packageRoot string
 }
 
+type registeredFamily struct {
+	owner        *activePackage
+	protocolPCID string
+}
+
 type Runtime struct {
 	root         string
 	packagesRoot string
@@ -41,7 +46,7 @@ type Runtime struct {
 	cas          *store.CAS
 	packages     map[string]*activePackage
 	commands     map[string]*activePackage
-	families     map[string]*activePackage
+	families     map[string]registeredFamily
 }
 
 func Open(root string) (*Runtime, error) {
@@ -64,7 +69,7 @@ func Open(root string) (*Runtime, error) {
 		cas:          casStore,
 		packages:     map[string]*activePackage{},
 		commands:     map[string]*activePackage{},
-		families:     map[string]*activePackage{},
+		families:     map[string]registeredFamily{},
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
@@ -133,7 +138,10 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 		runtime.commands[command.Key()] = pkg
 	}
 	for _, family := range pkg.manifest.Families {
-		runtime.families[family.Name] = pkg
+		runtime.families[family.Name] = registeredFamily{
+			owner:        pkg,
+			protocolPCID: family.ProtocolPCID,
+		}
 	}
 	return nil
 }
@@ -165,13 +173,17 @@ func (runtime *Runtime) GetCAS(objectID string) ([]byte, error) {
 
 // Intent: Validate known families through their owning egg while still
 // preserving unknown-family carriage as durable exact bytes for the grid.
-// Source: DI-moksu
+// Source: DI-lupok
 func (runtime *Runtime) AppendRecord(ctx context.Context, raw []byte) (records.Envelope, error) {
 	envelope, err := records.Parse(raw)
 	if err != nil {
 		return records.Envelope{}, err
 	}
-	if owner, exists := runtime.families[envelope.Family]; exists {
+	if registered, exists := runtime.families[envelope.Family]; exists {
+		if envelope.ProtocolPCID != registered.protocolPCID {
+			return records.Envelope{}, fmt.Errorf("family %s expects protocol_pcid %s, got %s", envelope.Family, registered.protocolPCID, envelope.ProtocolPCID)
+		}
+		owner := registered.owner
 		if owner.builtin {
 			if validator := owner.validators[envelope.Family]; validator != nil {
 				if err := validator(envelope); err != nil {
@@ -197,9 +209,13 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 	for _, entry := range entries {
 		rawRecords = append(rawRecords, append(json.RawMessage{}, entry.Raw...))
 	}
+	claims := runtime.ImplementationClaims()
 	return grid.Batch{
-		Format:  grid.RelayBatchFormat,
-		Records: rawRecords,
+		Format:               grid.RelayBatchFormat,
+		Implementation:       "moks-ex6",
+		ExportedAt:           time.Now().UTC().Format(time.RFC3339),
+		ImplementationClaims: claims,
+		Records:              rawRecords,
 	}
 }
 
@@ -213,6 +229,25 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 		}
 	}
 	return nil
+}
+
+// Intent: Publish explicit per-package protocol claims so relay exports say
+// what the active eggs believe they implement instead of implying that through
+// local layout or family names alone. Source: DI-lupok
+func (runtime *Runtime) ImplementationClaims() []grid.ImplementationClaim {
+	claims := []grid.ImplementationClaim{}
+	for _, pkg := range runtime.PackageManifests() {
+		for _, claim := range pkg.Claims {
+			claims = append(claims, grid.ImplementationClaim{
+				PackageID:      pkg.ID,
+				PackageVersion: pkg.Version,
+				ProtocolPCID:   claim.ProtocolPCID,
+				Role:           claim.Role,
+				Summary:        claim.Summary,
+			})
+		}
+	}
+	return claims
 }
 
 func (runtime *Runtime) RunCommand(ctx context.Context, args []string) (string, error) {

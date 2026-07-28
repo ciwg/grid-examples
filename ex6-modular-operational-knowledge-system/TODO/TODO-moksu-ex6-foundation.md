@@ -13,3 +13,12 @@ Affects: `cmd/moks`, `builtin`, `grid`, `kernel`, `packages`, `records`, `store`
 ## Notes
 
 - The repo-local `mint-handle` helper was not present in the checked workspace during implementation, so this ex6-local TODO uses a manually chosen proquint-style handle to preserve the required DI linkage inside the allowed ex6 boundary.
+
+ID: DI-lupok
+Date: 2026-07-28 00:30:00
+Status: active
+Decision: Tighten ex6 around explicit PromiseGrid implementation claims and runtime-enforced protocol identity matching for registered families.
+Intent: Keep ex6 protocol-first so packages do not imply conformance through family names alone and relay exports can state what protocols the active eggs claim to implement.
+Constraints: Preserve exact-byte unknown-family retention; do not introduce a fake universal handler ABI; keep all changes inside the ex6 tree.
+Affects: `grid`, `kernel`, `packages`, builtin package manifests, tests, and CLI-visible package metadata.
+Supersedes: DI-moksu
