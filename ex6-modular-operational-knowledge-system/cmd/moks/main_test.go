@@ -150,6 +150,48 @@ func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	}
 }
 
+func TestRelayPeerCardAndDiscover(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	response, err := http.Get(server.URL + "/relay/peer-card")
+	if err != nil {
+		t.Fatalf("get peer card: %v", err)
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected peer card status: %s", response.Status)
+	}
+	var card grid.PeerCard
+	if err := json.NewDecoder(response.Body).Decode(&card); err != nil {
+		t.Fatalf("decode peer card: %v", err)
+	}
+	if err := card.Validate(); err != nil {
+		t.Fatalf("validate peer card: %v", err)
+	}
+	if card.PeerID != source.LocalPeerID() {
+		t.Fatalf("unexpected peer id: %s", card.PeerID)
+	}
+	if card.PublicKey != source.LocalPeerPublicKey() {
+		t.Fatalf("unexpected public key: %s", card.PublicKey)
+	}
+
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "relay", "peer", "discover", server.URL+"/relay/peer-card")
+	if err != nil {
+		t.Fatalf("discover peer: %v", err)
+	}
+	if !strings.Contains(output, "peer_id: "+source.LocalPeerID()) {
+		t.Fatalf("discover output missing peer id: %s", output)
+	}
+	if !strings.Contains(output, "allow_command: moks relay peer allow "+source.LocalPeerID()) {
+		t.Fatalf("discover output missing allow command: %s", output)
+	}
+}
+
 func TestRelayPullImportsFromPeer(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

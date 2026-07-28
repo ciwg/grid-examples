@@ -31,6 +31,14 @@ type PeerConfig struct {
 	AllowedPeers    []AllowedPeer `json:"allowed_peers"`
 }
 
+type PeerCard struct {
+	PeerID      string `json:"peer_id"`
+	PublicKey   string `json:"public_key"`
+	BatchURL    string `json:"batch_url"`
+	ImportURL   string `json:"import_url"`
+	DiscoverURL string `json:"discover_url"`
+}
+
 type PeerStore struct {
 	mu     sync.RWMutex
 	path   string
@@ -253,6 +261,25 @@ func validateAllowedPeer(peer AllowedPeer) error {
 	}
 	if !peer.AllowPull && !peer.AllowPush {
 		return errors.New("peer must allow pull, push, or both")
+	}
+	return nil
+}
+
+func (card PeerCard) Validate() error {
+	if strings.TrimSpace(card.PeerID) == "" {
+		return errors.New("peer_id is required")
+	}
+	if strings.TrimSpace(card.PublicKey) == "" {
+		return errors.New("public_key is required")
+	}
+	if strings.TrimSpace(card.BatchURL) == "" {
+		return errors.New("batch_url is required")
+	}
+	if strings.TrimSpace(card.ImportURL) == "" {
+		return errors.New("import_url is required")
+	}
+	if strings.TrimSpace(card.DiscoverURL) == "" {
+		return errors.New("discover_url is required")
 	}
 	return nil
 }

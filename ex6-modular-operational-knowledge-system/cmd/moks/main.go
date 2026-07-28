@@ -105,6 +105,11 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	case matchesPrefix(args, "relay", "peer", "list"):
 		return relayPeerList(runtime)
+	case matchesPrefix(args, "relay", "peer", "discover"):
+		if len(args) != 4 {
+			return errors.New("usage: relay peer discover <peer-card-url>")
+		}
+		return relayPeerDiscover(ctx, runtime, args[3])
 	case matchesPrefix(args, "relay", "peer", "allow"):
 		if len(args) != 8 {
 			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
@@ -202,6 +207,25 @@ func relayServe(ctx context.Context, runtime *kernel.Runtime, addr string) error
 
 func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /relay/peer-card", func(writer http.ResponseWriter, request *http.Request) {
+		// Intent: Let peers discover runtime-owned relay identity and endpoints
+		// without silently granting any exchange permissions.
+		// Source: DI-vemut
+		card := grid.PeerCard{
+			PeerID:      runtime.LocalPeerID(),
+			PublicKey:   runtime.LocalPeerPublicKey(),
+			BatchURL:    absoluteRelayURL(request, "/relay/batch"),
+			ImportURL:   absoluteRelayURL(request, "/relay/import"),
+			DiscoverURL: absoluteRelayURL(request, "/relay/peer-card"),
+		}
+		body, err := json.MarshalIndent(card, "", "  ")
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(body)
+	})
 	mux.HandleFunc("GET /relay/batch", func(writer http.ResponseWriter, _ *http.Request) {
 		batch, err := runtime.SignedExportBatch()
 		if err != nil {
@@ -241,6 +265,14 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 		_, _ = writer.Write([]byte(`{"status":"ok"}`))
 	})
 	return mux
+}
+
+func absoluteRelayURL(request *http.Request, path string) string {
+	scheme := "http"
+	if request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + request.Host + path
 }
 
 func relayPull(ctx context.Context, runtime *kernel.Runtime, peerID string) error {
@@ -306,6 +338,55 @@ func relayPush(ctx context.Context, runtime *kernel.Runtime, peerID string) erro
 		return fmt.Errorf("relay push failed: %s: %s", response.Status, strings.TrimSpace(string(responseBody)))
 	}
 	return nil
+}
+
+func relayPeerDiscover(ctx context.Context, _ *kernel.Runtime, cardURL string) error {
+	// Intent: Keep discovery separate from trust by fetching peer metadata and
+	// printing the exact allow command instead of auto-enabling pull or push.
+	// Source: DI-vemut
+	card, err := fetchPeerCard(ctx, cardURL)
+	if err != nil {
+		return err
+	}
+	fmt.Printf(
+		"peer_id: %s\npublic_key: %s\nbatch_url: %s\nimport_url: %s\ndiscover_url: %s\nallow_command: moks relay peer allow %s %s %s %s no-pull no-push\n",
+		card.PeerID,
+		card.PublicKey,
+		card.BatchURL,
+		card.ImportURL,
+		card.DiscoverURL,
+		card.PeerID,
+		card.BatchURL,
+		card.ImportURL,
+		card.PublicKey,
+	)
+	return nil
+}
+
+func fetchPeerCard(ctx context.Context, cardURL string) (grid.PeerCard, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, cardURL, nil)
+	if err != nil {
+		return grid.PeerCard{}, err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return grid.PeerCard{}, err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		return grid.PeerCard{}, fmt.Errorf("peer discovery failed: %s: %s", response.Status, strings.TrimSpace(string(body)))
+	}
+	var card grid.PeerCard
+	if err := json.NewDecoder(response.Body).Decode(&card); err != nil {
+		return grid.PeerCard{}, err
+	}
+	if err := card.Validate(); err != nil {
+		return grid.PeerCard{}, err
+	}
+	return card, nil
 }
 
 func registerBuiltins(runtime *kernel.Runtime) error {

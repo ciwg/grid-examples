@@ -21,6 +21,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks relay pull <peer-id>`
 - `moks relay push <peer-id>`
 - `moks relay peer local show`
+- `moks relay peer discover <peer-card-url>`
 - `moks relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>`
 - `moks relay peer list`
 - `moks relay peer revoke <peer-id>`
@@ -47,8 +48,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - peer allow rules and peer-identity matching on live relay import
 - runtime-owned local relay keypairs and signed live relay batches
 - peer public-key verification on live relay pull/push/import
+- relay peer-card discovery without automatic trust grants
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`.
 
 ## Not Implemented
 
@@ -56,11 +58,11 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; 
 - Neovim embodiment
 - ex5 review/search/operate parity
 - record-level signing and broader proof discipline
-- peer discovery and stronger trust beyond explicit allow rules
+- automatic peer discovery and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`.
 
 ## Why The Gap Exists
 

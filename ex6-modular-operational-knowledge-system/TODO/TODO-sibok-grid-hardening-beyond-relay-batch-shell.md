@@ -34,6 +34,14 @@ Intent: Make pull/push/import trust stronger than peer-ID matching alone by lett
 Constraints: Sign the current relay batch as a whole instead of inventing a new wire format; keep trust rooted in explicit local peer registration; leave broader record-level proofs and discovery for later slices.
 Affects: `grid/peers.go`, `grid/batch.go`, `kernel/runtime.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
 
+ID: DI-vemut
+Date: 2026-07-28 19:20:00
+Status: active
+Decision: Add explicit peer discovery through a relay peer-card endpoint and a CLI discovery command that fetches peer metadata without auto-granting trust.
+Intent: Let operators learn a peer's identity, public key, and relay endpoints from the grid itself while keeping allow/pull/push policy as a separate explicit step.
+Constraints: Discovery must not silently enable pull or push; reuse the current live relay surface; keep peer registration human-auditable by printing the exact allow command to run next.
+Affects: `grid/peers.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.
