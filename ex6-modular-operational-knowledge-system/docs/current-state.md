@@ -8,7 +8,8 @@ It currently contains the runtime foundation, one small built-in example
 package, and the first nine real first-party built-in packages. It does not
 yet contain the full operational knowledge product as a set of ex6 packages.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`;
+`DI-zafek`.
 
 ## Implemented
 
@@ -21,6 +22,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks route plan <protocol-pcid> trace`
 - `moks route plan <protocol-pcid> trace candidate <package-id:role:route-type>`
 - `moks route plan <protocol-pcid> trace downstream <protocol-pcid>`
+- route-plan trace summaries now distinguish root and downstream protocol scope
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

@@ -57,10 +57,12 @@ type RoutePlanTraceFilter struct {
 }
 
 type RoutePlanTraceSummary struct {
-	TotalSteps  int                   `json:"total_steps"`
-	ShownSteps  int                   `json:"shown_steps"`
-	HiddenSteps int                   `json:"hidden_steps"`
-	Filter      *RoutePlanTraceFilter `json:"filter,omitempty"`
+	ProtocolPCID string                `json:"protocol_pcid"`
+	Scope        string                `json:"scope"`
+	TotalSteps   int                   `json:"total_steps"`
+	ShownSteps   int                   `json:"shown_steps"`
+	HiddenSteps  int                   `json:"hidden_steps"`
+	Filter       *RoutePlanTraceFilter `json:"filter,omitempty"`
 }
 
 type RoutePlanCandidateExplanation struct {
@@ -75,12 +77,13 @@ type RoutePlanCandidateExplanation struct {
 }
 
 type RoutePlanDownstreamExplanation struct {
-	ProtocolPCID   string                `json:"protocol_pcid"`
-	Executable     bool                  `json:"executable"`
-	PreferredRoute string                `json:"preferred_route,omitempty"`
-	Winner         []string              `json:"winner,omitempty"`
-	Comparisons    []RoutePlanComparison `json:"comparisons,omitempty"`
-	Notes          []string              `json:"notes,omitempty"`
+	ProtocolPCID   string                 `json:"protocol_pcid"`
+	Executable     bool                   `json:"executable"`
+	PreferredRoute string                 `json:"preferred_route,omitempty"`
+	TraceSummary   *RoutePlanTraceSummary `json:"trace_summary,omitempty"`
+	Winner         []string               `json:"winner,omitempty"`
+	Comparisons    []RoutePlanComparison  `json:"comparisons,omitempty"`
+	Notes          []string               `json:"notes,omitempty"`
 }
 
 type registeredRoute struct {
@@ -152,7 +155,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
-	plan.Explanation.TraceSummary = traceSummary(trace.steps, trace.steps, RoutePlanTraceFilter{})
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", trace.steps, trace.steps, RoutePlanTraceFilter{})
 	return plan
 }
 
@@ -163,7 +166,7 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	}
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
-	plan.Explanation.TraceSummary = traceSummary(fullTrace, plan.Explanation.Trace, filter)
+	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", fullTrace, plan.Explanation.Trace, filter)
 	return plan
 }
 
@@ -233,6 +236,16 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		trace.record(protocolPCID, "no-preferred", "no executable route was available for this protocol")
 	}
 	plan.Explanation = runtime.explainRoutePlan(protocolPCID, plan.Candidates, plan.Preferred)
+	if trace != nil && plan.Explanation != nil {
+		// Intent: Give each recursive protocol hop its own trace summary so
+		// downstream explanations can say which protocol scope they describe
+		// without flattening everything into the root summary. Source: DI-zafek
+		scopedTrace := filterRoutePlanTrace(trace.steps, RoutePlanTraceFilter{
+			Kind:   "downstream",
+			Target: protocolPCID,
+		})
+		plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", scopedTrace, scopedTrace, RoutePlanTraceFilter{})
+	}
 	return plan
 }
 
@@ -377,14 +390,16 @@ func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
 	return out
 }
 
-// Intent: Keep filtered route traces honest by showing how many planner steps
-// were recorded, how many remain after filtering, and which filter produced
-// the focused view. Source: DI-buvok
-func traceSummary(full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
+// Intent: Keep filtered route traces honest and scoped by showing which
+// protocol hop the summary describes, whether it is root or downstream, and
+// how many planner steps remain after filtering. Source: DI-zafek
+func traceSummary(protocolPCID string, scope string, full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
 	summary := &RoutePlanTraceSummary{
-		TotalSteps:  len(full),
-		ShownSteps:  len(shown),
-		HiddenSteps: len(full) - len(shown),
+		ProtocolPCID: protocolPCID,
+		Scope:        scope,
+		TotalSteps:   len(full),
+		ShownSteps:   len(shown),
+		HiddenSteps:  len(full) - len(shown),
 	}
 	if strings.TrimSpace(filter.Kind) != "" && strings.TrimSpace(filter.Target) != "" {
 		filterCopy := filter
@@ -520,6 +535,11 @@ func explainDownstreamPlans(next []RoutePlan) []RoutePlanDownstreamExplanation {
 			explanation.PreferredRoute = comparisonSideID(plan.Preferred.Route)
 		}
 		if plan.Explanation != nil {
+			if plan.Explanation.TraceSummary != nil {
+				traceSummary := *plan.Explanation.TraceSummary
+				traceSummary.Scope = "downstream"
+				explanation.TraceSummary = &traceSummary
+			}
 			explanation.Winner = append([]string{}, plan.Explanation.Winner...)
 			explanation.Comparisons = append([]RoutePlanComparison{}, plan.Explanation.Comparisons...)
 		}

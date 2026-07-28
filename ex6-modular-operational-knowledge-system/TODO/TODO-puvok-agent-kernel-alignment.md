@@ -121,3 +121,11 @@ Decision: Add trace summary counts to route-plan trace output so filtered traces
 Intent: Let operators immediately see how much of the full planner trace was filtered away.
 Constraints: Keep unfocused trace summaries truthful too; derive counts from the already-recorded trace; do not change planner execution.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-zafek
+Date: 2026-07-28 11:10:55
+Status: active
+Decision: Add explicit trace scope metadata to route-plan summaries so each summary states which `protocol_pcid` it describes and whether it belongs to the root plan or a downstream hop.
+Intent: Let operators distinguish the root protocol trace summary from nested downstream trace summaries when parser and transform routes produce multi-hop plans.
+Constraints: Reuse the existing trace data and downstream-plan explanation shape; do not change planner execution or focused-trace filtering.
+Affects: `kernel/routes.go`, tests, and routing docs.
