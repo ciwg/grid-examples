@@ -58,6 +58,14 @@ Intent: Finish the explicit trust workflow by letting operators promote a seeded
 Constraints: Promotion must stay explicit and local; it may only operate on already registered peers; it must not fetch fresh metadata during promotion.
 Affects: `cmd/moks`, relay tests, README, and ex6 current-state docs.
 
+ID: DI-zumep
+Date: 2026-07-28 20:15:00
+Status: active
+Decision: Add per-record digest proofs to relay batches and verify those proofs during import before appending durable history.
+Intent: Strengthen trust beyond whole-batch signatures by letting receivers detect tampering or mutation at the record level, including for unknown-family carriage.
+Constraints: Keep the current batch format additive for now; export proofs on new batches and verify them when present; do not yet invent a full claim-proof or record-signature wire layer.
+Affects: `grid/batch.go`, `kernel/runtime.go`, runtime tests, CLI relay tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

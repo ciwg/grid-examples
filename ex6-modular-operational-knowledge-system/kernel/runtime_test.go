@@ -444,7 +444,8 @@ func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 		ImplementationClaims: []grid.ImplementationClaim{
 			{PackageID: "helper-egg", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
 		},
-		Records: []json.RawMessage{raw},
+		Records:      []json.RawMessage{raw},
+		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
 		t.Fatalf("first import: %v", err)
@@ -462,6 +463,9 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	batch := runtime.ExportBatch()
 	if batch.Implementation != runtime.LocalPeerID() {
 		t.Fatalf("unexpected implementation: %s", batch.Implementation)
+	}
+	if len(batch.RecordProofs) != len(batch.Records) {
+		t.Fatalf("expected record proofs to match records, got %d proofs for %d records", len(batch.RecordProofs), len(batch.Records))
 	}
 	if len(batch.ImplementationClaims) < 2 {
 		t.Fatal("expected implementation claims")
@@ -494,6 +498,24 @@ func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	}
 	if !foundOps || !foundContext || !foundKnowledge || !foundRuns || !foundLinks || !foundProcedures {
 		t.Fatalf("expected ops and context claims, got %#v", batch.ImplementationClaims)
+	}
+}
+
+func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
+	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	runtime := newRuntime(t)
+	batch := grid.Batch{
+		Format:         grid.RelayBatchFormat,
+		Implementation: "peer-a",
+		ExportedAt:     "2026-07-28T00:00:00Z",
+		Records:        []json.RawMessage{raw},
+		RecordProofs:   []grid.RecordProof{{Digest: "sha256:deadbeef"}},
+	}
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected record proof mismatch rejection")
+	}
+	if len(runtime.History()) != 0 {
+		t.Fatalf("expected no history on proof mismatch, got %d", len(runtime.History()))
 	}
 }
 

@@ -252,6 +252,7 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 		ExportedAt:           time.Now().UTC().Format(time.RFC3339),
 		ImplementationClaims: claims,
 		Records:              rawRecords,
+		RecordProofs:         grid.ProofsForRecords(rawRecords),
 	}
 }
 
@@ -264,6 +265,12 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 	// repeated imports stop re-appending identical durable records while malformed
 	// batch metadata is rejected before touching local history. Source: DI-sibok
 	if err := batch.Validate(); err != nil {
+		return err
+	}
+	// Intent: Verify per-record digests before durable import so receivers can
+	// reject tampered relay contents even when they do not yet understand the
+	// record family semantics. Source: DI-zumep
+	if err := batch.VerifyRecordProofs(); err != nil {
 		return err
 	}
 	for _, raw := range batch.Records {

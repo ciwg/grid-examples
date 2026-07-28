@@ -33,6 +33,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - CAS storage
 - relay batch export and import
 - signed live relay batches
+- per-record relay digest proofs
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
@@ -41,7 +42,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`.
 
 ## What Does Not Exist Yet
 
@@ -50,10 +51,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - Neovim embodiment
 - ex5 review/search/workflow parity
 - full PromiseGrid proof/signature discipline
-- stronger record-level proof discipline
+- claim-level proofs and record-level signatures beyond digest verification
 - richer relay behavior beyond the current peer-card and explicit allow model
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`.
 
 ## Relay Trust Rule
 
