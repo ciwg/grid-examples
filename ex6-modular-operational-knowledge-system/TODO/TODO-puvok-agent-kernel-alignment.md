@@ -113,3 +113,11 @@ Decision: Add focused trace filters for one candidate path or one downstream pro
 Intent: Keep trace output readable without losing the ability to inspect the exact planner sequence for the one path or downstream protocol an operator cares about.
 Constraints: Reuse the existing trace data rather than recomputing a second planner; keep the unfocused trace unchanged; use explicit filter kinds instead of free-form search.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-buvok
+Date: 2026-07-28 11:09:13
+Status: active
+Decision: Add trace summary counts to route-plan trace output so filtered traces report the total planner steps, kept steps, dropped steps, and active filter.
+Intent: Let operators immediately see how much of the full planner trace was filtered away.
+Constraints: Keep unfocused trace summaries truthful too; derive counts from the already-recorded trace; do not change planner execution.
+Affects: `kernel/routes.go`, tests, and routing docs.

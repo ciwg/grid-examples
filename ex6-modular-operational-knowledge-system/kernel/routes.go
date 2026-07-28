@@ -22,10 +22,11 @@ type RoutePlanCandidate struct {
 }
 
 type RoutePlanExplanation struct {
-	Order       []string              `json:"order,omitempty"`
-	Winner      []string              `json:"winner,omitempty"`
-	Comparisons []RoutePlanComparison `json:"comparisons,omitempty"`
-	Trace       []RoutePlanTraceStep  `json:"trace,omitempty"`
+	Order        []string               `json:"order,omitempty"`
+	Winner       []string               `json:"winner,omitempty"`
+	Comparisons  []RoutePlanComparison  `json:"comparisons,omitempty"`
+	TraceSummary *RoutePlanTraceSummary `json:"trace_summary,omitempty"`
+	Trace        []RoutePlanTraceStep   `json:"trace,omitempty"`
 }
 
 type RoutePlanComparison struct {
@@ -53,6 +54,13 @@ type RoutePlanTraceStep struct {
 type RoutePlanTraceFilter struct {
 	Kind   string `json:"kind,omitempty"`
 	Target string `json:"target,omitempty"`
+}
+
+type RoutePlanTraceSummary struct {
+	TotalSteps  int                   `json:"total_steps"`
+	ShownSteps  int                   `json:"shown_steps"`
+	HiddenSteps int                   `json:"hidden_steps"`
+	Filter      *RoutePlanTraceFilter `json:"filter,omitempty"`
 }
 
 type RoutePlanCandidateExplanation struct {
@@ -144,6 +152,7 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
+	plan.Explanation.TraceSummary = traceSummary(trace.steps, trace.steps, RoutePlanTraceFilter{})
 	return plan
 }
 
@@ -152,7 +161,9 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	if plan.Explanation == nil {
 		return plan
 	}
+	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
 	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
+	plan.Explanation.TraceSummary = traceSummary(fullTrace, plan.Explanation.Trace, filter)
 	return plan
 }
 
@@ -364,6 +375,22 @@ func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
 		out[index].Step = index + 1
 	}
 	return out
+}
+
+// Intent: Keep filtered route traces honest by showing how many planner steps
+// were recorded, how many remain after filtering, and which filter produced
+// the focused view. Source: DI-buvok
+func traceSummary(full []RoutePlanTraceStep, shown []RoutePlanTraceStep, filter RoutePlanTraceFilter) *RoutePlanTraceSummary {
+	summary := &RoutePlanTraceSummary{
+		TotalSteps:  len(full),
+		ShownSteps:  len(shown),
+		HiddenSteps: len(full) - len(shown),
+	}
+	if strings.TrimSpace(filter.Kind) != "" && strings.TrimSpace(filter.Target) != "" {
+		filterCopy := filter
+		summary.Filter = &filterCopy
+	}
+	return summary
 }
 
 func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {

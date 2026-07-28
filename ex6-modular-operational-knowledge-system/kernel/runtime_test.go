@@ -716,12 +716,18 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if tracePlan.Explanation == nil || len(tracePlan.Explanation.Trace) == 0 {
 		t.Fatalf("expected route plan trace, got %#v", tracePlan.Explanation)
 	}
+	if tracePlan.Explanation.TraceSummary == nil || tracePlan.Explanation.TraceSummary.TotalSteps == 0 {
+		t.Fatalf("expected route plan trace summary, got %#v", tracePlan.Explanation)
+	}
 	focusedTrace := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.raw.v1", kernel.RoutePlanTraceFilter{
 		Kind:   "downstream",
 		Target: "pcid:moks.parsed.v1",
 	})
 	if focusedTrace.Explanation == nil || len(focusedTrace.Explanation.Trace) == 0 {
 		t.Fatalf("expected focused downstream trace, got %#v", focusedTrace.Explanation)
+	}
+	if focusedTrace.Explanation.TraceSummary == nil || focusedTrace.Explanation.TraceSummary.HiddenSteps < 0 {
+		t.Fatalf("expected focused trace summary, got %#v", focusedTrace.Explanation)
 	}
 }
 

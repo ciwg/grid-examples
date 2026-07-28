@@ -153,6 +153,9 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	if !strings.Contains(output, `"preferred"`) {
 		t.Fatalf("route plan trace missing preferred route: %s", output)
 	}
+	if !strings.Contains(output, `"trace_summary"`) || !strings.Contains(output, `"total_steps"`) {
+		t.Fatalf("route plan trace missing trace summary: %s", output)
+	}
 }
 
 func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
@@ -163,6 +166,9 @@ func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
 	}
 	if !strings.Contains(output, `"trace"`) || !strings.Contains(output, `context:family-validator:direct`) {
 		t.Fatalf("focused candidate trace missing target: %s", output)
+	}
+	if !strings.Contains(output, `"hidden_steps"`) || !strings.Contains(output, `"filter"`) {
+		t.Fatalf("focused candidate trace missing filter summary: %s", output)
 	}
 }
 
