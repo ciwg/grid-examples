@@ -609,6 +609,49 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 	}
 }
 
+func TestAttestBatchClaimsAddsThirdPartyAttestations(t *testing.T) {
+	exporter := newRuntime(t)
+	attester := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	attested, err := attester.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims: %v", err)
+	}
+	if len(attested.ClaimAttestations) != len(attested.ImplementationClaims) {
+		t.Fatalf("expected claim attestations to match claims, got %d for %d", len(attested.ClaimAttestations), len(attested.ImplementationClaims))
+	}
+	if attested.ClaimAttestations[0].SignerPeerID != attester.LocalPeerID() {
+		t.Fatalf("unexpected attester peer id: %s", attested.ClaimAttestations[0].SignerPeerID)
+	}
+}
+
+func TestImportBatchRejectsBadThirdPartyClaimAttestation(t *testing.T) {
+	exporter := newRuntime(t)
+	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+		t.Fatalf("append exporter record: %v", err)
+	}
+	batch, err := exporter.ExportBatch()
+	if err != nil {
+		t.Fatalf("export batch: %v", err)
+	}
+	attester := newRuntime(t)
+	batch, err = attester.AttestBatchClaims(batch)
+	if err != nil {
+		t.Fatalf("attest batch claims: %v", err)
+	}
+	batch.ClaimAttestations[0].SignerPeerID = batch.Implementation
+	runtime := newRuntime(t)
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
+		t.Fatal("expected third-party claim attestation rejection")
+	}
+}
+
 func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
 	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
 	runtime := newRuntime(t)

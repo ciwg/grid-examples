@@ -294,6 +294,18 @@ func (runtime *Runtime) SignedExportBatch() (grid.Batch, error) {
 	return runtime.peers.SignBatch(batch)
 }
 
+func (runtime *Runtime) AttestBatchClaims(batch grid.Batch) (grid.Batch, error) {
+	if batch.Implementation == runtime.LocalPeerID() {
+		return grid.Batch{}, errors.New("third-party claim attestation requires a different peer")
+	}
+	attestations, err := runtime.peers.AttestClaims(batch.ImplementationClaims)
+	if err != nil {
+		return grid.Batch{}, err
+	}
+	batch.ClaimAttestations = append(batch.ClaimAttestations[:0], attestations...)
+	return batch, nil
+}
+
 func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error {
 	// Intent: Treat the current relay shell as idempotent exact-byte carriage so
 	// repeated imports stop re-appending identical durable records while malformed
@@ -307,10 +319,19 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 	if err := batch.VerifyClaimProofs(); err != nil {
 		return err
 	}
+	if err := batch.VerifyClaimAttestations(); err != nil {
+		return err
+	}
 	// Intent: Verify exported implementation claims against the exporting peer's
 	// key material before treating those claims as trustworthy batch metadata.
 	// Source: DI-luzef
 	if err := runtime.peers.VerifyClaimProofs(batch); err != nil {
+		return err
+	}
+	// Intent: Verify outside countersigners for implementation claims so import
+	// can distinguish exporter self-claims from third-party attestation.
+	// Source: DI-fogem
+	if err := runtime.peers.VerifyClaimAttestations(batch); err != nil {
 		return err
 	}
 	if err := batch.VerifyRecordProofs(); err != nil {

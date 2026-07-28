@@ -220,6 +220,26 @@ func (store *PeerStore) SignClaims(claims []ImplementationClaim) ([]ClaimProof, 
 	return proofs, nil
 }
 
+func (store *PeerStore) AttestClaims(claims []ImplementationClaim) ([]ClaimAttestation, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	attestations := make([]ClaimAttestation, 0, len(claims))
+	for index, claim := range claims {
+		signingBytes := ClaimAttestationSigningBytes(index, claim)
+		attestations = append(attestations, ClaimAttestation{
+			ClaimIndex:   index,
+			SignerPeerID: store.config.LocalPeerID,
+			PublicKey:    store.config.LocalPublicKey,
+			Signature:    hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), signingBytes)),
+		})
+	}
+	return attestations, nil
+}
+
 func (store *PeerStore) SignAuthorEnvelope(envelope records.Envelope) (records.Envelope, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -353,6 +373,33 @@ func (store *PeerStore) VerifyAuthorEnvelope(envelope records.Envelope) error {
 	}
 	if !ed25519.Verify(ed25519.PublicKey(publicKey), signingBytes, signature) {
 		return errors.New("author signature verification failed")
+	}
+	return nil
+}
+
+func (store *PeerStore) VerifyClaimAttestations(batch Batch) error {
+	// Intent: Verify third-party claim attestations separately from exporter
+	// self-claims so trust can include outside countersigners.
+	// Source: DI-fogem
+	for _, attestation := range batch.ClaimAttestations {
+		if attestation.SignerPeerID == batch.Implementation {
+			return fmt.Errorf("claim attestation must be third-party at index %d", attestation.ClaimIndex)
+		}
+		if peerIDFromPublicKey(attestation.PublicKey) != attestation.SignerPeerID {
+			return fmt.Errorf("claim attestation signer mismatch at index %d", attestation.ClaimIndex)
+		}
+		publicKey, err := hex.DecodeString(attestation.PublicKey)
+		if err != nil {
+			return err
+		}
+		sigBytes, err := hex.DecodeString(attestation.Signature)
+		if err != nil {
+			return err
+		}
+		claim := batch.ImplementationClaims[attestation.ClaimIndex]
+		if !ed25519.Verify(ed25519.PublicKey(publicKey), ClaimAttestationSigningBytes(attestation.ClaimIndex, claim), sigBytes) {
+			return fmt.Errorf("claim attestation verification failed at index %d", attestation.ClaimIndex)
+		}
 	}
 	return nil
 }

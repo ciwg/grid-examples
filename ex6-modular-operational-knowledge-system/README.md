@@ -37,6 +37,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - per-record relay-carriage signatures by the exporting peer
 - claim-level proofs for advertised implementation claims
 - semantic author-level signatures on durable records
+- third-party attestation support for implementation claims
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
@@ -45,7 +46,7 @@ capability set as ex6 packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`.
 
 ## What Does Not Exist Yet
 
@@ -56,9 +57,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - full PromiseGrid proof/signature discipline
 - third-party claim attestation and semantic author-level signatures beyond relay-carriage verification
 - richer author identity beyond the current local runtime signing root
+- attestation policy, trust weight, and quorum beyond raw countersignatures
 - richer relay behavior beyond the current peer-card and explicit allow model
 
-Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`.
+Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`.
 
 ## Relay Trust Rule
 

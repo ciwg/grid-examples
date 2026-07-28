@@ -31,6 +31,13 @@ type ClaimProof struct {
 	Signature    string `json:"signature"`
 }
 
+type ClaimAttestation struct {
+	ClaimIndex   int    `json:"claim_index"`
+	SignerPeerID string `json:"signer_peer_id"`
+	PublicKey    string `json:"public_key"`
+	Signature    string `json:"signature"`
+}
+
 type RecordSignature struct {
 	SignerPeerID string `json:"signer_peer_id"`
 	PublicKey    string `json:"public_key"`
@@ -43,6 +50,7 @@ type Batch struct {
 	ExportedAt           string                `json:"exported_at"`
 	ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
 	ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
+	ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
 	Records              []json.RawMessage     `json:"records"`
 	RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 	RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
@@ -96,6 +104,20 @@ func (batch Batch) Validate() error {
 			return errors.New("claim proof signature is required")
 		}
 	}
+	for _, attestation := range batch.ClaimAttestations {
+		if attestation.ClaimIndex < 0 || attestation.ClaimIndex >= len(batch.ImplementationClaims) {
+			return fmt.Errorf("claim attestation index out of range: %d", attestation.ClaimIndex)
+		}
+		if strings.TrimSpace(attestation.SignerPeerID) == "" {
+			return errors.New("claim attestation signer_peer_id is required")
+		}
+		if strings.TrimSpace(attestation.PublicKey) == "" {
+			return errors.New("claim attestation public_key is required")
+		}
+		if strings.TrimSpace(attestation.Signature) == "" {
+			return errors.New("claim attestation signature is required")
+		}
+	}
 	if len(batch.Records) == 0 {
 		return errors.New("batch records are required")
 	}
@@ -145,6 +167,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		ExportedAt           string                `json:"exported_at"`
 		ImplementationClaims []ImplementationClaim `json:"implementation_claims,omitempty"`
 		ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
+		ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
 		Records              []json.RawMessage     `json:"records"`
 		RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 		RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
@@ -154,6 +177,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		ExportedAt:           batch.ExportedAt,
 		ImplementationClaims: batch.ImplementationClaims,
 		ClaimProofs:          batch.ClaimProofs,
+		ClaimAttestations:    batch.ClaimAttestations,
 		Records:              batch.Records,
 		RecordProofs:         batch.RecordProofs,
 		RecordSignatures:     batch.RecordSignatures,
@@ -165,6 +189,21 @@ func ClaimSigningBytes(claim ImplementationClaim) []byte {
 	body, err := json.Marshal(claim)
 	if err != nil {
 		return []byte(claim.PackageID + "\x00" + claim.PackageVersion + "\x00" + claim.ProtocolPCID + "\x00" + claim.Role + "\x00" + claim.Summary)
+	}
+	return body
+}
+
+func ClaimAttestationSigningBytes(claimIndex int, claim ImplementationClaim) []byte {
+	signable := struct {
+		ClaimIndex int                 `json:"claim_index"`
+		Claim      ImplementationClaim `json:"claim"`
+	}{
+		ClaimIndex: claimIndex,
+		Claim:      claim,
+	}
+	body, err := json.Marshal(signable)
+	if err != nil {
+		return append([]byte(fmt.Sprintf("%d\x00", claimIndex)), ClaimSigningBytes(claim)...)
 	}
 	return body
 }
@@ -211,6 +250,18 @@ func (batch Batch) VerifyClaimProofs() error {
 	}
 	if len(batch.ClaimProofs) != len(batch.ImplementationClaims) {
 		return errors.New("claim_proofs must match implementation_claims length")
+	}
+	return nil
+}
+
+func (batch Batch) VerifyClaimAttestations() error {
+	// Intent: Carry third-party attestations over specific implementation claims
+	// so receivers can distinguish exporter self-claims from outside approval.
+	// Source: DI-fogem
+	for _, attestation := range batch.ClaimAttestations {
+		if attestation.ClaimIndex < 0 || attestation.ClaimIndex >= len(batch.ImplementationClaims) {
+			return fmt.Errorf("claim attestation index out of range: %d", attestation.ClaimIndex)
+		}
 	}
 	return nil
 }

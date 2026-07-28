@@ -90,6 +90,14 @@ Intent: Move trust from "the exporting peer carried this record" to "the named r
 Constraints: Keep the signature layer additive and optional for legacy records; semantic author signatures are separate from relay-carriage signatures; use the local runtime key as the current author-signing root until richer author identity exists.
 Affects: `records/envelope.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
 
+ID: DI-fogem
+Date: 2026-07-28 21:25:00
+Status: active
+Decision: Add third-party claim attestations so non-exporting peers can countersign specific implementation claims in a relay batch.
+Intent: Extend trust beyond exporter self-claims by letting outside peers attest individual claims without becoming the exporter or record author.
+Constraints: Attestations must be distinct from exporter claim proofs; they sign indexed claims, remain additive to the current batch format, and do not yet express policy weight or quorum.
+Affects: `grid/batch.go`, `grid/peers.go`, `kernel/runtime.go`, runtime tests, README, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.
