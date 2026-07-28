@@ -9,6 +9,17 @@ import (
 	"strings"
 )
 
+type CASWrite struct {
+	Alias string `json:"alias"`
+	Body  string `json:"body"`
+}
+
+type CommandResult struct {
+	Output  string            `json:"output,omitempty"`
+	CAS     []CASWrite        `json:"cas,omitempty"`
+	Records []json.RawMessage `json:"records,omitempty"`
+}
+
 type Runner struct {
 	Executable string
 }
@@ -47,12 +58,20 @@ func (runner Runner) ValidateEnvelope(ctx context.Context, raw []byte) error {
 	return nil
 }
 
-func (runner Runner) RunCommand(ctx context.Context, commandKey string, args []string) (string, error) {
+func (runner Runner) RunCommand(ctx context.Context, commandKey string, args []string) (CommandResult, error) {
 	commandArgs := append([]string{"run", commandKey}, args...)
 	command := exec.CommandContext(ctx, runner.Executable, commandArgs...)
 	output, err := command.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("run %s: %s", runner.Executable, strings.TrimSpace(string(output)))
+		return CommandResult{}, fmt.Errorf("run %s: %s", runner.Executable, strings.TrimSpace(string(output)))
 	}
-	return strings.TrimSpace(string(output)), nil
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return CommandResult{}, nil
+	}
+	var result CommandResult
+	if err := json.Unmarshal(output, &result); err == nil {
+		return result, nil
+	}
+	return CommandResult{Output: trimmed}, nil
 }

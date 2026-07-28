@@ -1,0 +1,28 @@
+{
+  "id": "writer-egg",
+  "version": "0.1.0",
+  "description": "Example installed package that writes through the basket",
+  "executable": "./writer-egg.sh",
+  "commands": [
+    {
+      "path": [
+        "writer",
+        "create"
+      ],
+      "summary": "Create a writer note"
+    }
+  ],
+  "families": [
+    {
+      "name": "writer.note.v1",
+      "protocol_pcid": "pcid:writer.note.v1"
+    }
+  ],
+  "claims": [
+    {
+      "protocol_pcid": "pcid:writer.note.v1",
+      "role": "family-validator",
+      "summary": "Validates writer note envelopes."
+    }
+  ]
+}

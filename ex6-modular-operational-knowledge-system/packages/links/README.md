@@ -8,4 +8,5 @@ Planned ownership:
 
 This package should keep cross-package relationships explicit and portable.
 
-Current state: directory scaffold only. Source: `DI-moksu`.
+Current state: first built-in implementation now exists in `package.go`, with
+commands for typed-link creation and inspection. Source: `DI-figar`.

@@ -9,4 +9,6 @@ Planned ownership:
 This package should provide the shared operational context layer for the rest
 of ex6.
 
-Current state: directory scaffold only. Source: `DI-moksu`.
+Current state: first built-in implementation now exists in `package.go`, with
+commands for create, list, and inspect across responsibilities, places, and
+resources. Source: `DI-lorup`.

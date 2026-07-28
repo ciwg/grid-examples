@@ -12,6 +12,11 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/builtin"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/kernel"
+	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/context"
+	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/knowledge"
+	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
+	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/procedures"
+	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
 )
 
 func main() {
@@ -33,6 +38,21 @@ func run(ctx context.Context, args []string) error {
 	defer func() {
 		_ = runtime.Close()
 	}()
+	if err := runtime.RegisterBuiltin(contextpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(runspkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(linkspkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
+		return err
+	}
 	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {
 		return err
 	}

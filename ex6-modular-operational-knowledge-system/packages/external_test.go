@@ -2,6 +2,7 @@ package packages
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,7 +58,45 @@ esac
 	if err != nil {
 		t.Fatalf("run command: %v", err)
 	}
-	if output != "hello" {
-		t.Fatalf("unexpected output: %s", output)
+	if output.Output != "hello" {
+		t.Fatalf("unexpected output: %s", output.Output)
+	}
+}
+
+func TestRunnerRunCommandStructuredResult(t *testing.T) {
+	executable := filepath.Join(t.TempDir(), "helper-egg.sh")
+	script := `#!/bin/sh
+set -eu
+case "$1" in
+  describe)
+    printf '{}\n'
+    ;;
+  validate)
+    exit 0
+    ;;
+  run)
+    cat <<'EOF'
+{"output":"created","cas":[{"alias":"body1","body":"hello body"}],"records":[{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"one","signer":"helper","timestamp":"2026-07-28T00:00:00Z","payload":{"body_ref":"$cas:body1"}}]}
+EOF
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+`
+	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+		t.Fatalf("write helper script: %v", err)
+	}
+	runner := Runner{Executable: executable}
+	result, err := runner.RunCommand(context.Background(), "helper create", nil)
+	if err != nil {
+		t.Fatalf("run structured command: %v", err)
+	}
+	if result.Output != "created" || len(result.CAS) != 1 || len(result.Records) != 1 {
+		t.Fatalf("unexpected structured result: %#v", result)
+	}
+	var record map[string]any
+	if err := json.Unmarshal(result.Records[0], &record); err != nil {
+		t.Fatalf("unmarshal record: %v", err)
 	}
 }

@@ -11,9 +11,11 @@ It is the start of a new standalone product where:
 - packages own business behavior
 - built-in and installed packages use the same basket contract
 
-Current status: this repo contains the runtime foundation plus one small
-built-in example package. It does **not** yet contain the full ex5 capability
-set as ex6 packages. Source: `DI-moksu`; `DI-lupok`.
+Current status: this repo contains the runtime foundation, the first five
+first-party built-in packages (`context`, `knowledge`, `runs`, `links`,
+`procedures`), and one small built-in example package. It does **not** yet
+contain the full ex5 capability set as ex6 packages. Source: `DI-moksu`;
+`DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`; `DI-figar`; `DI-tusav`.
 
 ## What Exists Today
 
@@ -29,8 +31,12 @@ set as ex6 packages. Source: `DI-moksu`; `DI-lupok`.
 - CAS storage
 - relay batch export and import
 - unknown-family exact-byte retention
+- the first five first-party built-in packages:
+  `context`, `knowledge`, `runs`, `links`, and `procedures`
+- runnable built-in and installed-package examples
 
-Source: `DI-moksu`; `DI-lupok`.
+Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
+`DI-figar`; `DI-tusav`; `DI-rovum`; `DI-nupad`.
 
 ## What Does Not Exist Yet
 
@@ -51,6 +57,8 @@ Source: `DI-moksu`; `DI-lupok`.
   runtime package activation, routing, family registry, relay export/import
 - `packages/`
   package manifest and installed-package runner support
+- `packages/<package-id>/`
+  first-party package source trees and package planning docs
 - `records/`
   ex6 durable envelope shape
 - `store/`
@@ -59,8 +67,6 @@ Source: `DI-moksu`; `DI-lupok`.
   relay batch types
 - `builtin/`
   built-in example egg(s)
-- `packages/`
-  first-party package source trees and package planning docs
 - `templates/package/`
   starter template for outside package authors
 - `docs/`
@@ -72,5 +78,6 @@ Source: `DI-moksu`.
 
 - [Architecture](./docs/architecture.md)
 - [Current State](./docs/current-state.md)
+- [Runnable Examples](./docs/runnable-examples.md)
 - [Package Author Guide](./docs/package-author-guide.md)
 - [EX5 Capability Map](./docs/ex5-capability-map.md)

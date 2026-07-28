@@ -25,3 +25,16 @@
 
 This package should become the shared operational context layer for the rest of
 ex6.
+
+## Current State
+
+Phase 1 is implemented as a first-party built-in package:
+
+- responsibility create / list / inspect
+- place create / list / inspect
+- resource create / list / inspect
+- family validators for the three context families
+
+This package is built-in for now because the installed-package mutation
+contract is not yet deep enough to let external eggs write durable runtime
+state cleanly. Source: `DI-lorup`.

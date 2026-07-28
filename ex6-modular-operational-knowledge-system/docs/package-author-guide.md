@@ -17,16 +17,15 @@ There are three important locations:
 - runtime-installed copies:
   `ex6-modular-operational-knowledge-system/.moks/packages/<package-id>/`
 
-The template directory does not exist yet, but it is the intended authoring
-location for new-package scaffolding.
-
 The starter template now exists under:
 
 - `templates/package/moks-package.json`
 - `templates/package/package.sh`
 - `templates/package/README.md`
+- installed-package example:
+  `examples/writer-egg/`
 
-Source: `DI-moksu`.
+Source: `DI-moksu`; `DI-nupad`.
 
 ## What A Package Must Declare
 
@@ -66,7 +65,8 @@ Current installed packages should support:
 - `validate`
   read one record from stdin and validate it if the package owns that family
 - `run <command-key> ...`
-  execute a registered command
+  execute a registered command and print either plain text output or a JSON
+  result describing basket-mediated CAS writes and record appends
 
 Source: `DI-moksu`.
 
@@ -110,6 +110,39 @@ moks package install ./path-to-package
 
 That copies the package into the runtime package root and activates it through
 the manifest plus self-check path. Source: `DI-moksu`.
+
+## Basket-Mediated Writes
+
+Installed packages do not write the runtime state directly.
+
+Instead, `run` may print a JSON result with:
+
+- `output`
+- `cas`
+- `records`
+
+The runtime performs those CAS and append-only history writes itself. This
+keeps durable mutation basket-mediated even for external eggs. Source:
+`DI-rovum`.
+
+## Runnable Installed-Package Example
+
+The repo now includes one small installed-package example:
+
+- `examples/writer-egg/moks-package.json`
+- `examples/writer-egg/writer-egg.sh`
+
+Try it from the ex6 repo root:
+
+```bash
+go run ./cmd/moks package install ./examples/writer-egg
+go run ./cmd/moks writer create writer-1
+go run ./cmd/moks relay export ./writer-batch.json
+```
+
+That flow proves an outside egg can install, request basket-mediated CAS
+writes, append a durable record, and then have that record show up in relay
+export. Source: `DI-rovum`; `DI-nupad`.
 
 ## Starter Flow
 

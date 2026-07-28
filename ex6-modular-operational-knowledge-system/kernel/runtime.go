@@ -75,6 +75,10 @@ func Open(root string) (*Runtime, error) {
 		_ = history.Close()
 		return nil, err
 	}
+	if err := runtime.activateInstalledFromRoot(context.Background()); err != nil {
+		_ = history.Close()
+		return nil, err
+	}
 	return runtime, nil
 }
 
@@ -267,9 +271,74 @@ func (runtime *Runtime) RunCommand(ctx context.Context, args []string) (string, 
 			}
 			return handler(ctx, runtime, args[width:])
 		}
-		return owner.external.RunCommand(ctx, key, args[width:])
+		result, err := owner.external.RunCommand(ctx, key, args[width:])
+		if err != nil {
+			return "", err
+		}
+		return runtime.applyExternalCommandResult(ctx, result)
 	}
 	return "", fmt.Errorf("unknown command: %s", strings.Join(args, " "))
+}
+
+// Intent: Keep durable writes basket-mediated even for installed eggs so
+// external packages can extend the system without bypassing runtime-owned CAS
+// and append-only history. Source: DI-rovum
+func (runtime *Runtime) applyExternalCommandResult(ctx context.Context, result packages.CommandResult) (string, error) {
+	replacements := map[string]string{}
+	for _, write := range result.CAS {
+		if strings.TrimSpace(write.Alias) == "" {
+			return "", errors.New("cas alias is required")
+		}
+		objectID, err := runtime.PutCAS([]byte(write.Body))
+		if err != nil {
+			return "", err
+		}
+		replacements["$cas:"+write.Alias] = objectID
+	}
+	for _, raw := range result.Records {
+		replaced, err := replaceCASAliases(raw, replacements)
+		if err != nil {
+			return "", err
+		}
+		if _, err := runtime.AppendRecord(ctx, replaced); err != nil {
+			return "", err
+		}
+	}
+	return result.Output, nil
+}
+
+func replaceCASAliases(raw []byte, replacements map[string]string) ([]byte, error) {
+	if len(replacements) == 0 {
+		return raw, nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	value = replaceAliasesRecursive(value, replacements)
+	return json.Marshal(value)
+}
+
+func replaceAliasesRecursive(value any, replacements map[string]string) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			typed[key] = replaceAliasesRecursive(child, replacements)
+		}
+		return typed
+	case []any:
+		for index, child := range typed {
+			typed[index] = replaceAliasesRecursive(child, replacements)
+		}
+		return typed
+	case string:
+		if replacement, ok := replacements[typed]; ok {
+			return replacement
+		}
+		return typed
+	default:
+		return value
+	}
 }
 
 func (runtime *Runtime) InstallPackageDir(ctx context.Context, sourceDir string) (packages.Manifest, error) {
@@ -285,6 +354,32 @@ func (runtime *Runtime) InstallPackageDir(ctx context.Context, sourceDir string)
 		return packages.Manifest{}, err
 	}
 	return manifest, nil
+}
+
+// Intent: Re-activate installed eggs from the runtime-owned package root on
+// startup so installation survives later CLI invocations and process restarts.
+// Source: DI-rovum
+func (runtime *Runtime) activateInstalledFromRoot(ctx context.Context) error {
+	entries, err := os.ReadDir(runtime.packagesRoot)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		manifestPath := filepath.Join(runtime.packagesRoot, entry.Name(), "moks-package.json")
+		if _, err := os.Stat(manifestPath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return err
+		}
+		if err := runtime.ActivateInstalled(ctx, manifestPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func NewEnvelope(family string, protocolPCID string, recordID string, signer string, payload any) (records.Envelope, error) {

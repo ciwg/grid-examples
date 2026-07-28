@@ -1,11 +1,11 @@
 # EX6 TODO
 
-- [ ] lorup - context package foundation
-- [ ] vakod - knowledge package foundation
-- [ ] pamuk - runs, evidence, and approvals package foundation
-- [ ] figar - typed links package foundation
-- [ ] tusav - procedures package foundation
-- [ ] rovum - package template and scaffolding flow
+- [x] lorup - context package foundation
+- [x] vakod - knowledge package foundation
+- [x] pamuk - runs, evidence, and approvals package foundation
+- [x] figar - typed links package foundation
+- [x] tusav - procedures package foundation
+- [x] rovum - package template and scaffolding flow
 - [ ] sibok - grid hardening beyond relay batch shell
-- [ ] nupad - operator docs and runnable examples
+- [x] nupad - operator docs and runnable examples
 - [x] moksu - ex6 foundation
