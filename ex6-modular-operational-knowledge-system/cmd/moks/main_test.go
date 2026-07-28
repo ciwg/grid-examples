@@ -3,11 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/grid"
+	"github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/kernel"
 )
 
 func TestBuiltinQuickstartFlow(t *testing.T) {
@@ -81,6 +87,82 @@ func TestInstalledWriterEggExample(t *testing.T) {
 	}
 }
 
+func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
+		t.Fatalf("seed source runtime: %v", err)
+	}
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	response, err := http.Get(server.URL + "/relay/batch")
+	if err != nil {
+		t.Fatalf("get relay batch: %v", err)
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected relay batch status: %s", response.Status)
+	}
+	var batch grid.Batch
+	if err := json.NewDecoder(response.Body).Decode(&batch); err != nil {
+		t.Fatalf("decode relay batch: %v", err)
+	}
+	if len(batch.Records) == 0 {
+		t.Fatal("expected exported relay records")
+	}
+
+	target := newRuntimeForCLI(t)
+	importBody, err := json.Marshal(batch)
+	if err != nil {
+		t.Fatalf("marshal import batch: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/relay/import", bytes.NewReader(importBody))
+	recorder := httptest.NewRecorder()
+	relayHandler(context.Background(), target).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("unexpected import status: %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if len(target.History()) == 0 {
+		t.Fatal("expected imported history")
+	}
+}
+
+func TestRelayPullImportsFromPeer(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
+		t.Fatalf("seed source runtime: %v", err)
+	}
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	target := newRuntimeForCLI(t)
+	if err := relayPull(context.Background(), target, server.URL+"/relay/batch"); err != nil {
+		t.Fatalf("relay pull: %v", err)
+	}
+	if len(target.History()) != 1 {
+		t.Fatalf("expected one imported record, got %d", len(target.History()))
+	}
+}
+
+func TestRelayPushPostsToPeer(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
+		t.Fatalf("seed source runtime: %v", err)
+	}
+	target := newRuntimeForCLI(t)
+	server := httptest.NewServer(relayHandler(context.Background(), target))
+	defer server.Close()
+
+	if err := relayPush(context.Background(), source, server.URL+"/relay/import"); err != nil {
+		t.Fatalf("relay push: %v", err)
+	}
+	if len(target.History()) != 1 {
+		t.Fatalf("expected pushed record on peer, got %d", len(target.History()))
+	}
+}
+
 func runCLI(t *testing.T, workdir string, args ...string) (string, error) {
 	t.Helper()
 	originalWD, err := os.Getwd()
@@ -121,4 +203,24 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("getwd: %v", err)
 	}
 	return filepath.Clean(filepath.Join(cwd, "..", ".."))
+}
+
+func newRuntimeForCLI(t *testing.T) *kernel.Runtime {
+	t.Helper()
+	runtime, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runtime.Close()
+	})
+	registerAllBuiltinsForTest(t, runtime)
+	return runtime
+}
+
+func registerAllBuiltinsForTest(t *testing.T, runtime *kernel.Runtime) {
+	t.Helper()
+	if err := registerBuiltins(runtime); err != nil {
+		t.Fatalf("register builtins: %v", err)
+	}
 }

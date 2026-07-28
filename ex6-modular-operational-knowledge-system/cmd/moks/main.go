@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,34 +45,7 @@ func run(ctx context.Context, args []string) error {
 	defer func() {
 		_ = runtime.Close()
 	}()
-	if err := runtime.RegisterBuiltin(contextpkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(inventorypkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(runspkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(linkspkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(maintenancepkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(receivingpkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(trainingpkg.Package()); err != nil {
-		return err
-	}
-	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {
+	if err := registerBuiltins(runtime); err != nil {
 		return err
 	}
 	if len(args) == 0 {
@@ -103,6 +79,21 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: relay import <path>")
 		}
 		return relayImport(ctx, runtime, args[2])
+	case matchesPrefix(args, "relay", "serve"):
+		if len(args) != 3 {
+			return errors.New("usage: relay serve <addr>")
+		}
+		return relayServe(ctx, runtime, args[2])
+	case matchesPrefix(args, "relay", "pull"):
+		if len(args) != 3 {
+			return errors.New("usage: relay pull <url>")
+		}
+		return relayPull(ctx, runtime, args[2])
+	case matchesPrefix(args, "relay", "push"):
+		if len(args) != 3 {
+			return errors.New("usage: relay push <url>")
+		}
+		return relayPush(ctx, runtime, args[2])
 	default:
 		output, err := runtime.RunCommand(ctx, args)
 		if err != nil {
@@ -173,4 +164,130 @@ func relayImport(ctx context.Context, runtime *kernel.Runtime, path string) erro
 		return err
 	}
 	return runtime.ImportBatch(ctx, batch)
+}
+
+func relayServe(ctx context.Context, runtime *kernel.Runtime, addr string) error {
+	server := &http.Server{
+		Addr:    addr,
+		Handler: relayHandler(ctx, runtime),
+	}
+	fmt.Printf("relay serving on %s\n", addr)
+	return server.ListenAndServe()
+}
+
+func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /relay/batch", func(writer http.ResponseWriter, _ *http.Request) {
+		body, err := json.MarshalIndent(runtime.ExportBatch(), "", "  ")
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(body)
+	})
+	mux.HandleFunc("POST /relay/import", func(writer http.ResponseWriter, request *http.Request) {
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		var batch grid.Batch
+		if err := json.Unmarshal(body, &batch); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := runtime.ImportBatch(ctx, batch); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"status":"ok"}`))
+	})
+	return mux
+}
+
+func relayPull(ctx context.Context, runtime *kernel.Runtime, url string) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("relay pull failed: %s: %s", response.Status, strings.TrimSpace(string(body)))
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	var batch grid.Batch
+	if err := json.Unmarshal(body, &batch); err != nil {
+		return err
+	}
+	return runtime.ImportBatch(ctx, batch)
+}
+
+func relayPush(ctx context.Context, runtime *kernel.Runtime, url string) error {
+	body, err := json.Marshal(runtime.ExportBatch())
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("relay push failed: %s: %s", response.Status, strings.TrimSpace(string(responseBody)))
+	}
+	return nil
+}
+
+func registerBuiltins(runtime *kernel.Runtime) error {
+	if err := runtime.RegisterBuiltin(contextpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(inventorypkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(runspkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(linkspkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(maintenancepkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(receivingpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(trainingpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {
+		return err
+	}
+	return nil
 }

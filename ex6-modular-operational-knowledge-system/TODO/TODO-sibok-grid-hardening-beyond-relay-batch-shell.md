@@ -10,6 +10,14 @@ Intent: Keep repeated relay exchange from inflating append-only history with ide
 Constraints: Keep the current batch wire shape; do not invent a speculative final PromiseGrid transport; dedupe exact bytes only, not semantic near-matches.
 Affects: `store/history.go`, `kernel/runtime.go`, `grid/batch.go`, runtime tests, and ex6 current-state docs.
 
+ID: DI-nasek
+Date: 2026-07-28 18:35:00
+Status: active
+Decision: Add a minimal live peer exchange layer with HTTP `relay serve`, `relay pull`, and `relay push` commands that carry the existing validated relay batch format.
+Intent: Move ex6 beyond file-only batch exchange while keeping the current protocol narrow, testable, and compatible with the hardened batch layer.
+Constraints: Reuse the current batch wire shape; no speculative peer discovery or trust protocol yet; keep endpoints explicit and local-runtime owned.
+Affects: `cmd/moks`, relay CLI tests, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

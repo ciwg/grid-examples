@@ -17,6 +17,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks package install <dir>`
 - `moks relay export <path>`
 - `moks relay import <path>`
+- `moks relay serve <addr>`
+- `moks relay pull <url>`
+- `moks relay push <url>`
 - package manifest validation
 - installed-package self-check
 - append-only durable history
@@ -36,8 +39,9 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - basket-mediated durable writes for installed executable packages
 - runnable built-in and installed-package examples
 - exact-byte relay import dedupe and relay batch metadata validation
+- live HTTP peer exchange on top of the current relay batch shape
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`.
 
 ## Not Implemented
 
@@ -45,7 +49,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`.
 - Neovim embodiment
 - ex5 review/search/operate parity
 - full signing/verification discipline
-- richer PromiseGrid relay/peer behavior
+- peer discovery, trust, and richer multi-peer relay behavior
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
