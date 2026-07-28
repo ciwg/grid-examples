@@ -25,6 +25,7 @@ type RoutePlanExplanation struct {
 	Order       []string              `json:"order,omitempty"`
 	Winner      []string              `json:"winner,omitempty"`
 	Comparisons []RoutePlanComparison `json:"comparisons,omitempty"`
+	Trace       []RoutePlanTraceStep  `json:"trace,omitempty"`
 }
 
 type RoutePlanComparison struct {
@@ -40,6 +41,13 @@ type RoutePlanComparisonSide struct {
 	ProtocolPCID   string `json:"protocol_pcid"`
 	Role           string `json:"role"`
 	RouteType      string `json:"route_type"`
+}
+
+type RoutePlanTraceStep struct {
+	Step     int      `json:"step"`
+	Protocol string   `json:"protocol_pcid"`
+	Event    string   `json:"event"`
+	Details  []string `json:"details,omitempty"`
 }
 
 type RoutePlanCandidateExplanation struct {
@@ -121,10 +129,20 @@ func (runtime *Runtime) ProtocolRoutesForProtocol(protocolPCID string) []grid.Ro
 // so route consumers can ask what the kernel would actually try, not just what
 // routes happen to exist. Source: DI-pabut
 func (runtime *Runtime) ProtocolRoutePlan(protocolPCID string) RoutePlan {
-	return runtime.protocolRoutePlan(protocolPCID, map[string]struct{}{})
+	return runtime.protocolRoutePlan(protocolPCID, map[string]struct{}{}, nil)
 }
 
-func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]struct{}) RoutePlan {
+func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
+	trace := &routePlanTraceRecorder{}
+	plan := runtime.protocolRoutePlan(protocolPCID, map[string]struct{}{}, trace)
+	if plan.Explanation == nil {
+		plan.Explanation = &RoutePlanExplanation{}
+	}
+	plan.Explanation.Trace = trace.steps
+	return plan
+}
+
+func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]struct{}, trace *routePlanTraceRecorder) RoutePlan {
 	plan := RoutePlan{
 		ProtocolPCID: protocolPCID,
 	}
@@ -132,7 +150,13 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		return plan
 	}
 	if _, exists := seen[protocolPCID]; exists {
+		if trace != nil {
+			trace.record(protocolPCID, "cycle-skip", "planner skipped recursive revisit for an already-seen protocol")
+		}
 		return plan
+	}
+	if trace != nil {
+		trace.record(protocolPCID, "plan-start", "planner started building a route plan for this protocol")
 	}
 	nextSeen := cloneSeen(seen)
 	nextSeen[protocolPCID] = struct{}{}
@@ -146,7 +170,7 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		case "parser", "transform":
 			candidate.Executable = len(route.EmitsProtocols) > 0
 			for _, emitted := range route.EmitsProtocols {
-				subplan := runtime.protocolRoutePlan(emitted, nextSeen)
+				subplan := runtime.protocolRoutePlan(emitted, nextSeen, trace)
 				candidate.Next = append(candidate.Next, subplan)
 				if subplan.Preferred == nil {
 					candidate.Executable = false
@@ -156,9 +180,17 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 			candidate.Executable = false
 		}
 		plan.Candidates = append(plan.Candidates, candidate)
+		if trace != nil {
+			trace.record(
+				protocolPCID,
+				"candidate",
+				comparisonSideID(candidate.Route),
+				"executable="+boolString(candidate.Executable),
+			)
+		}
 	}
 	slices.SortFunc(plan.Candidates, func(left, right RoutePlanCandidate) int {
-		return runtime.compareRoutePlanCandidates(protocolPCID, left, right)
+		return runtime.compareRoutePlanCandidates(protocolPCID, left, right, trace)
 	})
 	for index := range plan.Candidates {
 		plan.Candidates[index].Explanation = runtime.explainRoutePlanCandidate(protocolPCID, plan.Candidates[index])
@@ -166,8 +198,14 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 	for index := range plan.Candidates {
 		if plan.Candidates[index].Executable {
 			plan.Preferred = &plan.Candidates[index]
+			if trace != nil {
+				trace.record(protocolPCID, "preferred", comparisonSideID(plan.Candidates[index].Route), "planner selected this executable route as preferred")
+			}
 			break
 		}
+	}
+	if plan.Preferred == nil && trace != nil {
+		trace.record(protocolPCID, "no-preferred", "no executable route was available for this protocol")
 	}
 	plan.Explanation = runtime.explainRoutePlan(protocolPCID, plan.Candidates, plan.Preferred)
 	return plan
@@ -176,38 +214,97 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 // Intent: Keep route planning protocol-aware and role-aware by evaluating each
 // candidate with the effective global, per-protocol, and per-protocol-role
 // policy that applies to that route. Source: DI-rivuk
-func (runtime *Runtime) compareRoutePlanCandidates(protocolPCID string, left RoutePlanCandidate, right RoutePlanCandidate) int {
+func (runtime *Runtime) compareRoutePlanCandidates(protocolPCID string, left RoutePlanCandidate, right RoutePlanCandidate, trace *routePlanTraceRecorder) int {
+	if trace != nil {
+		trace.record(protocolPCID, "compare", comparisonSideID(left.Route), comparisonSideID(right.Route))
+	}
 	if left.Executable != right.Executable {
 		if left.Executable {
+			if trace != nil {
+				trace.record(protocolPCID, "compare-result", comparisonSideID(left.Route)+" outranked "+comparisonSideID(right.Route), "executable routes rank before non-executable routes")
+			}
 			return -1
+		}
+		if trace != nil {
+			trace.record(protocolPCID, "compare-result", comparisonSideID(right.Route)+" outranked "+comparisonSideID(left.Route), "executable routes rank before non-executable routes")
 		}
 		return 1
 	}
-	if diff := runtime.comparePolicyPreference(protocolPCID, left.Route, right.Route); diff != 0 {
+	if diff := runtime.comparePolicyPreference(protocolPCID, left.Route, right.Route, trace); diff != 0 {
 		return diff
 	}
 	if diff := compareRouteRegistrations(left.Route, right.Route); diff != 0 {
+		if trace != nil {
+			if diff < 0 {
+				trace.record(protocolPCID, "compare-result", comparisonSideID(left.Route)+" outranked "+comparisonSideID(right.Route), "deterministic registration ordering broke the tie")
+			} else {
+				trace.record(protocolPCID, "compare-result", comparisonSideID(right.Route)+" outranked "+comparisonSideID(left.Route), "deterministic registration ordering broke the tie")
+			}
+		}
 		return diff
 	}
 	if len(left.Next) != len(right.Next) {
 		if len(left.Next) < len(right.Next) {
+			if trace != nil {
+				trace.record(protocolPCID, "compare-result", comparisonSideID(left.Route)+" outranked "+comparisonSideID(right.Route), "fewer downstream hops broke the tie")
+			}
 			return -1
 		}
+		if trace != nil {
+			trace.record(protocolPCID, "compare-result", comparisonSideID(right.Route)+" outranked "+comparisonSideID(left.Route), "fewer downstream hops broke the tie")
+		}
 		return 1
+	}
+	if trace != nil {
+		trace.record(protocolPCID, "compare-result", comparisonSideID(left.Route)+" tied with "+comparisonSideID(right.Route), "all deterministic comparison steps were equal")
 	}
 	return 0
 }
 
-func (runtime *Runtime) comparePolicyPreference(protocolPCID string, left grid.RouteRegistration, right grid.RouteRegistration) int {
+func (runtime *Runtime) comparePolicyPreference(protocolPCID string, left grid.RouteRegistration, right grid.RouteRegistration, trace *routePlanTraceRecorder) int {
 	leftPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, left.Role)
 	rightPolicy := runtime.EffectiveRoutePlanPolicyForRole(protocolPCID, right.Role)
 	if diff := compareAvoided(left, right, leftPolicy, rightPolicy); diff != 0 {
+		if trace != nil {
+			if diff < 0 {
+				trace.record(protocolPCID, "policy", comparisonSideID(left)+" outranked "+comparisonSideID(right), "avoid rules favored the left route")
+			} else {
+				trace.record(protocolPCID, "policy", comparisonSideID(right)+" outranked "+comparisonSideID(left), "avoid rules favored the right route")
+			}
+		}
 		return diff
 	}
 	if diff := comparePreferred(left, right, leftPolicy, rightPolicy); diff != 0 {
+		if trace != nil {
+			if diff < 0 {
+				trace.record(protocolPCID, "policy", comparisonSideID(left)+" outranked "+comparisonSideID(right), "prefer rules favored the left route")
+			} else {
+				trace.record(protocolPCID, "policy", comparisonSideID(right)+" outranked "+comparisonSideID(left), "prefer rules favored the right route")
+			}
+		}
 		return diff
 	}
 	return 0
+}
+
+type routePlanTraceRecorder struct {
+	steps []RoutePlanTraceStep
+}
+
+func (trace *routePlanTraceRecorder) record(protocolPCID string, event string, details ...string) {
+	trace.steps = append(trace.steps, RoutePlanTraceStep{
+		Step:     len(trace.steps) + 1,
+		Protocol: protocolPCID,
+		Event:    event,
+		Details:  append([]string{}, details...),
+	})
+}
+
+func boolString(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }
 
 func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {
@@ -428,7 +525,7 @@ func (runtime *Runtime) explainAllRouteComparisons(protocolPCID string, candidat
 				Right:        comparisonSide(right.Route),
 				DecisionPath: runtime.explainPairwiseComparison(protocolPCID, left, right),
 			}
-			if runtime.compareRoutePlanCandidates(protocolPCID, left, right) <= 0 {
+			if runtime.compareRoutePlanCandidates(protocolPCID, left, right, nil) <= 0 {
 				comparison.Winner = comparisonSideID(left.Route)
 			} else {
 				comparison.Winner = comparisonSideID(right.Route)

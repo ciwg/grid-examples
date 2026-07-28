@@ -141,6 +141,20 @@ func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 	}
 }
 
+func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace")
+	if err != nil {
+		t.Fatalf("route plan trace: %v", err)
+	}
+	if !strings.Contains(output, `"trace"`) || !strings.Contains(output, `"plan-start"`) {
+		t.Fatalf("route plan trace missing trace steps: %s", output)
+	}
+	if !strings.Contains(output, `"preferred"`) {
+		t.Fatalf("route plan trace missing preferred route: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

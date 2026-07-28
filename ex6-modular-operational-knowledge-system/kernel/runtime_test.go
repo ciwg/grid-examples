@@ -712,6 +712,10 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if plan.Preferred.Explanation.Downstream[0].PreferredRoute == "" {
 		t.Fatalf("expected downstream preferred route summary, got %#v", plan.Preferred.Explanation.Downstream[0])
 	}
+	tracePlan := runtime.ProtocolRoutePlanTrace("pcid:moks.raw.v1")
+	if tracePlan.Explanation == nil || len(tracePlan.Explanation.Trace) == 0 {
+		t.Fatalf("expected route plan trace, got %#v", tracePlan.Explanation)
+	}
 }
 
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {

@@ -98,10 +98,17 @@ func run(ctx context.Context, args []string) error {
 		}
 		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
-		if len(args) != 3 {
-			return errors.New("usage: route plan <protocol-pcid>")
+		if len(args) != 3 && len(args) != 4 {
+			return errors.New("usage: route plan <protocol-pcid> [trace]")
 		}
-		return routePlan(runtime, args[2])
+		trace := false
+		if len(args) == 4 {
+			if args[3] != "trace" {
+				return errors.New("usage: route plan <protocol-pcid> [trace]")
+			}
+			trace = true
+		}
+		return routePlan(runtime, args[2], trace)
 	case matchesPrefix(args, "route", "inspect"):
 		if len(args) != 3 {
 			return errors.New("usage: route inspect <protocol-pcid>")
@@ -291,11 +298,15 @@ func routeInspect(runtime *kernel.Runtime, protocolPCID string) error {
 	return nil
 }
 
-func routePlan(runtime *kernel.Runtime, protocolPCID string) error {
+func routePlan(runtime *kernel.Runtime, protocolPCID string, trace bool) error {
 	// Intent: Expose the kernel's preferred executable route choice for one
 	// input pCID so route consumers can ask what the kernel would actually use.
 	// Source: DI-pabut
-	body, err := json.MarshalIndent(runtime.ProtocolRoutePlan(protocolPCID), "", "  ")
+	plan := runtime.ProtocolRoutePlan(protocolPCID)
+	if trace {
+		plan = runtime.ProtocolRoutePlanTrace(protocolPCID)
+	}
+	body, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return err
 	}

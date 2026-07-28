@@ -97,3 +97,11 @@ Decision: Add explicit downstream-plan explanation summaries to parser and trans
 Intent: Let operators understand not just that a parser/transform route depends on downstream protocols, but exactly how those downstream plans resolved.
 Constraints: Reuse the existing recursive route-plan structure; do not execute routes; keep downstream explanations deterministic and derived from the nested route plans already built by the planner.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-rusom
+Date: 2026-07-28 11:06:21
+Status: active
+Decision: Add an explicit `trace` mode for `moks route plan <protocol-pcid>` that records the planner's actual step-by-step decision sequence, including candidate discovery, pairwise comparisons, and preferred-route selection.
+Intent: Let operators inspect the exact comparison order the kernel executed instead of reconstructing it from the final sorted output.
+Constraints: Keep normal `route plan` output unchanged unless trace mode is requested; keep trace output deterministic; do not execute routes.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.

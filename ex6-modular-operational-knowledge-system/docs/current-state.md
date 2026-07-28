@@ -18,6 +18,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks route list`
 - `moks route inspect <protocol-pcid>`
 - `moks route plan <protocol-pcid>`
+- `moks route plan <protocol-pcid> trace`
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`
@@ -56,6 +57,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - route-plan introspection that explains why the preferred route won
 - pairwise route-plan comparison detail across the full candidate set
 - explicit downstream-plan explanation summaries for parser/transform hops
+- route-plan trace mode with exact planner decision sequence
 - append-only durable history
 - CAS object storage
 - one built-in example package: `ops-note`
@@ -95,7 +97,7 @@ Discovery rule:
 - seeded discovery writes a local peer entry, but it still cannot pull or push until explicitly allowed
 - policy promotion changes trust locally without re-fetching peer metadata
 
-Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`.
+Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; `DI-rupem`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`; `DI-rusom`.
 
 ## Not Implemented
 
