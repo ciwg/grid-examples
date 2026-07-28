@@ -5,10 +5,10 @@ This document is intentionally blunt.
 `ex6` is **not done**.
 
 It currently contains the runtime foundation, one small built-in example
-package, and the first six real first-party built-in packages. It does not
+package, and the first seven real first-party built-in packages. It does not
 yet contain the full operational knowledge product as a set of ex6 packages.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`.
 
 ## Implemented
 
@@ -28,7 +28,8 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - one real first-party built-in package: `links`
 - one real first-party built-in package: `procedures`
 - one real first-party built-in package: `training`
-- first-party package source directories for the current 6-package spine
+- one real first-party built-in package: `maintenance`
+- first-party package source directories for the current 7-package spine
 - a starter package template for outside authors
 - basket-mediated durable writes for installed executable packages
 - runnable built-in and installed-package examples
@@ -43,7 +44,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`.
 - full signing/verification discipline
 - richer PromiseGrid relay/peer behavior
 - scaffold command for new packages
-- later domain packages: `maintenance`, `receiving`, `inventory`
+- later domain packages: `receiving`, `inventory`
 
 Source: `DI-moksu`; `DI-lupok`.
 
@@ -56,16 +57,17 @@ The current repo state reflects a deliberate kernel-first slice:
 
 That first step happened.
 The second step has now started with the built-in `context`, `knowledge`,
-`runs`, `links`, and `procedures` eggs, but the rest is still mostly open.
+`runs`, `links`, `procedures`, `training`, and `maintenance` eggs, but the
+rest is still mostly open.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`.
 
 ## Next Product Work
 
 Best next product work:
 
 1. make package creation easier than manual template copying
-2. add the next domain packages: `maintenance`, `receiving`, `inventory`
+2. add the next domain packages: `receiving`, `inventory`
 3. harden relay/peer behavior beyond the current batch shell
 
-Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sivuk`.
+Source: `DI-moksu`; `DI-rovum`; `DI-nupad`; `DI-sivuk`; `DI-ramek`.

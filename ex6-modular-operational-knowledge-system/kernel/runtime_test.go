@@ -14,6 +14,7 @@ import (
 	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/context"
 	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/knowledge"
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/links"
+	maintenancepkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/maintenance"
 	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/procedures"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/runs"
 	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-modular-operational-knowledge-system/packages/training"
@@ -166,6 +167,36 @@ func TestTrainingPackageCommands(t *testing.T) {
 	}
 	if !strings.Contains(inspect, "title: ForkliftBasics") || !strings.Contains(inspect, "run-3:alice->bob") || !strings.Contains(inspect, "alice:certified") {
 		t.Fatalf("unexpected training inspect: %s", inspect)
+	}
+}
+
+func TestMaintenancePackageCommands(t *testing.T) {
+	runtime := newRuntime(t)
+	if _, err := runtime.RunCommand(context.Background(), []string{"context", "resource", "create", "res-2", "Mixer", "Paint-mixer", "place-1"}); err != nil {
+		t.Fatalf("create maintenance resource: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"maintenance", "create", "maint-1", "res-2", "MixerCheck", "Quarterly-mixer-check"}); err != nil {
+		t.Fatalf("create maintenance item: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"maintenance", "record-service", "maint-1", "run-4", "res-2", "carol", "completed", "lubed-bearings"}); err != nil {
+		t.Fatalf("record maintenance service: %v", err)
+	}
+	if _, err := runtime.RunCommand(context.Background(), []string{"maintenance", "record-finding", "maint-1", "find-1", "res-2", "serviceable", "ready-for-next-shift"}); err != nil {
+		t.Fatalf("record maintenance finding: %v", err)
+	}
+	listing, err := runtime.RunCommand(context.Background(), []string{"maintenance", "list"})
+	if err != nil {
+		t.Fatalf("list maintenance: %v", err)
+	}
+	if !strings.Contains(listing, "maint-1\tres-2\tMixerCheck\tservices=1\tfindings=1") {
+		t.Fatalf("unexpected maintenance listing: %s", listing)
+	}
+	inspect, err := runtime.RunCommand(context.Background(), []string{"maintenance", "inspect", "maint-1"})
+	if err != nil {
+		t.Fatalf("inspect maintenance: %v", err)
+	}
+	if !strings.Contains(inspect, "resource_id: res-2") || !strings.Contains(inspect, "run-4:carol@res-2") || !strings.Contains(inspect, "find-1:serviceable") {
+		t.Fatalf("unexpected maintenance inspect: %s", inspect)
 	}
 }
 
@@ -382,6 +413,9 @@ func newRuntime(t *testing.T) *kernel.Runtime {
 	}
 	if err := runtime.RegisterBuiltin(linkspkg.Package()); err != nil {
 		t.Fatalf("register links package: %v", err)
+	}
+	if err := runtime.RegisterBuiltin(maintenancepkg.Package()); err != nil {
+		t.Fatalf("register maintenance package: %v", err)
 	}
 	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {
 		t.Fatalf("register procedures package: %v", err)
