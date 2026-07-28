@@ -48,3 +48,16 @@ func (runtime *Runtime) ProtocolRoutes() []grid.RouteRegistration {
 	})
 	return routes
 }
+
+// Intent: Let route consumers query the current route table by input protocol
+// so they can discover direct handlers and parser/transform hops without
+// scraping every registered route. Source: DI-fotav
+func (runtime *Runtime) ProtocolRoutesForProtocol(protocolPCID string) []grid.RouteRegistration {
+	filtered := []grid.RouteRegistration{}
+	for _, route := range runtime.ProtocolRoutes() {
+		if route.ProtocolPCID == protocolPCID {
+			filtered = append(filtered, route)
+		}
+	}
+	return filtered
+}

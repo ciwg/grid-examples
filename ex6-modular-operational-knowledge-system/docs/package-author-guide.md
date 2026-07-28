@@ -51,8 +51,10 @@ Current routing rule:
   routing roles from batch metadata too
 - parser or transform claims must declare `route_type` plus `emits_protocols`
 - plain direct handlers can omit `route_type` and default to `direct`
+- local consumers can query one input protocol with
+  `moks route inspect <protocol-pcid>`
 
-Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`.
+Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`.
 
 ## Current Activation Model
 

@@ -33,3 +33,11 @@ Decision: Let package claims model explicit `direct`, `parser`, and `transform` 
 Intent: Make multi-hop routing visible in ex6 so the current kernel can describe “parser first, then app handler” style flows without pretending every protocol route is a direct terminal handler.
 Constraints: Keep the claim-derived route model as the single source of truth; default missing route type to `direct`; do not yet implement runtime parser execution or parser-specific trust policy.
 Affects: `packages/manifest.go`, `kernel/routes.go`, `kernel/runtime.go`, relay batch metadata, CLI route inspection, tests, and routing docs.
+
+ID: DI-fotav
+Date: 2026-07-28 10:33:55
+Status: active
+Decision: Add a real routing query surface that filters routes by input `protocol_pcid`, expose it as `moks route inspect <protocol-pcid>`, and return the matching direct/parser/transform routes in machine-readable JSON.
+Intent: Let route consumers ask what handlers or hops exist for one protocol without scraping the whole route table.
+Constraints: Query the existing claim-derived route table only; do not execute parser/transform hops yet; keep missing-protocol queries deterministic and non-fatal.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, CLI/runtime tests, and routing docs.

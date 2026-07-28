@@ -683,6 +683,13 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if !foundParser || !foundHandler {
 		t.Fatalf("expected parser hop routes, got %#v", routes)
 	}
+	filtered := runtime.ProtocolRoutesForProtocol("pcid:moks.raw.v1")
+	if len(filtered) != 1 {
+		t.Fatalf("expected one raw protocol route, got %#v", filtered)
+	}
+	if filtered[0].RouteType != "parser" {
+		t.Fatalf("expected parser route type, got %#v", filtered)
+	}
 }
 
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {

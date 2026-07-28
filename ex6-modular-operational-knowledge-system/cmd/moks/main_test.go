@@ -101,6 +101,23 @@ func TestRouteListShowsProtocolRoutes(t *testing.T) {
 	}
 }
 
+func TestRouteInspectShowsProtocolRoutesForPCID(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "inspect", "pcid:moks.context.place.v1")
+	if err != nil {
+		t.Fatalf("route inspect: %v", err)
+	}
+	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+		t.Fatalf("route inspect missing protocol: %s", output)
+	}
+	if !strings.Contains(output, `"role": "family-validator"`) {
+		t.Fatalf("route inspect missing role: %s", output)
+	}
+	if !strings.Contains(output, `"route_type": "direct"`) {
+		t.Fatalf("route inspect missing route type: %s", output)
+	}
+}
+
 func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	source := newRuntimeForCLI(t)
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {

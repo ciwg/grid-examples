@@ -58,6 +58,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route list")
 		}
 		return routeList(runtime)
+	case matchesPrefix(args, "route", "inspect"):
+		if len(args) != 3 {
+			return errors.New("usage: route inspect <protocol-pcid>")
+		}
+		return routeInspect(runtime, args[2])
 	case matchesPrefix(args, "package", "list"):
 		return packageList(runtime)
 	case matchesPrefix(args, "package", "inspect"):
@@ -227,6 +232,18 @@ func routeList(runtime *kernel.Runtime) error {
 			strings.Join(route.EmitsProtocols, ","),
 		)
 	}
+	return nil
+}
+
+func routeInspect(runtime *kernel.Runtime, protocolPCID string) error {
+	// Intent: Expose a machine-readable per-protocol route query so route
+	// consumers can ask what direct handlers or hops exist for one input pCID.
+	// Source: DI-fotav
+	body, err := json.MarshalIndent(runtime.ProtocolRoutesForProtocol(protocolPCID), "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(body))
 	return nil
 }
 
