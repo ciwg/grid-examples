@@ -23,7 +23,7 @@
 ## Notes
 
 This package should express training work as domain behavior over the shared
-`knowledge` and `runs` families instead of inventing basket-private training
+`knowledge` and `runs` families instead of inventing runtime-private training
 state.
 
 ## Current State
@@ -36,5 +36,5 @@ Phase 1 is implemented as a first-party built-in package:
 - validators for training item, session, and completion records
 
 This package is built-in for now because the installed-package mutation
-contract is still too shallow for serious domain eggs with multiple durable
+contract is still too shallow for serious domain packages with multiple durable
 record families. Source: `DI-sivuk`.

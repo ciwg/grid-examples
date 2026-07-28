@@ -296,8 +296,8 @@ func resourceExists(runtime *kernel.Runtime, resourceID string) bool {
 	return false
 }
 
-// Intent: Keep maintenance payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep maintenance payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-ramek
 func validateMaintenanceItemEnvelope(envelope records.Envelope) error {
 	var body maintenanceItemPayload
@@ -310,8 +310,8 @@ func validateMaintenanceItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep maintenance payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep maintenance payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-ramek
 func validateServiceEnvelope(envelope records.Envelope) error {
 	var body servicePayload
@@ -324,8 +324,8 @@ func validateServiceEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep maintenance payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep maintenance payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-ramek
 func validateFindingEnvelope(envelope records.Envelope) error {
 	var body findingPayload

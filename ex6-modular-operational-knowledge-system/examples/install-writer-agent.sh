@@ -7,7 +7,7 @@ workdir="$(mktemp -d)"
 printf 'workspace: %s\n' "$workdir"
 cd "$workdir"
 
-go run "$repo_root/cmd/moks" package install "$repo_root/examples/writer-egg"
+go run "$repo_root/cmd/moks" package install "$repo_root/examples/writer-agent"
 go run "$repo_root/cmd/moks" writer create writer-1
 go run "$repo_root/cmd/moks" relay export "$workdir/writer-relay.json"
 

@@ -5,9 +5,9 @@
 ID: DI-zibek
 Date: 2026-07-28 17:40:00
 Status: active
-Decision: Implement the first receiving package as a first-party built-in egg with explicit receiving item, receipt, and disposition families over shared context, knowledge, and runs records.
-Intent: Add the next real domain egg without collapsing receiving behavior into the basket or hiding receipt/disposition truth inside generic run notes.
-Constraints: Keep the package under `packages/receiving/`; preserve basket-mediated durable history; compose with `context`, `knowledge`, and `runs` instead of duplicating their cores.
+Decision: Implement the first receiving package as a first-party built-in package with explicit receiving item, receipt, and disposition families over shared context, knowledge, and runs records.
+Intent: Add the next real domain package without collapsing receiving behavior into the runtime or hiding receipt/disposition truth inside generic run notes.
+Constraints: Keep the package under `packages/receiving/`; preserve runtime-mediated durable history; compose with `context`, `knowledge`, and `runs` instead of duplicating their cores.
 Affects: `packages/receiving`, `cmd/moks`, runtime tests, and ex6 status docs.
 
 ## Goal
@@ -25,4 +25,4 @@ Build the first-party `receiving` package.
 ## Why
 
 Receiving is one of the next real ex5-derived domain surfaces and should
-exist as its own egg instead of waiting behind later embodiments.
+exist as its own package instead of waiting behind later embodiments.

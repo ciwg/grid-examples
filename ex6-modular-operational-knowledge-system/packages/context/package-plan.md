@@ -36,5 +36,5 @@ Phase 1 is implemented as a first-party built-in package:
 - family validators for the three context families
 
 This package is built-in for now because the installed-package mutation
-contract is not yet deep enough to let external eggs write durable runtime
+contract is not yet deep enough to let external packages write durable runtime
 state cleanly. Source: `DI-lorup`.

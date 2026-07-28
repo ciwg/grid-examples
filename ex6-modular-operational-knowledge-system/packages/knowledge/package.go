@@ -258,8 +258,8 @@ func ensureItem(items map[string]*itemState, itemID string) *itemState {
 	return item
 }
 
-// Intent: Keep knowledge-family payload validation in the owning egg so the
-// basket remains generic while the package owns revision and lifecycle rules.
+// Intent: Keep knowledge-family payload validation in the owning package so the
+// runtime remains generic while the package owns revision and lifecycle rules.
 // Source: DI-vakod
 func validateItemEnvelope(envelope records.Envelope) error {
 	var body itemPayload
@@ -275,8 +275,8 @@ func validateItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep knowledge-family payload validation in the owning egg so the
-// basket remains generic while the package owns revision and lifecycle rules.
+// Intent: Keep knowledge-family payload validation in the owning package so the
+// runtime remains generic while the package owns revision and lifecycle rules.
 // Source: DI-vakod
 func validateRevisionEnvelope(envelope records.Envelope) error {
 	var body revisionPayload
@@ -295,8 +295,8 @@ func validateRevisionEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep knowledge-family payload validation in the owning egg so the
-// basket remains generic while the package owns revision and lifecycle rules.
+// Intent: Keep knowledge-family payload validation in the owning package so the
+// runtime remains generic while the package owns revision and lifecycle rules.
 // Source: DI-vakod
 func validateLifecycleEnvelope(envelope records.Envelope) error {
 	var body lifecyclePayload

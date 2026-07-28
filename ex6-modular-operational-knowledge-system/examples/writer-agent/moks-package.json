@@ -1,8 +1,8 @@
 {
-  "id": "writer-egg",
+  "id": "writer-agent",
   "version": "0.1.0",
-  "description": "Example installed package that writes through the basket",
-  "executable": "./writer-egg.sh",
+  "description": "Example installed package that writes through the runtime",
+  "executable": "./writer-agent.sh",
   "commands": [
     {
       "path": [

@@ -94,8 +94,8 @@ func listNotes(_ context.Context, runtime *kernel.Runtime, _ []string) (string, 
 	return strings.Join(lines, "\n"), nil
 }
 
-// Intent: Keep family-specific payload checks in the owning egg while the
-// basket remains responsible for generic durable carriage and relay. Source:
+// Intent: Keep family-specific payload checks in the owning package while the
+// runtime remains responsible for generic durable carriage and relay. Source:
 // DI-moksu
 func validateNoteEnvelope(envelope records.Envelope) error {
 	var payload notePayload

@@ -1,8 +1,8 @@
 # EX6 Architecture
 
-`ex6` is a basket-first runtime.
+`ex6` is a runtime-first system.
 
-That means the basket is real:
+That means the runtime is real:
 
 - packages register with the runtime
 - packages declare families and protocol claims
@@ -20,7 +20,7 @@ private source-of-truth channels. Source: `DI-moksu`; `DI-lupok`.
                                │
                       package manifests + self-check
                                │
-                    ex6 runtime kernel ("the basket")
+                    ex6 runtime kernel
           /                 /          \                 \
          /                 /            \                 \
   command routing   append-only log      CAS       relay export/import

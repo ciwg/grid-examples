@@ -276,7 +276,7 @@ func TestInstalledPackageManifestSelfCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install package: %v", err)
 	}
-	if manifest.ID != "helper-egg" {
+	if manifest.ID != "helper-agent" {
 		t.Fatalf("unexpected package id: %s", manifest.ID)
 	}
 	if _, err := runtime.RunCommand(context.Background(), []string{"helper", "echo", "hello"}); err != nil {
@@ -474,7 +474,7 @@ func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
 		ImplementationClaims: []grid.ImplementationClaim{
-			{PackageID: "helper-egg", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
+			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
 		},
 		Records:      []json.RawMessage{raw},
 		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
@@ -591,7 +591,7 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
 		ImplementationClaims: []grid.ImplementationClaim{
-			{PackageID: "helper-egg", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
+			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
 		},
 		ClaimProofs: []grid.ClaimProof{{
 			SignerPeerID: "peer-deadbeef",
@@ -1028,13 +1028,13 @@ func findClaimByProtocol(t *testing.T, batch grid.Batch, protocolPCID string) gr
 func helperPackageDir(t *testing.T, mismatch bool) string {
 	t.Helper()
 	dir := t.TempDir()
-	executable := filepath.Join(dir, "helper-egg.sh")
+	executable := filepath.Join(dir, "helper-agent.sh")
 	script := `#!/bin/sh
 set -eu
 case "$1" in
   describe)
     cat <<'EOF'
-{"id":"helper-egg","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}],"claims":[{"protocol_pcid":"pcid:helper.echo.v1","role":"family-validator","summary":"Validates helper echo envelopes."}]}
+{"id":"helper-agent","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}],"claims":[{"protocol_pcid":"pcid:helper.echo.v1","role":"family-validator","summary":"Validates helper echo envelopes."}]}
 EOF
     ;;
   validate)
@@ -1065,7 +1065,7 @@ esac
 		t.Fatalf("write helper script: %v", err)
 	}
 	manifest := map[string]any{
-		"id":          "helper-egg",
+		"id":          "helper-agent",
 		"version":     "0.1.0",
 		"description": "Test helper package",
 		"executable":  executable,
@@ -1097,13 +1097,13 @@ esac
 func helperWriterPackageDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	executable := filepath.Join(dir, "writer-egg.sh")
+	executable := filepath.Join(dir, "writer-agent.sh")
 	script := `#!/bin/sh
 set -eu
 case "$1" in
   describe)
     cat <<'EOF'
-{"id":"writer-egg","version":"0.1.0","description":"Test writer package","commands":[{"path":["writer","create"],"summary":"Create a writer record"}],"families":[{"name":"writer.note.v1","protocol_pcid":"pcid:writer.note.v1"}],"claims":[{"protocol_pcid":"pcid:writer.note.v1","role":"family-validator","summary":"Validates writer note envelopes."}]}
+{"id":"writer-agent","version":"0.1.0","description":"Test writer package","commands":[{"path":["writer","create"],"summary":"Create a writer record"}],"families":[{"name":"writer.note.v1","protocol_pcid":"pcid:writer.note.v1"}],"claims":[{"protocol_pcid":"pcid:writer.note.v1","role":"family-validator","summary":"Validates writer note envelopes."}]}
 EOF
     ;;
   validate)
@@ -1119,7 +1119,7 @@ EOF
       exit 1
     fi
     cat <<EOF
-{"output":"created $3","cas":[{"alias":"body1","body":"payload for $3"}],"records":[{"family":"writer.note.v1","protocol_pcid":"pcid:writer.note.v1","record_id":"$3","signer":"writer-egg","timestamp":"2026-07-28T00:00:00Z","payload":{"title":"Writer","body_ref":"\$cas:body1"}}]}
+{"output":"created $3","cas":[{"alias":"body1","body":"payload for $3"}],"records":[{"family":"writer.note.v1","protocol_pcid":"pcid:writer.note.v1","record_id":"$3","signer":"writer-agent","timestamp":"2026-07-28T00:00:00Z","payload":{"title":"Writer","body_ref":"\$cas:body1"}}]}
 EOF
     ;;
   *)
@@ -1132,7 +1132,7 @@ esac
 		t.Fatalf("write writer script: %v", err)
 	}
 	manifest := map[string]any{
-		"id":          "writer-egg",
+		"id":          "writer-agent",
 		"version":     "0.1.0",
 		"description": "Test writer package",
 		"executable":  executable,

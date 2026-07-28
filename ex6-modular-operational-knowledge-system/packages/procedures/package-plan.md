@@ -18,7 +18,7 @@
 
 ## Notes
 
-This package should be the first serious domain egg built on top of `context`,
+This package should be the first serious domain package built on top of `context`,
 `knowledge`, `runs`, and `links`.
 
 ## Current State

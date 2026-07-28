@@ -25,8 +25,8 @@ type Runner struct {
 }
 
 // Intent: Require installed packages to describe themselves at runtime so the
-// basket can compare the declared egg shape against the executable before it is
-// trusted. Source: DI-moksu
+// runtime can compare the declared agent shape against the executable before it
+// is trusted. Source: DI-moksu
 func (runner Runner) Describe(ctx context.Context) (Manifest, error) {
 	command := exec.CommandContext(ctx, runner.Executable, "describe")
 	output, err := command.Output()

@@ -9,13 +9,13 @@ import (
 )
 
 func TestRunnerDescribeValidateAndRun(t *testing.T) {
-	executable := filepath.Join(t.TempDir(), "helper-egg.sh")
+	executable := filepath.Join(t.TempDir(), "helper-agent.sh")
 	script := `#!/bin/sh
 set -eu
 case "$1" in
   describe)
     cat <<'EOF'
-{"id":"helper-egg","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}],"claims":[{"protocol_pcid":"pcid:helper.echo.v1","role":"family-validator","summary":"Validates helper echo envelopes."}]}
+{"id":"helper-agent","version":"0.1.0","description":"Test helper package","commands":[{"path":["helper","echo"],"summary":"Echo a string"}],"families":[{"name":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1"}],"claims":[{"protocol_pcid":"pcid:helper.echo.v1","role":"family-validator","summary":"Validates helper echo envelopes."}]}
 EOF
     ;;
   validate)
@@ -47,7 +47,7 @@ esac
 	if err != nil {
 		t.Fatalf("describe: %v", err)
 	}
-	if manifest.ID != "helper-egg" {
+	if manifest.ID != "helper-agent" {
 		t.Fatalf("unexpected id: %s", manifest.ID)
 	}
 	raw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"one","signer":"helper","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
@@ -64,7 +64,7 @@ esac
 }
 
 func TestRunnerRunCommandStructuredResult(t *testing.T) {
-	executable := filepath.Join(t.TempDir(), "helper-egg.sh")
+	executable := filepath.Join(t.TempDir(), "helper-agent.sh")
 	script := `#!/bin/sh
 set -eu
 case "$1" in

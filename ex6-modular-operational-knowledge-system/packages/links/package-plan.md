@@ -16,7 +16,7 @@
 ## Notes
 
 This package should keep cross-record relationships explicit and portable
-across eggs.
+across packages.
 
 ## Current State
 

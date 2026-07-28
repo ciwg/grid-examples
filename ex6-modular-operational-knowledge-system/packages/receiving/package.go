@@ -315,8 +315,8 @@ func resourceExists(runtime *kernel.Runtime, resourceID string) bool {
 	return false
 }
 
-// Intent: Keep receiving payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep receiving payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-zibek
 func validateReceivingItemEnvelope(envelope records.Envelope) error {
 	var body receivingItemPayload
@@ -329,8 +329,8 @@ func validateReceivingItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep receiving payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep receiving payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-zibek
 func validateReceiptEnvelope(envelope records.Envelope) error {
 	var body receiptPayload
@@ -343,8 +343,8 @@ func validateReceiptEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep receiving payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep receiving payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-zibek
 func validateDispositionEnvelope(envelope records.Envelope) error {
 	var body dispositionPayload

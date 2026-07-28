@@ -22,29 +22,29 @@ go run ./cmd/moks relay export ./relay.json
 
 What this proves:
 
-- the basket persists durable state across separate CLI invocations
-- the `procedures` egg composes with `runs`
-- relay export sees the same append-only history the eggs produced
+- the runtime persists durable state across separate CLI invocations
+- the `procedures` package composes with `runs`
+- relay export sees the same append-only history the packages produced
 
 Source: `DI-moksu`; `DI-pamuk`; `DI-tusav`; `DI-nupad`.
 
 ## Installed-Package Walkthrough
 
-The repo includes a small outside egg example in `examples/writer-egg/`.
+The repo includes a small outside package example in `examples/writer-agent/`.
 
 From the ex6 repo root:
 
 ```bash
-go run ./cmd/moks package install ./examples/writer-egg
+go run ./cmd/moks package install ./examples/writer-agent
 go run ./cmd/moks writer create writer-1
 go run ./cmd/moks relay export ./writer-relay.json
 ```
 
 What this proves:
 
-- installed executable eggs activate through manifest plus self-check
-- installed eggs can request basket-mediated CAS writes and record appends
-- relay export includes records created by installed eggs too
+- installed executable packages activate through manifest plus self-check
+- installed packages can request runtime-mediated CAS writes and record appends
+- relay export includes records created by installed packages too
 
 Source: `DI-moksu`; `DI-rovum`; `DI-nupad`.
 
@@ -55,7 +55,7 @@ root, run:
 
 ```bash
 ./examples/builtin-quickstart.sh
-./examples/install-writer-egg.sh
+./examples/install-writer-agent.sh
 ```
 
 Each script creates its own temporary working directory and prints it before

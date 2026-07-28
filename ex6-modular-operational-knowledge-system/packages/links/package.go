@@ -100,8 +100,8 @@ func inspectLink(_ stdctx.Context, runtime *kernel.Runtime, args []string) (stri
 	return "", fmt.Errorf("unknown link: %s", args[0])
 }
 
-// Intent: Keep typed-link payload validation in the owning egg so the basket
-// remains generic while the package owns relationship semantics. Source:
+// Intent: Keep typed-link payload validation in the owning package so the
+// runtime remains generic while the package owns relationship semantics. Source:
 // DI-figar
 func validateLinkEnvelope(envelope records.Envelope) error {
 	var body typedLinkPayload

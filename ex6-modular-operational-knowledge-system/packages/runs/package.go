@@ -259,8 +259,8 @@ func parseFacts(raw string) map[string]string {
 	return facts
 }
 
-// Intent: Keep run-family payload validation in the owning egg so the basket
-// stays generic while the package owns performed-work semantics. Source:
+// Intent: Keep run-family payload validation in the owning package so the
+// runtime stays generic while the package owns performed-work semantics. Source:
 // DI-pamuk
 func validateRunEnvelope(envelope records.Envelope) error {
 	var body runPayload
@@ -279,8 +279,8 @@ func validateRunEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep run-family payload validation in the owning egg so the basket
-// stays generic while the package owns performed-work semantics. Source:
+// Intent: Keep run-family payload validation in the owning package so the
+// runtime stays generic while the package owns performed-work semantics. Source:
 // DI-pamuk
 func validateEvidenceEnvelope(envelope records.Envelope) error {
 	var body evidencePayload
@@ -296,8 +296,8 @@ func validateEvidenceEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep run-family payload validation in the owning egg so the basket
-// stays generic while the package owns performed-work semantics. Source:
+// Intent: Keep run-family payload validation in the owning package so the
+// runtime stays generic while the package owns performed-work semantics. Source:
 // DI-pamuk
 func validateApprovalEnvelope(envelope records.Envelope) error {
 	var body approvalPayload

@@ -23,7 +23,7 @@
 ## Notes
 
 This package should express receiving work as domain behavior over shared
-`knowledge`, `runs`, and `context` records instead of inventing basket-private
+`knowledge`, `runs`, and `context` records instead of inventing runtime-private
 receiving state.
 
 ## Current State
@@ -36,5 +36,5 @@ Phase 1 is implemented as a first-party built-in package:
 - validators for receiving item, receipt, and disposition records
 
 This package is built-in for now because the installed-package mutation
-contract is still too shallow for serious domain eggs with multiple durable
+contract is still too shallow for serious domain packages with multiple durable
 record families. Source: `DI-zibek`.

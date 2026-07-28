@@ -3,7 +3,7 @@
 This is the current first cut for sorting ex5 into ex6.
 
 The goal is not to preserve ex5 as one app. The goal is to identify what
-belongs in the basket, what belongs in eggs, and what should be left behind.
+belongs in the runtime core, what belongs in packages, and what should be left behind.
 Source: `DI-moksu`.
 
 ## Belongs In EX6 Core
@@ -82,7 +82,7 @@ Source: `DI-moksu`.
 
 ## Recommended First Package Set
 
-Start with fewer larger eggs:
+Start with fewer larger packages:
 
 1. `context`
 2. `knowledge`
@@ -90,12 +90,12 @@ Start with fewer larger eggs:
 4. `links`
 5. `procedures`
 
-Later domain eggs can extend from there. Source: `DI-moksu`.
+Later domain packages can extend from there. Source: `DI-moksu`.
 
 ## Next Domain Eggs
 
 With `training`, `maintenance`, `receiving`, and `inventory` now implemented,
-the initial ex5-derived domain egg set exists in ex6.
+the initial ex5-derived domain package set exists in ex6.
 
 Source: `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
 

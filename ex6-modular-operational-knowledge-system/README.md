@@ -1,6 +1,6 @@
 # EX6 Modular Operational Knowledge System
 
-`ex6-modular-operational-knowledge-system` is the new basket-first runtime for
+`ex6-modular-operational-knowledge-system` is the new runtime for
 the modular operational knowledge system effort.
 
 It is not `ex5` version 2.
@@ -9,7 +9,7 @@ It is the start of a new standalone product where:
 
 - the runtime owns shared grid-facing infrastructure
 - packages own business behavior
-- built-in and installed packages use the same basket contract
+- built-in and installed packages use the same runtime contract
 
 Current status: this repo contains the runtime foundation, the first nine
 first-party built-in packages (`context`, `knowledge`, `runs`, `links`,
@@ -92,7 +92,7 @@ Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 - `grid/`
   relay batch types
 - `builtin/`
-  built-in example egg(s)
+  built-in example package(s)
 - `templates/package/`
   starter template for outside package authors
 - `docs/`
@@ -103,6 +103,7 @@ Source: `DI-moksu`.
 ## Start Here
 
 - [Architecture](./docs/architecture.md)
+- [Agent/Kernel Alignment](./docs/agent-kernel-alignment.md)
 - [Current State](./docs/current-state.md)
 - [Runnable Examples](./docs/runnable-examples.md)
 - [Package Author Guide](./docs/package-author-guide.md)

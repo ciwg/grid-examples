@@ -186,8 +186,8 @@ func recordUse(ctx stdctx.Context, runtime *kernel.Runtime, args []string) (stri
 	return fmt.Sprintf("stored procedure use %s", args[1]), nil
 }
 
-// Intent: Keep procedure payload validation in the owning egg so the basket
-// remains generic while the package adds domain meaning above shared families.
+// Intent: Keep procedure payload validation in the owning package so the
+// runtime remains generic while the package adds domain meaning above shared families.
 // Source: DI-tusav
 func validateProcedureItemEnvelope(envelope records.Envelope) error {
 	var body procedureItemPayload
@@ -200,8 +200,8 @@ func validateProcedureItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep procedure payload validation in the owning egg so the basket
-// remains generic while the package adds domain meaning above shared families.
+// Intent: Keep procedure payload validation in the owning package so the
+// runtime remains generic while the package adds domain meaning above shared families.
 // Source: DI-tusav
 func validateProcedureUseEnvelope(envelope records.Envelope) error {
 	var body procedureUsePayload

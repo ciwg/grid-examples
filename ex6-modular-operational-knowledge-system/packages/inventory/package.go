@@ -317,8 +317,8 @@ func resourceExists(runtime *kernel.Runtime, resourceID string) bool {
 	return false
 }
 
-// Intent: Keep inventory payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep inventory payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-lavom
 func validateInventoryItemEnvelope(envelope records.Envelope) error {
 	var body inventoryItemPayload
@@ -331,8 +331,8 @@ func validateInventoryItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep inventory payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep inventory payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-lavom
 func validateCountEnvelope(envelope records.Envelope) error {
 	var body countPayload
@@ -345,8 +345,8 @@ func validateCountEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep inventory payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep inventory payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-lavom
 func validateReconcileEnvelope(envelope records.Envelope) error {
 	var body reconcilePayload

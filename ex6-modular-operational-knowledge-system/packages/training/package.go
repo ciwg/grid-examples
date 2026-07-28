@@ -274,8 +274,8 @@ func ensureTraining(state map[string]*trainingState, trainingID string) *trainin
 	return training
 }
 
-// Intent: Keep training payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep training payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-sivuk
 func validateTrainingItemEnvelope(envelope records.Envelope) error {
 	var body trainingItemPayload
@@ -288,8 +288,8 @@ func validateTrainingItemEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep training payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep training payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-sivuk
 func validateTrainingSessionEnvelope(envelope records.Envelope) error {
 	var body trainingSessionPayload
@@ -302,8 +302,8 @@ func validateTrainingSessionEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep training payload validation in the owning egg so the basket
-// stays generic while the package adds domain behavior over shared families.
+// Intent: Keep training payload validation in the owning package so the
+// runtime stays generic while the package adds domain behavior over shared families.
 // Source: DI-sivuk
 func validateCompletionEnvelope(envelope records.Envelope) error {
 	var body completionPayload

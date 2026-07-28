@@ -244,8 +244,8 @@ func inspectFamily(runtime *kernel.Runtime, family string, recordID string, rend
 	return "", fmt.Errorf("unknown %s record: %s", family, recordID)
 }
 
-// Intent: Keep operational context payload validation in the owning egg so the
-// basket carries the family contract without becoming domain-specific. Source:
+// Intent: Keep operational context payload validation in the owning package so
+// the runtime carries the family contract without becoming domain-specific. Source:
 // DI-lorup
 func validateResponsibilityEnvelope(envelope records.Envelope) error {
 	var body responsibilityPayload
@@ -258,8 +258,8 @@ func validateResponsibilityEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep operational context payload validation in the owning egg so the
-// basket carries the family contract without becoming domain-specific. Source:
+// Intent: Keep operational context payload validation in the owning package so
+// the runtime carries the family contract without becoming domain-specific. Source:
 // DI-lorup
 func validatePlaceEnvelope(envelope records.Envelope) error {
 	var body placePayload
@@ -272,8 +272,8 @@ func validatePlaceEnvelope(envelope records.Envelope) error {
 	return nil
 }
 
-// Intent: Keep operational context payload validation in the owning egg so the
-// basket carries the family contract without becoming domain-specific. Source:
+// Intent: Keep operational context payload validation in the owning package so
+// the runtime carries the family contract without becoming domain-specific. Source:
 // DI-lorup
 func validateResourceEnvelope(envelope records.Envelope) error {
 	var body resourcePayload

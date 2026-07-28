@@ -1,9 +1,9 @@
 # EX6 Package Author Guide
 
-This guide explains how a new egg fits into the ex6 basket.
+This guide explains how a new package fits into ex6.
 
 Current rule: package authors extend the runtime through explicit declarations
-and runtime contracts. They do not bypass the basket and make private package
+and runtime contracts. They do not bypass the runtime and make private package
 systems the source of truth. Source: `DI-moksu`; `DI-lupok`.
 
 ## Where Packages Live
@@ -23,7 +23,7 @@ The starter template now exists under:
 - `templates/package/package.sh`
 - `templates/package/README.md`
 - installed-package example:
-  `examples/writer-egg/`
+  `examples/writer-agent/`
 
 Source: `DI-moksu`; `DI-nupad`.
 
@@ -66,7 +66,7 @@ Current installed packages should support:
   read one record from stdin and validate it if the package owns that family
 - `run <command-key> ...`
   execute a registered command and print either plain text output or a JSON
-  result describing basket-mediated CAS writes and record appends
+  result describing runtime-mediated CAS writes and record appends
 
 Source: `DI-moksu`.
 
@@ -74,10 +74,10 @@ Source: `DI-moksu`.
 
 ```json
 {
-  "id": "helper-egg",
+  "id": "helper-agent",
   "version": "0.1.0",
   "description": "Example package",
-  "executable": "./helper-egg.sh",
+  "executable": "./helper-agent.sh",
   "commands": [
     {
       "path": ["helper", "echo"],
@@ -111,7 +111,7 @@ moks package install ./path-to-package
 That copies the package into the runtime package root and activates it through
 the manifest plus self-check path. Source: `DI-moksu`.
 
-## Basket-Mediated Writes
+## Runtime-Mediated Writes
 
 Installed packages do not write the runtime state directly.
 
@@ -122,25 +122,25 @@ Instead, `run` may print a JSON result with:
 - `records`
 
 The runtime performs those CAS and append-only history writes itself. This
-keeps durable mutation basket-mediated even for external eggs. Source:
+keeps durable mutation runtime-mediated even for external packages. Source:
 `DI-rovum`.
 
 ## Runnable Installed-Package Example
 
 The repo now includes one small installed-package example:
 
-- `examples/writer-egg/moks-package.json`
-- `examples/writer-egg/writer-egg.sh`
+- `examples/writer-agent/moks-package.json`
+- `examples/writer-agent/writer-agent.sh`
 
 Try it from the ex6 repo root:
 
 ```bash
-go run ./cmd/moks package install ./examples/writer-egg
+go run ./cmd/moks package install ./examples/writer-agent
 go run ./cmd/moks writer create writer-1
 go run ./cmd/moks relay export ./writer-batch.json
 ```
 
-That flow proves an outside egg can install, request basket-mediated CAS
+That flow proves an outside package can install, request runtime-mediated CAS
 writes, append a durable record, and then have that record show up in relay
 export. Source: `DI-rovum`; `DI-nupad`.
 

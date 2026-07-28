@@ -50,7 +50,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - one real first-party built-in package: `inventory`
 - first-party package source directories for the current 9-package spine
 - a starter package template for outside authors
-- basket-mediated durable writes for installed executable packages
+- runtime-mediated durable writes for installed executable packages
 - runnable built-in and installed-package examples
 - exact-byte relay import dedupe and relay batch metadata validation
 - live HTTP peer exchange on top of the current relay batch shape
@@ -93,13 +93,13 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; 
 
 The current repo state reflects a deliberate kernel-first slice:
 
-- first lock the basket contract
-- then build real eggs against that contract
+- first lock the runtime contract
+- then build real packages against that contract
 
 That first step happened.
 The second step has now started with the built-in `context`, `knowledge`,
 `runs`, `links`, `procedures`, `training`, `maintenance`, and `receiving`
-eggs plus `inventory`, but the rest is still mostly open.
+packages plus `inventory`, but the rest is still mostly open.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 `DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`.
 

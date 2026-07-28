@@ -10,6 +10,7 @@
 - [x] zibek - receiving package foundation
 - [x] lavom - inventory package foundation
 - [x] rovum - package template and scaffolding flow
+- [x] puvok - agent kernel alignment note
 - [ ] sibok - grid hardening beyond relay batch shell
 - [x] nupad - operator docs and runnable examples
 - [x] moksu - ex6 foundation

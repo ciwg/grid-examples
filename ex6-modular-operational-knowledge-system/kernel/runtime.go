@@ -238,7 +238,7 @@ func (runtime *Runtime) GetCAS(objectID string) ([]byte, error) {
 	return runtime.cas.Get(objectID)
 }
 
-// Intent: Validate known families through their owning egg while still
+// Intent: Validate known families through their owning package while still
 // preserving unknown-family carriage as durable exact bytes for the grid.
 // Source: DI-lupok
 func (runtime *Runtime) AppendRecord(ctx context.Context, raw []byte) (records.Envelope, error) {
@@ -466,7 +466,7 @@ func (runtime *Runtime) RunCommand(ctx context.Context, args []string) (string, 
 	return "", fmt.Errorf("unknown command: %s", strings.Join(args, " "))
 }
 
-// Intent: Keep durable writes basket-mediated even for installed eggs so
+// Intent: Keep durable writes runtime-mediated even for installed agents so
 // external packages can extend the system without bypassing runtime-owned CAS
 // and append-only history. Source: DI-rovum
 func (runtime *Runtime) applyExternalCommandResult(ctx context.Context, result packages.CommandResult) (string, error) {
@@ -542,7 +542,7 @@ func (runtime *Runtime) InstallPackageDir(ctx context.Context, sourceDir string)
 	return manifest, nil
 }
 
-// Intent: Re-activate installed eggs from the runtime-owned package root on
+// Intent: Re-activate installed agents from the runtime-owned package root on
 // startup so installation survives later CLI invocations and process restarts.
 // Source: DI-rovum
 func (runtime *Runtime) activateInstalledFromRoot(ctx context.Context) error {

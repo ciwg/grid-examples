@@ -61,10 +61,10 @@ func TestBuiltinQuickstartFlow(t *testing.T) {
 
 func TestInstalledWriterEggExample(t *testing.T) {
 	workdir := t.TempDir()
-	exampleDir := filepath.Join(repoRoot(t), "examples", "writer-egg")
+	exampleDir := filepath.Join(repoRoot(t), "examples", "writer-agent")
 	if output, err := runCLI(t, workdir, "package", "install", exampleDir); err != nil {
 		t.Fatalf("install writer egg: %v", err)
-	} else if !strings.Contains(output, "installed writer-egg") {
+	} else if !strings.Contains(output, "installed writer-agent") {
 		t.Fatalf("unexpected install output: %s", output)
 	}
 	output, err := runCLI(t, workdir, "writer", "create", "writer-1")

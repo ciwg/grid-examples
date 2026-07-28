@@ -5,8 +5,8 @@
 ID: DI-moksu
 Date: 2026-07-28 00:00:00
 Status: active
-Decision: Build ex6 as a basket-first PromiseGrid-native runtime with manifest plus self-check packages, runtime-mediated package communication, and unknown-family exact-byte store-and-relay.
-Intent: Keep ex6 as the durable basket that owns grid-facing coordination while letting built-in and installed eggs extend it without direct package-to-package coupling.
+Decision: Build ex6 as a PromiseGrid-native runtime with manifest plus self-check packages, runtime-mediated package communication, and unknown-family exact-byte store-and-relay.
+Intent: Keep ex6 as the durable runtime that owns grid-facing coordination while letting built-in and installed packages extend it without direct package-to-package coupling.
 Constraints: All artifacts stay inside `ex6-modular-operational-knowledge-system/`; ex5 is reference material only; browser is out of scope; installed packages use executables rather than Go plugin ABI.
 Affects: `cmd/moks`, `builtin`, `grid`, `kernel`, `packages`, `records`, `store`, tests, and ex6-local docs.
 
@@ -18,7 +18,7 @@ ID: DI-lupok
 Date: 2026-07-28 00:30:00
 Status: active
 Decision: Tighten ex6 around explicit PromiseGrid implementation claims and runtime-enforced protocol identity matching for registered families.
-Intent: Keep ex6 protocol-first so packages do not imply conformance through family names alone and relay exports can state what protocols the active eggs claim to implement.
+Intent: Keep ex6 protocol-first so packages do not imply conformance through family names alone and relay exports can state what protocols the active packages claim to implement.
 Constraints: Preserve exact-byte unknown-family retention; do not introduce a fake universal handler ABI; keep all changes inside the ex6 tree.
 Affects: `grid`, `kernel`, `packages`, builtin package manifests, tests, and CLI-visible package metadata.
 Supersedes: DI-moksu
