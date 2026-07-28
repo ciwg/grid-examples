@@ -155,6 +155,17 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	}
 }
 
+func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
+	workdir := t.TempDir()
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "candidate", "context:family-validator:direct")
+	if err != nil {
+		t.Fatalf("route plan trace candidate focus: %v", err)
+	}
+	if !strings.Contains(output, `"trace"`) || !strings.Contains(output, `context:family-validator:direct`) {
+		t.Fatalf("focused candidate trace missing target: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

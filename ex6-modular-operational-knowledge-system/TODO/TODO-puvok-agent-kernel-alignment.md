@@ -105,3 +105,11 @@ Decision: Add an explicit `trace` mode for `moks route plan <protocol-pcid>` tha
 Intent: Let operators inspect the exact comparison order the kernel executed instead of reconstructing it from the final sorted output.
 Constraints: Keep normal `route plan` output unchanged unless trace mode is requested; keep trace output deterministic; do not execute routes.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-dovak
+Date: 2026-07-28 11:08:00
+Status: active
+Decision: Add focused trace filters for one candidate path or one downstream protocol so `route plan ... trace` can return only the relevant subset of planner steps on larger route sets.
+Intent: Keep trace output readable without losing the ability to inspect the exact planner sequence for the one path or downstream protocol an operator cares about.
+Constraints: Reuse the existing trace data rather than recomputing a second planner; keep the unfocused trace unchanged; use explicit filter kinds instead of free-form search.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.

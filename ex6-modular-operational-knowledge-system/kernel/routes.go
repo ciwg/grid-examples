@@ -50,6 +50,11 @@ type RoutePlanTraceStep struct {
 	Details  []string `json:"details,omitempty"`
 }
 
+type RoutePlanTraceFilter struct {
+	Kind   string `json:"kind,omitempty"`
+	Target string `json:"target,omitempty"`
+}
+
 type RoutePlanCandidateExplanation struct {
 	GlobalPolicy      grid.RoutePlanPolicy             `json:"global_policy"`
 	ProtocolPolicy    *grid.RoutePlanPolicy            `json:"protocol_policy,omitempty"`
@@ -139,6 +144,15 @@ func (runtime *Runtime) ProtocolRoutePlanTrace(protocolPCID string) RoutePlan {
 		plan.Explanation = &RoutePlanExplanation{}
 	}
 	plan.Explanation.Trace = trace.steps
+	return plan
+}
+
+func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filter RoutePlanTraceFilter) RoutePlan {
+	plan := runtime.ProtocolRoutePlanTrace(protocolPCID)
+	if plan.Explanation == nil {
+		return plan
+	}
+	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
 	return plan
 }
 
@@ -305,6 +319,51 @@ func boolString(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// Intent: Keep route-plan trace output readable on larger route sets by letting
+// operators focus on one candidate path or one downstream protocol without
+// changing the underlying planner behavior. Source: DI-dovak
+func filterRoutePlanTrace(steps []RoutePlanTraceStep, filter RoutePlanTraceFilter) []RoutePlanTraceStep {
+	kind := strings.TrimSpace(filter.Kind)
+	target := strings.TrimSpace(filter.Target)
+	if kind == "" || target == "" {
+		return steps
+	}
+	filtered := []RoutePlanTraceStep{}
+	for _, step := range steps {
+		switch kind {
+		case "candidate":
+			if stepMatchesCandidate(step, target) {
+				filtered = append(filtered, step)
+			}
+		case "downstream":
+			if step.Protocol == target {
+				filtered = append(filtered, step)
+			}
+		default:
+			return steps
+		}
+	}
+	return renumberTraceSteps(filtered)
+}
+
+func stepMatchesCandidate(step RoutePlanTraceStep, target string) bool {
+	for _, detail := range step.Details {
+		if strings.Contains(detail, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func renumberTraceSteps(steps []RoutePlanTraceStep) []RoutePlanTraceStep {
+	out := make([]RoutePlanTraceStep, len(steps))
+	copy(out, steps)
+	for index := range out {
+		out[index].Step = index + 1
+	}
+	return out
 }
 
 func compareAvoided(left grid.RouteRegistration, right grid.RouteRegistration, leftPolicy grid.RoutePlanPolicy, rightPolicy grid.RoutePlanPolicy) int {

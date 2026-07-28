@@ -98,17 +98,28 @@ func run(ctx context.Context, args []string) error {
 		}
 		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
-		if len(args) != 3 && len(args) != 4 {
-			return errors.New("usage: route plan <protocol-pcid> [trace]")
+		if len(args) != 3 && len(args) != 4 && len(args) != 6 {
+			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
 		}
 		trace := false
+		filter := kernel.RoutePlanTraceFilter{}
 		if len(args) == 4 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
 			}
 			trace = true
 		}
-		return routePlan(runtime, args[2], trace)
+		if len(args) == 6 {
+			if args[3] != "trace" {
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+			}
+			if args[4] != "candidate" && args[4] != "downstream" {
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>]]")
+			}
+			trace = true
+			filter = kernel.RoutePlanTraceFilter{Kind: args[4], Target: args[5]}
+		}
+		return routePlan(runtime, args[2], trace, filter)
 	case matchesPrefix(args, "route", "inspect"):
 		if len(args) != 3 {
 			return errors.New("usage: route inspect <protocol-pcid>")
@@ -298,13 +309,13 @@ func routeInspect(runtime *kernel.Runtime, protocolPCID string) error {
 	return nil
 }
 
-func routePlan(runtime *kernel.Runtime, protocolPCID string, trace bool) error {
+func routePlan(runtime *kernel.Runtime, protocolPCID string, trace bool, filter kernel.RoutePlanTraceFilter) error {
 	// Intent: Expose the kernel's preferred executable route choice for one
 	// input pCID so route consumers can ask what the kernel would actually use.
 	// Source: DI-pabut
 	plan := runtime.ProtocolRoutePlan(protocolPCID)
 	if trace {
-		plan = runtime.ProtocolRoutePlanTrace(protocolPCID)
+		plan = runtime.ProtocolRoutePlanTraceFocused(protocolPCID, filter)
 	}
 	body, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
