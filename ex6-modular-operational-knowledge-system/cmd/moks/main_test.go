@@ -92,6 +92,15 @@ func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
 		t.Fatalf("seed source runtime: %v", err)
 	}
+	if err := source.AllowPeer(grid.AllowedPeer{
+		PeerID:    "peer-target",
+		BatchURL:  "http://peer-target/relay/batch",
+		ImportURL: "http://peer-target/relay/import",
+		AllowPull: true,
+		AllowPush: true,
+	}); err != nil {
+		t.Fatalf("allow source peer: %v", err)
+	}
 	server := httptest.NewServer(relayHandler(context.Background(), source))
 	defer server.Close()
 
@@ -114,11 +123,21 @@ func TestRelayHandlerExportsAndImportsBatch(t *testing.T) {
 	}
 
 	target := newRuntimeForCLI(t)
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:    source.LocalPeerID(),
+		BatchURL:  server.URL + "/relay/batch",
+		ImportURL: server.URL + "/relay/import",
+		AllowPull: true,
+		AllowPush: true,
+	}); err != nil {
+		t.Fatalf("allow target peer: %v", err)
+	}
 	importBody, err := json.Marshal(batch)
 	if err != nil {
 		t.Fatalf("marshal import batch: %v", err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/relay/import", bytes.NewReader(importBody))
+	request.Header.Set("X-Moks-Peer-ID", source.LocalPeerID())
 	recorder := httptest.NewRecorder()
 	relayHandler(context.Background(), target).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -138,7 +157,16 @@ func TestRelayPullImportsFromPeer(t *testing.T) {
 	defer server.Close()
 
 	target := newRuntimeForCLI(t)
-	if err := relayPull(context.Background(), target, server.URL+"/relay/batch"); err != nil {
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:    source.LocalPeerID(),
+		BatchURL:  server.URL + "/relay/batch",
+		ImportURL: server.URL + "/relay/import",
+		AllowPull: true,
+		AllowPush: false,
+	}); err != nil {
+		t.Fatalf("allow target peer: %v", err)
+	}
+	if err := relayPull(context.Background(), target, source.LocalPeerID()); err != nil {
 		t.Fatalf("relay pull: %v", err)
 	}
 	if len(target.History()) != 1 {
@@ -154,12 +182,68 @@ func TestRelayPushPostsToPeer(t *testing.T) {
 	target := newRuntimeForCLI(t)
 	server := httptest.NewServer(relayHandler(context.Background(), target))
 	defer server.Close()
-
-	if err := relayPush(context.Background(), source, server.URL+"/relay/import"); err != nil {
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:    source.LocalPeerID(),
+		BatchURL:  server.URL + "/relay/batch",
+		ImportURL: server.URL + "/relay/import",
+		AllowPull: true,
+		AllowPush: true,
+	}); err != nil {
+		t.Fatalf("allow target peer: %v", err)
+	}
+	if err := source.AllowPeer(grid.AllowedPeer{
+		PeerID:    target.LocalPeerID(),
+		BatchURL:  server.URL + "/relay/batch",
+		ImportURL: server.URL + "/relay/import",
+		AllowPull: true,
+		AllowPush: true,
+	}); err != nil {
+		t.Fatalf("allow source peer: %v", err)
+	}
+	if err := relayPush(context.Background(), source, target.LocalPeerID()); err != nil {
 		t.Fatalf("relay push: %v", err)
 	}
 	if len(target.History()) != 1 {
 		t.Fatalf("expected pushed record on peer, got %d", len(target.History()))
+	}
+}
+
+func TestRelayImportRejectsUnknownPeer(t *testing.T) {
+	target := newRuntimeForCLI(t)
+	batch := target.ExportBatch()
+	body, err := json.Marshal(batch)
+	if err != nil {
+		t.Fatalf("marshal batch: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/relay/import", bytes.NewReader(body))
+	request.Header.Set("X-Moks-Peer-ID", "unknown-peer")
+	recorder := httptest.NewRecorder()
+	relayHandler(context.Background(), target).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden for unknown peer, got %d", recorder.Code)
+	}
+}
+
+func TestRelayPullRejectsUnexpectedPeerIdentity(t *testing.T) {
+	source := newRuntimeForCLI(t)
+	if _, err := source.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
+		t.Fatalf("seed source runtime: %v", err)
+	}
+	server := httptest.NewServer(relayHandler(context.Background(), source))
+	defer server.Close()
+
+	target := newRuntimeForCLI(t)
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:    "wrong-peer",
+		BatchURL:  server.URL + "/relay/batch",
+		ImportURL: server.URL + "/relay/import",
+		AllowPull: true,
+		AllowPush: false,
+	}); err != nil {
+		t.Fatalf("allow wrong peer: %v", err)
+	}
+	if err := relayPull(context.Background(), target, "wrong-peer"); err == nil {
+		t.Fatal("expected peer identity mismatch")
 	}
 }
 

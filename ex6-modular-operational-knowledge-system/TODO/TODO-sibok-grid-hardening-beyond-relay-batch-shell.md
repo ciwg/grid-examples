@@ -18,6 +18,14 @@ Intent: Move ex6 beyond file-only batch exchange while keeping the current proto
 Constraints: Reuse the current batch wire shape; no speculative peer discovery or trust protocol yet; keep endpoints explicit and local-runtime owned.
 Affects: `cmd/moks`, relay CLI tests, and ex6 current-state docs.
 
+ID: DI-rupem
+Date: 2026-07-28 18:50:00
+Status: active
+Decision: Add runtime-owned peer allow rules, stable local peer identity, and batch-to-peer identity matching for live relay pull/push/import.
+Intent: Make multi-peer exchange safer by requiring explicit peer registration and by rejecting live imports whose declared batch identity does not match the allowed peer entry.
+Constraints: Keep trust policy explicit and local; no automatic peer discovery; no cryptographic signing layer yet.
+Affects: `grid/peers.go`, `kernel/runtime.go`, `cmd/moks`, relay tests, and ex6 current-state docs.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

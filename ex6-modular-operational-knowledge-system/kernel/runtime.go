@@ -44,6 +44,7 @@ type Runtime struct {
 	packagesRoot string
 	history      *store.History
 	cas          *store.CAS
+	peers        *grid.PeerStore
 	packages     map[string]*activePackage
 	commands     map[string]*activePackage
 	families     map[string]registeredFamily
@@ -62,11 +63,17 @@ func Open(root string) (*Runtime, error) {
 		_ = history.Close()
 		return nil, err
 	}
+	peerStore, err := grid.OpenPeerStore(filepath.Join(root, "state"), root)
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
 	runtime := &Runtime{
 		root:         root,
 		packagesRoot: filepath.Join(root, "packages"),
 		history:      history,
 		cas:          casStore,
+		peers:        peerStore,
 		packages:     map[string]*activePackage{},
 		commands:     map[string]*activePackage{},
 		families:     map[string]registeredFamily{},
@@ -167,6 +174,26 @@ func (runtime *Runtime) PackageManifest(id string) (packages.Manifest, bool) {
 	return pkg.manifest, true
 }
 
+func (runtime *Runtime) LocalPeerID() string {
+	return runtime.peers.LocalPeerID()
+}
+
+func (runtime *Runtime) AllowedPeers() []grid.AllowedPeer {
+	return runtime.peers.AllowedPeers()
+}
+
+func (runtime *Runtime) AllowPeer(peer grid.AllowedPeer) error {
+	return runtime.peers.SetAllowedPeer(peer)
+}
+
+func (runtime *Runtime) RevokePeer(peerID string) error {
+	return runtime.peers.RemoveAllowedPeer(peerID)
+}
+
+func (runtime *Runtime) LookupPeer(peerID string) (grid.AllowedPeer, bool) {
+	return runtime.peers.Lookup(peerID)
+}
+
 func (runtime *Runtime) PutCAS(body []byte) (string, error) {
 	return runtime.cas.Put(body)
 }
@@ -217,7 +244,7 @@ func (runtime *Runtime) ExportBatch() grid.Batch {
 	claims := runtime.ImplementationClaims()
 	return grid.Batch{
 		Format:               grid.RelayBatchFormat,
-		Implementation:       "moks-ex6",
+		Implementation:       runtime.LocalPeerID(),
 		ExportedAt:           time.Now().UTC().Format(time.RFC3339),
 		ImplementationClaims: claims,
 		Records:              rawRecords,
@@ -237,6 +264,35 @@ func (runtime *Runtime) ImportBatch(ctx context.Context, batch grid.Batch) error
 		}
 	}
 	return nil
+}
+
+// Intent: Keep live multi-peer exchange behind explicit allow rules and reject
+// batches whose claimed peer identity does not match the configured peer entry.
+// Source: DI-rupem
+func (runtime *Runtime) ImportBatchFromPeer(ctx context.Context, peerID string, batch grid.Batch, direction string) error {
+	if strings.TrimSpace(peerID) == "" {
+		return errors.New("peer id is required")
+	}
+	peer, ok := runtime.LookupPeer(peerID)
+	if !ok {
+		return fmt.Errorf("peer not allowed: %s", peerID)
+	}
+	switch direction {
+	case "pull":
+		if !peer.AllowPull {
+			return fmt.Errorf("peer %s is not allowed for pull", peerID)
+		}
+	case "push":
+		if !peer.AllowPush {
+			return fmt.Errorf("peer %s is not allowed for push", peerID)
+		}
+	default:
+		return fmt.Errorf("unknown peer direction: %s", direction)
+	}
+	if batch.Implementation != peerID {
+		return fmt.Errorf("batch implementation %s does not match peer %s", batch.Implementation, peerID)
+	}
+	return runtime.ImportBatch(ctx, batch)
 }
 
 // Intent: Publish explicit per-package protocol claims so relay exports say

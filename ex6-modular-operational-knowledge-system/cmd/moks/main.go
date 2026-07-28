@@ -86,14 +86,35 @@ func run(ctx context.Context, args []string) error {
 		return relayServe(ctx, runtime, args[2])
 	case matchesPrefix(args, "relay", "pull"):
 		if len(args) != 3 {
-			return errors.New("usage: relay pull <url>")
+			return errors.New("usage: relay pull <peer-id>")
 		}
 		return relayPull(ctx, runtime, args[2])
 	case matchesPrefix(args, "relay", "push"):
 		if len(args) != 3 {
-			return errors.New("usage: relay push <url>")
+			return errors.New("usage: relay push <peer-id>")
 		}
 		return relayPush(ctx, runtime, args[2])
+	case matchesPrefix(args, "relay", "peer", "local"):
+		if len(args) != 4 {
+			return errors.New("usage: relay peer local show")
+		}
+		if args[3] != "show" {
+			return errors.New("usage: relay peer local show")
+		}
+		fmt.Println(runtime.LocalPeerID())
+		return nil
+	case matchesPrefix(args, "relay", "peer", "list"):
+		return relayPeerList(runtime)
+	case matchesPrefix(args, "relay", "peer", "allow"):
+		if len(args) != 7 {
+			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+		}
+		return relayPeerAllow(runtime, args[3:])
+	case matchesPrefix(args, "relay", "peer", "revoke"):
+		if len(args) != 5 {
+			return errors.New("usage: relay peer revoke <peer-id>")
+		}
+		return runtime.RevokePeer(args[4])
 	default:
 		output, err := runtime.RunCommand(ctx, args)
 		if err != nil {
@@ -183,10 +204,16 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		writer.Header().Set("X-Moks-Peer-ID", runtime.LocalPeerID())
 		writer.Header().Set("Content-Type", "application/json")
 		_, _ = writer.Write(body)
 	})
 	mux.HandleFunc("POST /relay/import", func(writer http.ResponseWriter, request *http.Request) {
+		peerID := strings.TrimSpace(request.Header.Get("X-Moks-Peer-ID"))
+		if peerID == "" {
+			http.Error(writer, "missing X-Moks-Peer-ID header", http.StatusForbidden)
+			return
+		}
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -197,8 +224,8 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := runtime.ImportBatch(ctx, batch); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+		if err := runtime.ImportBatchFromPeer(ctx, peerID, batch, "push"); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
 			return
 		}
 		writer.Header().Set("Content-Type", "application/json")
@@ -207,11 +234,16 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 	return mux
 }
 
-func relayPull(ctx context.Context, runtime *kernel.Runtime, url string) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+func relayPull(ctx context.Context, runtime *kernel.Runtime, peerID string) error {
+	peer, ok := runtime.LookupPeer(peerID)
+	if !ok {
+		return fmt.Errorf("peer not allowed: %s", peerID)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, peer.BatchURL, nil)
 	if err != nil {
 		return err
 	}
+	request.Header.Set("X-Moks-Peer-ID", runtime.LocalPeerID())
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return err
@@ -231,19 +263,24 @@ func relayPull(ctx context.Context, runtime *kernel.Runtime, url string) error {
 	if err := json.Unmarshal(body, &batch); err != nil {
 		return err
 	}
-	return runtime.ImportBatch(ctx, batch)
+	return runtime.ImportBatchFromPeer(ctx, peerID, batch, "pull")
 }
 
-func relayPush(ctx context.Context, runtime *kernel.Runtime, url string) error {
+func relayPush(ctx context.Context, runtime *kernel.Runtime, peerID string) error {
+	peer, ok := runtime.LookupPeer(peerID)
+	if !ok {
+		return fmt.Errorf("peer not allowed: %s", peerID)
+	}
 	body, err := json.Marshal(runtime.ExportBatch())
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, peer.ImportURL, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Moks-Peer-ID", runtime.LocalPeerID())
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return err
@@ -290,4 +327,29 @@ func registerBuiltins(runtime *kernel.Runtime) error {
 		return err
 	}
 	return nil
+}
+
+func relayPeerList(runtime *kernel.Runtime) error {
+	for _, peer := range runtime.AllowedPeers() {
+		fmt.Printf("%s\tpull=%t\tpush=%t\tbatch=%s\timport=%s\n", peer.PeerID, peer.AllowPull, peer.AllowPush, peer.BatchURL, peer.ImportURL)
+	}
+	return nil
+}
+
+func relayPeerAllow(runtime *kernel.Runtime, args []string) error {
+	allowPull := args[3] == "pull"
+	allowPush := args[4] == "push"
+	if args[3] != "pull" && args[3] != "no-pull" {
+		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+	}
+	if args[4] != "push" && args[4] != "no-push" {
+		return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>")
+	}
+	return runtime.AllowPeer(grid.AllowedPeer{
+		PeerID:    args[0],
+		BatchURL:  args[1],
+		ImportURL: args[2],
+		AllowPull: allowPull,
+		AllowPush: allowPush,
+	})
 }

@@ -460,7 +460,7 @@ func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 func TestExportBatchIncludesImplementationClaims(t *testing.T) {
 	runtime := newRuntime(t)
 	batch := runtime.ExportBatch()
-	if batch.Implementation != "moks-ex6" {
+	if batch.Implementation != runtime.LocalPeerID() {
 		t.Fatalf("unexpected implementation: %s", batch.Implementation)
 	}
 	if len(batch.ImplementationClaims) < 2 {

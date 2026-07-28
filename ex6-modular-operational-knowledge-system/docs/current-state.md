@@ -20,6 +20,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks relay serve <addr>`
 - `moks relay pull <url>`
 - `moks relay push <url>`
+- `moks relay peer local show`
+- `moks relay peer allow <peer-id> <batch-url> <import-url> <pull|no-pull> <push|no-push>`
+- `moks relay peer list`
+- `moks relay peer revoke <peer-id>`
 - package manifest validation
 - installed-package self-check
 - append-only durable history
@@ -40,6 +44,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - runnable built-in and installed-package examples
 - exact-byte relay import dedupe and relay batch metadata validation
 - live HTTP peer exchange on top of the current relay batch shape
+- peer allow rules and peer-identity matching on live relay import
 
 Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`.
 
@@ -49,7 +54,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`.
 - Neovim embodiment
 - ex5 review/search/operate parity
 - full signing/verification discipline
-- peer discovery, trust, and richer multi-peer relay behavior
+- peer discovery and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
 
