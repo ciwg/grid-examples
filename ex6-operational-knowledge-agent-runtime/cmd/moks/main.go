@@ -64,10 +64,25 @@ func run(ctx context.Context, args []string) error {
 		}
 		return routeScopeList(runtime)
 	case matchesPrefix(args, "route", "scope", "inspect"):
-		if len(args) != 4 {
-			return errors.New("usage: route scope inspect <name>")
+		if len(args) != 4 && (len(args) < 6 || len(args[4:])%2 != 0) {
+			return errors.New("usage: route scope inspect <name> [sort <depth|label|summary>] [depth <n|n+>] [label <text>] [summary <text>]")
 		}
-		return routeScopeInspect(runtime, args[3])
+		query := kernel.RouteScopeGroupQuery{}
+		for index := 4; index < len(args); index += 2 {
+			switch args[index] {
+			case "sort":
+				query.SortBy = args[index+1]
+			case "depth":
+				query.DepthFilter = args[index+1]
+			case "label":
+				query.LabelFilter = args[index+1]
+			case "summary":
+				query.SummaryFilter = args[index+1]
+			default:
+				return errors.New("usage: route scope inspect <name> [sort <depth|label|summary>] [depth <n|n+>] [label <text>] [summary <text>]")
+			}
+		}
+		return routeScopeInspect(runtime, args[3], query)
 	case matchesPrefix(args, "route", "scope", "set"):
 		if len(args) < 6 || len(args[4:])%2 != 0 {
 			return errors.New("usage: route scope set <name> <kind> <target> [<kind> <target> ...]")
@@ -342,8 +357,8 @@ func routeScopeList(runtime *kernel.Runtime) error {
 	return nil
 }
 
-func routeScopeInspect(runtime *kernel.Runtime, name string) error {
-	inspection, ok := runtime.InspectTraceScope(name)
+func routeScopeInspect(runtime *kernel.Runtime, name string, query kernel.RouteScopeGroupQuery) error {
+	inspection, ok := runtime.InspectTraceScopeWithQuery(name, query)
 	if !ok {
 		return fmt.Errorf("unknown route scope: %s", name)
 	}

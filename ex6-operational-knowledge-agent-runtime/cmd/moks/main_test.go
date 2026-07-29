@@ -309,6 +309,33 @@ func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {
 	}
 }
 
+func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-base", "scope", "direct-hops", "candidate", "context:family-validator:direct"); err != nil {
+		t.Fatalf("route scope set branch-base: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", "pcid:moks.context.place.v1"); err != nil {
+		t.Fatalf("route scope set branch-expanded: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "sort", "summary", "summary", "branch-base")
+	if err != nil {
+		t.Fatalf("route scope inspect with query: %v", err)
+	}
+	if !strings.Contains(output, `"groups"`) || !strings.Contains(output, `"branch-base"`) {
+		t.Fatalf("route scope inspect missing filtered grouped branches: %s", output)
+	}
+	if strings.Contains(output, `"summary": "branch-expanded"`) {
+		t.Fatalf("route scope inspect summary filter kept unexpected root-only branch: %s", output)
+	}
+	depthOutput, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "depth", "3")
+	if err != nil {
+		t.Fatalf("route scope inspect with depth filter: %v", err)
+	}
+	if !strings.Contains(depthOutput, `"depth": 3`) || strings.Contains(depthOutput, `"depth": 2`) {
+		t.Fatalf("route scope inspect depth filter produced unexpected groups: %s", depthOutput)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

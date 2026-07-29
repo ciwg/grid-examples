@@ -1253,6 +1253,59 @@ func TestInspectTraceScopeReportsSkippedBranches(t *testing.T) {
 	}
 }
 
+func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "base-scope",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "direct-hops"},
+			{Kind: "candidate", Target: "context:family-validator:direct"},
+		},
+	}); err != nil {
+		t.Fatalf("set base alias: %v", err)
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "ordered-scope",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "base-scope"},
+			{Kind: "downstream", Target: "pcid:moks.context.place.v1"},
+		},
+	}); err != nil {
+		t.Fatalf("set ordered alias: %v", err)
+	}
+	inspection, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{
+		SortBy:        "summary",
+		SummaryFilter: "base-scope",
+	})
+	if !ok {
+		t.Fatalf("expected ordered-scope inspection")
+	}
+	if len(inspection.Groups) != 2 {
+		t.Fatalf("expected filtered grouped branches, got %#v", inspection.Groups)
+	}
+	if inspection.Groups[0].Summary > inspection.Groups[1].Summary {
+		t.Fatalf("expected summary-sorted groups, got %#v", inspection.Groups)
+	}
+	for _, group := range inspection.Groups {
+		if !strings.Contains(group.Summary, "base-scope") {
+			t.Fatalf("expected summary filter to keep only base-scope branches, got %#v", inspection.Groups)
+		}
+	}
+	depthFiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{
+		DepthFilter: "3",
+	})
+	if !ok || len(depthFiltered.Groups) != 1 || depthFiltered.Groups[0].Depth != 3 {
+		t.Fatalf("expected one depth-filtered branch, got %#v %#v", ok, depthFiltered.Groups)
+	}
+}
+
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
 	runtime, err := kernel.Open(runtimeRoot)

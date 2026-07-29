@@ -83,9 +83,17 @@ type RouteScopeExpandedClause struct {
 	Provenance []string                   `json:"provenance,omitempty"`
 }
 
+type RouteScopeGroupQuery struct {
+	SortBy        string `json:"sort_by,omitempty"`
+	DepthFilter   string `json:"depth_filter,omitempty"`
+	LabelFilter   string `json:"label_filter,omitempty"`
+	SummaryFilter string `json:"summary_filter,omitempty"`
+}
+
 type RouteScopeGroup struct {
 	Label   string                       `json:"label"`
 	Summary string                       `json:"summary,omitempty"`
+	Depth   int                          `json:"depth"`
 	Branch  []string                     `json:"branch"`
 	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
 	Skipped []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
@@ -257,6 +265,28 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 	}, true
 }
 
+// Intent: Let operators reorder or narrow grouped branch output by branch
+// depth, label, or summary while leaving the full clause-expansion surfaces
+// intact for deeper inspection. Source: DI-lusek
+func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScopeGroupQuery) (RouteScopeInspection, bool) {
+	inspection, ok := runtime.InspectTraceScope(name)
+	if !ok {
+		return RouteScopeInspection{}, false
+	}
+	inspection.Groups = applyRouteScopeGroupQuery(inspection.Groups, query)
+	filteredSkipped := []RouteScopeSkippedBranch{}
+	for _, skip := range inspection.Skipped {
+		for _, group := range inspection.Groups {
+			if slices.Equal(group.Branch, skip.Branch) || branchHasPrefix(skip.Branch, group.Branch) {
+				filteredSkipped = append(filteredSkipped, skip)
+				break
+			}
+		}
+	}
+	inspection.Skipped = filteredSkipped
+	return inspection, true
+}
+
 // Intent: Let built-in and operator-defined named scopes share one trace
 // filtering surface by expanding scope clauses into ordinary clause lists
 // before the planner filters steps and downstream summaries. Source: DI-bemok
@@ -373,6 +403,7 @@ func groupExpandedClauses(details []RouteScopeExpandedClause) []RouteScopeGroup 
 		out = append(out, RouteScopeGroup{
 			Label:   "branch-" + strconv.Itoa(index+1),
 			Summary: strings.Join(entry.branch, " > "),
+			Depth:   len(entry.branch),
 			Branch:  entry.branch,
 			Clauses: entry.clauses,
 		})
@@ -409,6 +440,61 @@ func branchHasPrefix(branch []string, prefix []string) bool {
 		if branch[index] != prefix[index] {
 			return false
 		}
+	}
+	return true
+}
+
+func applyRouteScopeGroupQuery(groups []RouteScopeGroup, query RouteScopeGroupQuery) []RouteScopeGroup {
+	filtered := make([]RouteScopeGroup, 0, len(groups))
+	for _, group := range groups {
+		if routeScopeGroupMatchesQuery(group, query) {
+			filtered = append(filtered, group)
+		}
+	}
+	slices.SortFunc(filtered, func(left, right RouteScopeGroup) int {
+		switch strings.TrimSpace(query.SortBy) {
+		case "depth":
+			if left.Depth != right.Depth {
+				if left.Depth < right.Depth {
+					return -1
+				}
+				return 1
+			}
+		case "summary":
+			if diff := strings.Compare(left.Summary, right.Summary); diff != 0 {
+				return diff
+			}
+		default:
+			if diff := strings.Compare(left.Label, right.Label); diff != 0 {
+				return diff
+			}
+		}
+		if diff := strings.Compare(left.Label, right.Label); diff != 0 {
+			return diff
+		}
+		return strings.Compare(left.Summary, right.Summary)
+	})
+	return filtered
+}
+
+func routeScopeGroupMatchesQuery(group RouteScopeGroup, query RouteScopeGroupQuery) bool {
+	if strings.TrimSpace(query.DepthFilter) != "" {
+		depth, atLeast, ok := parseDepthFilter(query.DepthFilter)
+		if ok {
+			if atLeast {
+				if group.Depth < depth {
+					return false
+				}
+			} else if group.Depth != depth {
+				return false
+			}
+		}
+	}
+	if strings.TrimSpace(query.LabelFilter) != "" && !strings.Contains(group.Label, query.LabelFilter) {
+		return false
+	}
+	if strings.TrimSpace(query.SummaryFilter) != "" && !strings.Contains(group.Summary, query.SummaryFilter) {
+		return false
 	}
 	return true
 }

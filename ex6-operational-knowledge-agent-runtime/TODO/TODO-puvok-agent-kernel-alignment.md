@@ -241,3 +241,11 @@ Decision: Attach skipped scope-expansion diagnostics to the grouped provenance b
 Intent: Let operators see which alias branch dropped a scope reference or hit a cycle instead of inferring that relationship from the flat skipped list alone.
 Constraints: Keep the existing flat skipped list; keep branch attachment deterministic from expansion provenance; do not change filtering behavior.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-lusek
+Date: 2026-07-29 10:56:00
+Status: active
+Decision: Add branch ordering and filtering helpers to scope inspection so grouped branches can be sorted or filtered by depth, label, or summary.
+Intent: Let operators narrow and reorder grouped branch output without losing the existing full inspection surfaces.
+Constraints: Keep raw and expanded clause lists unchanged; only the grouped branch view and its attached skips are reordered or filtered; preserve deterministic output.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
