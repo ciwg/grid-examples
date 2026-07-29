@@ -101,10 +101,11 @@ type RouteScopeGroupQuerySummary struct {
 }
 
 type RouteScopeGroupQueryDiagnostics struct {
-	DefaultOrderingApplied bool   `json:"default_ordering_applied"`
-	DefaultOrderingReason  string `json:"default_ordering_reason,omitempty"`
-	ZeroMatches            bool   `json:"zero_matches"`
-	ZeroMatchReason        string `json:"zero_match_reason,omitempty"`
+	DefaultOrderingApplied bool     `json:"default_ordering_applied"`
+	DefaultOrderingReason  string   `json:"default_ordering_reason,omitempty"`
+	ZeroMatches            bool     `json:"zero_matches"`
+	ZeroMatchReason        string   `json:"zero_match_reason,omitempty"`
+	IgnoredFilters         []string `json:"ignored_filters,omitempty"`
 }
 
 type RouteScopeGroup struct {
@@ -541,11 +542,14 @@ func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int
 		diagnostics.DefaultOrderingApplied = true
 		diagnostics.DefaultOrderingReason = "no sort provided; defaulted to label ordering"
 	}
+	if ignored := routeScopeGroupIgnoredFilters(query); len(ignored) != 0 {
+		diagnostics.IgnoredFilters = ignored
+	}
 	if len(groups) == 0 {
 		diagnostics.ZeroMatches = true
 		diagnostics.ZeroMatchReason = routeScopeGroupZeroMatchReason(query, totalGroups)
 	}
-	if !diagnostics.DefaultOrderingApplied && !diagnostics.ZeroMatches {
+	if !diagnostics.DefaultOrderingApplied && !diagnostics.ZeroMatches && len(diagnostics.IgnoredFilters) == 0 {
 		return nil
 	}
 	return diagnostics
@@ -553,6 +557,16 @@ func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int
 
 func routeScopeGroupQueryUsesFilters(query RouteScopeGroupQuery) bool {
 	return query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
+}
+
+func routeScopeGroupIgnoredFilters(query RouteScopeGroupQuery) []string {
+	ignored := []string{}
+	if query.DepthFilter != "" {
+		if _, _, ok := parseDepthFilter(query.DepthFilter); !ok {
+			ignored = append(ignored, "depth filter "+strconv.Quote(query.DepthFilter)+" ignored: expected <n> or <n+>")
+		}
+	}
+	return ignored
 }
 
 func routeScopeGroupZeroMatchReason(query RouteScopeGroupQuery, totalGroups int) string {

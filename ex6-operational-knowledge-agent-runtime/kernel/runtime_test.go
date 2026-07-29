@@ -1328,6 +1328,18 @@ func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
 	if zeroFiltered.QueryDiagnostics == nil || !zeroFiltered.QueryDiagnostics.DefaultOrderingApplied || !zeroFiltered.QueryDiagnostics.ZeroMatches || zeroFiltered.QueryDiagnostics.ZeroMatchReason != "no grouped branches matched filters: depth=9" {
 		t.Fatalf("expected zero-match diagnostics, got %#v", zeroFiltered.QueryDiagnostics)
 	}
+	invalidFiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{
+		DepthFilter: "abc",
+	})
+	if !ok || len(invalidFiltered.Groups) != 3 {
+		t.Fatalf("expected invalid depth filter to leave all branches visible, got %#v %#v", ok, invalidFiltered.Groups)
+	}
+	if invalidFiltered.QuerySummary == nil || invalidFiltered.QuerySummary.TotalGroups != 3 || invalidFiltered.QuerySummary.MatchedGroups != 3 || invalidFiltered.QuerySummary.HiddenGroups != 0 || invalidFiltered.QuerySummary.Ordering != "label" {
+		t.Fatalf("expected invalid-depth query summary, got %#v", invalidFiltered.QuerySummary)
+	}
+	if invalidFiltered.QueryDiagnostics == nil || !invalidFiltered.QueryDiagnostics.DefaultOrderingApplied || len(invalidFiltered.QueryDiagnostics.IgnoredFilters) != 1 || invalidFiltered.QueryDiagnostics.IgnoredFilters[0] != `depth filter "abc" ignored: expected <n> or <n+>` || invalidFiltered.QueryDiagnostics.ZeroMatches {
+		t.Fatalf("expected invalid-depth diagnostics, got %#v", invalidFiltered.QueryDiagnostics)
+	}
 	unfiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{})
 	if !ok || unfiltered.ActiveQuery != nil || unfiltered.QuerySummary != nil || unfiltered.QueryDiagnostics != nil {
 		t.Fatalf("expected no active query data for empty query, got %#v %#v %#v %#v", ok, unfiltered.ActiveQuery, unfiltered.QuerySummary, unfiltered.QueryDiagnostics)

@@ -273,3 +273,11 @@ Decision: Add branch-query diagnostics to scope inspection output for default la
 Intent: Let operators tell whether an empty or unexpectedly ordered grouped-branch view came from query normalization rather than from missing route-scope data.
 Constraints: Keep diagnostics read-only; preserve current grouped branch behavior; omit diagnostics when there is nothing notable to explain.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-tusek
+Date: 2026-07-29 10:31:47
+Status: active
+Decision: Report invalid branch-query filter values, starting with malformed depth filters, as ignored filters in scope inspection diagnostics.
+Intent: Let operators see when a query value was accepted syntactically by the CLI but ignored semantically by grouped-branch filtering.
+Constraints: Keep invalid-filter reporting read-only; preserve current grouped branch behavior; do not turn malformed depth filters into command errors in this slice.
+Affects: `kernel/routes.go`, tests, and routing docs.

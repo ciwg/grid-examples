@@ -356,6 +356,13 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if !strings.Contains(zeroOutput, `"matched_groups": 0`) || !strings.Contains(zeroOutput, `"hidden_groups": 3`) || !strings.Contains(zeroOutput, `"zero_matches": true`) || !strings.Contains(zeroOutput, `"zero_match_reason": "no grouped branches matched filters: depth=9"`) {
 		t.Fatalf("route scope inspect missing zero-match diagnostics: %s", zeroOutput)
 	}
+	invalidOutput, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "depth", "abc")
+	if err != nil {
+		t.Fatalf("route scope inspect with invalid depth filter: %v", err)
+	}
+	if !strings.Contains(invalidOutput, `"matched_groups": 3`) || !strings.Contains(invalidOutput, `"hidden_groups": 0`) || !strings.Contains(invalidOutput, `"ignored_filters": [`) || !strings.Contains(invalidOutput, `"depth filter \"abc\" ignored: expected \u003cn\u003e or \u003cn+\u003e"`) {
+		t.Fatalf("route scope inspect missing invalid-depth diagnostics: %s", invalidOutput)
+	}
 }
 
 func TestRoutePolicySetAndShow(t *testing.T) {
