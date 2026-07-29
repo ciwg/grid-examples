@@ -70,6 +70,7 @@ type RouteScopeInspection struct {
 	ExpandedDetails []RouteScopeExpandedClause   `json:"expanded_details,omitempty"`
 	Groups          []RouteScopeGroup            `json:"groups,omitempty"`
 	Skipped         []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
+	ActiveQuery     *RouteScopeGroupQuery        `json:"active_query,omitempty"`
 }
 
 type RouteScopeSkippedBranch struct {
@@ -273,6 +274,7 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 	if !ok {
 		return RouteScopeInspection{}, false
 	}
+	query = normalizeRouteScopeGroupQuery(query)
 	inspection.Groups = applyRouteScopeGroupQuery(inspection.Groups, query)
 	filteredSkipped := []RouteScopeSkippedBranch{}
 	for _, skip := range inspection.Skipped {
@@ -284,6 +286,10 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 		}
 	}
 	inspection.Skipped = filteredSkipped
+	if routeScopeGroupQueryActive(query) {
+		queryCopy := query
+		inspection.ActiveQuery = &queryCopy
+	}
 	return inspection, true
 }
 
@@ -475,6 +481,18 @@ func applyRouteScopeGroupQuery(groups []RouteScopeGroup, query RouteScopeGroupQu
 		return strings.Compare(left.Summary, right.Summary)
 	})
 	return filtered
+}
+
+func normalizeRouteScopeGroupQuery(query RouteScopeGroupQuery) RouteScopeGroupQuery {
+	query.SortBy = strings.TrimSpace(query.SortBy)
+	query.DepthFilter = strings.TrimSpace(query.DepthFilter)
+	query.LabelFilter = strings.TrimSpace(query.LabelFilter)
+	query.SummaryFilter = strings.TrimSpace(query.SummaryFilter)
+	return query
+}
+
+func routeScopeGroupQueryActive(query RouteScopeGroupQuery) bool {
+	return query.SortBy != "" || query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
 }
 
 func routeScopeGroupMatchesQuery(group RouteScopeGroup, query RouteScopeGroupQuery) bool {

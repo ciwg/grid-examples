@@ -38,6 +38,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - each grouped branch now carries a short deterministic label and a human-readable summary
 - skipped scope branches now also attach to the grouped provenance branch they came from
 - route scope inspection can now sort or filter grouped branches by depth, label, or summary
+- route scope inspection now echoes the active branch sort/filter query when grouped branches are narrowed or reordered
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

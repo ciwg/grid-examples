@@ -249,3 +249,11 @@ Decision: Add branch ordering and filtering helpers to scope inspection so group
 Intent: Let operators narrow and reorder grouped branch output without losing the existing full inspection surfaces.
 Constraints: Keep raw and expanded clause lists unchanged; only the grouped branch view and its attached skips are reordered or filtered; preserve deterministic output.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-musek
+Date: 2026-07-29 11:08:00
+Status: active
+Decision: Echo the active branch query in scope inspection output whenever grouped branches were sorted or filtered by query parameters.
+Intent: Let operators see exactly which branch-query parameters produced the visible grouped branch view.
+Constraints: Keep the query echo read-only; preserve current grouped branch behavior; omit the field when no branch query is active.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.

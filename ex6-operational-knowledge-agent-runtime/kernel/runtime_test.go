@@ -1287,6 +1287,9 @@ func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ordered-scope inspection")
 	}
+	if inspection.ActiveQuery == nil || inspection.ActiveQuery.SortBy != "summary" || inspection.ActiveQuery.SummaryFilter != "base-scope" {
+		t.Fatalf("expected active query echo, got %#v", inspection.ActiveQuery)
+	}
 	if len(inspection.Groups) != 2 {
 		t.Fatalf("expected filtered grouped branches, got %#v", inspection.Groups)
 	}
@@ -1303,6 +1306,10 @@ func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
 	})
 	if !ok || len(depthFiltered.Groups) != 1 || depthFiltered.Groups[0].Depth != 3 {
 		t.Fatalf("expected one depth-filtered branch, got %#v %#v", ok, depthFiltered.Groups)
+	}
+	unfiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{})
+	if !ok || unfiltered.ActiveQuery != nil {
+		t.Fatalf("expected no active query echo for empty query, got %#v %#v", ok, unfiltered.ActiveQuery)
 	}
 }
 
