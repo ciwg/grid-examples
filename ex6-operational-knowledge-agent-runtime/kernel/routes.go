@@ -63,15 +63,16 @@ type RoutePlanTraceFilter struct {
 }
 
 type RouteScopeInspection struct {
-	Name            string                       `json:"name"`
-	Builtin         bool                         `json:"builtin"`
-	RawClauses      []RoutePlanTraceFilterClause `json:"raw_clauses,omitempty"`
-	ExpandedClauses []RoutePlanTraceFilterClause `json:"expanded_clauses,omitempty"`
-	ExpandedDetails []RouteScopeExpandedClause   `json:"expanded_details,omitempty"`
-	Groups          []RouteScopeGroup            `json:"groups,omitempty"`
-	Skipped         []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
-	ActiveQuery     *RouteScopeGroupQuery        `json:"active_query,omitempty"`
-	QuerySummary    *RouteScopeGroupQuerySummary `json:"query_summary,omitempty"`
+	Name             string                           `json:"name"`
+	Builtin          bool                             `json:"builtin"`
+	RawClauses       []RoutePlanTraceFilterClause     `json:"raw_clauses,omitempty"`
+	ExpandedClauses  []RoutePlanTraceFilterClause     `json:"expanded_clauses,omitempty"`
+	ExpandedDetails  []RouteScopeExpandedClause       `json:"expanded_details,omitempty"`
+	Groups           []RouteScopeGroup                `json:"groups,omitempty"`
+	Skipped          []RouteScopeSkippedBranch        `json:"skipped,omitempty"`
+	ActiveQuery      *RouteScopeGroupQuery            `json:"active_query,omitempty"`
+	QuerySummary     *RouteScopeGroupQuerySummary     `json:"query_summary,omitempty"`
+	QueryDiagnostics *RouteScopeGroupQueryDiagnostics `json:"query_diagnostics,omitempty"`
 }
 
 type RouteScopeSkippedBranch struct {
@@ -97,6 +98,13 @@ type RouteScopeGroupQuerySummary struct {
 	MatchedGroups int    `json:"matched_groups"`
 	HiddenGroups  int    `json:"hidden_groups"`
 	Ordering      string `json:"ordering"`
+}
+
+type RouteScopeGroupQueryDiagnostics struct {
+	DefaultOrderingApplied bool   `json:"default_ordering_applied"`
+	DefaultOrderingReason  string `json:"default_ordering_reason,omitempty"`
+	ZeroMatches            bool   `json:"zero_matches"`
+	ZeroMatchReason        string `json:"zero_match_reason,omitempty"`
 }
 
 type RouteScopeGroup struct {
@@ -304,6 +312,7 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 			HiddenGroups:  totalGroups - len(inspection.Groups),
 			Ordering:      routeScopeGroupQueryOrdering(query),
 		}
+		inspection.QueryDiagnostics = routeScopeGroupQueryDiagnostics(query, totalGroups, inspection.Groups)
 	}
 	return inspection, true
 }
@@ -520,6 +529,50 @@ func routeScopeGroupQueryOrdering(query RouteScopeGroupQuery) string {
 	default:
 		return "label"
 	}
+}
+
+// Intent: Explain branch-query fallback and empty-match outcomes directly in
+// scope inspection output so operators can tell whether default ordering or
+// zero visible branches came from query shape rather than from missing data.
+// Source: DI-pusek
+func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int, groups []RouteScopeGroup) *RouteScopeGroupQueryDiagnostics {
+	diagnostics := &RouteScopeGroupQueryDiagnostics{}
+	if query.SortBy == "" && routeScopeGroupQueryUsesFilters(query) {
+		diagnostics.DefaultOrderingApplied = true
+		diagnostics.DefaultOrderingReason = "no sort provided; defaulted to label ordering"
+	}
+	if len(groups) == 0 {
+		diagnostics.ZeroMatches = true
+		diagnostics.ZeroMatchReason = routeScopeGroupZeroMatchReason(query, totalGroups)
+	}
+	if !diagnostics.DefaultOrderingApplied && !diagnostics.ZeroMatches {
+		return nil
+	}
+	return diagnostics
+}
+
+func routeScopeGroupQueryUsesFilters(query RouteScopeGroupQuery) bool {
+	return query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
+}
+
+func routeScopeGroupZeroMatchReason(query RouteScopeGroupQuery, totalGroups int) string {
+	filters := []string{}
+	if query.DepthFilter != "" {
+		filters = append(filters, "depth="+query.DepthFilter)
+	}
+	if query.LabelFilter != "" {
+		filters = append(filters, "label contains "+strconv.Quote(query.LabelFilter))
+	}
+	if query.SummaryFilter != "" {
+		filters = append(filters, "summary contains "+strconv.Quote(query.SummaryFilter))
+	}
+	if len(filters) == 0 {
+		if totalGroups == 0 {
+			return "scope has no grouped branches to display"
+		}
+		return "query left no grouped branches visible"
+	}
+	return "no grouped branches matched filters: " + strings.Join(filters, ", ")
 }
 
 func routeScopeGroupMatchesQuery(group RouteScopeGroup, query RouteScopeGroupQuery) bool {

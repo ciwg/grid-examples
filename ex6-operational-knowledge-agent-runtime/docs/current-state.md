@@ -40,6 +40,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - route scope inspection can now sort or filter grouped branches by depth, label, or summary
 - route scope inspection now echoes the active branch sort/filter query when grouped branches are narrowed or reordered
 - route scope inspection now also summarizes matched groups, hidden groups, total groups, and effective ordering for the active branch query
+- route scope inspection now also explains when label ordering was applied by default and when a branch query matched zero grouped branches
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

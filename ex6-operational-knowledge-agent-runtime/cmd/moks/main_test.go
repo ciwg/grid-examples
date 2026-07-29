@@ -343,8 +343,18 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if !strings.Contains(depthOutput, `"query_summary"`) || !strings.Contains(depthOutput, `"matched_groups": 1`) || !strings.Contains(depthOutput, `"hidden_groups": 2`) || !strings.Contains(depthOutput, `"ordering": "label"`) {
 		t.Fatalf("route scope inspect missing depth query summary: %s", depthOutput)
 	}
+	if !strings.Contains(depthOutput, `"query_diagnostics"`) || !strings.Contains(depthOutput, `"default_ordering_applied": true`) || !strings.Contains(depthOutput, `"default_ordering_reason": "no sort provided; defaulted to label ordering"`) {
+		t.Fatalf("route scope inspect missing depth query diagnostics: %s", depthOutput)
+	}
 	if !strings.Contains(depthOutput, `"depth": 3`) || strings.Contains(depthOutput, `"depth": 2`) {
 		t.Fatalf("route scope inspect depth filter produced unexpected groups: %s", depthOutput)
+	}
+	zeroOutput, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "depth", "9")
+	if err != nil {
+		t.Fatalf("route scope inspect with zero-match filter: %v", err)
+	}
+	if !strings.Contains(zeroOutput, `"matched_groups": 0`) || !strings.Contains(zeroOutput, `"hidden_groups": 3`) || !strings.Contains(zeroOutput, `"zero_matches": true`) || !strings.Contains(zeroOutput, `"zero_match_reason": "no grouped branches matched filters: depth=9"`) {
+		t.Fatalf("route scope inspect missing zero-match diagnostics: %s", zeroOutput)
 	}
 }
 

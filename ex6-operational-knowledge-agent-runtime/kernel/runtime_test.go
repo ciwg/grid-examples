@@ -1313,9 +1313,24 @@ func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
 	if depthFiltered.QuerySummary == nil || depthFiltered.QuerySummary.TotalGroups != 3 || depthFiltered.QuerySummary.MatchedGroups != 1 || depthFiltered.QuerySummary.HiddenGroups != 2 || depthFiltered.QuerySummary.Ordering != "label" {
 		t.Fatalf("expected default-order query summary, got %#v", depthFiltered.QuerySummary)
 	}
+	if depthFiltered.QueryDiagnostics == nil || !depthFiltered.QueryDiagnostics.DefaultOrderingApplied || depthFiltered.QueryDiagnostics.DefaultOrderingReason != "no sort provided; defaulted to label ordering" || depthFiltered.QueryDiagnostics.ZeroMatches {
+		t.Fatalf("expected default-order diagnostics, got %#v", depthFiltered.QueryDiagnostics)
+	}
+	zeroFiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{
+		DepthFilter: "9",
+	})
+	if !ok || len(zeroFiltered.Groups) != 0 {
+		t.Fatalf("expected zero depth-filtered branches, got %#v %#v", ok, zeroFiltered.Groups)
+	}
+	if zeroFiltered.QuerySummary == nil || zeroFiltered.QuerySummary.TotalGroups != 3 || zeroFiltered.QuerySummary.MatchedGroups != 0 || zeroFiltered.QuerySummary.HiddenGroups != 3 || zeroFiltered.QuerySummary.Ordering != "label" {
+		t.Fatalf("expected zero-match query summary, got %#v", zeroFiltered.QuerySummary)
+	}
+	if zeroFiltered.QueryDiagnostics == nil || !zeroFiltered.QueryDiagnostics.DefaultOrderingApplied || !zeroFiltered.QueryDiagnostics.ZeroMatches || zeroFiltered.QueryDiagnostics.ZeroMatchReason != "no grouped branches matched filters: depth=9" {
+		t.Fatalf("expected zero-match diagnostics, got %#v", zeroFiltered.QueryDiagnostics)
+	}
 	unfiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{})
-	if !ok || unfiltered.ActiveQuery != nil || unfiltered.QuerySummary != nil {
-		t.Fatalf("expected no active query data for empty query, got %#v %#v %#v", ok, unfiltered.ActiveQuery, unfiltered.QuerySummary)
+	if !ok || unfiltered.ActiveQuery != nil || unfiltered.QuerySummary != nil || unfiltered.QueryDiagnostics != nil {
+		t.Fatalf("expected no active query data for empty query, got %#v %#v %#v %#v", ok, unfiltered.ActiveQuery, unfiltered.QuerySummary, unfiltered.QueryDiagnostics)
 	}
 }
 

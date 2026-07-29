@@ -265,3 +265,11 @@ Decision: Add a short branch-query summary to scope inspection output that repor
 Intent: Let operators see the size and ordering impact of an active branch query without reconstructing it from the grouped branch list by hand.
 Constraints: Keep the summary read-only; preserve current grouped branch behavior; omit the summary when no branch query is active.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-pusek
+Date: 2026-07-29 10:27:57
+Status: active
+Decision: Add branch-query diagnostics to scope inspection output for default label-order fallback and zero-match grouped-branch results.
+Intent: Let operators tell whether an empty or unexpectedly ordered grouped-branch view came from query normalization rather than from missing route-scope data.
+Constraints: Keep diagnostics read-only; preserve current grouped branch behavior; omit diagnostics when there is nothing notable to explain.
+Affects: `kernel/routes.go`, tests, and routing docs.
