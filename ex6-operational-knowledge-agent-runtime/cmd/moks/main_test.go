@@ -324,6 +324,9 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if !strings.Contains(output, `"active_query"`) || !strings.Contains(output, `"sort_by": "summary"`) || !strings.Contains(output, `"summary_filter": "branch-base"`) {
 		t.Fatalf("route scope inspect missing active query echo: %s", output)
 	}
+	if !strings.Contains(output, `"query_summary"`) || !strings.Contains(output, `"matched_groups": 2`) || !strings.Contains(output, `"hidden_groups": 1`) || !strings.Contains(output, `"ordering": "summary"`) {
+		t.Fatalf("route scope inspect missing query summary: %s", output)
+	}
 	if !strings.Contains(output, `"groups"`) || !strings.Contains(output, `"branch-base"`) {
 		t.Fatalf("route scope inspect missing filtered grouped branches: %s", output)
 	}
@@ -336,6 +339,9 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	}
 	if !strings.Contains(depthOutput, `"active_query"`) || !strings.Contains(depthOutput, `"depth_filter": "3"`) {
 		t.Fatalf("route scope inspect missing depth query echo: %s", depthOutput)
+	}
+	if !strings.Contains(depthOutput, `"query_summary"`) || !strings.Contains(depthOutput, `"matched_groups": 1`) || !strings.Contains(depthOutput, `"hidden_groups": 2`) || !strings.Contains(depthOutput, `"ordering": "label"`) {
+		t.Fatalf("route scope inspect missing depth query summary: %s", depthOutput)
 	}
 	if !strings.Contains(depthOutput, `"depth": 3`) || strings.Contains(depthOutput, `"depth": 2`) {
 		t.Fatalf("route scope inspect depth filter produced unexpected groups: %s", depthOutput)

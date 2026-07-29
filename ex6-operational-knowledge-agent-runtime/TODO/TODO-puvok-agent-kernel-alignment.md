@@ -257,3 +257,11 @@ Decision: Echo the active branch query in scope inspection output whenever group
 Intent: Let operators see exactly which branch-query parameters produced the visible grouped branch view.
 Constraints: Keep the query echo read-only; preserve current grouped branch behavior; omit the field when no branch query is active.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-nusek
+Date: 2026-07-29 10:27:57
+Status: active
+Decision: Add a short branch-query summary to scope inspection output that reports total groups, matched groups, hidden groups, and the effective ordering used for the grouped branch view.
+Intent: Let operators see the size and ordering impact of an active branch query without reconstructing it from the grouped branch list by hand.
+Constraints: Keep the summary read-only; preserve current grouped branch behavior; omit the summary when no branch query is active.
+Affects: `kernel/routes.go`, tests, and routing docs.

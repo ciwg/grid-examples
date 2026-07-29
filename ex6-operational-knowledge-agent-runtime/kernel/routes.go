@@ -71,6 +71,7 @@ type RouteScopeInspection struct {
 	Groups          []RouteScopeGroup            `json:"groups,omitempty"`
 	Skipped         []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
 	ActiveQuery     *RouteScopeGroupQuery        `json:"active_query,omitempty"`
+	QuerySummary    *RouteScopeGroupQuerySummary `json:"query_summary,omitempty"`
 }
 
 type RouteScopeSkippedBranch struct {
@@ -89,6 +90,13 @@ type RouteScopeGroupQuery struct {
 	DepthFilter   string `json:"depth_filter,omitempty"`
 	LabelFilter   string `json:"label_filter,omitempty"`
 	SummaryFilter string `json:"summary_filter,omitempty"`
+}
+
+type RouteScopeGroupQuerySummary struct {
+	TotalGroups   int    `json:"total_groups"`
+	MatchedGroups int    `json:"matched_groups"`
+	HiddenGroups  int    `json:"hidden_groups"`
+	Ordering      string `json:"ordering"`
 }
 
 type RouteScopeGroup struct {
@@ -275,6 +283,7 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 		return RouteScopeInspection{}, false
 	}
 	query = normalizeRouteScopeGroupQuery(query)
+	totalGroups := len(inspection.Groups)
 	inspection.Groups = applyRouteScopeGroupQuery(inspection.Groups, query)
 	filteredSkipped := []RouteScopeSkippedBranch{}
 	for _, skip := range inspection.Skipped {
@@ -289,6 +298,12 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 	if routeScopeGroupQueryActive(query) {
 		queryCopy := query
 		inspection.ActiveQuery = &queryCopy
+		inspection.QuerySummary = &RouteScopeGroupQuerySummary{
+			TotalGroups:   totalGroups,
+			MatchedGroups: len(inspection.Groups),
+			HiddenGroups:  totalGroups - len(inspection.Groups),
+			Ordering:      routeScopeGroupQueryOrdering(query),
+		}
 	}
 	return inspection, true
 }
@@ -493,6 +508,18 @@ func normalizeRouteScopeGroupQuery(query RouteScopeGroupQuery) RouteScopeGroupQu
 
 func routeScopeGroupQueryActive(query RouteScopeGroupQuery) bool {
 	return query.SortBy != "" || query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
+}
+
+// Intent: Keep scope-inspection query summaries short and deterministic by
+// reporting the effective grouped-branch ordering even when the operator only
+// supplied filters and relied on the default sort. Source: DI-nusek
+func routeScopeGroupQueryOrdering(query RouteScopeGroupQuery) string {
+	switch query.SortBy {
+	case "depth", "summary":
+		return query.SortBy
+	default:
+		return "label"
+	}
 }
 
 func routeScopeGroupMatchesQuery(group RouteScopeGroup, query RouteScopeGroupQuery) bool {
