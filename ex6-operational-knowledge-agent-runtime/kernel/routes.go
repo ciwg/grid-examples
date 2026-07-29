@@ -67,12 +67,18 @@ type RouteScopeInspection struct {
 	Builtin         bool                         `json:"builtin"`
 	RawClauses      []RoutePlanTraceFilterClause `json:"raw_clauses,omitempty"`
 	ExpandedClauses []RoutePlanTraceFilterClause `json:"expanded_clauses,omitempty"`
+	ExpandedDetails []RouteScopeExpandedClause   `json:"expanded_details,omitempty"`
 	Skipped         []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
 }
 
 type RouteScopeSkippedBranch struct {
 	Scope  string `json:"scope"`
 	Reason string `json:"reason"`
+}
+
+type RouteScopeExpandedClause struct {
+	Clause     RoutePlanTraceFilterClause `json:"clause"`
+	Provenance []string                   `json:"provenance,omitempty"`
 }
 
 type RoutePlanTraceSummary struct {
@@ -205,11 +211,13 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 		return RouteScopeInspection{}, false
 	}
 	if clauses, ok := builtinTraceScopeClauses(name); ok {
+		details := expandedClausesFromRaw(clauses, []string{name})
 		return RouteScopeInspection{
 			Name:            name,
 			Builtin:         true,
 			RawClauses:      cloneTraceFilterClauses(clauses),
 			ExpandedClauses: cloneTraceFilterClauses(clauses),
+			ExpandedDetails: details,
 		}, true
 	}
 	alias, ok := runtime.TraceScopeAlias(name)
@@ -224,11 +232,13 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 		})
 	}
 	skipped := []RouteScopeSkippedBranch{}
+	details := runtime.resolveTraceScopeExpandedClauses(name, map[string]struct{}{}, &skipped, nil)
 	return RouteScopeInspection{
 		Name:            name,
 		Builtin:         false,
 		RawClauses:      raw,
-		ExpandedClauses: runtime.resolveTraceScopeClauses(name, map[string]struct{}{}, &skipped),
+		ExpandedClauses: rawClausesFromExpanded(details),
+		ExpandedDetails: details,
 		Skipped:         skipped,
 	}, true
 }
@@ -252,7 +262,7 @@ func (runtime *Runtime) resolveTraceScopeFilter(filter RoutePlanTraceFilter) Rou
 			resolved.Clauses = append(resolved.Clauses, RoutePlanTraceFilterClause{Kind: kind, Target: target})
 			continue
 		}
-		resolved.Clauses = append(resolved.Clauses, runtime.resolveTraceScopeClauses(target, map[string]struct{}{}, nil)...)
+		resolved.Clauses = append(resolved.Clauses, rawClausesFromExpanded(runtime.resolveTraceScopeExpandedClauses(target, map[string]struct{}{}, nil, nil))...)
 	}
 	return resolved
 }
@@ -263,13 +273,13 @@ func cloneTraceFilterClauses(clauses []RoutePlanTraceFilterClause) []RoutePlanTr
 	return out
 }
 
-func (runtime *Runtime) resolveTraceScopeClauses(target string, seen map[string]struct{}, skipped *[]RouteScopeSkippedBranch) []RoutePlanTraceFilterClause {
+func (runtime *Runtime) resolveTraceScopeExpandedClauses(target string, seen map[string]struct{}, skipped *[]RouteScopeSkippedBranch, provenance []string) []RouteScopeExpandedClause {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return nil
 	}
 	if clauses, ok := builtinTraceScopeClauses(target); ok {
-		return clauses
+		return expandedClausesFromRaw(clauses, append(append([]string{}, provenance...), target))
 	}
 	if _, exists := seen[target]; exists {
 		recordSkippedScope(skipped, target, "cycle")
@@ -282,7 +292,8 @@ func (runtime *Runtime) resolveTraceScopeClauses(target string, seen map[string]
 	}
 	seen[target] = struct{}{}
 	defer delete(seen, target)
-	resolved := []RoutePlanTraceFilterClause{}
+	nextProvenance := append(append([]string{}, provenance...), target)
+	resolved := []RouteScopeExpandedClause{}
 	for _, clause := range alias.Clauses {
 		kind := strings.TrimSpace(clause.Kind)
 		clauseTarget := strings.TrimSpace(clause.Target)
@@ -290,15 +301,37 @@ func (runtime *Runtime) resolveTraceScopeClauses(target string, seen map[string]
 			continue
 		}
 		if kind == "scope" {
-			resolved = append(resolved, runtime.resolveTraceScopeClauses(clauseTarget, seen, skipped)...)
+			resolved = append(resolved, runtime.resolveTraceScopeExpandedClauses(clauseTarget, seen, skipped, nextProvenance)...)
 			continue
 		}
-		resolved = append(resolved, RoutePlanTraceFilterClause{
-			Kind:   kind,
-			Target: clauseTarget,
+		resolved = append(resolved, RouteScopeExpandedClause{
+			Clause: RoutePlanTraceFilterClause{
+				Kind:   kind,
+				Target: clauseTarget,
+			},
+			Provenance: append([]string{}, nextProvenance...),
 		})
 	}
 	return resolved
+}
+
+func expandedClausesFromRaw(clauses []RoutePlanTraceFilterClause, provenance []string) []RouteScopeExpandedClause {
+	out := make([]RouteScopeExpandedClause, 0, len(clauses))
+	for _, clause := range clauses {
+		out = append(out, RouteScopeExpandedClause{
+			Clause:     clause,
+			Provenance: append([]string{}, provenance...),
+		})
+	}
+	return out
+}
+
+func rawClausesFromExpanded(details []RouteScopeExpandedClause) []RoutePlanTraceFilterClause {
+	out := make([]RoutePlanTraceFilterClause, 0, len(details))
+	for _, detail := range details {
+		out = append(out, detail.Clause)
+	}
+	return out
 }
 
 func recordSkippedScope(skipped *[]RouteScopeSkippedBranch, scope string, reason string) {

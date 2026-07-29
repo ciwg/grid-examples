@@ -1145,9 +1145,18 @@ func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
 	if inspection.ExpandedClauses[0].Kind != "depth" || inspection.ExpandedClauses[0].Target != "1" {
 		t.Fatalf("expected built-in expansion in first clause, got %#v", inspection.ExpandedClauses)
 	}
+	if len(inspection.ExpandedDetails) != 3 || len(inspection.ExpandedDetails[0].Provenance) != 3 {
+		t.Fatalf("expected expanded clause provenance, got %#v", inspection.ExpandedDetails)
+	}
+	if inspection.ExpandedDetails[0].Provenance[0] != "composed-scope" || inspection.ExpandedDetails[0].Provenance[1] != "base-scope" || inspection.ExpandedDetails[0].Provenance[2] != "direct-hops" {
+		t.Fatalf("unexpected composed-scope provenance chain, got %#v", inspection.ExpandedDetails[0].Provenance)
+	}
 	builtin, ok := runtime.InspectTraceScope("direct-hops")
 	if !ok || !builtin.Builtin || len(builtin.RawClauses) != 1 || builtin.RawClauses[0].Kind != "depth" {
 		t.Fatalf("unexpected built-in scope inspection: %#v %#v", ok, builtin)
+	}
+	if len(builtin.ExpandedDetails) != 1 || len(builtin.ExpandedDetails[0].Provenance) != 1 || builtin.ExpandedDetails[0].Provenance[0] != "direct-hops" {
+		t.Fatalf("unexpected built-in scope provenance: %#v", builtin.ExpandedDetails)
 	}
 }
 

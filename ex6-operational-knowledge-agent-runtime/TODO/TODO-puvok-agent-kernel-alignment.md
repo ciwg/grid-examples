@@ -209,3 +209,11 @@ Decision: Extend trace scope inspection to report skipped expansion branches, in
 Intent: Let operators see not just the final expanded clause list, but also why some scope branches were dropped during expansion.
 Constraints: Keep filtering behavior unchanged; only inspection gains explicit skipped-branch diagnostics; keep cycle handling deterministic and non-recursive.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-zusek
+Date: 2026-07-29 10:02:00
+Status: active
+Decision: Extend trace scope inspection so each expanded clause includes provenance showing which built-in scope or local alias chain produced it.
+Intent: Let operators trace an expanded clause back through alias composition instead of only seeing the final flattened clause list.
+Constraints: Keep route filtering behavior unchanged; add provenance only to inspection output; preserve deterministic alias expansion order.
+Affects: `kernel/routes.go`, tests, and routing docs.

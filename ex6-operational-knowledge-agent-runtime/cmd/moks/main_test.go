@@ -262,6 +262,12 @@ func TestRouteScopeInspectShowsExpandedAliasClauses(t *testing.T) {
 	if !strings.Contains(output, `"kind": "depth"`) || !strings.Contains(output, `"target": "1"`) {
 		t.Fatalf("route scope inspect missing expanded built-in clause: %s", output)
 	}
+	if !strings.Contains(output, `"expanded_details"`) || !strings.Contains(output, `"provenance"`) {
+		t.Fatalf("route scope inspect missing expanded provenance: %s", output)
+	}
+	if !strings.Contains(output, `"branch-expanded"`) || !strings.Contains(output, `"branch-base"`) || !strings.Contains(output, `"direct-hops"`) {
+		t.Fatalf("route scope inspect missing provenance chain: %s", output)
+	}
 }
 
 func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {
