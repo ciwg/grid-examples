@@ -50,7 +50,7 @@ type Runtime struct {
 	commands     map[string]*activePackage
 	families     map[string]registeredFamily
 	routes       []registeredRoute
-	workflows    map[string]Workflow
+	workflows    *WorkflowRegistry
 }
 
 func Open(root string) (*Runtime, error) {
@@ -76,6 +76,15 @@ func Open(root string) (*Runtime, error) {
 		_ = history.Close()
 		return nil, err
 	}
+	// Intent: Rebuild local workflow availability from durable lifecycle events
+	// before any installed package can participate in the runtime. Source: DI-lovek
+	workflowRegistry, err := OpenWorkflowRegistry(filepath.Join(root, "state"))
+	if err != nil {
+		if closeErr := history.Close(); closeErr != nil {
+			return nil, errors.Join(err, closeErr)
+		}
+		return nil, err
+	}
 	runtime := &Runtime{
 		root:         root,
 		packagesRoot: filepath.Join(root, "packages"),
@@ -87,7 +96,7 @@ func Open(root string) (*Runtime, error) {
 		commands:     map[string]*activePackage{},
 		families:     map[string]registeredFamily{},
 		routes:       []registeredRoute{},
-		workflows:    map[string]Workflow{},
+		workflows:    workflowRegistry,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
