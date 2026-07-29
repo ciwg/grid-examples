@@ -58,6 +58,21 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route list")
 		}
 		return routeList(runtime)
+	case matchesPrefix(args, "route", "scope", "list"):
+		if len(args) != 3 {
+			return errors.New("usage: route scope list")
+		}
+		return routeScopeList(runtime)
+	case matchesPrefix(args, "route", "scope", "set"):
+		if len(args) < 6 || len(args[4:])%2 != 0 {
+			return errors.New("usage: route scope set <name> <kind> <target> [<kind> <target> ...]")
+		}
+		return routeScopeSet(runtime, args[3], args[4:])
+	case matchesPrefix(args, "route", "scope", "remove"):
+		if len(args) != 4 {
+			return errors.New("usage: route scope remove <name>")
+		}
+		return routeScopeRemove(runtime, args[3])
 	case matchesPrefix(args, "route", "policy", "show"):
 		if len(args) != 3 && len(args) != 4 && len(args) != 5 {
 			return errors.New("usage: route policy show [<protocol-pcid> [<role>]]")
@@ -99,28 +114,28 @@ func run(ctx context.Context, args []string) error {
 		return routePolicyRemoveRole(runtime, args[3], args[4])
 	case matchesPrefix(args, "route", "plan"):
 		if len(args) != 3 && len(args) != 4 && len(args) < 6 {
-			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset>] ...]")
+			return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset-or-alias>] ...]")
 		}
 		trace := false
 		filter := kernel.RoutePlanTraceFilter{}
 		if len(args) == 4 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset>] ...]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset-or-alias>] ...]")
 			}
 			trace = true
 		}
 		if len(args) >= 6 {
 			if args[3] != "trace" {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset>] ...]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset-or-alias>] ...]")
 			}
 			if len(args[4:])%2 != 0 {
-				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset>] ...]")
+				return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset-or-alias>] ...]")
 			}
 			trace = true
 			clauses := []kernel.RoutePlanTraceFilterClause{}
 			for index := 4; index < len(args); index += 2 {
 				if args[index] != "candidate" && args[index] != "downstream" && args[index] != "depth" && args[index] != "scope" {
-					return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset>] ...]")
+					return errors.New("usage: route plan <protocol-pcid> [trace [candidate <package-id:role:route-type>|downstream <protocol-pcid>|depth <n|n+>|scope <preset-or-alias>] ...]")
 				}
 				clauses = append(clauses, kernel.RoutePlanTraceFilterClause{
 					Kind:   args[index],
@@ -304,6 +319,50 @@ func routeList(runtime *kernel.Runtime) error {
 			strings.Join(route.EmitsProtocols, ","),
 		)
 	}
+	return nil
+}
+
+func routeScopeList(runtime *kernel.Runtime) error {
+	body, err := json.MarshalIndent(struct {
+		Builtin []string               `json:"builtin"`
+		Local   []grid.TraceScopeAlias `json:"local,omitempty"`
+	}{
+		Builtin: []string{"direct-hops", "deep-hops", "one-branch:<candidate-id>"},
+		Local:   runtime.TraceScopeAliases(),
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+// Intent: Keep reusable local trace views under an explicit CLI family so
+// operators can define routing-inspection aliases without modifying code.
+// Source: DI-bemok
+func routeScopeSet(runtime *kernel.Runtime, name string, args []string) error {
+	clauses := make([]grid.TraceScopeClause, 0, len(args)/2)
+	for index := 0; index < len(args); index += 2 {
+		clauses = append(clauses, grid.TraceScopeClause{
+			Kind:   args[index],
+			Target: args[index+1],
+		})
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name:    name,
+		Clauses: clauses,
+	}); err != nil {
+		return err
+	}
+	fmt.Printf("route scope set %s\n", name)
+	return nil
+}
+
+func routeScopeRemove(runtime *kernel.Runtime, name string) error {
+	if err := runtime.RemoveTraceScopeAlias(name); err != nil {
+		return err
+	}
+	fmt.Printf("route scope removed %s\n", name)
 	return nil
 }
 

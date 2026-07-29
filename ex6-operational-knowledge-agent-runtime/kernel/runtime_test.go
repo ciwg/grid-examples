@@ -1035,6 +1035,73 @@ func TestProtocolRoutePlanTraceCanUseNamedScopes(t *testing.T) {
 	}
 }
 
+func TestProtocolRoutePlanTraceCanUseLocalScopeAliases(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	nested := kernel.BuiltinPackage{
+		Manifest: pkgmeta.Manifest{
+			ID:      "alias-parser",
+			Version: "0.1.0",
+			Claims: []pkgmeta.ImplementationClaim{
+				{
+					ProtocolPCID:   "pcid:moks.alias.root.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.alias.mid.v1"},
+					Summary:        "Root parser.",
+				},
+				{
+					ProtocolPCID:   "pcid:moks.alias.mid.v1",
+					Role:           "parser",
+					RouteType:      "parser",
+					EmitsProtocols: []string{"pcid:moks.alias.leaf.v1"},
+					Summary:        "Mid parser.",
+				},
+				{
+					ProtocolPCID: "pcid:moks.alias.leaf.v1",
+					Role:         "handler",
+					Summary:      "Leaf handler.",
+				},
+			},
+		},
+		Commands:   map[string]kernel.BuiltinCommand{},
+		Validators: map[string]kernel.BuiltinValidator{},
+	}
+	if err := runtime.RegisterBuiltin(nested); err != nil {
+		t.Fatalf("register alias parser: %v", err)
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "mid-only",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "downstream", Target: "pcid:moks.alias.mid.v1"},
+			{Kind: "depth", Target: "1"},
+		},
+	}); err != nil {
+		t.Fatalf("set trace scope alias: %v", err)
+	}
+	filtered := runtime.ProtocolRoutePlanTraceFocused("pcid:moks.alias.root.v1", kernel.RoutePlanTraceFilter{
+		Clauses: []kernel.RoutePlanTraceFilterClause{
+			{Kind: "scope", Target: "mid-only"},
+		},
+	})
+	if filtered.Explanation == nil || len(filtered.Explanation.DownstreamTraceSummaries) != 1 {
+		t.Fatalf("expected one alias-filtered downstream summary, got %#v", filtered.Explanation)
+	}
+	summary := filtered.Explanation.DownstreamTraceSummaries[0]
+	if summary.ProtocolPCID != "pcid:moks.alias.mid.v1" || summary.HopDepth != 1 {
+		t.Fatalf("unexpected alias-filtered downstream summary: %#v", summary)
+	}
+	if filtered.Explanation.TraceSummary == nil || filtered.Explanation.TraceSummary.Filter == nil || filtered.Explanation.TraceSummary.Filter.Clauses[0].Target != "mid-only" {
+		t.Fatalf("expected original alias filter to remain visible in trace summary, got %#v", filtered.Explanation.TraceSummary)
+	}
+}
+
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
 	runtime, err := kernel.Open(runtimeRoot)

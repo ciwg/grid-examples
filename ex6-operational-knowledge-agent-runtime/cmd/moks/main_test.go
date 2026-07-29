@@ -217,6 +217,30 @@ func TestRoutePlanTraceCanUseNamedScope(t *testing.T) {
 	}
 }
 
+func TestRoutePlanTraceCanUseLocalScopeAlias(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "root-only", "depth", "0"); err != nil {
+		t.Fatalf("route scope set: %v", err)
+	}
+	listOutput, err := runCLI(t, workdir, "route", "scope", "list")
+	if err != nil {
+		t.Fatalf("route scope list: %v", err)
+	}
+	if !strings.Contains(listOutput, `"name": "root-only"`) {
+		t.Fatalf("route scope list missing local alias: %s", listOutput)
+	}
+	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "scope", "root-only")
+	if err != nil {
+		t.Fatalf("route plan trace local scope alias: %v", err)
+	}
+	if !strings.Contains(output, `"target": "root-only"`) || !strings.Contains(output, `"hop_depth": 0`) {
+		t.Fatalf("local scope alias trace missing alias filter or root depth: %s", output)
+	}
+	if _, err := runCLI(t, workdir, "route", "scope", "remove", "root-only"); err != nil {
+		t.Fatalf("route scope remove: %v", err)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

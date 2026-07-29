@@ -260,6 +260,14 @@ func (runtime *Runtime) ProtocolRoleRoutePlanPolicy(protocolPCID string, role st
 	return runtime.policies.ProtocolRoleRoutePlanPolicy(protocolPCID, role)
 }
 
+func (runtime *Runtime) TraceScopeAliases() []grid.TraceScopeAlias {
+	return runtime.policies.TraceScopeAliases()
+}
+
+func (runtime *Runtime) TraceScopeAlias(name string) (grid.TraceScopeAlias, bool) {
+	return runtime.policies.TraceScopeAlias(name)
+}
+
 func (runtime *Runtime) EffectiveRoutePlanPolicy(protocolPCID string) grid.RoutePlanPolicy {
 	return runtime.policies.EffectiveRoutePlanPolicy(protocolPCID)
 }
@@ -280,12 +288,26 @@ func (runtime *Runtime) SetProtocolRoleRoutePlanPolicy(protocolPCID string, role
 	return runtime.policies.SetProtocolRoleRoutePlanPolicy(protocolPCID, role, policy)
 }
 
+// Intent: Keep reusable trace-view naming under runtime-owned policy state so
+// operators can define local routing inspection vocabularies without editing
+// code or changing the built-in scope presets. Source: DI-bemok
+func (runtime *Runtime) SetTraceScopeAlias(alias grid.TraceScopeAlias) error {
+	if _, builtIn := builtinTraceScopeClauses(alias.Name); builtIn {
+		return fmt.Errorf("trace scope alias conflicts with built-in scope: %s", alias.Name)
+	}
+	return runtime.policies.SetTraceScopeAlias(alias)
+}
+
 func (runtime *Runtime) RemoveProtocolRoutePlanPolicy(protocolPCID string) error {
 	return runtime.policies.RemoveProtocolRoutePlanPolicy(protocolPCID)
 }
 
 func (runtime *Runtime) RemoveProtocolRoleRoutePlanPolicy(protocolPCID string, role string) error {
 	return runtime.policies.RemoveProtocolRoleRoutePlanPolicy(protocolPCID, role)
+}
+
+func (runtime *Runtime) RemoveTraceScopeAlias(name string) error {
+	return runtime.policies.RemoveTraceScopeAlias(name)
 }
 
 func (runtime *Runtime) SetClaimPolicy(policy grid.ClaimTrustPolicy) error {

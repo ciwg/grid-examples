@@ -39,11 +39,22 @@ type ProtocolRoleRoutePlanPolicy struct {
 	RoutePlanPolicy
 }
 
+type TraceScopeClause struct {
+	Kind   string `json:"kind"`
+	Target string `json:"target"`
+}
+
+type TraceScopeAlias struct {
+	Name    string             `json:"name"`
+	Clauses []TraceScopeClause `json:"clauses"`
+}
+
 type TrustPolicy struct {
 	ClaimPolicies                 []ClaimTrustPolicy            `json:"claim_policies"`
 	RoutePlanPolicy               RoutePlanPolicy               `json:"route_plan_policy,omitempty"`
 	ProtocolRoutePlanPolicies     []ProtocolRoutePlanPolicy     `json:"protocol_route_plan_policies,omitempty"`
 	ProtocolRoleRoutePlanPolicies []ProtocolRoleRoutePlanPolicy `json:"protocol_role_route_plan_policies,omitempty"`
+	TraceScopeAliases             []TraceScopeAlias             `json:"trace_scope_aliases,omitempty"`
 }
 
 type PolicyStore struct {
@@ -136,6 +147,28 @@ func (store *PolicyStore) ProtocolRoleRoutePlanPolicy(protocolPCID string, role 
 		}
 	}
 	return RoutePlanPolicy{}, false
+}
+
+func (store *PolicyStore) TraceScopeAliases() []TraceScopeAlias {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	out := make([]TraceScopeAlias, 0, len(store.policy.TraceScopeAliases))
+	for _, alias := range store.policy.TraceScopeAliases {
+		out = append(out, cloneTraceScopeAlias(alias))
+	}
+	return out
+}
+
+func (store *PolicyStore) TraceScopeAlias(name string) (TraceScopeAlias, bool) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	name = strings.TrimSpace(name)
+	for _, alias := range store.policy.TraceScopeAliases {
+		if alias.Name == name {
+			return cloneTraceScopeAlias(alias), true
+		}
+	}
+	return TraceScopeAlias{}, false
 }
 
 // Intent: Let route planning keep one global default policy while still
@@ -245,6 +278,28 @@ func (store *PolicyStore) SetProtocolRoleRoutePlanPolicy(protocolPCID string, ro
 	return store.persistLocked()
 }
 
+func (store *PolicyStore) SetTraceScopeAlias(alias TraceScopeAlias) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	alias = normalizeTraceScopeAlias(alias)
+	if err := validateTraceScopeAlias(alias); err != nil {
+		return err
+	}
+	replaced := false
+	for index := range store.policy.TraceScopeAliases {
+		if store.policy.TraceScopeAliases[index].Name == alias.Name {
+			store.policy.TraceScopeAliases[index] = alias
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		store.policy.TraceScopeAliases = append(store.policy.TraceScopeAliases, alias)
+	}
+	sortTraceScopeAliases(store.policy.TraceScopeAliases)
+	return store.persistLocked()
+}
+
 func (store *PolicyStore) RemoveProtocolRoutePlanPolicy(protocolPCID string) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -283,6 +338,26 @@ func (store *PolicyStore) RemoveProtocolRoleRoutePlanPolicy(protocolPCID string,
 		return fmt.Errorf("unknown protocol role route plan policy: %s %s", protocolPCID, role)
 	}
 	store.policy.ProtocolRoleRoutePlanPolicies = filtered
+	return store.persistLocked()
+}
+
+func (store *PolicyStore) RemoveTraceScopeAlias(name string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	name = strings.TrimSpace(name)
+	filtered := store.policy.TraceScopeAliases[:0]
+	found := false
+	for _, alias := range store.policy.TraceScopeAliases {
+		if alias.Name == name {
+			found = true
+			continue
+		}
+		filtered = append(filtered, alias)
+	}
+	if !found {
+		return fmt.Errorf("unknown trace scope alias: %s", name)
+	}
+	store.policy.TraceScopeAliases = filtered
 	return store.persistLocked()
 }
 
@@ -440,9 +515,22 @@ func (store *PolicyStore) validateLocked() error {
 		roleSeen[key] = struct{}{}
 		store.policy.ProtocolRoleRoutePlanPolicies[index] = policy
 	}
+	aliasSeen := map[string]struct{}{}
+	for index, alias := range store.policy.TraceScopeAliases {
+		alias = normalizeTraceScopeAlias(alias)
+		if err := validateTraceScopeAlias(alias); err != nil {
+			return err
+		}
+		if _, exists := aliasSeen[alias.Name]; exists {
+			return fmt.Errorf("duplicate trace scope alias: %s", alias.Name)
+		}
+		aliasSeen[alias.Name] = struct{}{}
+		store.policy.TraceScopeAliases[index] = alias
+	}
 	sortClaimPolicies(store.policy.ClaimPolicies)
 	sortProtocolRoutePlanPolicies(store.policy.ProtocolRoutePlanPolicies)
 	sortProtocolRoleRoutePlanPolicies(store.policy.ProtocolRoleRoutePlanPolicies)
+	sortTraceScopeAliases(store.policy.TraceScopeAliases)
 	return nil
 }
 
@@ -621,6 +709,20 @@ func cloneProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) Protoc
 	}
 }
 
+func cloneTraceScopeAlias(alias TraceScopeAlias) TraceScopeAlias {
+	out := TraceScopeAlias{
+		Name:    alias.Name,
+		Clauses: make([]TraceScopeClause, 0, len(alias.Clauses)),
+	}
+	for _, clause := range alias.Clauses {
+		out.Clauses = append(out.Clauses, TraceScopeClause{
+			Kind:   clause.Kind,
+			Target: clause.Target,
+		})
+	}
+	return out
+}
+
 func normalizeProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) ProtocolRoutePlanPolicy {
 	policy.ProtocolPCID = strings.TrimSpace(policy.ProtocolPCID)
 	policy.RoutePlanPolicy = normalizeRoutePlanPolicy(policy.RoutePlanPolicy)
@@ -641,6 +743,24 @@ func validateProtocolRoutePlanPolicy(policy ProtocolRoutePlanPolicy) error {
 	return validateRoutePlanPolicy(policy.RoutePlanPolicy)
 }
 
+func normalizeTraceScopeAlias(alias TraceScopeAlias) TraceScopeAlias {
+	alias.Name = strings.TrimSpace(alias.Name)
+	out := make([]TraceScopeClause, 0, len(alias.Clauses))
+	for _, clause := range alias.Clauses {
+		kind := strings.TrimSpace(clause.Kind)
+		target := strings.TrimSpace(clause.Target)
+		if kind == "" || target == "" {
+			continue
+		}
+		out = append(out, TraceScopeClause{
+			Kind:   kind,
+			Target: target,
+		})
+	}
+	alias.Clauses = out
+	return alias
+}
+
 func validateProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) error {
 	if policy.ProtocolPCID == "" {
 		return errors.New("protocol_pcid is required")
@@ -649,6 +769,24 @@ func validateProtocolRoleRoutePlanPolicy(policy ProtocolRoleRoutePlanPolicy) err
 		return errors.New("role is required")
 	}
 	return validateRoutePlanPolicy(policy.RoutePlanPolicy)
+}
+
+func validateTraceScopeAlias(alias TraceScopeAlias) error {
+	if alias.Name == "" {
+		return errors.New("trace scope alias name is required")
+	}
+	if len(alias.Clauses) == 0 {
+		return errors.New("trace scope alias clauses are required")
+	}
+	for _, clause := range alias.Clauses {
+		if strings.TrimSpace(clause.Kind) == "" {
+			return errors.New("trace scope alias clause kind is required")
+		}
+		if strings.TrimSpace(clause.Target) == "" {
+			return errors.New("trace scope alias clause target is required")
+		}
+	}
+	return nil
 }
 
 func effectiveRoutePlanPolicyLocked(global RoutePlanPolicy, overrides []ProtocolRoutePlanPolicy, protocolPCID string) RoutePlanPolicy {
@@ -723,6 +861,12 @@ func sortProtocolRoleRoutePlanPolicies(policies []ProtocolRoleRoutePlanPolicy) {
 			return strings.Compare(left.ProtocolPCID, right.ProtocolPCID)
 		}
 		return strings.Compare(left.Role, right.Role)
+	})
+}
+
+func sortTraceScopeAliases(aliases []TraceScopeAlias) {
+	slices.SortFunc(aliases, func(left, right TraceScopeAlias) int {
+		return strings.Compare(left.Name, right.Name)
 	})
 }
 

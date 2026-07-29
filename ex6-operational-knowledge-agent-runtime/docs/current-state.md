@@ -30,6 +30,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - route-plan trace now supports depth filtering
 - route-plan trace now supports combined filters
 - route-plan trace now supports named scopes for common views
+- route-plan trace now supports local operator-defined scope aliases via `moks route scope`
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

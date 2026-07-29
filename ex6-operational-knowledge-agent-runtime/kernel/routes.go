@@ -175,11 +175,85 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	if plan.Explanation == nil {
 		return plan
 	}
+	resolvedFilter := runtime.resolveTraceScopeFilter(filter)
 	fullTrace := append([]RoutePlanTraceStep{}, plan.Explanation.Trace...)
-	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, filter)
+	plan.Explanation.Trace = filterRoutePlanTrace(plan.Explanation.Trace, resolvedFilter)
 	plan.Explanation.TraceSummary = traceSummary(protocolPCID, "root", "root", "root", 0, 0, fullTrace, plan.Explanation.Trace, filter)
-	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, filter)
+	plan.Explanation.DownstreamTraceSummaries = filterDownstreamTraceSummaries(plan.Explanation.DownstreamTraceSummaries, resolvedFilter)
 	return plan
+}
+
+// Intent: Let built-in and operator-defined named scopes share one trace
+// filtering surface by expanding scope clauses into ordinary clause lists
+// before the planner filters steps and downstream summaries. Source: DI-bemok
+func (runtime *Runtime) resolveTraceScopeFilter(filter RoutePlanTraceFilter) RoutePlanTraceFilter {
+	if len(filter.Clauses) == 0 {
+		return filter
+	}
+	resolved := RoutePlanTraceFilter{}
+	for _, clause := range filter.Clauses {
+		kind := strings.TrimSpace(clause.Kind)
+		target := strings.TrimSpace(clause.Target)
+		if kind == "" || target == "" {
+			resolved.Clauses = append(resolved.Clauses, clause)
+			continue
+		}
+		if kind != "scope" {
+			resolved.Clauses = append(resolved.Clauses, RoutePlanTraceFilterClause{Kind: kind, Target: target})
+			continue
+		}
+		resolved.Clauses = append(resolved.Clauses, runtime.resolveTraceScopeClauses(target, map[string]struct{}{})...)
+	}
+	return resolved
+}
+
+func (runtime *Runtime) resolveTraceScopeClauses(target string, seen map[string]struct{}) []RoutePlanTraceFilterClause {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return nil
+	}
+	if clauses, ok := builtinTraceScopeClauses(target); ok {
+		return clauses
+	}
+	if _, exists := seen[target]; exists {
+		return nil
+	}
+	alias, ok := runtime.TraceScopeAlias(target)
+	if !ok {
+		return nil
+	}
+	seen[target] = struct{}{}
+	defer delete(seen, target)
+	resolved := []RoutePlanTraceFilterClause{}
+	for _, clause := range alias.Clauses {
+		kind := strings.TrimSpace(clause.Kind)
+		clauseTarget := strings.TrimSpace(clause.Target)
+		if kind == "" || clauseTarget == "" {
+			continue
+		}
+		if kind == "scope" {
+			resolved = append(resolved, runtime.resolveTraceScopeClauses(clauseTarget, seen)...)
+			continue
+		}
+		resolved = append(resolved, RoutePlanTraceFilterClause{
+			Kind:   kind,
+			Target: clauseTarget,
+		})
+	}
+	return resolved
+}
+
+func builtinTraceScopeClauses(target string) ([]RoutePlanTraceFilterClause, bool) {
+	switch {
+	case target == "direct-hops":
+		return []RoutePlanTraceFilterClause{{Kind: "depth", Target: "1"}}, true
+	case target == "deep-hops":
+		return []RoutePlanTraceFilterClause{{Kind: "depth", Target: "2+"}}, true
+	case strings.HasPrefix(target, "one-branch:"):
+		return []RoutePlanTraceFilterClause{{Kind: "candidate", Target: strings.TrimPrefix(target, "one-branch:")}}, true
+	default:
+		return nil, false
+	}
 }
 
 func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]struct{}, trace *routePlanTraceRecorder) RoutePlan {
@@ -406,16 +480,11 @@ func stepMatchesFilter(step RoutePlanTraceStep, filter RoutePlanTraceFilter) boo
 }
 
 func stepMatchesScope(step RoutePlanTraceStep, target string) bool {
-	switch {
-	case target == "direct-hops":
-		return stepMatchesDepth(step, "1")
-	case target == "deep-hops":
-		return stepMatchesDepth(step, "2+")
-	case strings.HasPrefix(target, "one-branch:"):
-		return stepMatchesCandidate(step, strings.TrimPrefix(target, "one-branch:"))
-	default:
+	clauses, ok := builtinTraceScopeClauses(target)
+	if !ok {
 		return true
 	}
+	return stepMatchesFilter(step, RoutePlanTraceFilter{Clauses: clauses})
 }
 
 func stepMatchesCandidate(step RoutePlanTraceStep, target string) bool {
@@ -575,17 +644,11 @@ func summaryMatchesFilter(summary RoutePlanTraceSummary, filter RoutePlanTraceFi
 }
 
 func summaryMatchesScope(summary RoutePlanTraceSummary, target string) bool {
-	switch {
-	case target == "direct-hops":
-		return summaryMatchesDepth(summary, "1")
-	case target == "deep-hops":
-		return summaryMatchesDepth(summary, "2+")
-	case strings.HasPrefix(target, "one-branch:"):
-		branch := strings.TrimPrefix(target, "one-branch:")
-		return strings.Contains(summary.HopPath, branch) || strings.Contains(summary.HopSummary, branch)
-	default:
+	clauses, ok := builtinTraceScopeClauses(target)
+	if !ok {
 		return true
 	}
+	return summaryMatchesFilter(summary, RoutePlanTraceFilter{Clauses: clauses})
 }
 
 func summaryMatchesDepth(summary RoutePlanTraceSummary, target string) bool {

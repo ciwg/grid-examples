@@ -185,3 +185,11 @@ Decision: Add named trace scopes as clause presets, with `direct-hops`, `deep-ho
 Intent: Let operators request common routing views without spelling every clause manually.
 Constraints: Keep presets as syntactic sugar over the current clause engine; preserve combined filters; treat unknown scopes as no-op fallback to the full trace.
 Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-bemok
+Date: 2026-07-29 09:18:00
+Status: active
+Decision: Add runtime-owned local trace scope aliases, persist them beside the existing route policy state, expose them through a `route scope` CLI family, and resolve them as additional `scope` targets during trace filtering.
+Intent: Let operators define reusable local trace views without editing code or being limited to the built-in named scopes.
+Constraints: Keep built-in scopes working unchanged; treat local aliases as additive operator configuration; preserve unknown-scope no-op fallback; keep alias resolution deterministic and non-executing.
+Affects: `grid/policy.go`, `kernel/runtime.go`, `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
