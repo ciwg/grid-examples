@@ -291,6 +291,7 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 	if !ok {
 		return RouteScopeInspection{}, false
 	}
+	rawQuery := query
 	query = normalizeRouteScopeGroupQuery(query)
 	totalGroups := len(inspection.Groups)
 	inspection.Groups = applyRouteScopeGroupQuery(inspection.Groups, query)
@@ -304,8 +305,8 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 		}
 	}
 	inspection.Skipped = filteredSkipped
-	if routeScopeGroupQueryActive(query) {
-		queryCopy := query
+	if routeScopeGroupQueryRequested(rawQuery) {
+		queryCopy := rawQuery
 		inspection.ActiveQuery = &queryCopy
 		inspection.QuerySummary = &RouteScopeGroupQuerySummary{
 			TotalGroups:   totalGroups,
@@ -313,7 +314,7 @@ func (runtime *Runtime) InspectTraceScopeWithQuery(name string, query RouteScope
 			HiddenGroups:  totalGroups - len(inspection.Groups),
 			Ordering:      routeScopeGroupQueryOrdering(query),
 		}
-		inspection.QueryDiagnostics = routeScopeGroupQueryDiagnostics(query, totalGroups, inspection.Groups)
+		inspection.QueryDiagnostics = routeScopeGroupQueryDiagnostics(rawQuery, query, totalGroups, inspection.Groups)
 	}
 	return inspection, true
 }
@@ -536,7 +537,7 @@ func routeScopeGroupQueryOrdering(query RouteScopeGroupQuery) string {
 // scope inspection output so operators can tell whether default ordering or
 // zero visible branches came from query shape rather than from missing data.
 // Source: DI-pusek
-func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int, groups []RouteScopeGroup) *RouteScopeGroupQueryDiagnostics {
+func routeScopeGroupQueryDiagnostics(rawQuery RouteScopeGroupQuery, query RouteScopeGroupQuery, totalGroups int, groups []RouteScopeGroup) *RouteScopeGroupQueryDiagnostics {
 	diagnostics := &RouteScopeGroupQueryDiagnostics{}
 	if routeScopeGroupQueryInvalidSort(query.SortBy) {
 		diagnostics.DefaultOrderingApplied = true
@@ -545,7 +546,7 @@ func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int
 		diagnostics.DefaultOrderingApplied = true
 		diagnostics.DefaultOrderingReason = "no sort provided; defaulted to label ordering"
 	}
-	if ignored := routeScopeGroupIgnoredFilters(query); len(ignored) != 0 {
+	if ignored := routeScopeGroupIgnoredFilters(rawQuery, query); len(ignored) != 0 {
 		diagnostics.IgnoredFilters = ignored
 	}
 	if len(groups) == 0 {
@@ -562,7 +563,14 @@ func routeScopeGroupQueryUsesFilters(query RouteScopeGroupQuery) bool {
 	return query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
 }
 
-func routeScopeGroupIgnoredFilters(query RouteScopeGroupQuery) []string {
+func routeScopeGroupQueryRequested(query RouteScopeGroupQuery) bool {
+	return query.SortBy != "" || query.DepthFilter != "" || query.LabelFilter != "" || query.SummaryFilter != ""
+}
+
+// Intent: Preserve operator visibility into branch-query inputs that trimmed
+// away or failed validation so scope inspection explains why those inputs had
+// no effect on grouped-branch filtering. Source: DI-zusev
+func routeScopeGroupIgnoredFilters(rawQuery RouteScopeGroupQuery, query RouteScopeGroupQuery) []string {
 	ignored := []string{}
 	if routeScopeGroupQueryInvalidSort(query.SortBy) {
 		ignored = append(ignored, "sort "+strconv.Quote(query.SortBy)+" ignored: expected depth, label, or summary")
@@ -571,6 +579,12 @@ func routeScopeGroupIgnoredFilters(query RouteScopeGroupQuery) []string {
 		if _, _, ok := parseDepthFilter(query.DepthFilter); !ok {
 			ignored = append(ignored, "depth filter "+strconv.Quote(query.DepthFilter)+" ignored: expected <n> or <n+>")
 		}
+	}
+	if rawQuery.LabelFilter != "" && query.LabelFilter == "" {
+		ignored = append(ignored, "label filter "+strconv.Quote(rawQuery.LabelFilter)+" ignored: expected non-whitespace text")
+	}
+	if rawQuery.SummaryFilter != "" && query.SummaryFilter == "" {
+		ignored = append(ignored, "summary filter "+strconv.Quote(rawQuery.SummaryFilter)+" ignored: expected non-whitespace text")
 	}
 	return ignored
 }

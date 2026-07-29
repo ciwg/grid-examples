@@ -370,6 +370,13 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if !strings.Contains(invalidSortOutput, `"matched_groups": 3`) || !strings.Contains(invalidSortOutput, `"hidden_groups": 0`) || !strings.Contains(invalidSortOutput, `"ordering": "label"`) || !strings.Contains(invalidSortOutput, `"default_ordering_reason": "invalid sort ignored; defaulted to label ordering"`) || !strings.Contains(invalidSortOutput, `"sort \"weird\" ignored: expected depth, label, or summary"`) {
 		t.Fatalf("route scope inspect missing invalid-sort diagnostics: %s", invalidSortOutput)
 	}
+	invalidTextOutput, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "label", "   ", "summary", "\t")
+	if err != nil {
+		t.Fatalf("route scope inspect with invalid text filters: %v", err)
+	}
+	if !strings.Contains(invalidTextOutput, `"matched_groups": 3`) || !strings.Contains(invalidTextOutput, `"hidden_groups": 0`) || !strings.Contains(invalidTextOutput, `"label_filter": "   "`) || !strings.Contains(invalidTextOutput, `"summary_filter": "\t"`) || !strings.Contains(invalidTextOutput, `"label filter \"   \" ignored: expected non-whitespace text"`) || !strings.Contains(invalidTextOutput, `"summary filter \"\\t\" ignored: expected non-whitespace text"`) {
+		t.Fatalf("route scope inspect missing invalid-text diagnostics: %s", invalidTextOutput)
+	}
 }
 
 func TestRoutePolicySetAndShow(t *testing.T) {

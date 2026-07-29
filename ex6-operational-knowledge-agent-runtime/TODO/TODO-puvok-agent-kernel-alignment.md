@@ -289,3 +289,11 @@ Decision: Report invalid sort values as ignored filters and explain that grouped
 Intent: Let operators distinguish an invalid `sort` input from a deliberate label-sort query.
 Constraints: Keep invalid-sort reporting read-only; preserve current grouped branch behavior; do not turn invalid sort values into command errors in this slice.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-zusev
+Date: 2026-07-29 10:38:02
+Status: active
+Decision: Report degenerate whitespace-only label and summary filters as ignored filters in scope inspection diagnostics.
+Intent: Let operators see when a text filter was syntactically present in the query but trimmed away before grouped-branch matching.
+Constraints: Keep degenerate-text reporting read-only; preserve current grouped branch behavior; do not turn whitespace-only text filters into command errors in this slice.
+Affects: `kernel/routes.go`, tests, and routing docs.

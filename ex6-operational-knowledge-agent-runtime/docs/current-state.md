@@ -43,6 +43,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - route scope inspection now also explains when label ordering was applied by default and when a branch query matched zero grouped branches
 - invalid branch-query values such as malformed depth filters now appear in diagnostics as ignored filters
 - invalid sort values now also appear in diagnostics and explain when label ordering was used as the fallback
+- degenerate whitespace-only label and summary filters now also appear in diagnostics as ignored filters
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`
