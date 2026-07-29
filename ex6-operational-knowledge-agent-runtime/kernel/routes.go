@@ -83,6 +83,8 @@ type RouteScopeExpandedClause struct {
 }
 
 type RouteScopeGroup struct {
+	Label   string                       `json:"label"`
+	Summary string                       `json:"summary,omitempty"`
 	Branch  []string                     `json:"branch"`
 	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
 }
@@ -362,9 +364,11 @@ func groupExpandedClauses(details []RouteScopeExpandedClause) []RouteScopeGroup 
 		entry.clauses = append(entry.clauses, detail.Clause)
 	}
 	out := make([]RouteScopeGroup, 0, len(order))
-	for _, key := range order {
+	for index, key := range order {
 		entry := seen[key]
 		out = append(out, RouteScopeGroup{
+			Label:   "branch-" + strconv.Itoa(index+1),
+			Summary: strings.Join(entry.branch, " > "),
 			Branch:  entry.branch,
 			Clauses: entry.clauses,
 		})

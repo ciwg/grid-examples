@@ -1154,11 +1154,20 @@ func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
 	if len(inspection.Groups) != 3 {
 		t.Fatalf("expected grouped provenance branches, got %#v", inspection.Groups)
 	}
+	if inspection.Groups[0].Label != "branch-1" || inspection.Groups[0].Summary != "composed-scope > base-scope > direct-hops" {
+		t.Fatalf("unexpected first grouped branch label/summary, got %#v", inspection.Groups[0])
+	}
 	if len(inspection.Groups[0].Branch) != 3 || inspection.Groups[0].Branch[0] != "composed-scope" {
 		t.Fatalf("unexpected first grouped branch, got %#v", inspection.Groups[0])
 	}
+	if inspection.Groups[1].Label != "branch-2" || inspection.Groups[1].Summary != "composed-scope > base-scope" {
+		t.Fatalf("unexpected second grouped branch label/summary, got %#v", inspection.Groups[1])
+	}
 	if len(inspection.Groups[1].Branch) != 2 || inspection.Groups[1].Branch[1] != "base-scope" {
 		t.Fatalf("unexpected second grouped branch, got %#v", inspection.Groups[1])
+	}
+	if inspection.Groups[2].Label != "branch-3" || inspection.Groups[2].Summary != "composed-scope" {
+		t.Fatalf("unexpected third grouped branch label/summary, got %#v", inspection.Groups[2])
 	}
 	if len(inspection.Groups[2].Branch) != 1 || inspection.Groups[2].Branch[0] != "composed-scope" {
 		t.Fatalf("unexpected third grouped branch, got %#v", inspection.Groups[2])
@@ -1170,7 +1179,7 @@ func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
 	if len(builtin.ExpandedDetails) != 1 || len(builtin.ExpandedDetails[0].Provenance) != 1 || builtin.ExpandedDetails[0].Provenance[0] != "direct-hops" {
 		t.Fatalf("unexpected built-in scope provenance: %#v", builtin.ExpandedDetails)
 	}
-	if len(builtin.Groups) != 1 || len(builtin.Groups[0].Branch) != 1 || builtin.Groups[0].Branch[0] != "direct-hops" {
+	if len(builtin.Groups) != 1 || builtin.Groups[0].Label != "branch-1" || builtin.Groups[0].Summary != "direct-hops" || len(builtin.Groups[0].Branch) != 1 || builtin.Groups[0].Branch[0] != "direct-hops" {
 		t.Fatalf("unexpected built-in grouped branch: %#v", builtin.Groups)
 	}
 }

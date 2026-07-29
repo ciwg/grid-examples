@@ -271,6 +271,9 @@ func TestRouteScopeInspectShowsExpandedAliasClauses(t *testing.T) {
 	if !strings.Contains(output, `"groups"`) || !strings.Contains(output, `"branch"`) {
 		t.Fatalf("route scope inspect missing grouped branches: %s", output)
 	}
+	if !strings.Contains(output, `"label": "branch-1"`) || !strings.Contains(output, `"summary": "branch-expanded`) || !strings.Contains(output, `branch-base`) || !strings.Contains(output, `direct-hops`) {
+		t.Fatalf("route scope inspect missing branch label or summary: %s", output)
+	}
 }
 
 func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {

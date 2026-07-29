@@ -225,3 +225,11 @@ Decision: Add grouped scope inspection views that collect expanded clauses by pr
 Intent: Let operators inspect composed scopes branch-by-branch instead of reconstructing branch structure from a flat clause list.
 Constraints: Keep grouping deterministic; do not change expansion order or filtering behavior; treat grouping as additional inspection output only.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-busek
+Date: 2026-07-29 10:26:00
+Status: active
+Decision: Add a short deterministic label and a human-readable summary string for each grouped provenance branch in scope inspection output.
+Intent: Let operators scan grouped branches quickly without parsing the raw provenance path array first.
+Constraints: Keep labels deterministic from grouped-branch order; preserve the raw provenance branch array; do not change grouping or filtering behavior.
+Affects: `kernel/routes.go`, tests, and routing docs.
