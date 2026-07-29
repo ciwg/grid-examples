@@ -297,3 +297,20 @@ Decision: Report degenerate whitespace-only label and summary filters as ignored
 Intent: Let operators see when a text filter was syntactically present in the query but trimmed away before grouped-branch matching.
 Constraints: Keep degenerate-text reporting read-only; preserve current grouped branch behavior; do not turn whitespace-only text filters into command errors in this slice.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-lovek
+Date: 2026-07-29 13:59:57
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Model workflows as immutable imported artifacts with append-only local lifecycle events and a rebuildable registry projection; support both local package-directory capture into CAS and direct CAS artifact import; distinguish `deactivated` from `revoked`; expose `ImportWorkflow`, `ActivateWorkflow`, `DeactivateWorkflow`, `RevokeWorkflow`, and `Workflows`.
+Intent: Preserve grid-visible artifact provenance and historical interpretation while making route and Docker-worker eligibility an explicit local lifecycle decision rather than an automatic consequence of import.
+Constraints: Import must not grant execution authority; deactivation/revocation must never delete CAS artifacts or durable record history; replacement is additive by artifact CID; lifecycle state is local runtime mechanics and not a new top-level PromiseGrid action kind.
+Affects: `kernel/workflows.go`, runtime lifecycle persistence and startup, package/CAS import translation, Docker-worker eligibility, tests, and operator documentation.
+
+## Alignment Implementation Queue
+
+- [ ] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk)
+- [ ] Split workflow import from explicit activation; route and worker eligibility require active state. (DI-lovek; TE-gavuk)
+- [ ] Add separate deactivation and revocation withdrawal paths without deleting CAS or durable history. (DI-lovek; TE-gavuk)
+- [ ] Model pCID-scoped app receive promises and routing-role delivery promises before route-plan execution. (TE-ravuk)
+- [ ] Bind Docker worker dispatch only to active registered receive promises and record local lifecycle events. (TE-dovek; DI-lovek)

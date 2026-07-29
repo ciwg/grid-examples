@@ -50,6 +50,7 @@ type Runtime struct {
 	commands     map[string]*activePackage
 	families     map[string]registeredFamily
 	routes       []registeredRoute
+	workflows    map[string]Workflow
 }
 
 func Open(root string) (*Runtime, error) {
@@ -86,6 +87,7 @@ func Open(root string) (*Runtime, error) {
 		commands:     map[string]*activePackage{},
 		families:     map[string]registeredFamily{},
 		routes:       []registeredRoute{},
+		workflows:    map[string]Workflow{},
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
