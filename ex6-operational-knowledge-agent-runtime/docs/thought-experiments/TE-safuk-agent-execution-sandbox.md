@@ -4,7 +4,7 @@ TE ID: TE-safuk
 
 ## Status
 
-needs DF
+superseded by TE-dovek / DI-dovek
 
 ## Decision under test
 
@@ -90,8 +90,10 @@ C is a likely additional execution backend once OKAR defines a stable host ABI. 
 
 ## Decision status
 
-needs DF
+superseded by TE-dovek / DI-dovek
 
 ## Refinements
 
-None.
+### 2026-07-29 — Docker backend supersedence
+
+Superseded by TE-dovek: Docker is the selected first execution backend.
