@@ -363,6 +363,13 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if !strings.Contains(invalidOutput, `"matched_groups": 3`) || !strings.Contains(invalidOutput, `"hidden_groups": 0`) || !strings.Contains(invalidOutput, `"ignored_filters": [`) || !strings.Contains(invalidOutput, `"depth filter \"abc\" ignored: expected \u003cn\u003e or \u003cn+\u003e"`) {
 		t.Fatalf("route scope inspect missing invalid-depth diagnostics: %s", invalidOutput)
 	}
+	invalidSortOutput, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "sort", "weird")
+	if err != nil {
+		t.Fatalf("route scope inspect with invalid sort: %v", err)
+	}
+	if !strings.Contains(invalidSortOutput, `"matched_groups": 3`) || !strings.Contains(invalidSortOutput, `"hidden_groups": 0`) || !strings.Contains(invalidSortOutput, `"ordering": "label"`) || !strings.Contains(invalidSortOutput, `"default_ordering_reason": "invalid sort ignored; defaulted to label ordering"`) || !strings.Contains(invalidSortOutput, `"sort \"weird\" ignored: expected depth, label, or summary"`) {
+		t.Fatalf("route scope inspect missing invalid-sort diagnostics: %s", invalidSortOutput)
+	}
 }
 
 func TestRoutePolicySetAndShow(t *testing.T) {

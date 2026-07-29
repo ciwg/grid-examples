@@ -1340,6 +1340,18 @@ func TestInspectTraceScopeWithQueryOrdersAndFiltersGroups(t *testing.T) {
 	if invalidFiltered.QueryDiagnostics == nil || !invalidFiltered.QueryDiagnostics.DefaultOrderingApplied || len(invalidFiltered.QueryDiagnostics.IgnoredFilters) != 1 || invalidFiltered.QueryDiagnostics.IgnoredFilters[0] != `depth filter "abc" ignored: expected <n> or <n+>` || invalidFiltered.QueryDiagnostics.ZeroMatches {
 		t.Fatalf("expected invalid-depth diagnostics, got %#v", invalidFiltered.QueryDiagnostics)
 	}
+	invalidSort, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{
+		SortBy: "weird",
+	})
+	if !ok || len(invalidSort.Groups) != 3 {
+		t.Fatalf("expected invalid sort to keep all branches visible, got %#v %#v", ok, invalidSort.Groups)
+	}
+	if invalidSort.QuerySummary == nil || invalidSort.QuerySummary.TotalGroups != 3 || invalidSort.QuerySummary.MatchedGroups != 3 || invalidSort.QuerySummary.HiddenGroups != 0 || invalidSort.QuerySummary.Ordering != "label" {
+		t.Fatalf("expected invalid-sort query summary, got %#v", invalidSort.QuerySummary)
+	}
+	if invalidSort.QueryDiagnostics == nil || !invalidSort.QueryDiagnostics.DefaultOrderingApplied || invalidSort.QueryDiagnostics.DefaultOrderingReason != "invalid sort ignored; defaulted to label ordering" || len(invalidSort.QueryDiagnostics.IgnoredFilters) != 1 || invalidSort.QueryDiagnostics.IgnoredFilters[0] != `sort "weird" ignored: expected depth, label, or summary` || invalidSort.QueryDiagnostics.ZeroMatches {
+		t.Fatalf("expected invalid-sort diagnostics, got %#v", invalidSort.QueryDiagnostics)
+	}
 	unfiltered, ok := runtime.InspectTraceScopeWithQuery("ordered-scope", kernel.RouteScopeGroupQuery{})
 	if !ok || unfiltered.ActiveQuery != nil || unfiltered.QuerySummary != nil || unfiltered.QueryDiagnostics != nil {
 		t.Fatalf("expected no active query data for empty query, got %#v %#v %#v %#v", ok, unfiltered.ActiveQuery, unfiltered.QuerySummary, unfiltered.QueryDiagnostics)

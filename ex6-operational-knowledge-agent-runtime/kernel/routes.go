@@ -538,7 +538,10 @@ func routeScopeGroupQueryOrdering(query RouteScopeGroupQuery) string {
 // Source: DI-pusek
 func routeScopeGroupQueryDiagnostics(query RouteScopeGroupQuery, totalGroups int, groups []RouteScopeGroup) *RouteScopeGroupQueryDiagnostics {
 	diagnostics := &RouteScopeGroupQueryDiagnostics{}
-	if query.SortBy == "" && routeScopeGroupQueryUsesFilters(query) {
+	if routeScopeGroupQueryInvalidSort(query.SortBy) {
+		diagnostics.DefaultOrderingApplied = true
+		diagnostics.DefaultOrderingReason = "invalid sort ignored; defaulted to label ordering"
+	} else if query.SortBy == "" && routeScopeGroupQueryUsesFilters(query) {
 		diagnostics.DefaultOrderingApplied = true
 		diagnostics.DefaultOrderingReason = "no sort provided; defaulted to label ordering"
 	}
@@ -561,12 +564,24 @@ func routeScopeGroupQueryUsesFilters(query RouteScopeGroupQuery) bool {
 
 func routeScopeGroupIgnoredFilters(query RouteScopeGroupQuery) []string {
 	ignored := []string{}
+	if routeScopeGroupQueryInvalidSort(query.SortBy) {
+		ignored = append(ignored, "sort "+strconv.Quote(query.SortBy)+" ignored: expected depth, label, or summary")
+	}
 	if query.DepthFilter != "" {
 		if _, _, ok := parseDepthFilter(query.DepthFilter); !ok {
 			ignored = append(ignored, "depth filter "+strconv.Quote(query.DepthFilter)+" ignored: expected <n> or <n+>")
 		}
 	}
 	return ignored
+}
+
+func routeScopeGroupQueryInvalidSort(sortBy string) bool {
+	switch sortBy {
+	case "", "depth", "label", "summary":
+		return false
+	default:
+		return true
+	}
 }
 
 func routeScopeGroupZeroMatchReason(query RouteScopeGroupQuery, totalGroups int) string {
