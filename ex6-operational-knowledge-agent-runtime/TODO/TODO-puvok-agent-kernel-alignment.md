@@ -217,3 +217,11 @@ Decision: Extend trace scope inspection so each expanded clause includes provena
 Intent: Let operators trace an expanded clause back through alias composition instead of only seeing the final flattened clause list.
 Constraints: Keep route filtering behavior unchanged; add provenance only to inspection output; preserve deterministic alias expansion order.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-vusek
+Date: 2026-07-29 10:14:00
+Status: active
+Decision: Add grouped scope inspection views that collect expanded clauses by provenance branch, while keeping the existing flat expanded list.
+Intent: Let operators inspect composed scopes branch-by-branch instead of reconstructing branch structure from a flat clause list.
+Constraints: Keep grouping deterministic; do not change expansion order or filtering behavior; treat grouping as additional inspection output only.
+Affects: `kernel/routes.go`, tests, and routing docs.

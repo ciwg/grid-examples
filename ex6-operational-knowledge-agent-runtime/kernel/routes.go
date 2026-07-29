@@ -68,6 +68,7 @@ type RouteScopeInspection struct {
 	RawClauses      []RoutePlanTraceFilterClause `json:"raw_clauses,omitempty"`
 	ExpandedClauses []RoutePlanTraceFilterClause `json:"expanded_clauses,omitempty"`
 	ExpandedDetails []RouteScopeExpandedClause   `json:"expanded_details,omitempty"`
+	Groups          []RouteScopeGroup            `json:"groups,omitempty"`
 	Skipped         []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
 }
 
@@ -79,6 +80,11 @@ type RouteScopeSkippedBranch struct {
 type RouteScopeExpandedClause struct {
 	Clause     RoutePlanTraceFilterClause `json:"clause"`
 	Provenance []string                   `json:"provenance,omitempty"`
+}
+
+type RouteScopeGroup struct {
+	Branch  []string                     `json:"branch"`
+	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
 }
 
 type RoutePlanTraceSummary struct {
@@ -218,6 +224,7 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 			RawClauses:      cloneTraceFilterClauses(clauses),
 			ExpandedClauses: cloneTraceFilterClauses(clauses),
 			ExpandedDetails: details,
+			Groups:          groupExpandedClauses(details),
 		}, true
 	}
 	alias, ok := runtime.TraceScopeAlias(name)
@@ -239,6 +246,7 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 		RawClauses:      raw,
 		ExpandedClauses: rawClausesFromExpanded(details),
 		ExpandedDetails: details,
+		Groups:          groupExpandedClauses(details),
 		Skipped:         skipped,
 	}, true
 }
@@ -330,6 +338,36 @@ func rawClausesFromExpanded(details []RouteScopeExpandedClause) []RoutePlanTrace
 	out := make([]RoutePlanTraceFilterClause, 0, len(details))
 	for _, detail := range details {
 		out = append(out, detail.Clause)
+	}
+	return out
+}
+
+func groupExpandedClauses(details []RouteScopeExpandedClause) []RouteScopeGroup {
+	type grouped struct {
+		branch  []string
+		clauses []RoutePlanTraceFilterClause
+	}
+	order := []string{}
+	seen := map[string]*grouped{}
+	for _, detail := range details {
+		key := strings.Join(detail.Provenance, " > ")
+		entry, ok := seen[key]
+		if !ok {
+			entry = &grouped{
+				branch: append([]string{}, detail.Provenance...),
+			}
+			seen[key] = entry
+			order = append(order, key)
+		}
+		entry.clauses = append(entry.clauses, detail.Clause)
+	}
+	out := make([]RouteScopeGroup, 0, len(order))
+	for _, key := range order {
+		entry := seen[key]
+		out = append(out, RouteScopeGroup{
+			Branch:  entry.branch,
+			Clauses: entry.clauses,
+		})
 	}
 	return out
 }

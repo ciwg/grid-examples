@@ -97,13 +97,14 @@ Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 - `moks route scope inspect <name>` now shows both the raw scope clauses and the fully expanded clause list that trace filtering will use
 - scope inspection now also reports skipped branches such as alias cycles or unresolved scope references
 - each expanded scope clause now carries provenance showing which alias or built-in scope chain produced it
+- scope inspection now groups expanded clauses by provenance branch as well as showing the flat expanded list
 - focused traces now report total, shown, and hidden step counts plus the active filter
 - `moks route policy show [<protocol-pcid> [<role>]]`, `moks route policy set ...`, `moks route policy set-for <protocol-pcid> ...`, `moks route policy remove <protocol-pcid>`, `moks route policy set-for-role <protocol-pcid> <role> ...`, and `moks route policy remove-role <protocol-pcid> <role>` control planner preferences globally, per input protocol, and per input protocol plus route role
 - a registered family now requires a matching `family-validator` route claim for its `protocol_pcid`
 - relay export now carries those route registrations as batch metadata too
 - parser and transform routes can declare `emits_protocols` to describe the next-hop protocols they produce
 
-Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`; `DI-rusom`; `DI-dovak`; `DI-buvok`; `DI-zafek`; `DI-rukav`; `DI-vatuk`; `DI-lupav`; `DI-sovak`; `DI-vobek`; `DI-zumok`; `DI-zamuk`; `DI-bemok`; `DI-rusek`; `DI-fusek`; `DI-zusek`.
+Source: `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`; `DI-posek`; `DI-rivuk`; `DI-lavik`; `DI-fobek`; `DI-povak`; `DI-rusom`; `DI-dovak`; `DI-buvok`; `DI-zafek`; `DI-rukav`; `DI-vatuk`; `DI-lupav`; `DI-sovak`; `DI-vobek`; `DI-zumok`; `DI-zamuk`; `DI-bemok`; `DI-rusek`; `DI-fusek`; `DI-zusek`; `DI-vusek`.
 
 ## Layout
 

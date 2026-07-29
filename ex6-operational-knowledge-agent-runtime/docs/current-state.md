@@ -34,6 +34,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - `moks route scope inspect <name>` now shows raw and expanded scope clauses
 - route scope inspection now reports skipped expansion branches such as cycles or unresolved scope references
 - each expanded scope clause now carries provenance for the alias or built-in scope chain that produced it
+- route scope inspection now groups expanded clauses by provenance branch
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

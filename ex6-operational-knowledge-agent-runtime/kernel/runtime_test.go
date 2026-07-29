@@ -1151,12 +1151,27 @@ func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
 	if inspection.ExpandedDetails[0].Provenance[0] != "composed-scope" || inspection.ExpandedDetails[0].Provenance[1] != "base-scope" || inspection.ExpandedDetails[0].Provenance[2] != "direct-hops" {
 		t.Fatalf("unexpected composed-scope provenance chain, got %#v", inspection.ExpandedDetails[0].Provenance)
 	}
+	if len(inspection.Groups) != 3 {
+		t.Fatalf("expected grouped provenance branches, got %#v", inspection.Groups)
+	}
+	if len(inspection.Groups[0].Branch) != 3 || inspection.Groups[0].Branch[0] != "composed-scope" {
+		t.Fatalf("unexpected first grouped branch, got %#v", inspection.Groups[0])
+	}
+	if len(inspection.Groups[1].Branch) != 2 || inspection.Groups[1].Branch[1] != "base-scope" {
+		t.Fatalf("unexpected second grouped branch, got %#v", inspection.Groups[1])
+	}
+	if len(inspection.Groups[2].Branch) != 1 || inspection.Groups[2].Branch[0] != "composed-scope" {
+		t.Fatalf("unexpected third grouped branch, got %#v", inspection.Groups[2])
+	}
 	builtin, ok := runtime.InspectTraceScope("direct-hops")
 	if !ok || !builtin.Builtin || len(builtin.RawClauses) != 1 || builtin.RawClauses[0].Kind != "depth" {
 		t.Fatalf("unexpected built-in scope inspection: %#v %#v", ok, builtin)
 	}
 	if len(builtin.ExpandedDetails) != 1 || len(builtin.ExpandedDetails[0].Provenance) != 1 || builtin.ExpandedDetails[0].Provenance[0] != "direct-hops" {
 		t.Fatalf("unexpected built-in scope provenance: %#v", builtin.ExpandedDetails)
+	}
+	if len(builtin.Groups) != 1 || len(builtin.Groups[0].Branch) != 1 || builtin.Groups[0].Branch[0] != "direct-hops" {
+		t.Fatalf("unexpected built-in grouped branch: %#v", builtin.Groups)
 	}
 }
 
