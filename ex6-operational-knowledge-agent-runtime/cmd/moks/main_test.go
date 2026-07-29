@@ -291,6 +291,9 @@ func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {
 	if !strings.Contains(output, `"skipped"`) || !strings.Contains(output, `"reason": "cycle"`) {
 		t.Fatalf("route scope inspect missing cycle skip diagnostics: %s", output)
 	}
+	if !strings.Contains(output, `"branch": [`) || !strings.Contains(output, `"cycle-a"`) || !strings.Contains(output, `"cycle-b"`) {
+		t.Fatalf("route scope inspect missing cycle branch attachment: %s", output)
+	}
 	if _, err := runCLI(t, workdir, "route", "scope", "set", "dangling", "scope", "missing-scope", "candidate", "context:family-validator:direct"); err != nil {
 		t.Fatalf("route scope set dangling: %v", err)
 	}
@@ -300,6 +303,9 @@ func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {
 	}
 	if !strings.Contains(output, `"reason": "unknown-scope"`) || !strings.Contains(output, `"scope": "missing-scope"`) {
 		t.Fatalf("route scope inspect missing unknown-scope diagnostics: %s", output)
+	}
+	if !strings.Contains(output, `"groups"`) || !strings.Contains(output, `"dangling"`) {
+		t.Fatalf("route scope inspect missing grouped skip attachment: %s", output)
 	}
 }
 

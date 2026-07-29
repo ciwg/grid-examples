@@ -36,6 +36,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - each expanded scope clause now carries provenance for the alias or built-in scope chain that produced it
 - route scope inspection now groups expanded clauses by provenance branch
 - each grouped branch now carries a short deterministic label and a human-readable summary
+- skipped scope branches now also attach to the grouped provenance branch they came from
 - `moks route policy show`
 - `moks route policy set <prefer-route-types|-> <avoid-route-types|-> <prefer-roles|-> <avoid-roles|->`
 - `moks route policy show <protocol-pcid>`

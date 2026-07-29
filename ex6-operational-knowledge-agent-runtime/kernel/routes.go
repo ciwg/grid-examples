@@ -73,8 +73,9 @@ type RouteScopeInspection struct {
 }
 
 type RouteScopeSkippedBranch struct {
-	Scope  string `json:"scope"`
-	Reason string `json:"reason"`
+	Scope  string   `json:"scope"`
+	Reason string   `json:"reason"`
+	Branch []string `json:"branch,omitempty"`
 }
 
 type RouteScopeExpandedClause struct {
@@ -87,6 +88,7 @@ type RouteScopeGroup struct {
 	Summary string                       `json:"summary,omitempty"`
 	Branch  []string                     `json:"branch"`
 	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
+	Skipped []RouteScopeSkippedBranch    `json:"skipped,omitempty"`
 }
 
 type RoutePlanTraceSummary struct {
@@ -220,13 +222,14 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 	}
 	if clauses, ok := builtinTraceScopeClauses(name); ok {
 		details := expandedClausesFromRaw(clauses, []string{name})
+		groups := groupExpandedClauses(details)
 		return RouteScopeInspection{
 			Name:            name,
 			Builtin:         true,
 			RawClauses:      cloneTraceFilterClauses(clauses),
 			ExpandedClauses: cloneTraceFilterClauses(clauses),
 			ExpandedDetails: details,
-			Groups:          groupExpandedClauses(details),
+			Groups:          groups,
 		}, true
 	}
 	alias, ok := runtime.TraceScopeAlias(name)
@@ -242,13 +245,14 @@ func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bo
 	}
 	skipped := []RouteScopeSkippedBranch{}
 	details := runtime.resolveTraceScopeExpandedClauses(name, map[string]struct{}{}, &skipped, nil)
+	groups := attachSkippedToGroups(groupExpandedClauses(details), skipped)
 	return RouteScopeInspection{
 		Name:            name,
 		Builtin:         false,
 		RawClauses:      raw,
 		ExpandedClauses: rawClausesFromExpanded(details),
 		ExpandedDetails: details,
-		Groups:          groupExpandedClauses(details),
+		Groups:          groups,
 		Skipped:         skipped,
 	}, true
 }
@@ -292,12 +296,12 @@ func (runtime *Runtime) resolveTraceScopeExpandedClauses(target string, seen map
 		return expandedClausesFromRaw(clauses, append(append([]string{}, provenance...), target))
 	}
 	if _, exists := seen[target]; exists {
-		recordSkippedScope(skipped, target, "cycle")
+		recordSkippedScope(skipped, target, "cycle", provenance)
 		return nil
 	}
 	alias, ok := runtime.TraceScopeAlias(target)
 	if !ok {
-		recordSkippedScope(skipped, target, "unknown-scope")
+		recordSkippedScope(skipped, target, "unknown-scope", provenance)
 		return nil
 	}
 	seen[target] = struct{}{}
@@ -376,13 +380,47 @@ func groupExpandedClauses(details []RouteScopeExpandedClause) []RouteScopeGroup 
 	return out
 }
 
-func recordSkippedScope(skipped *[]RouteScopeSkippedBranch, scope string, reason string) {
+func attachSkippedToGroups(groups []RouteScopeGroup, skipped []RouteScopeSkippedBranch) []RouteScopeGroup {
+	if len(groups) == 0 || len(skipped) == 0 {
+		return groups
+	}
+	for skippedIndex := range skipped {
+		skip := skipped[skippedIndex]
+		bestIndex := -1
+		bestLength := -1
+		for groupIndex := range groups {
+			if branchHasPrefix(skip.Branch, groups[groupIndex].Branch) && len(groups[groupIndex].Branch) > bestLength {
+				bestIndex = groupIndex
+				bestLength = len(groups[groupIndex].Branch)
+			}
+		}
+		if bestIndex >= 0 {
+			groups[bestIndex].Skipped = append(groups[bestIndex].Skipped, skip)
+		}
+	}
+	return groups
+}
+
+func branchHasPrefix(branch []string, prefix []string) bool {
+	if len(prefix) > len(branch) {
+		return false
+	}
+	for index := range prefix {
+		if branch[index] != prefix[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func recordSkippedScope(skipped *[]RouteScopeSkippedBranch, scope string, reason string, branch []string) {
 	if skipped == nil {
 		return
 	}
 	*skipped = append(*skipped, RouteScopeSkippedBranch{
 		Scope:  scope,
 		Reason: reason,
+		Branch: append([]string{}, branch...),
 	})
 }
 

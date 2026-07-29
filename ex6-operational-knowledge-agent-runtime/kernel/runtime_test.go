@@ -1226,8 +1226,14 @@ func TestInspectTraceScopeReportsSkippedBranches(t *testing.T) {
 	if len(cycleInspection.Skipped) == 0 || cycleInspection.Skipped[0].Reason != "cycle" {
 		t.Fatalf("expected cycle skip reason, got %#v", cycleInspection.Skipped)
 	}
+	if len(cycleInspection.Skipped[0].Branch) != 2 || cycleInspection.Skipped[0].Branch[0] != "cycle-a" {
+		t.Fatalf("expected cycle skip branch provenance, got %#v", cycleInspection.Skipped[0])
+	}
 	if len(cycleInspection.ExpandedClauses) != 1 || cycleInspection.ExpandedClauses[0].Kind != "depth" {
 		t.Fatalf("expected non-cyclic clause to survive, got %#v", cycleInspection.ExpandedClauses)
+	}
+	if len(cycleInspection.Groups) != 1 || len(cycleInspection.Groups[0].Skipped) != 1 || cycleInspection.Groups[0].Skipped[0].Reason != "cycle" {
+		t.Fatalf("expected cycle skip to attach to grouped branch, got %#v", cycleInspection.Groups)
 	}
 	danglingInspection, ok := runtime.InspectTraceScope("dangling")
 	if !ok {
@@ -1236,8 +1242,14 @@ func TestInspectTraceScopeReportsSkippedBranches(t *testing.T) {
 	if len(danglingInspection.Skipped) == 0 || danglingInspection.Skipped[0].Reason != "unknown-scope" || danglingInspection.Skipped[0].Scope != "missing-scope" {
 		t.Fatalf("expected unknown-scope skip reason, got %#v", danglingInspection.Skipped)
 	}
+	if len(danglingInspection.Skipped[0].Branch) != 1 || danglingInspection.Skipped[0].Branch[0] != "dangling" {
+		t.Fatalf("expected unknown-scope skip branch provenance, got %#v", danglingInspection.Skipped[0])
+	}
 	if len(danglingInspection.ExpandedClauses) != 1 || danglingInspection.ExpandedClauses[0].Kind != "candidate" {
 		t.Fatalf("expected remaining direct clause to survive, got %#v", danglingInspection.ExpandedClauses)
+	}
+	if len(danglingInspection.Groups) != 1 || len(danglingInspection.Groups[0].Skipped) != 1 || danglingInspection.Groups[0].Skipped[0].Reason != "unknown-scope" {
+		t.Fatalf("expected unknown-scope skip to attach to grouped branch, got %#v", danglingInspection.Groups)
 	}
 }
 

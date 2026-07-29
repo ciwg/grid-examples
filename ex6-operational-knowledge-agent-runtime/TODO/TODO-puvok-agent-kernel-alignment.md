@@ -233,3 +233,11 @@ Decision: Add a short deterministic label and a human-readable summary string fo
 Intent: Let operators scan grouped branches quickly without parsing the raw provenance path array first.
 Constraints: Keep labels deterministic from grouped-branch order; preserve the raw provenance branch array; do not change grouping or filtering behavior.
 Affects: `kernel/routes.go`, tests, and routing docs.
+
+ID: DI-yusek
+Date: 2026-07-29 10:41:00
+Status: active
+Decision: Attach skipped scope-expansion diagnostics to the grouped provenance branch they came from, while keeping the flat skipped list.
+Intent: Let operators see which alias branch dropped a scope reference or hit a cycle instead of inferring that relationship from the flat skipped list alone.
+Constraints: Keep the existing flat skipped list; keep branch attachment deterministic from expansion provenance; do not change filtering behavior.
+Affects: `kernel/routes.go`, tests, and routing docs.
