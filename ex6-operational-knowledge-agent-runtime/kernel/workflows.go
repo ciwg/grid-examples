@@ -10,6 +10,7 @@ type WorkflowState string
 
 const (
 	WorkflowImported    WorkflowState = "imported"
+	WorkflowRevoked     WorkflowState = "revoked"
 	WorkflowActive      WorkflowState = "active"
 	WorkflowDeactivated WorkflowState = "deactivated"
 )
