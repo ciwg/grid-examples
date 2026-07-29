@@ -201,3 +201,11 @@ Decision: Add trace scope introspection that can show both the raw stored clause
 Intent: Let operators see exactly what a scope resolves to, especially when local aliases compose other aliases or built-in scopes.
 Constraints: Keep expansion deterministic and non-executing; preserve built-in scope names as reserved; expose introspection through the existing `route scope` CLI family.
 Affects: `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-fusek
+Date: 2026-07-29 09:48:00
+Status: active
+Decision: Extend trace scope inspection to report skipped expansion branches, including alias cycles and unresolved scope references, alongside the clauses that were successfully expanded.
+Intent: Let operators see not just the final expanded clause list, but also why some scope branches were dropped during expansion.
+Constraints: Keep filtering behavior unchanged; only inspection gains explicit skipped-branch diagnostics; keep cycle handling deterministic and non-recursive.
+Affects: `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.

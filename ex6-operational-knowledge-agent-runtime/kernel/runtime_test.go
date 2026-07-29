@@ -1151,6 +1151,63 @@ func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
 	}
 }
 
+func TestInspectTraceScopeReportsSkippedBranches(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "cycle-a",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "cycle-b"},
+			{Kind: "depth", Target: "1"},
+		},
+	}); err != nil {
+		t.Fatalf("set cycle-a alias: %v", err)
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "cycle-b",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "cycle-a"},
+		},
+	}); err != nil {
+		t.Fatalf("set cycle-b alias: %v", err)
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "dangling",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "missing-scope"},
+			{Kind: "candidate", Target: "context:family-validator:direct"},
+		},
+	}); err != nil {
+		t.Fatalf("set dangling alias: %v", err)
+	}
+	cycleInspection, ok := runtime.InspectTraceScope("cycle-a")
+	if !ok {
+		t.Fatalf("expected cycle-a inspection")
+	}
+	if len(cycleInspection.Skipped) == 0 || cycleInspection.Skipped[0].Reason != "cycle" {
+		t.Fatalf("expected cycle skip reason, got %#v", cycleInspection.Skipped)
+	}
+	if len(cycleInspection.ExpandedClauses) != 1 || cycleInspection.ExpandedClauses[0].Kind != "depth" {
+		t.Fatalf("expected non-cyclic clause to survive, got %#v", cycleInspection.ExpandedClauses)
+	}
+	danglingInspection, ok := runtime.InspectTraceScope("dangling")
+	if !ok {
+		t.Fatalf("expected dangling inspection")
+	}
+	if len(danglingInspection.Skipped) == 0 || danglingInspection.Skipped[0].Reason != "unknown-scope" || danglingInspection.Skipped[0].Scope != "missing-scope" {
+		t.Fatalf("expected unknown-scope skip reason, got %#v", danglingInspection.Skipped)
+	}
+	if len(danglingInspection.ExpandedClauses) != 1 || danglingInspection.ExpandedClauses[0].Kind != "candidate" {
+		t.Fatalf("expected remaining direct clause to survive, got %#v", danglingInspection.ExpandedClauses)
+	}
+}
+
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
 	runtime, err := kernel.Open(runtimeRoot)

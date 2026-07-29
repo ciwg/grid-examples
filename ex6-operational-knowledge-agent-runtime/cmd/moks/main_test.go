@@ -264,6 +264,33 @@ func TestRouteScopeInspectShowsExpandedAliasClauses(t *testing.T) {
 	}
 }
 
+func TestRouteScopeInspectShowsSkippedBranches(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "cycle-a", "scope", "cycle-b", "depth", "1"); err != nil {
+		t.Fatalf("route scope set cycle-a: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "cycle-b", "scope", "cycle-a"); err != nil {
+		t.Fatalf("route scope set cycle-b: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "scope", "inspect", "cycle-a")
+	if err != nil {
+		t.Fatalf("route scope inspect cycle-a: %v", err)
+	}
+	if !strings.Contains(output, `"skipped"`) || !strings.Contains(output, `"reason": "cycle"`) {
+		t.Fatalf("route scope inspect missing cycle skip diagnostics: %s", output)
+	}
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "dangling", "scope", "missing-scope", "candidate", "context:family-validator:direct"); err != nil {
+		t.Fatalf("route scope set dangling: %v", err)
+	}
+	output, err = runCLI(t, workdir, "route", "scope", "inspect", "dangling")
+	if err != nil {
+		t.Fatalf("route scope inspect dangling: %v", err)
+	}
+	if !strings.Contains(output, `"reason": "unknown-scope"`) || !strings.Contains(output, `"scope": "missing-scope"`) {
+		t.Fatalf("route scope inspect missing unknown-scope diagnostics: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {
