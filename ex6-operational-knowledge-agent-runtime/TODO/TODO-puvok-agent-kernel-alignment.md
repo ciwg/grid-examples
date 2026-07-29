@@ -309,7 +309,7 @@ Affects: `kernel/workflows.go`, runtime lifecycle persistence and startup, packa
 
 ## Alignment Implementation Queue
 
-- [ ] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk)
+- [x] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk; cdc0621)
 - [ ] Split workflow import from explicit activation; route and worker eligibility require active state. (DI-lovek; TE-gavuk)
 - [ ] Add separate deactivation and revocation withdrawal paths without deleting CAS or durable history. (DI-lovek; TE-gavuk)
 - [ ] Model pCID-scoped app receive promises and routing-role delivery promises before route-plan execution. (TE-ravuk)
