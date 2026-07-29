@@ -63,6 +63,11 @@ func run(ctx context.Context, args []string) error {
 			return errors.New("usage: route scope list")
 		}
 		return routeScopeList(runtime)
+	case matchesPrefix(args, "route", "scope", "inspect"):
+		if len(args) != 4 {
+			return errors.New("usage: route scope inspect <name>")
+		}
+		return routeScopeInspect(runtime, args[3])
 	case matchesPrefix(args, "route", "scope", "set"):
 		if len(args) < 6 || len(args[4:])%2 != 0 {
 			return errors.New("usage: route scope set <name> <kind> <target> [<kind> <target> ...]")
@@ -330,6 +335,19 @@ func routeScopeList(runtime *kernel.Runtime) error {
 		Builtin: []string{"direct-hops", "deep-hops", "one-branch:<candidate-id>"},
 		Local:   runtime.TraceScopeAliases(),
 	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func routeScopeInspect(runtime *kernel.Runtime, name string) error {
+	inspection, ok := runtime.InspectTraceScope(name)
+	if !ok {
+		return fmt.Errorf("unknown route scope: %s", name)
+	}
+	body, err := json.MarshalIndent(inspection, "", "  ")
 	if err != nil {
 		return err
 	}

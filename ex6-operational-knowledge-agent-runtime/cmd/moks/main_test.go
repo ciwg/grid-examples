@@ -241,6 +241,29 @@ func TestRoutePlanTraceCanUseLocalScopeAlias(t *testing.T) {
 	}
 }
 
+func TestRouteScopeInspectShowsExpandedAliasClauses(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-base", "scope", "direct-hops", "candidate", "context:family-validator:direct"); err != nil {
+		t.Fatalf("route scope set branch-base: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", "pcid:moks.context.place.v1"); err != nil {
+		t.Fatalf("route scope set branch-expanded: %v", err)
+	}
+	output, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded")
+	if err != nil {
+		t.Fatalf("route scope inspect: %v", err)
+	}
+	if !strings.Contains(output, `"name": "branch-expanded"`) || !strings.Contains(output, `"raw_clauses"`) || !strings.Contains(output, `"expanded_clauses"`) {
+		t.Fatalf("route scope inspect missing inspection fields: %s", output)
+	}
+	if !strings.Contains(output, `"kind": "scope"`) || !strings.Contains(output, `"target": "branch-base"`) {
+		t.Fatalf("route scope inspect missing raw alias composition: %s", output)
+	}
+	if !strings.Contains(output, `"kind": "depth"`) || !strings.Contains(output, `"target": "1"`) {
+		t.Fatalf("route scope inspect missing expanded built-in clause: %s", output)
+	}
+}
+
 func TestRoutePolicySetAndShow(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "parser", "direct", "parser", "-"); err != nil {

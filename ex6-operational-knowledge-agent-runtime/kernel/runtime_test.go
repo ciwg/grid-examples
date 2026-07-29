@@ -1102,6 +1102,55 @@ func TestProtocolRoutePlanTraceCanUseLocalScopeAliases(t *testing.T) {
 	}
 }
 
+func TestInspectTraceScopeShowsRawAndExpandedClauses(t *testing.T) {
+	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "base-scope",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "direct-hops"},
+			{Kind: "candidate", Target: "context:family-validator:direct"},
+		},
+	}); err != nil {
+		t.Fatalf("set base alias: %v", err)
+	}
+	if err := runtime.SetTraceScopeAlias(grid.TraceScopeAlias{
+		Name: "composed-scope",
+		Clauses: []grid.TraceScopeClause{
+			{Kind: "scope", Target: "base-scope"},
+			{Kind: "downstream", Target: "pcid:moks.context.place.v1"},
+		},
+	}); err != nil {
+		t.Fatalf("set composed alias: %v", err)
+	}
+	inspection, ok := runtime.InspectTraceScope("composed-scope")
+	if !ok {
+		t.Fatalf("expected composed alias inspection")
+	}
+	if inspection.Builtin {
+		t.Fatalf("expected local alias inspection, got %#v", inspection)
+	}
+	if len(inspection.RawClauses) != 2 || inspection.RawClauses[0].Kind != "scope" || inspection.RawClauses[0].Target != "base-scope" {
+		t.Fatalf("unexpected raw clauses: %#v", inspection.RawClauses)
+	}
+	if len(inspection.ExpandedClauses) != 3 {
+		t.Fatalf("expected fully expanded clauses, got %#v", inspection.ExpandedClauses)
+	}
+	if inspection.ExpandedClauses[0].Kind != "depth" || inspection.ExpandedClauses[0].Target != "1" {
+		t.Fatalf("expected built-in expansion in first clause, got %#v", inspection.ExpandedClauses)
+	}
+	builtin, ok := runtime.InspectTraceScope("direct-hops")
+	if !ok || !builtin.Builtin || len(builtin.RawClauses) != 1 || builtin.RawClauses[0].Kind != "depth" {
+		t.Fatalf("unexpected built-in scope inspection: %#v %#v", ok, builtin)
+	}
+}
+
 func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	runtimeRoot := filepath.Join(t.TempDir(), ".moks")
 	runtime, err := kernel.Open(runtimeRoot)

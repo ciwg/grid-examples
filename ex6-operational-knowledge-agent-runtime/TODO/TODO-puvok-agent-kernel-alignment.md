@@ -193,3 +193,11 @@ Decision: Add runtime-owned local trace scope aliases, persist them beside the e
 Intent: Let operators define reusable local trace views without editing code or being limited to the built-in named scopes.
 Constraints: Keep built-in scopes working unchanged; treat local aliases as additive operator configuration; preserve unknown-scope no-op fallback; keep alias resolution deterministic and non-executing.
 Affects: `grid/policy.go`, `kernel/runtime.go`, `kernel/routes.go`, `cmd/moks/main.go`, tests, and routing docs.
+
+ID: DI-rusek
+Date: 2026-07-29 09:34:00
+Status: active
+Decision: Add trace scope introspection that can show both the raw stored clause list and the fully expanded clause list for a built-in or local scope name.
+Intent: Let operators see exactly what a scope resolves to, especially when local aliases compose other aliases or built-in scopes.
+Constraints: Keep expansion deterministic and non-executing; preserve built-in scope names as reserved; expose introspection through the existing `route scope` CLI family.
+Affects: `kernel/routes.go`, `kernel/runtime.go`, `cmd/moks/main.go`, tests, and routing docs.

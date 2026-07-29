@@ -62,6 +62,13 @@ type RoutePlanTraceFilter struct {
 	Clauses []RoutePlanTraceFilterClause `json:"clauses,omitempty"`
 }
 
+type RouteScopeInspection struct {
+	Name            string                       `json:"name"`
+	Builtin         bool                         `json:"builtin"`
+	RawClauses      []RoutePlanTraceFilterClause `json:"raw_clauses,omitempty"`
+	ExpandedClauses []RoutePlanTraceFilterClause `json:"expanded_clauses,omitempty"`
+}
+
 type RoutePlanTraceSummary struct {
 	ProtocolPCID string                `json:"protocol_pcid"`
 	Scope        string                `json:"scope"`
@@ -183,6 +190,41 @@ func (runtime *Runtime) ProtocolRoutePlanTraceFocused(protocolPCID string, filte
 	return plan
 }
 
+// Intent: Let operators inspect both the stored and expanded clause lists for
+// any built-in or local trace scope so alias composition stays visible instead
+// of hiding behind one opaque scope name. Source: DI-rusek
+func (runtime *Runtime) InspectTraceScope(name string) (RouteScopeInspection, bool) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return RouteScopeInspection{}, false
+	}
+	if clauses, ok := builtinTraceScopeClauses(name); ok {
+		return RouteScopeInspection{
+			Name:            name,
+			Builtin:         true,
+			RawClauses:      cloneTraceFilterClauses(clauses),
+			ExpandedClauses: cloneTraceFilterClauses(clauses),
+		}, true
+	}
+	alias, ok := runtime.TraceScopeAlias(name)
+	if !ok {
+		return RouteScopeInspection{}, false
+	}
+	raw := make([]RoutePlanTraceFilterClause, 0, len(alias.Clauses))
+	for _, clause := range alias.Clauses {
+		raw = append(raw, RoutePlanTraceFilterClause{
+			Kind:   clause.Kind,
+			Target: clause.Target,
+		})
+	}
+	return RouteScopeInspection{
+		Name:            name,
+		Builtin:         false,
+		RawClauses:      raw,
+		ExpandedClauses: runtime.resolveTraceScopeClauses(name, map[string]struct{}{}),
+	}, true
+}
+
 // Intent: Let built-in and operator-defined named scopes share one trace
 // filtering surface by expanding scope clauses into ordinary clause lists
 // before the planner filters steps and downstream summaries. Source: DI-bemok
@@ -205,6 +247,12 @@ func (runtime *Runtime) resolveTraceScopeFilter(filter RoutePlanTraceFilter) Rou
 		resolved.Clauses = append(resolved.Clauses, runtime.resolveTraceScopeClauses(target, map[string]struct{}{})...)
 	}
 	return resolved
+}
+
+func cloneTraceFilterClauses(clauses []RoutePlanTraceFilterClause) []RoutePlanTraceFilterClause {
+	out := make([]RoutePlanTraceFilterClause, len(clauses))
+	copy(out, clauses)
+	return out
 }
 
 func (runtime *Runtime) resolveTraceScopeClauses(target string, seen map[string]struct{}) []RoutePlanTraceFilterClause {
