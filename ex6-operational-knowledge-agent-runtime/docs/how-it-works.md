@@ -29,3 +29,20 @@ intermediate runtime: packages are not yet independently running agents, and
 route plans are not yet executed through a full worker-dispatch system.
 
 Source: DI-moksu, DI-puvok, DI-bavuk.
+
+## Meeting walkthrough: workflow basket
+
+Run:
+
+    go run ./cmd/moks workflow demo procedure-execution
+
+The disposable demo proves four things:
+
+1. The procedure-execution directory was captured as one immutable CAS artifact.
+2. Its manifest and local package dependencies were verified.
+3. The workflow was explicitly activated for local availability.
+4. The exact retained artifact was extracted for inspection.
+
+The final JSON status should show an active state and ready set to true. The
+demo uses a temporary runtime and removes it afterward, so it does not change
+the local basket under .moks/.
