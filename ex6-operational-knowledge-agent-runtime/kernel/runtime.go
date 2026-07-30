@@ -78,7 +78,7 @@ func Open(root string) (*Runtime, error) {
 	}
 	// Intent: Rebuild local workflow availability from durable lifecycle events
 	// before any installed package can participate in the runtime. Source: DI-lovek
-	workflowRegistry, err := OpenWorkflowRegistry(filepath.Join(root, "state"))
+	workflowRegistry, err := OpenWorkflowRegistry(filepath.Join(root, "state"), casStore)
 	if err != nil {
 		if closeErr := history.Close(); closeErr != nil {
 			return nil, errors.Join(err, closeErr)

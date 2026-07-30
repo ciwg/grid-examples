@@ -1,14 +1,17 @@
 package kernel
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
+	"github.com/ipfs/go-cid"
 )
 
 type WorkflowState string
@@ -26,174 +29,195 @@ type Workflow struct {
 	State       WorkflowState `json:"state"`
 }
 
-// WorkflowLifecycleEvent records one durable local workflow state transition.
-// Intent: Keep local lifecycle authority reconstructible without deleting the
-// content-addressed workflow artifact or its prior history. Source: DI-lovek
-type WorkflowLifecycleEvent struct {
-	Workflow Workflow `json:"workflow"`
-}
-
-// WorkflowRegistry projects append-only local lifecycle events into current state.
-// Intent: Runtime restart must recover local workflow policy from durable events,
-// while artifact identity remains in CAS. Source: DI-lovek
+// WorkflowRegistry projects retained lifecycle envelopes into local availability.
+// Intent: CAS events are authoritative; this cache is disposable. Source: DI-bavuk
 type WorkflowRegistry struct {
-	path      string
+	cachePath string
+	cas       *store.CAS
 	mu        sync.RWMutex
 	workflows map[string]Workflow
+	heads     map[string]cid.Cid
 }
 
-func OpenWorkflowRegistry(stateRoot string) (*WorkflowRegistry, error) {
-	if err := os.MkdirAll(stateRoot, 0o755); err != nil {
+func OpenWorkflowRegistry(root string, cas *store.CAS) (*WorkflowRegistry, error) {
+	if err := os.MkdirAll(root, 0755); err != nil {
 		return nil, err
 	}
-	registry := &WorkflowRegistry{
-		path:      filepath.Join(stateRoot, "workflow-lifecycle.jsonl"),
-		workflows: map[string]Workflow{},
-	}
-	if err := registry.replay(); err != nil {
+	r := &WorkflowRegistry{cachePath: filepath.Join(root, "workflow-lifecycle-cache.json"), cas: cas, workflows: map[string]Workflow{}, heads: map[string]cid.Cid{}}
+	if err := r.rebuild(); err != nil {
 		return nil, err
 	}
-	return registry, nil
+	return r, nil
 }
-
-func (registry *WorkflowRegistry) replay() (err error) {
-	file, err := os.OpenFile(registry.path, os.O_CREATE|os.O_RDONLY, 0o644)
-	if err != nil {
-		return err
+func (r *WorkflowRegistry) rebuild() error {
+	w, h, e := r.scan()
+	if e != nil {
+		return e
 	}
-	defer func() {
-		closeErr := file.Close()
-		if closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		var event WorkflowLifecycleEvent
-		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			return err
-		}
-		if err := validateWorkflow(event.Workflow); err != nil {
-			return err
-		}
-		registry.workflows[event.Workflow.ID] = event.Workflow
-	}
-	return scanner.Err()
+	r.workflows, r.heads = w, h
+	return r.cache()
 }
-
-func (registry *WorkflowRegistry) importWorkflow(workflow Workflow) error {
-	registry.mu.Lock()
-	defer registry.mu.Unlock()
-	if _, exists := registry.workflows[workflow.ID]; exists {
+func (r *WorkflowRegistry) scan() (map[string]Workflow, map[string]cid.Cid, error) {
+	ids, e := r.cas.ListCIDs()
+	if e != nil {
+		return nil, nil, e
+	}
+	candidates := map[string]WorkflowLifecycleEvent{}
+	for _, id := range ids {
+		b, e := r.cas.GetCID(id)
+		if e != nil {
+			return nil, nil, e
+		}
+		event, e := DecodeWorkflowLifecycleEvent(b)
+		if e == nil {
+			candidates[id.String()] = event
+		}
+	}
+	accepted := map[string]WorkflowLifecycleEvent{}
+	for progress := true; progress; {
+		progress = false
+		for _, id := range ids {
+			k := id.String()
+			event, ok := candidates[k]
+			if !ok {
+				continue
+			}
+			if event.State == WorkflowImported {
+				accepted[k] = event
+				delete(candidates, k)
+				progress = true
+				continue
+			}
+			parent, ok := accepted[event.Parents[0].String()]
+			if !ok {
+				continue
+			}
+			delete(candidates, k)
+			progress = true
+			if parent.WorkflowAlias == event.WorkflowAlias && parent.ArtifactCID == event.ArtifactCID {
+				accepted[k] = event
+			}
+		}
+	}
+	child := map[string]bool{}
+	for _, event := range accepted {
+		for _, parent := range event.Parents {
+			child[parent.String()] = true
+		}
+	}
+	w := map[string]Workflow{}
+	h := map[string]cid.Cid{}
+	for _, id := range ids {
+		k := id.String()
+		event, ok := accepted[k]
+		if !ok || child[k] {
+			continue
+		}
+		if _, ok := w[event.WorkflowAlias]; ok {
+			return nil, nil, fmt.Errorf("workflow alias %q has competing lifecycle heads", event.WorkflowAlias)
+		}
+		w[event.WorkflowAlias] = Workflow{event.WorkflowAlias, event.ArtifactCID.String(), event.State}
+		h[event.WorkflowAlias] = id
+	}
+	return w, h, nil
+}
+func (r *WorkflowRegistry) importWorkflow(w Workflow) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.workflows[w.ID]; ok {
 		return errors.New("workflow is already imported")
 	}
-	workflow.State = WorkflowImported
-	return registry.appendLocked(workflow)
+	a, e := cid.Decode(w.ArtifactCID)
+	if e != nil {
+		return e
+	}
+	w.State = WorkflowImported
+	w.ArtifactCID = a.String()
+	return r.append(w, a, nil)
 }
-
-func (registry *WorkflowRegistry) activateWorkflow(id string) error {
-	return registry.transitionWorkflow(id, WorkflowActive)
+func (r *WorkflowRegistry) activateWorkflow(id string) error { return r.transition(id, WorkflowActive) }
+func (r *WorkflowRegistry) deactivateWorkflow(id string) error {
+	return r.transition(id, WorkflowDeactivated)
 }
-
-func (registry *WorkflowRegistry) deactivateWorkflow(id string) error {
-	return registry.transitionWorkflow(id, WorkflowDeactivated)
-}
-
-func (registry *WorkflowRegistry) revokeWorkflow(id string) error {
-	return registry.transitionWorkflow(id, WorkflowRevoked)
-}
-
-func (registry *WorkflowRegistry) transitionWorkflow(id string, state WorkflowState) error {
-	registry.mu.Lock()
-	defer registry.mu.Unlock()
-	workflow, exists := registry.workflows[id]
-	if !exists {
+func (r *WorkflowRegistry) revokeWorkflow(id string) error { return r.transition(id, WorkflowRevoked) }
+func (r *WorkflowRegistry) transition(id string, s WorkflowState) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	w, ok := r.workflows[id]
+	if !ok {
 		return errors.New("workflow is not imported")
 	}
-	if workflow.State == WorkflowRevoked && state == WorkflowActive {
+	if w.State == WorkflowRevoked && s == WorkflowActive {
 		return errors.New("revoked workflow cannot be activated")
 	}
-	workflow.State = state
-	return registry.appendLocked(workflow)
+	a, e := cid.Decode(w.ArtifactCID)
+	if e != nil {
+		return e
+	}
+	w.State = s
+	return r.append(w, a, []cid.Cid{r.heads[id]})
 }
-
-func (registry *WorkflowRegistry) appendLocked(workflow Workflow) error {
-	payload, err := json.Marshal(WorkflowLifecycleEvent{Workflow: workflow})
-	if err != nil {
-		return err
+func (r *WorkflowRegistry) append(w Workflow, a cid.Cid, p []cid.Cid) error {
+	b, e := EncodeWorkflowLifecycleEvent(WorkflowLifecycleEvent{State: w.State, WorkflowAlias: w.ID, ArtifactCID: a, Parents: p})
+	if e != nil {
+		return e
 	}
-	file, err := os.OpenFile(registry.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return err
+	id, e := r.cas.PutCID(b)
+	if e != nil {
+		return e
 	}
-	if _, err := file.Write(append(payload, '\n')); err != nil {
-		closeErr := file.Close()
-		if closeErr != nil {
-			return errors.Join(err, closeErr)
-		}
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		closeErr := file.Close()
-		if closeErr != nil {
-			return errors.Join(err, closeErr)
-		}
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	registry.workflows[workflow.ID] = workflow
-	return nil
+	r.workflows[w.ID], r.heads[w.ID] = w, id
+	return r.cache()
 }
-
-func (registry *WorkflowRegistry) workflowsList() []Workflow {
-	registry.mu.RLock()
-	defer registry.mu.RUnlock()
-	workflows := make([]Workflow, 0, len(registry.workflows))
-	for _, workflow := range registry.workflows {
-		workflows = append(workflows, workflow)
+func (r *WorkflowRegistry) cache() error {
+	b, e := json.Marshal(r.listLocked())
+	if e != nil {
+		return e
 	}
-	slices.SortFunc(workflows, func(left, right Workflow) int { return strings.Compare(left.ID, right.ID) })
-	return workflows
+	return os.WriteFile(r.cachePath, append(b, '\n'), 0644)
 }
-
-func validateWorkflow(workflow Workflow) error {
-	if strings.TrimSpace(workflow.ID) == "" || strings.TrimSpace(workflow.ArtifactCID) == "" {
+func (r *WorkflowRegistry) workflowsList() []Workflow {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.listLocked()
+}
+func (r *WorkflowRegistry) listLocked() []Workflow {
+	w := make([]Workflow, 0, len(r.workflows))
+	for _, x := range r.workflows {
+		w = append(w, x)
+	}
+	slices.SortFunc(w, func(a, b Workflow) int { return strings.Compare(a.ID, b.ID) })
+	return w
+}
+func (runtime *Runtime) ImportWorkflow(w Workflow) error {
+	if strings.TrimSpace(w.ID) == "" || strings.TrimSpace(w.ArtifactCID) == "" {
 		return errors.New("workflow ID and artifact CID are required")
 	}
-	switch workflow.State {
-	case WorkflowImported, WorkflowActive, WorkflowDeactivated, WorkflowRevoked:
-		return nil
-	default:
-		return errors.New("workflow state is invalid")
+	a, e := runtime.workflowArtifactCID(w.ArtifactCID)
+	if e != nil {
+		return e
 	}
+	w.ArtifactCID = a.String()
+	return runtime.workflows.importWorkflow(w)
 }
-
-func (runtime *Runtime) ImportWorkflow(workflow Workflow) error {
-	if strings.TrimSpace(workflow.ID) == "" || strings.TrimSpace(workflow.ArtifactCID) == "" {
-		return errors.New("workflow ID and artifact CID are required")
+func (runtime *Runtime) workflowArtifactCID(id string) (cid.Cid, error) {
+	if c, e := cid.Decode(id); e == nil {
+		if _, e = runtime.cas.GetCID(c); e != nil {
+			return cid.Undef, e
+		}
+		return c, nil
 	}
-	if _, err := runtime.GetCAS(workflow.ArtifactCID); err != nil {
-		return err
+	b, e := runtime.GetCAS(id)
+	if e != nil {
+		return cid.Undef, e
 	}
-	return runtime.workflows.importWorkflow(workflow)
+	return runtime.cas.PutCID(b)
 }
-
 func (runtime *Runtime) ActivateWorkflow(id string) error {
 	return runtime.workflows.activateWorkflow(id)
 }
-
 func (runtime *Runtime) DeactivateWorkflow(id string) error {
 	return runtime.workflows.deactivateWorkflow(id)
 }
-
-func (runtime *Runtime) RevokeWorkflow(id string) error {
-	return runtime.workflows.revokeWorkflow(id)
-}
-
-func (runtime *Runtime) Workflows() []Workflow {
-	return runtime.workflows.workflowsList()
-}
+func (runtime *Runtime) RevokeWorkflow(id string) error { return runtime.workflows.revokeWorkflow(id) }
+func (runtime *Runtime) Workflows() []Workflow          { return runtime.workflows.workflowsList() }

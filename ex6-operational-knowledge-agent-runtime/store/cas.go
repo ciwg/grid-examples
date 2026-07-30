@@ -4,8 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 )
 
 type CAS struct {
@@ -39,6 +45,151 @@ func (cas *CAS) Put(body []byte) (string, error) {
 
 func (cas *CAS) Get(objectID string) ([]byte, error) {
 	return os.ReadFile(cas.pathFor(objectID))
+}
+
+// PutCID stores content under a CIDv1 raw-sha2-256 identifier.
+// Intent: Allow new PromiseGrid-native records to retain binary-CID identity
+// without invalidating existing sha256:<hex> references. Source: DI-bavuk
+func (cas *CAS) PutCID(body []byte) (cid.Cid, error) {
+	objectCID, err := cas.cidFor(body)
+	if err != nil {
+		return cid.Undef, err
+	}
+	path := cas.pathFor(objectCID.String())
+	if _, err := os.Stat(path); err == nil {
+		return objectCID, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return cid.Undef, err
+	}
+	if _, err := os.Stat(cas.pathFor(legacyObjectID(body))); err == nil {
+		return objectCID, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return cid.Undef, err
+	}
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		return cid.Undef, err
+	}
+	return objectCID, nil
+}
+
+// GetCID reads a CIDv1 object and falls back to its legacy filename when needed.
+// Intent: Historical sha256:<hex> files remain readable while CID-addressed
+// event replay becomes the authoritative path. Source: DI-bavuk
+func (cas *CAS) GetCID(objectCID cid.Cid) ([]byte, error) {
+	if err := validateCASCID(objectCID); err != nil {
+		return nil, err
+	}
+	body, err := os.ReadFile(cas.pathFor(objectCID.String()))
+	if errors.Is(err, os.ErrNotExist) {
+		legacyID, legacyErr := legacyIDForCID(objectCID)
+		if legacyErr != nil {
+			return nil, legacyErr
+		}
+		body, err = os.ReadFile(cas.pathFor(legacyID))
+	}
+	if err != nil {
+		return nil, err
+	}
+	actualCID, err := cas.cidFor(body)
+	if err != nil {
+		return nil, err
+	}
+	if actualCID != objectCID {
+		return nil, errors.New("CAS object bytes do not match requested CID")
+	}
+	return body, nil
+}
+
+// ListCIDs returns the normalized CIDv1 view of all readable local CAS objects.
+// Intent: A projection can rebuild from retained content-addressed event bytes
+// instead of trusting a mutable index as its lifecycle source. Source: DI-bavuk
+func (cas *CAS) ListCIDs() ([]cid.Cid, error) {
+	entries, err := os.ReadDir(cas.root)
+	if err != nil {
+		return nil, err
+	}
+	objectCIDs := make([]cid.Cid, 0, len(entries))
+	seen := map[string]struct{}{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		objectCID, err := cas.cidFromFilename(entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seen[objectCID.String()]; exists {
+			continue
+		}
+		seen[objectCID.String()] = struct{}{}
+		objectCIDs = append(objectCIDs, objectCID)
+	}
+	slices.SortFunc(objectCIDs, func(left, right cid.Cid) int {
+		return strings.Compare(left.String(), right.String())
+	})
+	return objectCIDs, nil
+}
+
+func (cas *CAS) cidFor(body []byte) (cid.Cid, error) {
+	digest, err := mh.Sum(body, mh.SHA2_256, -1)
+	if err != nil {
+		return cid.Undef, err
+	}
+	return cid.NewCidV1(cid.Raw, digest), nil
+}
+
+func (cas *CAS) cidFromFilename(name string) (cid.Cid, error) {
+	if objectCID, err := cid.Decode(name); err == nil {
+		if err := validateCASCID(objectCID); err != nil {
+			return cid.Undef, err
+		}
+		return objectCID, nil
+	}
+	if !strings.HasPrefix(name, "sha256:") {
+		return cid.Undef, fmt.Errorf("CAS object filename %q is not a CIDv1 or legacy sha256 identifier", name)
+	}
+	digest, err := hex.DecodeString(strings.TrimPrefix(name, "sha256:"))
+	if err != nil {
+		return cid.Undef, fmt.Errorf("legacy CAS identifier %q: %w", name, err)
+	}
+	if len(digest) != sha256.Size {
+		return cid.Undef, fmt.Errorf("legacy CAS identifier %q has an invalid digest length", name)
+	}
+	multihash, err := mh.Encode(digest, mh.SHA2_256)
+	if err != nil {
+		return cid.Undef, err
+	}
+	return cid.NewCidV1(cid.Raw, multihash), nil
+}
+
+func validateCASCID(objectCID cid.Cid) error {
+	if !objectCID.Defined() || objectCID.Version() != 1 || objectCID.Type() != cid.Raw {
+		return errors.New("CAS object must use a CIDv1 raw codec")
+	}
+	decoded, err := mh.Decode(objectCID.Hash())
+	if err != nil {
+		return err
+	}
+	if decoded.Code != mh.SHA2_256 || len(decoded.Digest) != sha256.Size {
+		return errors.New("CAS object must use sha2-256")
+	}
+	return nil
+}
+
+func legacyObjectID(body []byte) string {
+	sum := sha256.Sum256(body)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func legacyIDForCID(objectCID cid.Cid) (string, error) {
+	if err := validateCASCID(objectCID); err != nil {
+		return "", err
+	}
+	decoded, err := mh.Decode(objectCID.Hash())
+	if err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(decoded.Digest), nil
 }
 
 func (cas *CAS) pathFor(objectID string) string {

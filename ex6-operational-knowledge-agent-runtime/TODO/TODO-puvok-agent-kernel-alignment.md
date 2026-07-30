@@ -307,6 +307,16 @@ Intent: Preserve grid-visible artifact provenance and historical interpretation 
 Constraints: Import must not grant execution authority; deactivation/revocation must never delete CAS artifacts or durable record history; replacement is additive by artifact CID; lifecycle state is local runtime mechanics and not a new top-level PromiseGrid action kind.
 Affects: `kernel/workflows.go`, runtime lifecycle persistence and startup, package/CAS import translation, Docker-worker eligibility, tests, and operator documentation.
 
+ID: DI-bavuk
+Date: 2026-07-29 14:38:44
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Store lifecycle events as exact pCID-selected CBOR `grid()` envelopes in CAS, linked by parent CID per workflow artifact; keep workflow IDs as local aliases; derive a disposable local projection cache; and define the lifecycle payload as a fixed-shape CBOR array.
+Intent: Make CAS event history authoritative while preserving selective local retention, artifact-scoped replay, exact wire bytes, and explicit local lifecycle decisions.
+Constraints: The pCID protocol specification is frozen before implementation; lifecycle mechanics do not introduce a new top-level PromiseGrid action kind; JSONL is not authoritative and may exist only as a rebuildable projection or diagnostic export; unknown pCIDs, invalid arities, and invalid parents produce explicit local non-commitments.
+Affects: lifecycle protocol specification, `kernel/workflows.go`, CAS event storage and replay, local cache rebuild, tests, and operator documentation.
+Supersedes: DI-lovek (lifecycle-persistence clause only; manual handle because `tools/mint-handle` was unavailable)
+
 ## Alignment Implementation Queue
 
 - [x] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk; cdc0621)
