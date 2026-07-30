@@ -1,0 +1,7 @@
+{
+  "id": "procedure-execution",
+  "version": "1.0.0",
+  "summary": "Run an approved procedure, retain evidence, and record approval.",
+  "required_packages": ["context", "knowledge", "procedures", "runs"],
+  "required_protocols": []
+}

@@ -1,0 +1,4 @@
+{
+  "outcomes": ["approved", "rejected"],
+  "approval_required": true
+}

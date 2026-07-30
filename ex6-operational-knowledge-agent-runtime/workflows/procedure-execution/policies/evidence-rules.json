@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["operator_note"],
+  "optional_evidence": ["photo", "measurement", "attachment"]
+}
