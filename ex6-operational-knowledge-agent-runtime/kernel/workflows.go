@@ -71,7 +71,10 @@ func (r *WorkflowRegistry) scan() (map[string]Workflow, map[string]cid.Cid, erro
 	for _, id := range ids {
 		b, e := r.cas.GetCID(id)
 		if e != nil {
-			return nil, nil, e
+			// Intent: A corrupt or unavailable CAS object is not a lifecycle
+			// commitment and must not prevent replay of retained valid events.
+			// Source: DI-bavuk
+			continue
 		}
 		event, e := DecodeWorkflowLifecycleEvent(b)
 		if e == nil {
@@ -179,7 +182,12 @@ func (r *WorkflowRegistry) append(w Workflow, a cid.Cid, p []cid.Cid) error {
 		return e
 	}
 	r.workflows[w.ID], r.heads[w.ID] = w, id
-	return r.cache()
+	if err := r.cache(); err != nil {
+		// Intent: The event is already durable in CAS; a disposable cache failure
+		// must not report a false lifecycle-operation failure. Source: DI-bavuk
+		return nil
+	}
+	return nil
 }
 func (r *WorkflowRegistry) cache() error {
 	entries := make([]workflowLifecycleCacheEntry, 0, len(r.workflows))

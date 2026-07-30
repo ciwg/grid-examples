@@ -160,3 +160,71 @@ func TestWorkflowLifecycleCacheRecordsHeadEventCID(t *testing.T) {
 		t.Fatalf("cache entries = %#v, want one entry with event CID", entries)
 	}
 }
+
+func TestWorkflowLifecycleReplaySkipsCorruptCASObject(t *testing.T) {
+	runtimeRoot := t.TempDir()
+	runtime, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	artifactCID, err := runtime.PutCAS([]byte("workflow artifact"))
+	if err != nil {
+		t.Fatalf("store artifact: %v", err)
+	}
+	if err := runtime.ImportWorkflow(Workflow{ID: "inventory-receipt", ArtifactCID: artifactCID}); err != nil {
+		t.Fatalf("import workflow: %v", err)
+	}
+	corruptCID, err := runtime.cas.PutCID([]byte("will be corrupted"))
+	if err != nil {
+		t.Fatalf("store corruptible object: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, "cas", corruptCID.String()), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("corrupt CAS object: %v", err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("close runtime: %v", err)
+	}
+	reopened, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("reopen with corrupt object: %v", err)
+	}
+	defer func() {
+		if err := reopened.Close(); err != nil {
+			t.Errorf("close reopened runtime: %v", err)
+		}
+	}()
+	if workflows := reopened.Workflows(); len(workflows) != 1 || workflows[0].ID != "inventory-receipt" {
+		t.Fatalf("workflows = %#v, want retained valid workflow", workflows)
+	}
+}
+
+func TestWorkflowLifecycleKeepsDurableEventWhenCacheWriteFails(t *testing.T) {
+	runtimeRoot := t.TempDir()
+	runtime, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	artifactCID, err := runtime.PutCAS([]byte("workflow artifact"))
+	if err != nil {
+		t.Fatalf("store artifact: %v", err)
+	}
+	runtime.workflows.cachePath = t.TempDir()
+	if err := runtime.ImportWorkflow(Workflow{ID: "inventory-receipt", ArtifactCID: artifactCID}); err != nil {
+		t.Fatalf("import with failed cache write: %v", err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("close runtime: %v", err)
+	}
+	reopened, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("reopen after failed cache write: %v", err)
+	}
+	defer func() {
+		if err := reopened.Close(); err != nil {
+			t.Errorf("close reopened runtime: %v", err)
+		}
+	}()
+	if workflows := reopened.Workflows(); len(workflows) != 1 || workflows[0].State != WorkflowImported {
+		t.Fatalf("workflows = %#v, want durable imported workflow", workflows)
+	}
+}
