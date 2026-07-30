@@ -78,6 +78,7 @@ Expose the basket through a workflow command family:
     moks workflow inspect <alias-or-cid>
     moks workflow verify <alias-or-cid>
     moks workflow status <alias-or-cid>
+    moks workflow demo <workflow-id>
     moks workflow extract <alias-or-cid> <destination>
     moks workflow activate <alias>
     moks workflow deactivate <alias>

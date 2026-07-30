@@ -47,7 +47,65 @@ func workflowsPrint(workflows []kernel.Workflow) error {
 	return nil
 }
 
+func workflowDemo(ctx context.Context, workflowID string) error {
+	sourceDir, err := filepath.Abs(filepath.Join("workflows", workflowID))
+	if err != nil {
+		return err
+	}
+	if info, err := os.Stat(sourceDir); err != nil || !info.IsDir() {
+		return fmt.Errorf("workflow source is not available: %s", sourceDir)
+	}
+	runtimeRoot, err := os.MkdirTemp("", "moks-workflow-demo-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := os.RemoveAll(runtimeRoot); err != nil {
+			fmt.Fprintf(os.Stderr, "remove workflow demo runtime: %v\n", err)
+		}
+	}()
+	runtime, err := kernel.Open(runtimeRoot)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "close workflow demo runtime: %v\n", err)
+		}
+	}()
+	if err := registerBuiltins(runtime); err != nil {
+		return err
+	}
+	workflow, err := runtime.CaptureWorkflowDir(sourceDir, workflowID)
+	if err != nil {
+		return err
+	}
+	if _, err := runtime.VerifyWorkflow(workflow.ID); err != nil {
+		return err
+	}
+	if err := runtime.ActivateWorkflow(workflow.ID); err != nil {
+		return err
+	}
+	extractDir := filepath.Join(runtimeRoot, "extracted")
+	if err := runtime.ExtractWorkflow(workflow.ID, extractDir); err != nil {
+		return err
+	}
+	status, err := runtime.InspectWorkflowStatus(workflow.ID)
+	if err != nil {
+		return err
+	}
+	output, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(output))
+	return nil
+}
+
 func run(ctx context.Context, args []string) error {
+	if len(args) == 3 && matchesPrefix(args, "workflow", "demo") {
+		return workflowDemo(ctx, args[2])
+	}
 	root, err := defaultRuntimeRoot()
 	if err != nil {
 		return err
@@ -269,6 +327,11 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(string(output))
 		return nil
+	case matchesPrefix(args, "workflow", "demo"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow demo <workflow-id>")
+		}
+		return workflowDemo(ctx, args[2])
 	case matchesPrefix(args, "workflow", "activate"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow activate <alias>")
