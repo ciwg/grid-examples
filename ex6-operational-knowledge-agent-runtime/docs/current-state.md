@@ -87,6 +87,8 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - trace summary counts showing total, shown, and hidden steps
 - append-only durable history
 - CAS object storage
+- pCID-selected CAS-backed workflow lifecycle events with artifact-scoped parent links
+- disposable workflow lifecycle cache rebuilds that reject missing artifacts and retain accepted event CIDs
 - one built-in example package: `ops-note`
 - one real first-party built-in package: `context`
 - one real first-party built-in package: `knowledge`

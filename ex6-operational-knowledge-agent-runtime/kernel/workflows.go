@@ -39,6 +39,11 @@ type WorkflowRegistry struct {
 	heads     map[string]cid.Cid
 }
 
+type workflowLifecycleCacheEntry struct {
+	Workflow Workflow `json:"workflow"`
+	EventCID string   `json:"event_cid"`
+}
+
 func OpenWorkflowRegistry(root string, cas *store.CAS) (*WorkflowRegistry, error) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return nil, err
@@ -83,6 +88,13 @@ func (r *WorkflowRegistry) scan() (map[string]Workflow, map[string]cid.Cid, erro
 				continue
 			}
 			if event.State == WorkflowImported {
+				if _, err := r.cas.GetCID(event.ArtifactCID); err != nil {
+					// Intent: A lifecycle envelope without its retained artifact is
+					// not a locally accepted import. Source: DI-bavuk
+					delete(candidates, k)
+					progress = true
+					continue
+				}
 				accepted[k] = event
 				delete(candidates, k)
 				progress = true
@@ -170,7 +182,14 @@ func (r *WorkflowRegistry) append(w Workflow, a cid.Cid, p []cid.Cid) error {
 	return r.cache()
 }
 func (r *WorkflowRegistry) cache() error {
-	b, e := json.Marshal(r.listLocked())
+	entries := make([]workflowLifecycleCacheEntry, 0, len(r.workflows))
+	for _, workflow := range r.listLocked() {
+		entries = append(entries, workflowLifecycleCacheEntry{
+			Workflow: workflow,
+			EventCID: r.heads[workflow.ID].String(),
+		})
+	}
+	b, e := json.Marshal(entries)
 	if e != nil {
 		return e
 	}

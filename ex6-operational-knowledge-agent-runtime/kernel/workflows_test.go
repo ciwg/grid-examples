@@ -1,9 +1,12 @@
 package kernel
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/ipfs/go-cid"
 )
 
 func TestWorkflowLifecycleReplaysAfterRestart(t *testing.T) {
@@ -93,5 +96,67 @@ func TestWorkflowLifecycleRebuildsDeletedCache(t *testing.T) {
 	}
 	if _, err := os.Stat(cachePath); err != nil {
 		t.Fatalf("recreated cache: %v", err)
+	}
+}
+
+func TestWorkflowLifecycleReplayRejectsMissingArtifact(t *testing.T) {
+	runtimeRoot := t.TempDir()
+	runtime, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	artifactCID, err := cid.Decode(testWorkflowArtifactCID)
+	if err != nil {
+		t.Fatalf("decode missing artifact CID: %v", err)
+	}
+	raw, err := EncodeWorkflowLifecycleEvent(WorkflowLifecycleEvent{
+		State: WorkflowImported, WorkflowAlias: "missing-artifact", ArtifactCID: artifactCID,
+	})
+	if err != nil {
+		t.Fatalf("encode lifecycle event: %v", err)
+	}
+	if _, err := runtime.cas.PutCID(raw); err != nil {
+		t.Fatalf("store lifecycle event: %v", err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("close runtime: %v", err)
+	}
+	reopened, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("reopen runtime: %v", err)
+	}
+	defer func() {
+		if err := reopened.Close(); err != nil {
+			t.Errorf("close reopened runtime: %v", err)
+		}
+	}()
+	if workflows := reopened.Workflows(); len(workflows) != 0 {
+		t.Fatalf("workflows = %#v, want no missing-artifact import", workflows)
+	}
+}
+
+func TestWorkflowLifecycleCacheRecordsHeadEventCID(t *testing.T) {
+	runtimeRoot := t.TempDir()
+	runtime, err := Open(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	artifactCID, err := runtime.PutCAS([]byte("workflow artifact"))
+	if err != nil {
+		t.Fatalf("store artifact: %v", err)
+	}
+	if err := runtime.ImportWorkflow(Workflow{ID: "inventory-receipt", ArtifactCID: artifactCID}); err != nil {
+		t.Fatalf("import workflow: %v", err)
+	}
+	cache, err := os.ReadFile(filepath.Join(runtimeRoot, "state", "workflow-lifecycle-cache.json"))
+	if err != nil {
+		t.Fatalf("read cache: %v", err)
+	}
+	var entries []workflowLifecycleCacheEntry
+	if err := json.Unmarshal(cache, &entries); err != nil {
+		t.Fatalf("decode cache: %v", err)
+	}
+	if len(entries) != 1 || entries[0].EventCID == "" {
+		t.Fatalf("cache entries = %#v, want one entry with event CID", entries)
 	}
 }
