@@ -241,6 +241,20 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Printf("extracted %s to %s\n", args[2], args[3])
 		return nil
+	case matchesPrefix(args, "workflow", "verify"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow verify <alias-or-cid>")
+		}
+		manifest, err := runtime.VerifyWorkflow(args[2])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(manifest, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
 	case matchesPrefix(args, "workflow", "activate"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow activate <alias>")

@@ -238,3 +238,27 @@ func (runtime *Runtime) validateWorkflowDependencies(w Workflow) error {
 	}
 	return nil
 }
+
+// VerifyWorkflow validates one retained artifact without changing its lifecycle state.
+// Intent: Let operators check local readiness before choosing activation. Source: DI-lovek
+func (runtime *Runtime) VerifyWorkflow(aliasOrCID string) (WorkflowManifest, error) {
+	artifactID := aliasOrCID
+	if workflow, err := runtime.workflow(aliasOrCID); err == nil {
+		artifactID = workflow.ArtifactCID
+	}
+	manifest, err := runtime.WorkflowManifest(artifactID)
+	if err != nil {
+		return WorkflowManifest{}, err
+	}
+	for _, id := range manifest.RequiredPackages {
+		if _, ok := runtime.PackageManifest(id); !ok {
+			return WorkflowManifest{}, fmt.Errorf("required package is not active: %s", id)
+		}
+	}
+	for _, protocol := range manifest.RequiredProtocols {
+		if len(runtime.ProtocolRoutesForProtocol(protocol)) == 0 {
+			return WorkflowManifest{}, fmt.Errorf("required protocol has no route: %s", protocol)
+		}
+	}
+	return manifest, nil
+}

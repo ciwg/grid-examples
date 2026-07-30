@@ -265,6 +265,12 @@ func TestCaptureWorkflowDirectoryIsDeterministicAndImportsInactive(t *testing.T)
 	if workflow.State != WorkflowImported || workflow.ArtifactCID == "" {
 		t.Fatalf("workflow = %#v, want inactive CID-backed import", workflow)
 	}
+	if _, err := runtime.VerifyWorkflow(workflow.ID); err != nil {
+		t.Fatalf("verify captured workflow: %v", err)
+	}
+	if verified, err := runtime.workflow(workflow.ID); err != nil || verified.State != WorkflowImported {
+		t.Fatalf("verify changed lifecycle state: %#v, %v", verified, err)
+	}
 	if err := runtime.ActivateWorkflow(workflow.ID); err != nil {
 		t.Fatalf("activate captured workflow: %v", err)
 	}
