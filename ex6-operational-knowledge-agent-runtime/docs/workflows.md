@@ -66,7 +66,9 @@ domain rules.
 
 ## Current status
 
-This directory layout and deterministic archive format are proposed. The
-runtime currently supports CAS-backed lifecycle events for imported artifacts,
-but does not yet capture a local workflow directory into CAS or dispatch a
-workflow through workers.
+The runtime captures a valid workflow directory as a deterministic tar archive
+in CAS, imports it under a local alias, and requires an explicit activation
+step. It does not yet dispatch a workflow through workers.
+
+The complete generic loader contract is documented in
+[Workflow Loader: The Basket](./workflow-loader.md).

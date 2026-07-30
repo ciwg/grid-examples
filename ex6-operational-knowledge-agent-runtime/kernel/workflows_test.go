@@ -228,3 +228,44 @@ func TestWorkflowLifecycleKeepsDurableEventWhenCacheWriteFails(t *testing.T) {
 		t.Fatalf("workflows = %#v, want durable imported workflow", workflows)
 	}
 }
+
+func TestCaptureWorkflowDirectoryIsDeterministicAndImportsInactive(t *testing.T) {
+	directory := t.TempDir()
+	manifest := []byte(`{"id":"procedure-execution","version":"1","summary":"Run a procedure","required_packages":[],"required_protocols":[]}`)
+	if err := os.WriteFile(filepath.Join(directory, "workflow.json"), manifest, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "procedure.md"), []byte("step one\n"), 0o644); err != nil {
+		t.Fatalf("write procedure: %v", err)
+	}
+	first, _, err := archiveWorkflowDir(directory)
+	if err != nil {
+		t.Fatalf("archive first: %v", err)
+	}
+	second, _, err := archiveWorkflowDir(directory)
+	if err != nil {
+		t.Fatalf("archive second: %v", err)
+	}
+	if string(first) != string(second) {
+		t.Fatal("deterministic archives differ")
+	}
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open runtime: %v", err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Errorf("close runtime: %v", err)
+		}
+	}()
+	workflow, err := runtime.CaptureWorkflowDir(directory, "procedure-execution")
+	if err != nil {
+		t.Fatalf("capture workflow: %v", err)
+	}
+	if workflow.State != WorkflowImported || workflow.ArtifactCID == "" {
+		t.Fatalf("workflow = %#v, want inactive CID-backed import", workflow)
+	}
+	if err := runtime.ActivateWorkflow(workflow.ID); err != nil {
+		t.Fatalf("activate captured workflow: %v", err)
+	}
+}

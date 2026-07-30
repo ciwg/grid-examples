@@ -34,6 +34,19 @@ func main() {
 	}
 }
 
+func workflowPrint(workflow kernel.Workflow) error {
+	return workflowsPrint([]kernel.Workflow{workflow})
+}
+
+func workflowsPrint(workflows []kernel.Workflow) error {
+	output, err := json.MarshalIndent(workflows, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(output))
+	return nil
+}
+
 func run(ctx context.Context, args []string) error {
 	root, err := defaultRuntimeRoot()
 	if err != nil {
@@ -187,6 +200,62 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Printf("installed %s\n", manifest.ID)
 		return nil
+	case matchesPrefix(args, "workflow", "capture"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow capture <directory> <alias>")
+		}
+		workflow, err := runtime.CaptureWorkflowDir(args[2], args[3])
+		if err != nil {
+			return err
+		}
+		return workflowPrint(workflow)
+	case matchesPrefix(args, "workflow", "import"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow import <alias> <artifact-cid>")
+		}
+		if err := runtime.ImportWorkflow(kernel.Workflow{ID: args[2], ArtifactCID: args[3]}); err != nil {
+			return err
+		}
+		return workflowPrint(runtime.Workflows()[len(runtime.Workflows())-1])
+	case matchesPrefix(args, "workflow", "list"):
+		if len(args) != 2 {
+			return errors.New("usage: workflow list")
+		}
+		return workflowsPrint(runtime.Workflows())
+	case matchesPrefix(args, "workflow", "inspect"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow inspect <alias-or-cid>")
+		}
+		for _, workflow := range runtime.Workflows() {
+			if workflow.ID == args[2] || workflow.ArtifactCID == args[2] {
+				return workflowPrint(workflow)
+			}
+		}
+		return errors.New("workflow is not imported")
+	case matchesPrefix(args, "workflow", "activate"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow activate <alias>")
+		}
+		if err := runtime.ActivateWorkflow(args[2]); err != nil {
+			return err
+		}
+		return workflowsPrint(runtime.Workflows())
+	case matchesPrefix(args, "workflow", "deactivate"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow deactivate <alias>")
+		}
+		if err := runtime.DeactivateWorkflow(args[2]); err != nil {
+			return err
+		}
+		return workflowsPrint(runtime.Workflows())
+	case matchesPrefix(args, "workflow", "revoke"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow revoke <alias>")
+		}
+		if err := runtime.RevokeWorkflow(args[2]); err != nil {
+			return err
+		}
+		return workflowsPrint(runtime.Workflows())
 	case matchesPrefix(args, "relay", "export"):
 		if len(args) != 3 {
 			return errors.New("usage: relay export <path>")

@@ -241,6 +241,13 @@ func (runtime *Runtime) workflowArtifactCID(id string) (cid.Cid, error) {
 	return runtime.cas.PutCID(b)
 }
 func (runtime *Runtime) ActivateWorkflow(id string) error {
+	workflow, err := runtime.workflow(id)
+	if err != nil {
+		return err
+	}
+	if err := runtime.validateWorkflowDependencies(workflow); err != nil {
+		return err
+	}
 	return runtime.workflows.activateWorkflow(id)
 }
 func (runtime *Runtime) DeactivateWorkflow(id string) error {
