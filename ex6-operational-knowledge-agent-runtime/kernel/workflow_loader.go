@@ -161,6 +161,61 @@ func (runtime *Runtime) WorkflowManifest(artifactID string) (WorkflowManifest, e
 	}
 	return WorkflowManifest{}, errors.New("workflow.json is missing from artifact")
 }
+
+// ExtractWorkflow writes a retained workflow artifact into a new safe directory.
+// Intent: Let operators inspect exact CAS workflow bytes without allowing an
+// archive to escape the chosen destination. Source: DI-lovek
+func (runtime *Runtime) ExtractWorkflow(aliasOrCID string, destination string) error {
+	artifactID := aliasOrCID
+	if workflow, err := runtime.workflow(aliasOrCID); err == nil {
+		artifactID = workflow.ArtifactCID
+	}
+	artifact, err := runtime.workflowArtifactCID(artifactID)
+	if err != nil {
+		return err
+	}
+	body, err := runtime.cas.GetCID(artifact)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(destination); err == nil || !errors.Is(err, os.ErrNotExist) {
+		return errors.New("workflow extraction destination must not exist")
+	}
+	if err := os.MkdirAll(destination, 0o755); err != nil {
+		return err
+	}
+	reader := tar.NewReader(bytes.NewReader(body))
+	for {
+		header, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		name := filepath.Clean(filepath.FromSlash(header.Name))
+		if filepath.IsAbs(name) || name == "." || strings.HasPrefix(name, ".."+string(filepath.Separator)) || header.Typeflag != tar.TypeReg {
+			return errors.New("workflow archive contains an unsafe entry")
+		}
+		path := filepath.Join(destination, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(file, reader); err != nil {
+			if closeErr := file.Close(); closeErr != nil {
+				return errors.Join(err, closeErr)
+			}
+			return err
+		}
+		if err := file.Close(); err != nil {
+			return err
+		}
+	}
+}
 func (runtime *Runtime) validateWorkflowDependencies(w Workflow) error {
 	m, err := runtime.WorkflowManifest(w.ArtifactCID)
 	if err != nil && (errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || err.Error() == "workflow.json is missing from artifact") {

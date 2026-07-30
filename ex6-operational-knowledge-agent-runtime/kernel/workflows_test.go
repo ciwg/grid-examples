@@ -268,4 +268,12 @@ func TestCaptureWorkflowDirectoryIsDeterministicAndImportsInactive(t *testing.T)
 	if err := runtime.ActivateWorkflow(workflow.ID); err != nil {
 		t.Fatalf("activate captured workflow: %v", err)
 	}
+	destination := filepath.Join(t.TempDir(), "extracted")
+	if err := runtime.ExtractWorkflow(workflow.ID, destination); err != nil {
+		t.Fatalf("extract workflow: %v", err)
+	}
+	extracted, err := os.ReadFile(filepath.Join(destination, "workflow.json"))
+	if err != nil || string(extracted) != string(manifest) {
+		t.Fatalf("extracted manifest = %q, %v", extracted, err)
+	}
 }

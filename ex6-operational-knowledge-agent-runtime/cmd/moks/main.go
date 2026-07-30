@@ -232,6 +232,15 @@ func run(ctx context.Context, args []string) error {
 			}
 		}
 		return errors.New("workflow is not imported")
+	case matchesPrefix(args, "workflow", "extract"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow extract <alias-or-cid> <destination>")
+		}
+		if err := runtime.ExtractWorkflow(args[2], args[3]); err != nil {
+			return err
+		}
+		fmt.Printf("extracted %s to %s\n", args[2], args[3])
+		return nil
 	case matchesPrefix(args, "workflow", "activate"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow activate <alias>")
