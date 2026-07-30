@@ -23,6 +23,19 @@ The artifact CID is the identity of the exact archived directory. The local
 alias is an operator-facing name only. Deactivation or revocation removes local
 availability without deleting the artifact or its lifecycle history.
 
+## Local basket state
+
+The moks CLI uses .moks/ beneath its current working directory as its local
+runtime root. It holds CAS objects, lifecycle events, the disposable projection
+cache, local peer state, and history. It is intentionally ignored by Git:
+workflow source directories are committed; the locally loaded basket state is
+not.
+
+Inspect the current local basket with:
+
+    go run ./cmd/moks workflow list
+    go run ./cmd/moks workflow inspect <alias-or-cid>
+
 ## What exists now
 
 - CAS stores immutable bytes by CID.
