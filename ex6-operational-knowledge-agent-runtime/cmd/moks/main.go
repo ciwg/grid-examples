@@ -80,16 +80,20 @@ func workflowDemo(ctx context.Context, workflowID string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("[ok] captured %s as %s\n", workflow.ID, workflow.ArtifactCID)
 	if _, err := runtime.VerifyWorkflow(workflow.ID); err != nil {
 		return err
 	}
+	fmt.Println("[ok] verified manifest and local dependencies")
 	if err := runtime.ActivateWorkflow(workflow.ID); err != nil {
 		return err
 	}
+	fmt.Println("[ok] activated local workflow availability")
 	extractDir := filepath.Join(runtimeRoot, "extracted")
 	if err := runtime.ExtractWorkflow(workflow.ID, extractDir); err != nil {
 		return err
 	}
+	fmt.Println("[ok] extracted the exact retained artifact for inspection")
 	status, err := runtime.InspectWorkflowStatus(workflow.ID)
 	if err != nil {
 		return err
