@@ -40,17 +40,18 @@ type registeredFamily struct {
 }
 
 type Runtime struct {
-	root         string
-	packagesRoot string
-	history      *store.History
-	cas          *store.CAS
-	peers        *grid.PeerStore
-	policies     *grid.PolicyStore
-	packages     map[string]*activePackage
-	commands     map[string]*activePackage
-	families     map[string]registeredFamily
-	routes       []registeredRoute
-	workflows    *WorkflowRegistry
+	root             string
+	packagesRoot     string
+	history          *store.History
+	cas              *store.CAS
+	workflowEvidence *store.CAS
+	peers            *grid.PeerStore
+	policies         *grid.PolicyStore
+	packages         map[string]*activePackage
+	commands         map[string]*activePackage
+	families         map[string]registeredFamily
+	routes           []registeredRoute
+	workflows        *WorkflowRegistry
 }
 
 func Open(root string) (*Runtime, error) {
@@ -62,6 +63,13 @@ func Open(root string) (*Runtime, error) {
 		return nil, err
 	}
 	casStore, err := store.OpenCAS(filepath.Join(root, "cas"))
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
+	// Intent: Keep received lifecycle evidence out of the CAS replayed as local
+	// workflow authority. Source: DI-novuk
+	evidenceStore, err := store.OpenCAS(filepath.Join(root, "workflow-evidence"))
 	if err != nil {
 		_ = history.Close()
 		return nil, err
@@ -86,17 +94,18 @@ func Open(root string) (*Runtime, error) {
 		return nil, err
 	}
 	runtime := &Runtime{
-		root:         root,
-		packagesRoot: filepath.Join(root, "packages"),
-		history:      history,
-		cas:          casStore,
-		peers:        peerStore,
-		policies:     policyStore,
-		packages:     map[string]*activePackage{},
-		commands:     map[string]*activePackage{},
-		families:     map[string]registeredFamily{},
-		routes:       []registeredRoute{},
-		workflows:    workflowRegistry,
+		root:             root,
+		packagesRoot:     filepath.Join(root, "packages"),
+		history:          history,
+		cas:              casStore,
+		workflowEvidence: evidenceStore,
+		peers:            peerStore,
+		policies:         policyStore,
+		packages:         map[string]*activePackage{},
+		commands:         map[string]*activePackage{},
+		families:         map[string]registeredFamily{},
+		routes:           []registeredRoute{},
+		workflows:        workflowRegistry,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()

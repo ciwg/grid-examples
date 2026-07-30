@@ -19,6 +19,15 @@ Source: DI-lovek; DI-bavuk.
           ↓ optional activation
     available local workflow
 
+An allowed peer can additionally transfer an exact artifact plus signed
+lifecycle evidence through `moks workflow relay push <alias> <peer-id>`. The
+receiver verifies the configured peer identity and signature, retains the
+artifact in its own CAS, and retains the sender's lifecycle bytes in
+`<runtime root>/workflow-evidence`. It does not import or activate the workflow:
+that availability decision remains local.
+
+Source: DI-novuk.
+
 The artifact CID is the identity of the exact archived directory. The local
 alias is an operator-facing name only. Deactivation or revocation removes local
 availability without deleting the artifact or its lifecycle history.
@@ -78,6 +87,7 @@ Expose the basket through a workflow command family:
     moks workflow inspect <alias-or-cid>
     moks workflow verify <alias-or-cid>
     moks workflow status <alias-or-cid>
+    moks workflow relay push <alias> <peer-id>
     moks workflow demo <workflow-id>
 
 The demo prints a short operator checklist followed by the final JSON status.

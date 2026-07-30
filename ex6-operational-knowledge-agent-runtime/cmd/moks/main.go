@@ -331,6 +331,11 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(string(output))
 		return nil
+	case matchesPrefix(args, "workflow", "relay", "push"):
+		if len(args) != 5 {
+			return errors.New("usage: workflow relay push <alias> <peer-id>")
+		}
+		return workflowRelayPush(ctx, runtime, args[3], args[4])
 	case matchesPrefix(args, "workflow", "demo"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow demo <workflow-id>")
@@ -871,11 +876,12 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 		// without silently granting any exchange permissions.
 		// Source: DI-vemut
 		card := grid.PeerCard{
-			PeerID:      runtime.LocalPeerID(),
-			PublicKey:   runtime.LocalPeerPublicKey(),
-			BatchURL:    absoluteRelayURL(request, "/relay/batch"),
-			ImportURL:   absoluteRelayURL(request, "/relay/import"),
-			DiscoverURL: absoluteRelayURL(request, "/relay/peer-card"),
+			PeerID:            runtime.LocalPeerID(),
+			PublicKey:         runtime.LocalPeerPublicKey(),
+			BatchURL:          absoluteRelayURL(request, "/relay/batch"),
+			ImportURL:         absoluteRelayURL(request, "/relay/import"),
+			WorkflowImportURL: absoluteRelayURL(request, "/relay/workflow/import"),
+			DiscoverURL:       absoluteRelayURL(request, "/relay/peer-card"),
 		}
 		body, err := json.MarshalIndent(card, "", "  ")
 		if err != nil {
@@ -917,6 +923,31 @@ func relayHandler(ctx context.Context, runtime *kernel.Runtime) http.Handler {
 			return
 		}
 		if err := runtime.ImportBatchFromPeer(ctx, peerID, batch, "push"); err != nil {
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"status":"ok"}`))
+	})
+	mux.HandleFunc("POST /relay/workflow/import", func(writer http.ResponseWriter, request *http.Request) {
+		// Intent: Accept a separately authenticated workflow bundle without
+		// allowing artifact receipt to change local workflow availability. Source: DI-novuk
+		peerID := strings.TrimSpace(request.Header.Get("X-Moks-Peer-ID"))
+		if peerID == "" {
+			http.Error(writer, "missing X-Moks-Peer-ID header", http.StatusForbidden)
+			return
+		}
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		var transfer kernel.WorkflowTransfer
+		if err := json.Unmarshal(body, &transfer); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := runtime.ImportWorkflowTransferFromPeer(peerID, transfer); err != nil {
 			http.Error(writer, err.Error(), http.StatusForbidden)
 			return
 		}
@@ -999,6 +1030,49 @@ func relayPush(ctx context.Context, runtime *kernel.Runtime, peerID string) erro
 	return nil
 }
 
+func workflowRelayPush(ctx context.Context, runtime *kernel.Runtime, alias string, peerID string) error {
+	// Intent: Keep artifact exchange on its dedicated endpoint so routine relay
+	// batches remain record carriage and the receiver can retain evidence safely. Source: DI-novuk
+	peer, ok := runtime.LookupPeer(peerID)
+	if !ok {
+		return fmt.Errorf("peer not allowed: %s", peerID)
+	}
+	endpoint := peer.WorkflowImportURL
+	if strings.TrimSpace(endpoint) == "" {
+		endpoint = strings.TrimSuffix(peer.ImportURL, "/import") + "/workflow/import"
+	}
+	transfer, err := runtime.ExportWorkflowTransfer(alias)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(transfer)
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Moks-Peer-ID", runtime.LocalPeerID())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	if response.StatusCode != http.StatusOK {
+		responseBody, readErr := io.ReadAll(response.Body)
+		if readErr != nil {
+			return readErr
+		}
+		return fmt.Errorf("workflow relay push failed: %s: %s", response.Status, strings.TrimSpace(string(responseBody)))
+	}
+	fmt.Printf("workflow relay pushed %s to %s\n", alias, peerID)
+	return nil
+}
+
 func relayPeerDiscover(ctx context.Context, runtime *kernel.Runtime, cardURL string, seed bool) error {
 	// Intent: Keep discovery separate from trust by fetching peer metadata and
 	// only seeding a no-pull/no-push local entry when the operator explicitly
@@ -1014,6 +1088,7 @@ func relayPeerDiscover(ctx context.Context, runtime *kernel.Runtime, cardURL str
 			PeerID:            card.PeerID,
 			BatchURL:          card.BatchURL,
 			ImportURL:         card.ImportURL,
+			WorkflowImportURL: card.WorkflowImportURL,
 			PublicKey:         card.PublicKey,
 			AllowPull:         false,
 			AllowPush:         false,
@@ -1026,11 +1101,12 @@ func relayPeerDiscover(ctx context.Context, runtime *kernel.Runtime, cardURL str
 		seeded = true
 	}
 	fmt.Printf(
-		"peer_id: %s\npublic_key: %s\nbatch_url: %s\nimport_url: %s\ndiscover_url: %s\nseeded_untrusted: %t\nallow_command: moks relay peer allow %s %s %s %s no-pull no-push\nenable_pull_command: moks relay peer allow %s %s %s %s pull no-push\nenable_push_command: moks relay peer allow %s %s %s %s no-pull push\nenable_both_command: moks relay peer allow %s %s %s %s pull push\n",
+		"peer_id: %s\npublic_key: %s\nbatch_url: %s\nimport_url: %s\nworkflow_import_url: %s\ndiscover_url: %s\nseeded_untrusted: %t\nallow_command: moks relay peer allow %s %s %s %s no-pull no-push\nenable_pull_command: moks relay peer allow %s %s %s %s pull no-push\nenable_push_command: moks relay peer allow %s %s %s %s no-pull push\nenable_both_command: moks relay peer allow %s %s %s %s pull push\n",
 		card.PeerID,
 		card.PublicKey,
 		card.BatchURL,
 		card.ImportURL,
+		card.WorkflowImportURL,
 		card.DiscoverURL,
 		seeded,
 		card.PeerID,

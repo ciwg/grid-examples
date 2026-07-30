@@ -2,6 +2,14 @@
 
 ## Decision Intent Log
 
+ID: DI-novuk
+Date: 2026-07-29 18:30:00
+Status: active
+Decision: Exchange workflow artifacts through a dedicated peer-authenticated endpoint carrying one exact artifact and lifecycle-envelope bundle, rather than through JSON relay batches or shared storage.
+Intent: Prove PromiseGrid-style independent-node workflow exchange while keeping routine relay records and binary CAS artifacts separate.
+Constraints: Each receiver verifies and stores bytes in its own CAS; received lifecycle evidence never automatically imports or activates a workflow; top-level PromiseGrid semantics remain `promise`.
+Affects: `grid/peers.go`, workflow relay endpoint and transfer codec, multi-node simulation tests, peer-card metadata, workflow loader docs, and `docs/thought-experiments/TE-novuk-workflow-relay-endpoint.md`.
+
 ID: DI-sibok
 Date: 2026-07-28 18:20:00
 Status: active

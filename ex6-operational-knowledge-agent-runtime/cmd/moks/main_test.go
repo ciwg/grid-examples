@@ -59,6 +59,71 @@ func TestBuiltinQuickstartFlow(t *testing.T) {
 	}
 }
 
+func TestWorkflowRelayEndpointTransfersArtifactWithoutActivatingIt(t *testing.T) {
+	source, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer func() {
+		if closeErr := source.Close(); closeErr != nil {
+			t.Errorf("close source: %v", closeErr)
+		}
+	}()
+	target, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open target: %v", err)
+	}
+	defer func() {
+		if closeErr := target.Close(); closeErr != nil {
+			t.Errorf("close target: %v", closeErr)
+		}
+	}()
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:            source.LocalPeerID(),
+		BatchURL:          "https://source.invalid/relay/batch",
+		ImportURL:         "https://source.invalid/relay/import",
+		PublicKey:         source.LocalPeerPublicKey(),
+		AllowPush:         true,
+		AttesterClass:     "peer",
+		AttestationWeight: 1,
+		Federation:        "independent",
+	}); err != nil {
+		t.Fatalf("allow source: %v", err)
+	}
+	artifactCID, err := source.PutCAS([]byte("workflow relay endpoint artifact"))
+	if err != nil {
+		t.Fatalf("put source artifact: %v", err)
+	}
+	if err := source.ImportWorkflow(kernel.Workflow{ID: "endpoint-handoff", ArtifactCID: artifactCID}); err != nil {
+		t.Fatalf("import source workflow: %v", err)
+	}
+	sourceWorkflow := source.Workflows()[0]
+	server := httptest.NewServer(relayHandler(context.Background(), target))
+	defer server.Close()
+	if err := source.AllowPeer(grid.AllowedPeer{
+		PeerID:            target.LocalPeerID(),
+		BatchURL:          server.URL + "/relay/batch",
+		ImportURL:         server.URL + "/relay/import",
+		WorkflowImportURL: server.URL + "/relay/workflow/import",
+		PublicKey:         target.LocalPeerPublicKey(),
+		AllowPush:         true,
+		AttesterClass:     "peer",
+		AttestationWeight: 1,
+		Federation:        "independent",
+	}); err != nil {
+		t.Fatalf("allow target: %v", err)
+	}
+	if err := workflowRelayPush(context.Background(), source, "endpoint-handoff", target.LocalPeerID()); err != nil {
+		t.Fatalf("push workflow: %v", err)
+	}
+	if workflows := target.Workflows(); len(workflows) != 0 {
+		t.Fatalf("workflow endpoint changed target lifecycle: %#v", workflows)
+	}
+	if _, err := target.GetCAS(sourceWorkflow.ArtifactCID); err != nil {
+		t.Fatalf("target missing transferred artifact: %v", err)
+	}
+}
+
 func TestInstalledWriterAgentExample(t *testing.T) {
 	workdir := t.TempDir()
 	exampleDir := filepath.Join(repoRoot(t), "examples", "writer-agent")

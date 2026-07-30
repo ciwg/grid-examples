@@ -35,6 +35,7 @@ capability set as OKAR packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - append-only durable history
 - CAS storage
 - implementation-local, pCID-selected CAS workflow lifecycle events with a disposable rebuilt cache
+- peer-authenticated workflow artifact relay with separate received-lifecycle evidence
 - relay batch export and import
 - signed live relay batches
 - per-record relay digest proofs
@@ -53,7 +54,7 @@ capability set as OKAR packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
-`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`.
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`; `DI-rovum`; `DI-nupad`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-rutom`; `DI-novuk`.
 
 ## What Does Not Exist Yet
 
@@ -75,9 +76,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; 
 - `moks relay peer discover <peer-card-url> seed` creates a local `no-pull` `no-push` peer entry
 - `moks relay peer promote <peer-id> <pull|push|both>` upgrades local policy using that stored peer entry
 - pull or push remain disabled until an explicit `moks relay peer allow ...` command changes policy
+- `moks workflow relay push <alias> <peer-id>` transfers an exact workflow artifact and the sender's signed lifecycle evidence to an allowed peer; the receiver retains the artifact but does not import or activate it
 - claim attestation trust is local too: `moks relay peer classify ...` assigns class/weight, `moks relay peer federate ...` assigns federation, and `moks relay policy claim set-federated ...` decides what spread is enough before import
 
-Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`.
+Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-novuk`.
 
 ## Route Inspection
 

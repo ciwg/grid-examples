@@ -21,6 +21,7 @@ type AllowedPeer struct {
 	PeerID            string `json:"peer_id"`
 	BatchURL          string `json:"batch_url"`
 	ImportURL         string `json:"import_url"`
+	WorkflowImportURL string `json:"workflow_import_url,omitempty"`
 	PublicKey         string `json:"public_key"`
 	AllowPull         bool   `json:"allow_pull"`
 	AllowPush         bool   `json:"allow_push"`
@@ -37,11 +38,12 @@ type PeerConfig struct {
 }
 
 type PeerCard struct {
-	PeerID      string `json:"peer_id"`
-	PublicKey   string `json:"public_key"`
-	BatchURL    string `json:"batch_url"`
-	ImportURL   string `json:"import_url"`
-	DiscoverURL string `json:"discover_url"`
+	PeerID            string `json:"peer_id"`
+	PublicKey         string `json:"public_key"`
+	BatchURL          string `json:"batch_url"`
+	ImportURL         string `json:"import_url"`
+	WorkflowImportURL string `json:"workflow_import_url"`
+	DiscoverURL       string `json:"discover_url"`
 }
 
 type PeerStore struct {
@@ -213,6 +215,41 @@ func (store *PeerStore) SignBatch(batch Batch) (Batch, error) {
 	}
 	batch.Signature = hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), signingBytes))
 	return batch, nil
+}
+
+// SignBytes binds a non-batch relay payload to this runtime's peer identity.
+// Intent: Let dedicated binary relay endpoints reuse the established local
+// identity trust root instead of trusting an HTTP peer-ID header. Source: DI-novuk
+func (store *PeerStore) SignBytes(body []byte) (string, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(ed25519.Sign(ed25519.PrivateKey(privateKey), body)), nil
+}
+
+// VerifyPeerBytes verifies an exact relay payload against a configured peer.
+// Intent: Keep workflow transfer authorization cryptographic and local rather
+// than treating a caller-controlled HTTP header as proof. Source: DI-novuk
+func (store *PeerStore) VerifyPeerBytes(peerID string, body []byte, signature string) error {
+	peer, ok := store.Lookup(peerID)
+	if !ok {
+		return fmt.Errorf("peer not allowed: %s", peerID)
+	}
+	publicKey, err := hex.DecodeString(peer.PublicKey)
+	if err != nil {
+		return err
+	}
+	sig, err := hex.DecodeString(signature)
+	if err != nil {
+		return err
+	}
+	if !ed25519.Verify(ed25519.PublicKey(publicKey), body, sig) {
+		return errors.New("peer payload signature verification failed")
+	}
+	return nil
 }
 
 func (store *PeerStore) SignRecords(records []json.RawMessage) ([]RecordSignature, error) {
@@ -526,6 +563,9 @@ func (card PeerCard) Validate() error {
 	}
 	if strings.TrimSpace(card.ImportURL) == "" {
 		return errors.New("import_url is required")
+	}
+	if strings.TrimSpace(card.WorkflowImportURL) == "" {
+		return errors.New("workflow_import_url is required")
 	}
 	if strings.TrimSpace(card.DiscoverURL) == "" {
 		return errors.New("discover_url is required")
