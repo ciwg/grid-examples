@@ -24,6 +24,15 @@ type WorkflowManifest struct {
 	RequiredProtocols []string `json:"required_protocols"`
 }
 
+// WorkflowStatus is one operator-facing view of a retained workflow artifact.
+type WorkflowStatus struct {
+	Workflow Workflow         `json:"workflow"`
+	EventCID string           `json:"event_cid"`
+	Manifest WorkflowManifest `json:"manifest"`
+	Ready    bool             `json:"ready"`
+	Reason   string           `json:"reason,omitempty"`
+}
+
 func (m WorkflowManifest) Validate() error {
 	if strings.TrimSpace(m.ID) == "" || strings.TrimSpace(m.Version) == "" || strings.TrimSpace(m.Summary) == "" {
 		return errors.New("workflow id, version, and summary are required")
@@ -261,4 +270,34 @@ func (runtime *Runtime) VerifyWorkflow(aliasOrCID string) (WorkflowManifest, err
 		}
 	}
 	return manifest, nil
+}
+
+// InspectWorkflowStatus summarizes local lifecycle and dependency readiness without mutation.
+// Intent: Give operators one concise basket view before changing availability. Source: DI-lovek
+func (runtime *Runtime) InspectWorkflowStatus(aliasOrCID string) (WorkflowStatus, error) {
+	workflow, err := runtime.workflow(aliasOrCID)
+	if err != nil {
+		for _, candidate := range runtime.Workflows() {
+			if candidate.ArtifactCID == aliasOrCID {
+				workflow = candidate
+				err = nil
+				break
+			}
+		}
+	}
+	if err != nil {
+		return WorkflowStatus{}, err
+	}
+	head, ok := runtime.workflows.headCID(workflow.ID)
+	if !ok {
+		return WorkflowStatus{}, errors.New("workflow lifecycle head is missing")
+	}
+	status := WorkflowStatus{Workflow: workflow, EventCID: head.String()}
+	manifest, err := runtime.VerifyWorkflow(workflow.ID)
+	if err != nil {
+		status.Reason = err.Error()
+		return status, nil
+	}
+	status.Manifest, status.Ready = manifest, true
+	return status, nil
 }

@@ -268,6 +268,10 @@ func TestCaptureWorkflowDirectoryIsDeterministicAndImportsInactive(t *testing.T)
 	if _, err := runtime.VerifyWorkflow(workflow.ID); err != nil {
 		t.Fatalf("verify captured workflow: %v", err)
 	}
+	status, err := runtime.InspectWorkflowStatus(workflow.ID)
+	if err != nil || !status.Ready || status.EventCID == "" || status.Manifest.ID != "procedure-execution" {
+		t.Fatalf("workflow status = %#v, %v", status, err)
+	}
 	if verified, err := runtime.workflow(workflow.ID); err != nil || verified.State != WorkflowImported {
 		t.Fatalf("verify changed lifecycle state: %#v, %v", verified, err)
 	}

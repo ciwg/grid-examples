@@ -255,6 +255,20 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(string(output))
 		return nil
+	case matchesPrefix(args, "workflow", "status"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow status <alias-or-cid>")
+		}
+		status, err := runtime.InspectWorkflowStatus(args[2])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(status, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
 	case matchesPrefix(args, "workflow", "activate"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow activate <alias>")

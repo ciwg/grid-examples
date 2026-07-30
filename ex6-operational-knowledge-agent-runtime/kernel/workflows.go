@@ -208,6 +208,12 @@ func (r *WorkflowRegistry) workflowsList() []Workflow {
 	defer r.mu.RUnlock()
 	return r.listLocked()
 }
+func (r *WorkflowRegistry) headCID(id string) (cid.Cid, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	head, ok := r.heads[id]
+	return head, ok
+}
 func (r *WorkflowRegistry) listLocked() []Workflow {
 	w := make([]Workflow, 0, len(r.workflows))
 	for _, x := range r.workflows {
