@@ -89,6 +89,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - CAS object storage
 - pCID-selected CAS-backed workflow lifecycle events with artifact-scoped parent links
 - disposable workflow lifecycle cache rebuilds that reject missing artifacts and retain accepted event CIDs
+- implementation-local workflow lifecycle selector; stricter operation-to-operation transition validation remains pending
 - one built-in example package: `ops-note`
 - one real first-party built-in package: `context`
 - one real first-party built-in package: `knowledge`

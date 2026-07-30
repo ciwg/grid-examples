@@ -34,6 +34,7 @@ capability set as OKAR packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - explicit per-package protocol implementation claims
 - append-only durable history
 - CAS storage
+- implementation-local, pCID-selected CAS workflow lifecycle events with a disposable rebuilt cache
 - relay batch export and import
 - signed live relay batches
 - per-record relay digest proofs

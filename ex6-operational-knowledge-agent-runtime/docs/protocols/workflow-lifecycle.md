@@ -1,6 +1,7 @@
 # OKAR Workflow Lifecycle Protocol
 
-Status: implementation-local profile; pCID assignment pending
+Status: implementation-local profile; current selector is
+`bafkreicuygjo7udgzvopsv6bsvx5vrcbwo22bhd2izmkzuyaucvts7ignq`
 
 ## Scope
 
@@ -14,17 +15,16 @@ workflow artifact is imported, active, deactivated, or revoked. It does not
 grant execution authority, make a promise for an app agent, or introduce a new
 top-level PromiseGrid action kind.
 
-## pCID assignment
+## Current selector
 
-The pCID is the CIDv1 raw-sha2-256 CID of this exact specification document.
-The pCID is intentionally not embedded in this document: embedding its own CID
-would change the bytes being identified. Before implementation, the finalized
-bytes must be hashed, the resulting CIDv1 base32 text must be recorded in a
-CID-named protocol-spec symlink, and the exact binary CID bytes must be
-hardcoded in the implementation.
+The runtime currently accepts the selector
+`bafkreicuygjo7udgzvopsv6bsvx5vrcbwo22bhd2izmkzuyaucvts7ignq`, hardcoded
+in `kernel/workflow_events.go`. It is an implementation-local selector for
+this profile, rather than a claim that this Markdown file has completed a
+self-hashing publication process.
 
-Until that step is complete, no runtime may treat this draft as an accepted
-lifecycle protocol. Source: DI-bavuk.
+A future frozen protocol publication must use a new pCID if it changes the
+meaning or encoding described here. Source: DI-bavuk.
 
 ## Envelope
 
@@ -62,15 +62,17 @@ protocol, not by mutating this protocol's meaning.
 
 ## Operations
 
-| Value | Name | Required predecessor |
+| Value | Name | Current implementation predecessor behavior |
 | --- | --- | --- |
 | 0 | `import` | No parent. |
-| 1 | `activate` | `import` or `deactivate`. |
-| 2 | `deactivate` | `activate`. |
-| 3 | `revoke` | `import`, `activate`, or `deactivate`. |
+| 1 | `activate` | One accepted parent; the public API rejects activation after `revoke`. |
+| 2 | `deactivate` | One accepted parent. |
+| 3 | `revoke` | One accepted parent. |
 
-`revoke` is terminal for the artifact timeline. A replacement is a new imported
-workflow artifact CID, not reactivation of a revoked artifact.
+The current implementation enforces parent presence, alias, and artifact
+identity, but does not yet enforce the stricter operation-to-operation
+predecessor matrix. `revoke` is terminal only for the public activation API.
+A replacement remains a new imported workflow artifact CID.
 
 ## Canonical encoding rules
 
@@ -97,8 +99,8 @@ workflow artifact CID, not reactivation of a revoked artifact.
    arity, CID encodings, and the operation-specific parent count.
 3. For `import`, it verifies the artifact CID resolves in the local CAS. For a
    later operation, it verifies the one parent event resolves locally, validates
-   under this same pCID, names the same artifact CID, and has a permitted prior
-   operation.
+   under this same pCID, and names the same artifact CID. The current
+   implementation does not yet validate the predecessor operation matrix.
 4. It derives one accepted head per artifact CID. Multiple competing valid
    children of one parent remain a local conflict; no projection may silently
    select one. A future pCID may define a reconciliation operation.
