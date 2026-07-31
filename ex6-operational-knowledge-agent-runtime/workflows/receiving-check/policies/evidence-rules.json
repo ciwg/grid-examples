@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["delivery-reference", "inspection-record"],
+  "approval_required": true
+}

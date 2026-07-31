@@ -93,6 +93,40 @@ func TestWorkflowDemoMaintenanceRound(t *testing.T) {
 	}
 }
 
+func TestWorkflowDemoReceivingCheck(t *testing.T) {
+	output, err := runCLI(t, repoRoot(t), "workflow", "demo", "receiving-check")
+	if err != nil {
+		t.Fatalf("run receiving check demo: %v", err)
+	}
+	for _, line := range []string{
+		"[ok] captured receiving-check as ",
+		"[ok] verified manifest and local dependencies",
+		"[ok] activated local workflow availability",
+		"[ok] extracted the exact retained artifact for inspection",
+	} {
+		if !strings.Contains(output, line) {
+			t.Fatalf("demo output missing %q: %s", line, output)
+		}
+	}
+}
+
+func TestWorkflowDemoTrainingQualification(t *testing.T) {
+	output, err := runCLI(t, repoRoot(t), "workflow", "demo", "training-qualification")
+	if err != nil {
+		t.Fatalf("run training qualification demo: %v", err)
+	}
+	for _, line := range []string{
+		"[ok] captured training-qualification as ",
+		"[ok] verified manifest and local dependencies",
+		"[ok] activated local workflow availability",
+		"[ok] extracted the exact retained artifact for inspection",
+	} {
+		if !strings.Contains(output, line) {
+			t.Fatalf("demo output missing %q: %s", line, output)
+		}
+	}
+}
+
 func TestWorkflowRelayEndpointTransfersArtifactWithoutActivatingIt(t *testing.T) {
 	source, err := kernel.Open(t.TempDir())
 	if err != nil {

@@ -1,0 +1,7 @@
+{
+  "id": "training-qualification",
+  "version": "1.0.0",
+  "summary": "Record a training session, retain evidence, and make an explicit qualification decision.",
+  "required_packages": ["runs", "training"],
+  "required_protocols": []
+}

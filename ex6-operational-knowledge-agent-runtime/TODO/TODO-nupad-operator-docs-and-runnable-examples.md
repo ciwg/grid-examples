@@ -2,6 +2,22 @@
 
 ## Decision Intent Log
 
+ID: DI-yavuk
+Date: 2026-07-30 22:00:00
+Status: active
+Decision: Add `training-qualification` as a distinct loadable workflow artifact using existing training and runs packages.
+Intent: Preserve the ex5 distinction between performing a training session and explicitly recording a qualification decision.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/training-qualification/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-yavuk-training-qualification-workflow.md`.
+
+ID: DI-zovuk
+Date: 2026-07-30 21:45:00
+Status: active
+Decision: Add `receiving-check` as a distinct loadable workflow artifact using existing context, receiving, and runs packages.
+Intent: Preserve the ex5 receiving-check boundary between inbound inspection/disposition and later inventory counting/reconciliation.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/receiving-check/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-zovuk-receiving-check-workflow.md`.
+
 ID: DI-favuk
 Date: 2026-07-30 21:25:00
 Status: active

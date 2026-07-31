@@ -1,0 +1,7 @@
+{
+  "id": "receiving-check",
+  "version": "1.0.0",
+  "summary": "Inspect an inbound receipt, retain evidence, and record an accept, quarantine, or reject disposition.",
+  "required_packages": ["context", "receiving", "runs"],
+  "required_protocols": []
+}

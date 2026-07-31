@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["assessment-record", "session-record"],
+  "approval_required": true
+}
