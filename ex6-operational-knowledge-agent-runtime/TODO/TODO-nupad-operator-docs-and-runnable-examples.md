@@ -2,6 +2,14 @@
 
 ## Decision Intent Log
 
+ID: DI-favuk
+Date: 2026-07-30 21:25:00
+Status: active
+Decision: Add `maintenance-round` as the third loadable workflow example, composing existing context, maintenance, and runs packages.
+Intent: Demonstrate a resource-inspection and finding workflow that is distinct from procedure execution and inventory receipt.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/maintenance-round/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-favuk-maintenance-round-workflow.md`.
+
 ID: DI-voruk
 Date: 2026-07-30 21:05:00
 Status: active

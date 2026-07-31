@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["inspection-record", "service-record"],
+  "approval_required": true
+}

@@ -1,0 +1,7 @@
+{
+  "id": "maintenance-round",
+  "version": "1.0.0",
+  "summary": "Inspect a resource, record service work, retain findings, and attach approval evidence.",
+  "required_packages": ["context", "maintenance", "runs"],
+  "required_protocols": []
+}

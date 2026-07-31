@@ -27,6 +27,12 @@ Each workflow lives in its own self-contained directory:
         receipt.md
         policies/
           evidence-rules.json
+      maintenance-round/
+        README.md
+        workflow.json
+        round.md
+        policies/
+          evidence-rules.json
 
 - **README.md** gives an operator-facing summary.
 - **workflow.json** identifies the workflow version and declares its summary
@@ -59,10 +65,11 @@ for durable relationships between the resulting records.
 
 The repository also includes `inventory-receipt`, which composes context,
 receiving, inventory, and runs to document receipt, disposition, counting, and
-reconciliation. Together, the two artifacts demonstrate that the loader is not
-specific to procedure execution.
+reconciliation, and `maintenance-round`, which composes context, maintenance,
+and runs for resource inspection, service, and findings. Together, the three
+artifacts demonstrate that the loader is not specific to procedure execution.
 
-Source: DI-voruk.
+Source: DI-voruk; DI-favuk.
 
 Receiving inspection, maintenance closure, training qualification, and
 knowledge review can follow the same artifact shape while applying different
