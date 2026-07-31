@@ -161,6 +161,71 @@ func TestWorkflowDemoKnowledgeReview(t *testing.T) {
 	}
 }
 
+func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
+	// Intent: Prove that separately loaded workflow artifacts can guide real
+	// package commands over one shared runtime without pretending they execute. Source: DI-sovuk
+	workdir := t.TempDir()
+	for _, workflowID := range []string{
+		"procedure-execution",
+		"inventory-receipt",
+		"maintenance-round",
+		"receiving-check",
+		"training-qualification",
+		"inventory-discrepancy-review",
+		"knowledge-review",
+	} {
+		sourceDir := filepath.Join(repoRoot(t), "workflows", workflowID)
+		if _, err := runCLI(t, workdir, "workflow", "capture", sourceDir, workflowID); err != nil {
+			t.Fatalf("capture %s: %v", workflowID, err)
+		}
+		if _, err := runCLI(t, workdir, "workflow", "activate", workflowID); err != nil {
+			t.Fatalf("activate %s: %v", workflowID, err)
+		}
+	}
+	commands := [][]string{
+		{"context", "place", "create", "dock", "Dock", "Inbound"},
+		{"context", "resource", "create", "scale", "Scale", "Bench-scale", "dock"},
+		{"receiving", "create", "receipt", "dock", "Inbound-receipt", "Pallet-inspection"},
+		{"receiving", "record-receipt", "receipt", "receive-run", "dock", "Alice", "accepted", "sealed"},
+		{"receiving", "record-disposition", "receipt", "receipt-disposition", "accepted", "scale", "accepted"},
+		{"inventory", "create", "stock", "dock", "Inbound-stock", "Count-after-receipt"},
+		{"inventory", "record-count", "stock", "count-run", "dock", "Bob", "8", "counted", "counted"},
+		{"inventory", "record-reconcile", "stock", "reconcile", "investigate", "scale", "variance"},
+		{"maintenance", "create", "scale-check", "scale", "Scale-check", "Inspect-scale"},
+		{"maintenance", "record-service", "scale-check", "maintenance-run", "scale", "Carol", "completed", "calibrated"},
+		{"maintenance", "record-finding", "scale-check", "scale-finding", "scale", "accepted", "stable"},
+		{"training", "create", "dock-training", "Dock-training", "Receiving-training"},
+		{"training", "record-session", "dock-training", "training-run", "Dave", "Ellen", "completed", "demonstrated"},
+		{"training", "certify", "dock-training", "training-certification", "Dave", "certified", "approved"},
+		{"knowledge", "item", "create", "dock-guide", "procedure", "Dock-guide", "Receiving-guide"},
+		{"knowledge", "revision", "snapshot", "dock-guide", "dock-guide-revision", "1", "Dock-guide", "Inspect-before-acceptance"},
+		{"knowledge", "item", "approve", "dock-guide", "dock-guide-approval", "approved"},
+	}
+	for _, command := range commands {
+		if _, err := runCLI(t, workdir, command...); err != nil {
+			t.Fatalf("run %q: %v", command, err)
+		}
+	}
+	workflows, err := runCLI(t, workdir, "workflow", "list")
+	if err != nil {
+		t.Fatalf("list workflows: %v", err)
+	}
+	if strings.Count(workflows, `"state": "active"`) != 7 {
+		t.Fatalf("active workflow list = %s", workflows)
+	}
+	for _, inspect := range [][]string{
+		{"receiving", "inspect", "receipt"},
+		{"inventory", "inspect", "stock"},
+		{"maintenance", "inspect", "scale-check"},
+		{"training", "inspect", "dock-training"},
+		{"knowledge", "item", "inspect", "dock-guide"},
+	} {
+		if _, err := runCLI(t, workdir, inspect...); err != nil {
+			t.Fatalf("inspect %q: %v", inspect, err)
+		}
+	}
+}
+
 func TestWorkflowRelayEndpointTransfersArtifactWithoutActivatingIt(t *testing.T) {
 	source, err := kernel.Open(t.TempDir())
 	if err != nil {

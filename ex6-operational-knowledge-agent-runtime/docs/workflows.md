@@ -100,6 +100,15 @@ and `knowledge-review` retains revision, approval, and supersedence review.
 
 Source: DI-voruk; DI-favuk; DI-zovuk; DI-yavuk; DI-pavuk; DI-dovuk.
 
+## Shared-runtime scenario coverage
+
+The CLI scenario test loads and activates all seven artifacts in one runtime,
+then drives receiving, inventory, maintenance, training, and knowledge commands
+through the main `moks` command dispatcher. This proves shared operational
+interaction without claiming that workflow artifacts autonomously execute.
+
+Source: DI-sovuk.
+
 Receiving inspection, maintenance closure, training qualification, and
 knowledge review can follow the same artifact shape while applying different
 domain rules.

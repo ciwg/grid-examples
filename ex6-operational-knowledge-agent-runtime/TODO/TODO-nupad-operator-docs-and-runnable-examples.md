@@ -2,6 +2,14 @@
 
 ## Decision Intent Log
 
+ID: DI-sovuk
+Date: 2026-07-30 22:45:00
+Status: active
+Decision: Add deterministic multi-workflow scenario tests that drive the main `moks` command dispatcher against one shared runtime.
+Intent: Prove shared operational interaction across loaded workflow artifacts without claiming that the artifacts themselves execute.
+Constraints: Use existing package commands and workflow loader APIs only; no workflow engine, new top-level action, or new runtime behavior.
+Affects: `cmd/moks/main_test.go`, operator documentation, and `docs/thought-experiments/TE-sovuk-multi-workflow-cli-scenarios.md`.
+
 ID: DI-dovuk
 Date: 2026-07-30 22:30:00
 Status: active
