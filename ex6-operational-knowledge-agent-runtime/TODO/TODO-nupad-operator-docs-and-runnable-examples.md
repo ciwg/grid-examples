@@ -2,6 +2,14 @@
 
 ## Decision Intent Log
 
+ID: DI-voruk
+Date: 2026-07-30 21:05:00
+Status: active
+Decision: Add `inventory-receipt` as the second loadable workflow example, composing existing context, receiving, inventory, and runs packages.
+Intent: Demonstrate that workflow artifacts are reusable package compositions rather than a procedure-execution-specific feature.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/inventory-receipt/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-voruk-inventory-receipt-workflow.md`.
+
 ID: DI-nupad
 Date: 2026-07-28 16:10:00
 Status: active

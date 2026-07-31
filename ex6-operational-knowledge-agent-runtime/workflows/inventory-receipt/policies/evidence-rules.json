@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["delivery-reference", "count-record"],
+  "approval_required": true
+}

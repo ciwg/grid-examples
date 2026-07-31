@@ -14,29 +14,26 @@ Each workflow lives in its own self-contained directory:
     workflows/
       procedure-execution/
         README.md
-        workflow.yaml
+        workflow.json
         procedure.md
-        protocols/
-          run-request.md
-          run-evidence.md
-          approval.md
         policies/
-          evidence-rules.yaml
-          approval-rules.yaml
+          evidence-rules.json
+          approval-rules.json
         examples/
           successful-run.json
-          rejected-run.json
-        tests/
-          workflow_test.go
+      inventory-receipt/
+        README.md
+        workflow.json
+        receipt.md
+        policies/
+          evidence-rules.json
 
 - **README.md** gives an operator-facing summary.
-- **workflow.yaml** identifies the workflow version and declares inputs,
-  outputs, and package/protocol dependencies.
+- **workflow.json** identifies the workflow version and declares its summary
+  and package/protocol dependencies.
 - **procedure.md** is the human-readable operating procedure.
-- **protocols/** contains the pCID-defined message contracts the workflow uses.
 - **policies/** states local evidence and approval requirements.
 - **examples/** supplies realistic worked cases.
-- **tests/** verifies the workflow's declared behavior.
 
 ## Lifecycle and storage
 
@@ -59,6 +56,13 @@ For example, a procedure-execution workflow can combine procedures for the
 definition, runs for performed-work records/evidence/approvals, context for
 people/places/resources, knowledge for approved reference material, and links
 for durable relationships between the resulting records.
+
+The repository also includes `inventory-receipt`, which composes context,
+receiving, inventory, and runs to document receipt, disposition, counting, and
+reconciliation. Together, the two artifacts demonstrate that the loader is not
+specific to procedure execution.
+
+Source: DI-voruk.
 
 Receiving inspection, maintenance closure, training qualification, and
 knowledge review can follow the same artifact shape while applying different
