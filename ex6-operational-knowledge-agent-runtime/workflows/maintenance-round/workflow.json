@@ -5,6 +5,8 @@
   "required_packages": ["context", "maintenance", "runs"],
   "required_protocols": [],
   "adapter": "maintenance-round",
-  "input_pcid": "bafkreiboes7s6tcaebjnlibd7fkwj62typezjdsipskyafvtuzf74ypx3i",
-  "output_pcid": "bafkreicfalhnnj67rctw63c6j4w6x5l7ntmqtvyndmqi26vc46ukavmiha"
+  "input_pcid": "bafkreicuxiyha56khoiwfktrh3pqrq6v47uovjm52kmuskmkbeml6qyxsu",
+  "output_pcid": "bafkreifj3qpjinq4vanr5vo22dvazuybg6jrrawnfhw43pooqnzp62vtg4",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

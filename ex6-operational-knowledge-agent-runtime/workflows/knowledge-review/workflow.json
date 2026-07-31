@@ -5,6 +5,8 @@
   "required_packages": ["knowledge"],
   "required_protocols": [],
   "adapter": "knowledge-review",
-  "input_pcid": "bafkreig4pegj6ckn6hg2yci7i5tt4vcknd4e25ul7a7ugyel5gejjz7iti",
-  "output_pcid": "bafkreigkvvjof6vhurueeod4mqtghfosiwunlskzkuhjuskiy66cnx5yua"
+  "input_pcid": "bafkreigurwnuwdbri3ntiuzseyoft7tazq74rrxridxbpekqcqxd2rzvhi",
+  "output_pcid": "bafkreigxtnvprgom4b6ftkavmvfeqv2teo45b7s3n57k3wn7ipziwlad4e",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

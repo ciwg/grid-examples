@@ -25,6 +25,8 @@ type WorkflowManifest struct {
 	Adapter           string   `json:"adapter,omitempty"`
 	InputPCID         string   `json:"input_pcid,omitempty"`
 	OutputPCID        string   `json:"output_pcid,omitempty"`
+	InputSchema       string   `json:"input_schema,omitempty"`
+	OutputSchema      string   `json:"output_schema,omitempty"`
 }
 
 // WorkflowStatus is one operator-facing view of a retained workflow artifact.
@@ -44,6 +46,25 @@ func (m WorkflowManifest) Validate() error {
 		if pcid != "" {
 			if err := validateWorkflowPCID(pcid); err != nil {
 				return err
+			}
+		}
+	}
+	// Intent: Reject a half-declared execution contract at capture and verify
+	// time instead of deferring an avoidable failure until a run starts.
+	// Source: DI-lumek
+	if m.Adapter != "" || m.InputPCID != "" || m.OutputPCID != "" {
+		if strings.TrimSpace(m.Adapter) == "" || strings.TrimSpace(m.InputPCID) == "" || strings.TrimSpace(m.OutputPCID) == "" {
+			return errors.New("workflow executable adapter, input pCID, and output pCID must be declared together")
+		}
+	}
+	if m.InputSchema != "" || m.OutputSchema != "" {
+		if strings.TrimSpace(m.InputSchema) == "" || strings.TrimSpace(m.OutputSchema) == "" {
+			return errors.New("workflow input and output schema paths must be declared together")
+		}
+		for _, schema := range []string{m.InputSchema, m.OutputSchema} {
+			clean := filepath.Clean(schema)
+			if filepath.IsAbs(clean) || clean == "." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+				return errors.New("workflow schema path must stay inside the artifact")
 			}
 		}
 	}
@@ -69,6 +90,9 @@ func (runtime *Runtime) CaptureWorkflowDir(directory, alias string) (Workflow, e
 	}
 	artifact, err := runtime.cas.PutCID(body)
 	if err != nil {
+		return Workflow{}, err
+	}
+	if _, err := runtime.WorkflowManifest(artifact.String()); err != nil {
 		return Workflow{}, err
 	}
 	if err = runtime.ImportWorkflow(Workflow{ID: alias, ArtifactCID: artifact.String()}); err != nil {
@@ -175,10 +199,54 @@ func (runtime *Runtime) WorkflowManifest(artifactID string) (WorkflowManifest, e
 			if err = json.Unmarshal(raw, &m); err != nil {
 				return WorkflowManifest{}, err
 			}
-			return m, m.Validate()
+			if err := m.Validate(); err != nil {
+				return WorkflowManifest{}, err
+			}
+			if err := runtime.verifyWorkflowSchemas(body, m); err != nil {
+				return WorkflowManifest{}, err
+			}
+			return m, nil
 		}
 	}
 	return WorkflowManifest{}, errors.New("workflow.json is missing from artifact")
+}
+
+// verifyWorkflowSchemas resolves each declared schema from the immutable
+// artifact and retains it under its pCID locally for independent inspection.
+// Intent: A received artifact must carry the exact schema bytes that define
+// its input and output contracts. Source: DI-lumek
+func (runtime *Runtime) verifyWorkflowSchemas(artifact []byte, manifest WorkflowManifest) error {
+	if manifest.InputSchema == "" && manifest.OutputSchema == "" {
+		return nil
+	}
+	for _, schema := range []struct{ path, pcid string }{{manifest.InputSchema, manifest.InputPCID}, {manifest.OutputSchema, manifest.OutputPCID}} {
+		r := tar.NewReader(bytes.NewReader(artifact))
+		for {
+			header, err := r.Next()
+			if errors.Is(err, io.EOF) {
+				return fmt.Errorf("workflow schema %q is missing from artifact", schema.path)
+			}
+			if err != nil {
+				return err
+			}
+			if header.Name != schema.path {
+				continue
+			}
+			body, err := io.ReadAll(r)
+			if err != nil {
+				return err
+			}
+			actual, err := runtime.cas.PutCID(body)
+			if err != nil {
+				return err
+			}
+			if actual.String() != schema.pcid {
+				return fmt.Errorf("workflow schema %q CID %s does not match declared pCID %s", schema.path, actual, schema.pcid)
+			}
+			break
+		}
+	}
+	return nil
 }
 
 // ExtractWorkflow writes a retained workflow artifact into a new safe directory.

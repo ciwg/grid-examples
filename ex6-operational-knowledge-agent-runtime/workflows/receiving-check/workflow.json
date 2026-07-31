@@ -5,6 +5,8 @@
   "required_packages": ["context", "receiving", "runs"],
   "required_protocols": [],
   "adapter": "receiving-check",
-  "input_pcid": "bafkreibyegjb3p52b3hzf4lw3jwqu3hktxockiamrt2a3bee2gwdl46ja4",
-  "output_pcid": "bafkreib3rq3zyljjn4v7tunm2xqpy26i7mpr24bko2sdof524p7xnqnjo4"
+  "input_pcid": "bafkreicubq2eqovbcdvlj3ggpmrnwlzohp5no5yuwehk4eyucicia4kehy",
+  "output_pcid": "bafkreiddsvg5v7a2dwa4omzicgobed5yqheehbkjw263kb3efvv2yfgnz4",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

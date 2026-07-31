@@ -1,0 +1,1 @@
+{"fields":["inventory_id","run_id","place_id","counter","quantity","outcome","notes"],"kind":"moks.workflow.adapter.input","version":1,"workflow":"inventory-receipt"}

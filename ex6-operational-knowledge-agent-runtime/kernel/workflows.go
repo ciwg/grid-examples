@@ -60,7 +60,12 @@ func (r *WorkflowRegistry) rebuild() error {
 		return e
 	}
 	r.workflows, r.heads = w, h
-	return r.cache()
+	if err := r.cache(); err != nil {
+		// Intent: Availability is rebuilt from CAS, so a disposable lifecycle
+		// cache must not prevent the runtime from opening. Source: DI-bavuk
+		return nil
+	}
+	return nil
 }
 func (r *WorkflowRegistry) scan() (map[string]Workflow, map[string]cid.Cid, error) {
 	ids, e := r.cas.ListCIDs()

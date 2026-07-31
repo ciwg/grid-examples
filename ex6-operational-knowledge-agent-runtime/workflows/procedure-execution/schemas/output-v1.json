@@ -1,0 +1,1 @@
+{"fields":["procedure_id","run_id","actor","outcome","notes","stage"],"kind":"moks.workflow.adapter.output","stage":"completed","version":1,"workflow":"procedure-execution"}

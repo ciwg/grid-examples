@@ -11,15 +11,28 @@ import (
 // artifact. Intent: Keep v1 orchestration explicit and pCID-typed while Docker
 // workers remain a separately constrained future backend. Source: DI-lumek
 func WorkflowOperations() map[string]kernel.WorkflowOperation {
-	return map[string]kernel.WorkflowOperation{
-		"inventory-discrepancy-review": commandWorkflowOperation([]string{"inventory", "record-reconcile"}, []string{"inventory_id", "event_id", "decision", "resource_id", "notes"}, "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"),
-		"inventory-receipt":            commandWorkflowOperation([]string{"inventory", "record-count"}, []string{"inventory_id", "run_id", "place_id", "counter", "quantity", "outcome", "notes"}, "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"),
-		"knowledge-review":             commandWorkflowOperation([]string{"knowledge", "item", "approve"}, []string{"item_id", "event_id", "notes"}, "bafkreigkvvjof6vhurueeod4mqtghfosiwunlskzkuhjuskiy66cnx5yua"),
-		"maintenance-round":            commandWorkflowOperation([]string{"maintenance", "record-service"}, []string{"maintenance_id", "run_id", "resource_id", "performer", "outcome", "notes"}, "bafkreicfalhnnj67rctw63c6j4w6x5l7ntmqtvyndmqi26vc46ukavmiha"),
-		"procedure-execution":          commandWorkflowOperation([]string{"procedures", "record-use"}, []string{"procedure_id", "run_id", "actor", "outcome", "notes"}, "bafkreib6qcz4g3lsc4yzfulqihsbczc4wkpo3fwm5f7dvgrznv4qubwppe"),
-		"receiving-check":              commandWorkflowOperation([]string{"receiving", "record-receipt"}, []string{"receiving_id", "run_id", "place_id", "receiver", "outcome", "notes"}, "bafkreib3rq3zyljjn4v7tunm2xqpy26i7mpr24bko2sdof524p7xnqnjo4"),
-		"training-qualification":       commandWorkflowOperation([]string{"training", "record-session"}, []string{"training_id", "run_id", "trainee", "instructor", "outcome", "notes"}, "bafkreifrf4xznrekx4lohyueahudtz6ju7qhgodpnbyrd4rytjauo7qgsm"),
+	operations := map[string]kernel.WorkflowOperation{}
+	for name, specification := range workflowOperationSpecifications {
+		operations[name] = commandWorkflowOperation(specification.command, specification.fields, specification.outputPCID)
 	}
+	return operations
+}
+
+type workflowOperationSpecification struct {
+	command, fields []string
+	outputPCID      string
+}
+
+// Intent: Keep trusted adapter requirements mechanically aligned with the
+// pCID-defined workflow schema shipped by each artifact. Source: DI-lumek
+var workflowOperationSpecifications = map[string]workflowOperationSpecification{
+	"inventory-discrepancy-review": {[]string{"inventory", "record-reconcile"}, []string{"inventory_id", "event_id", "decision", "resource_id", "notes"}, "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey"},
+	"inventory-receipt":            {[]string{"inventory", "record-count"}, []string{"inventory_id", "run_id", "place_id", "counter", "quantity", "outcome", "notes"}, "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"},
+	"knowledge-review":             {[]string{"knowledge", "item", "approve"}, []string{"item_id", "event_id", "notes"}, "bafkreigxtnvprgom4b6ftkavmvfeqv2teo45b7s3n57k3wn7ipziwlad4e"},
+	"maintenance-round":            {[]string{"maintenance", "record-service"}, []string{"maintenance_id", "run_id", "resource_id", "performer", "outcome", "notes"}, "bafkreifj3qpjinq4vanr5vo22dvazuybg6jrrawnfhw43pooqnzp62vtg4"},
+	"procedure-execution":          {[]string{"procedures", "record-use"}, []string{"procedure_id", "run_id", "actor", "outcome", "notes"}, "bafkreiamprv3apzowjzqbkp3hnrhrla5aq7lp5kyzbca5j3iv4v5jmhwa4"},
+	"receiving-check":              {[]string{"receiving", "record-receipt"}, []string{"receiving_id", "run_id", "place_id", "receiver", "outcome", "notes"}, "bafkreiddsvg5v7a2dwa4omzicgobed5yqheehbkjw263kb3efvv2yfgnz4"},
+	"training-qualification":       {[]string{"training", "record-session"}, []string{"training_id", "run_id", "trainee", "instructor", "outcome", "notes"}, "bafkreiauh6xo45sp3zhmhhjvehiqstp36loiyu26smicojfntl7ek75chy"},
 }
 
 func commandWorkflowOperation(command []string, fields []string, outputPCID string) kernel.WorkflowOperation {

@@ -121,6 +121,9 @@ func encodeWorkflowRunEvent(event workflowRunEvent) ([]byte, error) {
 	if event.Workflow == "" || event.RunCID.Version() != 1 || event.Input.Version() != 1 || len(event.Parents) > 1 || !validWorkflowRunState(event.State) || (event.State != WorkflowRunRunning && len(event.Parents) != 1) {
 		return nil, errors.New("invalid workflow run event")
 	}
+	if event.State == WorkflowRunCompleted && !event.Output.Defined() {
+		return nil, errors.New("completed workflow run event requires output")
+	}
 	parents := make([]any, 0, len(event.Parents))
 	for _, parent := range event.Parents {
 		parents = append(parents, parent.Bytes())
@@ -327,7 +330,12 @@ func (registry *WorkflowRunRegistry) rebuild() error {
 		heads[runID] = id
 	}
 	registry.runs, registry.heads = runs, heads
-	return registry.cacheLocked()
+	if err := registry.cacheLocked(); err != nil {
+		// Intent: A CAS-derived run projection remains usable when its disposable
+		// cache cannot be refreshed during open. Source: DI-lumek
+		return nil
+	}
+	return nil
 }
 func (registry *WorkflowRunRegistry) cache() error {
 	registry.mu.RLock()

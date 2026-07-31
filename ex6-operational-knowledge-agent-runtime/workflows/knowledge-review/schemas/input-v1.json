@@ -1,0 +1,1 @@
+{"fields":["item_id","event_id","notes"],"kind":"moks.workflow.adapter.input","version":1,"workflow":"knowledge-review"}

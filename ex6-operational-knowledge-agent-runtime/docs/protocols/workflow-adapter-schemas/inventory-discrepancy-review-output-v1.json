@@ -1,0 +1,1 @@
+{"fields":["inventory_id","event_id","decision","resource_id","notes","stage"],"kind":"moks.workflow.adapter.output","stage":"completed","version":1,"workflow":"inventory-discrepancy-review"}

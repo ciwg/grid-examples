@@ -1,0 +1,1 @@
+{"fields":["maintenance_id","run_id","resource_id","performer","outcome","notes"],"kind":"moks.workflow.adapter.input","version":1,"workflow":"maintenance-round"}

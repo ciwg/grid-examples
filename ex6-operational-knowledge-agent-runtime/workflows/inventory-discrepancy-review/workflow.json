@@ -5,6 +5,8 @@
   "required_packages": ["context", "inventory", "runs"],
   "required_protocols": [],
   "adapter": "inventory-discrepancy-review",
-  "input_pcid": "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae",
-  "output_pcid": "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
+  "input_pcid": "bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e",
+  "output_pcid": "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

@@ -22,16 +22,17 @@ type WorkflowHandoffPolicy struct {
 }
 
 type WorkflowHandoffPolicies struct {
-	path     string
-	mu       sync.RWMutex
-	policies []WorkflowHandoffPolicy
+	path          string
+	syncDirectory func(string) error
+	mu            sync.RWMutex
+	policies      []WorkflowHandoffPolicy
 }
 
 func OpenWorkflowHandoffPolicies(root string) (*WorkflowHandoffPolicies, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, err
 	}
-	policies := &WorkflowHandoffPolicies{path: filepath.Join(root, "workflow-handoff-policy.json")}
+	policies := &WorkflowHandoffPolicies{path: filepath.Join(root, "workflow-handoff-policy.json"), syncDirectory: syncWorkflowPolicyDirectory}
 	if raw, err := os.ReadFile(policies.path); err == nil {
 		if err := json.Unmarshal(raw, &policies.policies); err != nil {
 			return nil, err
@@ -51,22 +52,24 @@ func (policies *WorkflowHandoffPolicies) Set(policy WorkflowHandoffPolicy) error
 	}
 	policies.mu.Lock()
 	defer policies.mu.Unlock()
+	next := append([]WorkflowHandoffPolicy(nil), policies.policies...)
 	for index, existing := range policies.policies {
 		if existing.SourceWorkflow == policy.SourceWorkflow && existing.OutputPCID == policy.OutputPCID {
-			policies.policies[index] = policy
-			return policies.saveLocked()
+			next[index] = policy
+			return policies.commitLocked(next)
 		}
 	}
-	policies.policies = append(policies.policies, policy)
-	return policies.saveLocked()
+	next = append(next, policy)
+	return policies.commitLocked(next)
 }
 func (policies *WorkflowHandoffPolicies) Remove(source, output string) error {
 	policies.mu.Lock()
 	defer policies.mu.Unlock()
 	for index, policy := range policies.policies {
 		if policy.SourceWorkflow == source && policy.OutputPCID == output {
-			policies.policies = append(policies.policies[:index], policies.policies[index+1:]...)
-			return policies.saveLocked()
+			next := append([]WorkflowHandoffPolicy(nil), policies.policies[:index]...)
+			next = append(next, policies.policies[index+1:]...)
+			return policies.commitLocked(next)
 		}
 	}
 	return errors.New("workflow handoff policy is not found")
@@ -90,12 +93,86 @@ func (policies *WorkflowHandoffPolicies) List() []WorkflowHandoffPolicy {
 	})
 	return result
 }
-func (policies *WorkflowHandoffPolicies) saveLocked() error {
-	raw, err := json.MarshalIndent(policies.policies, "", "  ")
+
+// commitLocked persists a complete replacement before changing the live route
+// table. Intent: A failed policy write must never grant or revoke routing in
+// memory, and interruption must leave either the old or new JSON document.
+// Source: DI-lumek
+func (policies *WorkflowHandoffPolicies) commitLocked(next []WorkflowHandoffPolicy) error {
+	raw, err := json.MarshalIndent(next, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(policies.path, append(raw, '\n'), 0644)
+	replaced, err := atomicWriteWorkflowPolicy(policies.path, append(raw, '\n'), policies.syncDirectory)
+	if replaced {
+		// Intent: Once rename replaces the visible policy file, keep live routing
+		// aligned with that file even if its later durability confirmation fails.
+		// Source: DI-lumek
+		policies.policies = next
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func atomicWriteWorkflowPolicy(path string, body []byte, syncDirectory func(string) error) (replaced bool, result error) {
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".workflow-handoff-policy-*")
+	if err != nil {
+		return false, err
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		if temporaryPath == "" {
+			return
+		}
+		if err := os.Remove(temporaryPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			result = errors.Join(result, err)
+		}
+	}()
+	if err := temporary.Chmod(0o644); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return false, errors.Join(err, closeErr)
+		}
+		return false, err
+	}
+	if _, err := temporary.Write(body); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return false, errors.Join(err, closeErr)
+		}
+		return false, err
+	}
+	if err := temporary.Sync(); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return false, errors.Join(err, closeErr)
+		}
+		return false, err
+	}
+	if err := temporary.Close(); err != nil {
+		return false, err
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return false, err
+	}
+	temporaryPath = ""
+	if err := syncDirectory(filepath.Dir(path)); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
+func syncWorkflowPolicyDirectory(path string) error {
+	directory, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	if err := directory.Sync(); err != nil {
+		if closeErr := directory.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return err
+	}
+	return directory.Close()
 }
 func (policy WorkflowHandoffPolicy) Validate() error {
 	if strings.TrimSpace(policy.SourceWorkflow) == "" || strings.TrimSpace(policy.OutputPCID) == "" || strings.TrimSpace(policy.TargetWorkflow) == "" || strings.TrimSpace(policy.InputPCID) == "" {

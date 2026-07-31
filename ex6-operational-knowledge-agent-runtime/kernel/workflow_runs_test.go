@@ -370,6 +370,43 @@ func TestWorkflowIncompatibleHandoffRetainsExactSourceOutput(t *testing.T) {
 	}
 }
 
+func TestWorkflowIncompatibleHandoffRequiresAvailableTargetAdapter(t *testing.T) {
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
+	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
+	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
+	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	if err := runtime.RegisterWorkflowOperation("source", func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
+		return WorkflowHandoff{PCID: sourceOutput, Values: input.Values}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeSchemaWorkflow(t, root, runtime, "source", sourceInput, sourceOutput)
+	writeSchemaWorkflow(t, root, runtime, "target", targetInput, targetOutput)
+	if err := runtime.ActivateWorkflow("source"); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.ActivateWorkflow("target"); err != nil {
+		t.Fatal(err)
+	}
+	source, err := runtime.StartWorkflowRun(context.Background(), "source", WorkflowHandoff{PCID: sourceInput, Values: map[string]string{"subject": "egg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.HandoffWorkflowRun(context.Background(), source.ID, "target"); err == nil {
+		t.Fatal("incompatible handoff queued target without an available adapter")
+	}
+}
+
 func TestWorkflowPolicyRejectsManifestPCIDMismatch(t *testing.T) {
 	root := t.TempDir()
 	runtime, err := Open(root)
@@ -720,6 +757,131 @@ func TestOpenRejectsMalformedPersistedHandoffPolicy(t *testing.T) {
 	}
 }
 
+func TestWorkflowHandoffPolicyWriteFailureLeavesLivePolicyUnchanged(t *testing.T) {
+	root := t.TempDir()
+	policies, err := OpenWorkflowHandoffPolicies(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := WorkflowHandoffPolicy{SourceWorkflow: "source", OutputPCID: WorkflowHandoffProtocolPCID, TargetWorkflow: "target", InputPCID: WorkflowHandoffProtocolPCID}
+	if err := policies.Set(first); err != nil {
+		t.Fatal(err)
+	}
+	policies.path = root
+	second := WorkflowHandoffPolicy{SourceWorkflow: "other", OutputPCID: WorkflowHandoffProtocolPCID, TargetWorkflow: "final", InputPCID: WorkflowHandoffProtocolPCID}
+	if err := policies.Set(second); err == nil {
+		t.Fatal("policy write to directory succeeded")
+	}
+	if actual := policies.List(); len(actual) != 1 || actual[0] != first {
+		t.Fatalf("live policies changed after write failure: %#v", actual)
+	}
+	if err := policies.Remove(first.SourceWorkflow, first.OutputPCID); err == nil {
+		t.Fatal("policy removal through directory path succeeded")
+	}
+	if actual := policies.List(); len(actual) != 1 || actual[0] != first {
+		t.Fatalf("live policies changed after failed removal: %#v", actual)
+	}
+}
+
+func TestWorkflowHandoffPolicySyncFailureKeepsLivePolicyAlignedWithFile(t *testing.T) {
+	root := t.TempDir()
+	policies, err := OpenWorkflowHandoffPolicies(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policies.syncDirectory = func(string) error { return errors.New("directory sync failed") }
+	policy := WorkflowHandoffPolicy{SourceWorkflow: "source", OutputPCID: WorkflowHandoffProtocolPCID, TargetWorkflow: "target", InputPCID: WorkflowHandoffProtocolPCID}
+	if err := policies.Set(policy); err == nil {
+		t.Fatal("policy write with failed directory sync succeeded")
+	}
+	if actual := policies.List(); len(actual) != 1 || actual[0] != policy {
+		t.Fatalf("live policy diverged after rename: %#v", actual)
+	}
+	reopened, err := OpenWorkflowHandoffPolicies(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual := reopened.List(); len(actual) != 1 || actual[0] != policy {
+		t.Fatalf("persisted policy diverged after rename: %#v", actual)
+	}
+}
+
+func TestRuntimeOpenIgnoresDisposableWorkflowCacheWriteFailures(t *testing.T) {
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.RegisterWorkflowOperation("test", func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) { return input, nil }); err != nil {
+		t.Fatal(err)
+	}
+	writeExecutableWorkflow(t, root, runtime, "test")
+	if err := runtime.ActivateWorkflow("test"); err != nil {
+		t.Fatal(err)
+	}
+	run, err := runtime.StartWorkflowRun(context.Background(), "test", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{filepath.Join(root, "state", "workflow-lifecycle-cache.json"), filepath.Join(root, "state", "workflow-run-cache.json")} {
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runtime, err = Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if _, err := runtime.WorkflowRun(run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if workflow, err := runtime.workflow("test"); err != nil || workflow.State != WorkflowActive {
+		t.Fatalf("replayed workflow = %#v, %v", workflow, err)
+	}
+}
+
+func TestCompletedWorkflowRunEventRequiresOutput(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	runCID, err := newWorkflowRunCID(runtime.cas)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputCID, err := runtime.cas.PutCID(mustWorkflowHandoff(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentRaw, err := encodeWorkflowRunEvent(workflowRunEvent{RunCID: runCID, Workflow: "test", State: WorkflowRunRunning, Input: inputCID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentCID, err := runtime.cas.PutCID(parentRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := encodeWorkflowRunEvent(workflowRunEvent{RunCID: runCID, Workflow: "test", State: WorkflowRunCompleted, Input: inputCID, Parents: []cid.Cid{parentCID}}); err == nil {
+		t.Fatal("completed event without output encoded")
+	}
+}
+
 func TestWorkflowRunRegistryRejectsStaleAndIllegalTransitions(t *testing.T) {
 	runtime, err := Open(t.TempDir())
 	if err != nil {
@@ -765,7 +927,7 @@ func TestWorkflowRunRegistryRejectsStaleAndIllegalTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	completed, err := runtime.transitionWorkflowRun(running, WorkflowRunCompleted, cid.Undef, "")
+	completed, err := runtime.transitionWorkflowRun(running, WorkflowRunCompleted, inputCID, "")
 	if err != nil {
 		t.Fatal(err)
 	}

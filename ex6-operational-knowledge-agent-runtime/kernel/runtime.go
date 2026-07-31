@@ -331,6 +331,9 @@ func (runtime *Runtime) HandoffWorkflowRun(ctx context.Context, runID string, ta
 		return WorkflowRun{}, err
 	}
 	if handoff.PCID != manifest.InputPCID {
+		if manifest.Adapter == "" || manifest.InputPCID == "" || manifest.OutputPCID == "" || runtime.workflowOps[manifest.Adapter] == nil {
+			return WorkflowRun{}, errors.New("target workflow does not declare an available executable adapter")
+		}
 		// Intent: Preserve the source envelope as evidence when a policy or
 		// operator selects a different target schema. The target must receive
 		// an explicit input under its own pCID before its adapter can execute.

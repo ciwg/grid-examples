@@ -5,6 +5,8 @@
   "required_packages": ["runs", "training"],
   "required_protocols": [],
   "adapter": "training-qualification",
-  "input_pcid": "bafkreigkwagey45deeh6cc2hirr53avia3rbt2vgixxcbvwiccctnobi2y",
-  "output_pcid": "bafkreifrf4xznrekx4lohyueahudtz6ju7qhgodpnbyrd4rytjauo7qgsm"
+  "input_pcid": "bafkreigdqszsce7qvcihohhsgr4r5wh7l3lgbqm3gd55befrf7d4hxpwyi",
+  "output_pcid": "bafkreiauh6xo45sp3zhmhhjvehiqstp36loiyu26smicojfntl7ek75chy",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

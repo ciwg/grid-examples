@@ -1,0 +1,1 @@
+{"fields":["training_id","run_id","trainee","instructor","outcome","notes","stage"],"kind":"moks.workflow.adapter.output","stage":"completed","version":1,"workflow":"training-qualification"}

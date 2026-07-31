@@ -162,6 +162,13 @@ these real package commands:
 - `training-qualification`: `training record-session`
 - `knowledge-review`: `knowledge item approve`
 
+The frozen canonical JSON specifications for those contracts are published in
+[`docs/protocols/workflow-adapter-schemas/`](./protocols/workflow-adapter-schemas/).
+Each declared pCID is the CIDv1 raw-SHA-256 identifier of its exact schema
+bytes; the schema test recomputes every shipped mapping. Each workflow artifact
+also carries its input and output schema under `schemas/`, and verification
+retains those exact bytes in local CAS. Source: DI-lumek.
+
 Missing adapter fields and schema-changing handoffs produce
 `waiting-for-input`; malformed or rejected commands produce durable `failed`
 state. The run cache is disposable: runtime open rebuilds it from a full CAS

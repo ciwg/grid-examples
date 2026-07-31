@@ -1,0 +1,1 @@
+{"fields":["receiving_id","run_id","place_id","receiver","outcome","notes","stage"],"kind":"moks.workflow.adapter.output","stage":"completed","version":1,"workflow":"receiving-check"}

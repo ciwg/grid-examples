@@ -5,6 +5,8 @@
   "required_packages": ["context", "inventory", "receiving", "runs"],
   "required_protocols": [],
   "adapter": "inventory-receipt",
-  "input_pcid": "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq",
-  "output_pcid": "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+  "input_pcid": "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne",
+  "output_pcid": "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }

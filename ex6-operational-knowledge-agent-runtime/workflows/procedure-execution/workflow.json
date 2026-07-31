@@ -5,6 +5,8 @@
   "required_packages": ["context", "knowledge", "procedures", "runs"],
   "required_protocols": [],
   "adapter": "procedure-execution",
-  "input_pcid": "bafkreih2mechxf4slowhcag6xac5fqn7wy7tw6pw2lj5nvhc5nthmrx54e",
-  "output_pcid": "bafkreib6qcz4g3lsc4yzfulqihsbczc4wkpo3fwm5f7dvgrznv4qubwppe"
+  "input_pcid": "bafkreiawxq2i7q57tks6f5viofxkko2jf2txmlurbp3i33svynytyjswfq",
+  "output_pcid": "bafkreiamprv3apzowjzqbkp3hnrhrla5aq7lp5kyzbca5j3iv4v5jmhwa4",
+  "input_schema": "schemas/input-v1.json",
+  "output_schema": "schemas/output-v1.json"
 }
