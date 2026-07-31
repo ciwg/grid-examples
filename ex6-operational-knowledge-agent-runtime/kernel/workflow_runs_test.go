@@ -327,6 +327,131 @@ func TestWorkflowPolicyRoutesDistinctSchemasToWaitingInput(t *testing.T) {
 	}
 }
 
+func TestWorkflowIncompatibleHandoffRetainsExactSourceOutput(t *testing.T) {
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
+	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
+	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
+	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	for _, schema := range []struct{ name, input, output string }{{"source", sourceInput, sourceOutput}, {"target", targetInput, targetOutput}} {
+		output := schema.output
+		if err := runtime.RegisterWorkflowOperation(schema.name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
+			return WorkflowHandoff{PCID: output, Values: input.Values}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		writeSchemaWorkflow(t, root, runtime, schema.name, schema.input, schema.output)
+		if err := runtime.ActivateWorkflow(schema.name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source, err := runtime.StartWorkflowRun(context.Background(), "source", WorkflowHandoff{PCID: sourceInput, Values: map[string]string{"subject": "egg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting, err := runtime.HandoffWorkflowRun(context.Background(), source.ID, "target")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if waiting.State != WorkflowRunWaiting {
+		t.Fatalf("handoff state = %s", waiting.State)
+	}
+	if waiting.InputCID != source.OutputCID {
+		t.Fatalf("waiting input %s did not retain source output %s", waiting.InputCID, source.OutputCID)
+	}
+}
+
+func TestWorkflowPolicyRejectsManifestPCIDMismatch(t *testing.T) {
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
+	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
+	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
+	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	for _, schema := range []struct{ name, input, output string }{{"source", sourceInput, sourceOutput}, {"target", targetInput, targetOutput}} {
+		if err := runtime.RegisterWorkflowOperation(schema.name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
+			return input, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		writeSchemaWorkflow(t, root, runtime, schema.name, schema.input, schema.output)
+	}
+	if err := runtime.SetWorkflowHandoffPolicy(WorkflowHandoffPolicy{SourceWorkflow: "source", OutputPCID: sourceInput, TargetWorkflow: "target", InputPCID: targetInput}); err == nil {
+		t.Fatal("policy accepted source input as its output schema")
+	}
+	if err := runtime.SetWorkflowHandoffPolicy(WorkflowHandoffPolicy{SourceWorkflow: "source", OutputPCID: sourceOutput, TargetWorkflow: "target", InputPCID: targetOutput}); err == nil {
+		t.Fatal("policy accepted target output as its input schema")
+	}
+}
+
+func TestWorkflowPolicyPersistsAcrossRestart(t *testing.T) {
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation := func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) { return input, nil }
+	for _, name := range []string{"source", "target"} {
+		if err := runtime.RegisterWorkflowOperation(name, operation); err != nil {
+			t.Fatal(err)
+		}
+		writeExecutableWorkflow(t, root, runtime, name)
+		if err := runtime.ActivateWorkflow(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	policy := WorkflowHandoffPolicy{SourceWorkflow: "source", OutputPCID: WorkflowHandoffProtocolPCID, TargetWorkflow: "target", InputPCID: WorkflowHandoffProtocolPCID}
+	if err := runtime.SetWorkflowHandoffPolicy(policy); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err = Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, name := range []string{"source", "target"} {
+		if err := runtime.RegisterWorkflowOperation(name, operation); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if policies := runtime.WorkflowHandoffPolicies(); len(policies) != 1 || policies[0] != policy {
+		t.Fatalf("replayed policies = %#v", policies)
+	}
+	if _, err := runtime.StartWorkflowRun(context.Background(), "source", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, run := range runtime.WorkflowRuns() {
+		if run.Workflow == "target" && run.State == WorkflowRunCompleted {
+			return
+		}
+	}
+	t.Fatal("replayed policy did not route the target workflow")
+}
+
 func TestWorkflowRunRetryRetainsInput(t *testing.T) {
 	root := t.TempDir()
 	runtime, err := Open(root)
