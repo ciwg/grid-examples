@@ -127,6 +127,40 @@ func TestWorkflowDemoTrainingQualification(t *testing.T) {
 	}
 }
 
+func TestWorkflowDemoInventoryDiscrepancyReview(t *testing.T) {
+	output, err := runCLI(t, repoRoot(t), "workflow", "demo", "inventory-discrepancy-review")
+	if err != nil {
+		t.Fatalf("run inventory discrepancy review demo: %v", err)
+	}
+	for _, line := range []string{
+		"[ok] captured inventory-discrepancy-review as ",
+		"[ok] verified manifest and local dependencies",
+		"[ok] activated local workflow availability",
+		"[ok] extracted the exact retained artifact for inspection",
+	} {
+		if !strings.Contains(output, line) {
+			t.Fatalf("demo output missing %q: %s", line, output)
+		}
+	}
+}
+
+func TestWorkflowDemoKnowledgeReview(t *testing.T) {
+	output, err := runCLI(t, repoRoot(t), "workflow", "demo", "knowledge-review")
+	if err != nil {
+		t.Fatalf("run knowledge review demo: %v", err)
+	}
+	for _, line := range []string{
+		"[ok] captured knowledge-review as ",
+		"[ok] verified manifest and local dependencies",
+		"[ok] activated local workflow availability",
+		"[ok] extracted the exact retained artifact for inspection",
+	} {
+		if !strings.Contains(output, line) {
+			t.Fatalf("demo output missing %q: %s", line, output)
+		}
+	}
+}
+
 func TestWorkflowRelayEndpointTransfersArtifactWithoutActivatingIt(t *testing.T) {
 	source, err := kernel.Open(t.TempDir())
 	if err != nil {

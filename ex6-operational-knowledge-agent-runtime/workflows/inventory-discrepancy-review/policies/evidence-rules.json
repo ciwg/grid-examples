@@ -1,0 +1,4 @@
+{
+  "required_evidence": ["count-record", "discrepancy-explanation"],
+  "approval_required": true
+}

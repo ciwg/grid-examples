@@ -1,0 +1,7 @@
+{
+  "id": "inventory-discrepancy-review",
+  "version": "1.0.0",
+  "summary": "Record a count discrepancy, retain evidence, and make an explicit reconciliation decision.",
+  "required_packages": ["context", "inventory", "runs"],
+  "required_protocols": []
+}

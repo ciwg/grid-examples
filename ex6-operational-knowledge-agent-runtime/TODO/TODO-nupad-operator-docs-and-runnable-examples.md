@@ -2,6 +2,22 @@
 
 ## Decision Intent Log
 
+ID: DI-dovuk
+Date: 2026-07-30 22:30:00
+Status: active
+Decision: Add `knowledge-review` as a distinct loadable workflow artifact using the existing knowledge package.
+Intent: Preserve the ex5 draft/revision/approval/supersedence review lifecycle as an inspectable workflow artifact.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/knowledge-review/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-dovuk-knowledge-review-workflow.md`.
+
+ID: DI-pavuk
+Date: 2026-07-30 22:15:00
+Status: active
+Decision: Add `inventory-discrepancy-review` as a distinct loadable workflow artifact using existing context, inventory, and runs packages.
+Intent: Preserve the ex5 inventory-audit boundary between routine count receipt and an explicit discrepancy reconciliation decision.
+Constraints: Keep the artifact non-executing; add no new top-level action, runtime behavior, or package command.
+Affects: `workflows/inventory-discrepancy-review/`, loader demonstration coverage, operator documentation, and `docs/thought-experiments/TE-pavuk-inventory-discrepancy-review.md`.
+
 ID: DI-yavuk
 Date: 2026-07-30 22:00:00
 Status: active

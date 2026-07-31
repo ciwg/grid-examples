@@ -1,0 +1,7 @@
+{
+  "id": "knowledge-review",
+  "version": "1.0.0",
+  "summary": "Snapshot a knowledge revision, review it, and explicitly approve or supersede the item.",
+  "required_packages": ["knowledge"],
+  "required_protocols": []
+}
