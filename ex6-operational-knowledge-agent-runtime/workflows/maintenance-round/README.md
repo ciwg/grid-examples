@@ -1,9 +1,10 @@
 # Maintenance Round Workflow
 
-This loadable workflow records an equipment inspection, performed service, and
-any finding that requires repair, escalation, or later follow-up.
+This loadable workflow records performed service for an existing maintenance
+item and resource.
 
-It composes `context`, `maintenance`, and `runs`. It is an artifact for the
-workflow basket, not an executable worker.
+It composes `context`, `maintenance`, and `runs`. When its exact artifact is
+active in the workflow basket, its trusted built-in adapter executes the
+declared maintenance service command. Source: DI-lumek.
 
 Source: DI-favuk.

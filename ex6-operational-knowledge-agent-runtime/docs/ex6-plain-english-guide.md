@@ -133,9 +133,11 @@ For a human demo, say:
 
 ## What EX6 does not do yet
 
-EX6 does not automatically execute workflows. It does not yet provide a
-finished human-facing workflow screen. It is proving the safer lower-level
-parts first:
+EX6 executes an active workflow only after an operator explicitly starts it;
+it does not automatically start imported artifacts or provide a finished
+human-facing workflow screen. The current trusted built-in adapters invoke
+declared package commands and retain the lifecycle in CAS. It is still proving
+the safer lower-level parts first:
 
 - exact workflow packaging;
 - reproducible identity with CIDs;
@@ -143,6 +145,9 @@ parts first:
 - validation;
 - explicit local activation;
 - independently verified node-to-node transfer.
+
+Docker-confined workers remain a later execution backend; current execution is
+the explicitly selected built-in adapter path. Source: DI-lumek.
 
 That is valuable because a user interface can change, but those trust and
 evidence boundaries must stay correct underneath it.

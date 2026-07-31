@@ -2,6 +2,15 @@
 
 ## Decision Intent Log
 
+ID: DI-lumek
+Date: 2026-07-30 23:15:00
+Status: active
+Decision: Add a trusted built-in workflow orchestration phase with pCID-selected CBOR handoffs, CAS-backed run lifecycle events, local source/output-to-target/input policy, explicit manual handoffs, and no automatic retry.
+Intent: Let all seven active workflow artifacts coordinate through one auditable runtime without coupling durable behavior to CLI display text or granting future workers implicit host authority.
+Constraints: Built-ins only in this phase; Docker remains deferred by TE-dovek. All-to-all handoff requests are permitted, but target adapters validate input and retain waiting or failed state. Rebuild the run cache from a full CAS scan on every open. Read workflow input only from an explicit operator path; write only under `<runtime root>/state/` and CAS.
+Affects: `kernel/workflow_runs.go`, `kernel/workflow_run_events.go`, `kernel/workflow_operations.go`, `kernel/runtime.go`, `cmd/moks/main.go`, `builtin/`, `workflows/`, `docs/workflows.md`, and deterministic/fuzz tests.
+Supersedes: DI-sovuk (only the constraint that prohibited a workflow engine).
+
 ID: DI-sovuk
 Date: 2026-07-30 22:45:00
 Status: active

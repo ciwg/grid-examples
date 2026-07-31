@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,10 +15,27 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
+	"github.com/ipfs/go-cid"
 )
 
 type BuiltinCommand func(context.Context, *Runtime, []string) (string, error)
 type BuiltinValidator func(records.Envelope) error
+
+type workflowChainContextKey struct{}
+
+func withWorkflowChain(ctx context.Context, workflow string) context.Context {
+	chain, _ := ctx.Value(workflowChainContextKey{}).([]string)
+	return context.WithValue(ctx, workflowChainContextKey{}, append(append([]string{}, chain...), workflow))
+}
+func workflowChainContains(ctx context.Context, workflow string) bool {
+	chain, _ := ctx.Value(workflowChainContextKey{}).([]string)
+	for _, entry := range chain {
+		if entry == workflow {
+			return true
+		}
+	}
+	return false
+}
 
 type BuiltinPackage struct {
 	Manifest   packages.Manifest
@@ -52,6 +70,9 @@ type Runtime struct {
 	families         map[string]registeredFamily
 	routes           []registeredRoute
 	workflows        *WorkflowRegistry
+	workflowRuns     *WorkflowRunRegistry
+	workflowOps      map[string]WorkflowOperation
+	handoffPolicies  *WorkflowHandoffPolicies
 }
 
 func Open(root string) (*Runtime, error) {
@@ -93,6 +114,16 @@ func Open(root string) (*Runtime, error) {
 		}
 		return nil, err
 	}
+	workflowRuns, err := OpenWorkflowRunRegistry(filepath.Join(root, "state"), casStore)
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
+	handoffPolicies, err := OpenWorkflowHandoffPolicies(filepath.Join(root, "state"))
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
 	runtime := &Runtime{
 		root:             root,
 		packagesRoot:     filepath.Join(root, "packages"),
@@ -106,6 +137,9 @@ func Open(root string) (*Runtime, error) {
 		families:         map[string]registeredFamily{},
 		routes:           []registeredRoute{},
 		workflows:        workflowRegistry,
+		workflowRuns:     workflowRuns,
+		workflowOps:      map[string]WorkflowOperation{},
+		handoffPolicies:  handoffPolicies,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
@@ -116,6 +150,364 @@ func Open(root string) (*Runtime, error) {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+// RegisterWorkflowOperation binds an active artifact's declared adapter to
+// trusted built-in behavior. Intent: Keep execution behind explicit artifact
+// activation rather than making installed capabilities implicitly runnable.
+// Source: DI-lumek
+func (runtime *Runtime) RegisterWorkflowOperation(name string, operation WorkflowOperation) error {
+	if strings.TrimSpace(name) == "" || operation == nil {
+		return errors.New("workflow operation name and handler are required")
+	}
+	if _, exists := runtime.workflowOps[name]; exists {
+		return errors.New("workflow operation is already registered")
+	}
+	runtime.workflowOps[name] = operation
+	return nil
+}
+
+func (runtime *Runtime) StartWorkflowRun(ctx context.Context, workflowID string, input WorkflowHandoff) (WorkflowRun, error) {
+	workflow, err := runtime.workflow(workflowID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if workflow.State != WorkflowActive {
+		return WorkflowRun{}, errors.New("workflow is not active")
+	}
+	manifest, err := runtime.VerifyWorkflow(workflowID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if manifest.Adapter == "" || manifest.InputPCID == "" || manifest.OutputPCID == "" {
+		return WorkflowRun{}, errors.New("workflow does not declare an executable adapter")
+	}
+	if input.PCID != manifest.InputPCID {
+		return WorkflowRun{}, errors.New("workflow input pCID is not accepted")
+	}
+	raw, err := EncodeWorkflowHandoff(input)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	inputCID, err := runtime.cas.PutCID(raw)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	// Intent: A fresh retained nonce distinguishes repeated identical inputs,
+	// without making mutable local state part of the durable run identity.
+	// Source: DI-lumek
+	runCID, err := newWorkflowRunCID(runtime.cas)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	seed := workflowRunEvent{RunCID: runCID, Workflow: workflowID, State: WorkflowRunRunning, Input: inputCID}
+	run, err := runtime.workflowRuns.append(seed)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	return runtime.executeWorkflowRun(ctx, run, manifest, input)
+}
+
+func (runtime *Runtime) executeWorkflowRun(ctx context.Context, run WorkflowRun, manifest WorkflowManifest, input WorkflowHandoff) (WorkflowRun, error) {
+	operation := runtime.workflowOps[manifest.Adapter]
+	if operation == nil {
+		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow adapter is unavailable")
+	}
+	output, err := operation(ctx, runtime, input)
+	if err != nil {
+		var waiting *WorkflowWaitingError
+		if errors.As(err, &waiting) {
+			return runtime.transitionWorkflowRun(run, WorkflowRunWaiting, cid.Undef, waiting.Error())
+		}
+		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, err.Error())
+	}
+	if output.PCID != manifest.OutputPCID {
+		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow adapter emitted an undeclared output pCID")
+	}
+	raw, err := EncodeWorkflowHandoff(output)
+	if err != nil {
+		return runtime.failWorkflowRun(run, "workflow output encoding: "+err.Error(), err)
+	}
+	outputCID, err := runtime.cas.PutCID(raw)
+	if err != nil {
+		return runtime.failWorkflowRun(run, "workflow output persistence: "+err.Error(), err)
+	}
+	completed, err := runtime.transitionWorkflowRun(run, WorkflowRunCompleted, outputCID, "")
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if policy, ok := runtime.handoffPolicies.Find(completed.Workflow, output.PCID); ok {
+		// Intent: Policy routing is convenience, never a bypass of the target's
+		// active-artifact and input-pCID checks. Source: DI-lumek
+		if workflowChainContains(ctx, policy.TargetWorkflow) {
+			return runtime.transitionWorkflowRun(completed, WorkflowRunFailed, outputCID, "policy handoff: cycle detected")
+		}
+		if _, err := runtime.HandoffWorkflowRun(withWorkflowChain(ctx, completed.Workflow), completed.ID, policy.TargetWorkflow); err != nil {
+			return runtime.transitionWorkflowRun(completed, WorkflowRunFailed, outputCID, "policy handoff: "+err.Error())
+		}
+	}
+	return completed, nil
+}
+
+// failWorkflowRun records a terminal failure after adapter-side work reaches a
+// persistence boundary. Intent: Prefer a terminal failure, while an explicit
+// retry remains available if physical CAS failure prevents that transition.
+// Source: DI-lumek
+func (runtime *Runtime) failWorkflowRun(run WorkflowRun, reason string, cause error) (WorkflowRun, error) {
+	failed, err := runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, reason)
+	if err != nil {
+		return WorkflowRun{}, errors.Join(cause, err)
+	}
+	return failed, nil
+}
+
+func (runtime *Runtime) transitionWorkflowRun(run WorkflowRun, state WorkflowRunState, output cid.Cid, reason string) (WorkflowRun, error) {
+	parent, err := cid.Decode(run.EventCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	input, err := cid.Decode(run.InputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	runCID, err := cid.Decode(run.ID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	next, err := runtime.workflowRuns.append(workflowRunEvent{RunCID: runCID, Workflow: run.Workflow, State: state, Input: input, Output: output, Reason: reason, Parents: []cid.Cid{parent}})
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	return next, nil
+}
+
+func (runtime *Runtime) WorkflowRun(id string) (WorkflowRun, error) {
+	run, ok := runtime.workflowRuns.get(id)
+	if !ok {
+		return WorkflowRun{}, errors.New("workflow run is not found")
+	}
+	return run, nil
+}
+
+// HandoffWorkflowRun transfers an exact completed output into another active
+// artifact's declared input contract. Intent: Preserve the basket boundary at
+// handoff time so an inactive artifact cannot receive work. Source: DI-lumek
+func (runtime *Runtime) HandoffWorkflowRun(ctx context.Context, runID string, targetWorkflow string) (WorkflowRun, error) {
+	source, err := runtime.WorkflowRun(runID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if source.State != WorkflowRunCompleted || source.OutputCID == "" {
+		return WorkflowRun{}, errors.New("workflow run has no completed output to hand off")
+	}
+	sourceWorkflow, err := runtime.workflow(source.Workflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if sourceWorkflow.State != WorkflowActive {
+		return WorkflowRun{}, errors.New("source workflow is not active")
+	}
+	outputCID, err := cid.Decode(source.OutputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	raw, err := runtime.cas.GetCID(outputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	handoff, err := DecodeWorkflowHandoff(raw)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	target, err := runtime.workflow(targetWorkflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if target.State != WorkflowActive {
+		return WorkflowRun{}, errors.New("workflow is not active")
+	}
+	manifest, err := runtime.VerifyWorkflow(targetWorkflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if handoff.PCID != manifest.InputPCID {
+		// Intent: Preserve the source envelope as evidence when a policy or
+		// operator selects a different target schema. The target must receive
+		// an explicit input under its own pCID before its adapter can execute.
+		// Source: DI-lumek
+		return runtime.queueWorkflowRun(targetWorkflow, handoff, "handoff output pCID does not satisfy target input pCID")
+	}
+	return runtime.StartWorkflowRun(ctx, targetWorkflow, handoff)
+}
+
+// queueWorkflowRun records an incompatible handoff without treating source
+// data as if it already satisfied the target artifact's declared schema.
+func (runtime *Runtime) queueWorkflowRun(workflowID string, input WorkflowHandoff, reason string) (WorkflowRun, error) {
+	raw, err := EncodeWorkflowHandoff(input)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	inputCID, err := runtime.cas.PutCID(raw)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	runCID, err := newWorkflowRunCID(runtime.cas)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	run, err := runtime.workflowRuns.append(workflowRunEvent{RunCID: runCID, Workflow: workflowID, State: WorkflowRunRunning, Input: inputCID})
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	return runtime.transitionWorkflowRun(run, WorkflowRunWaiting, cid.Undef, reason)
+}
+
+// WorkflowWaitingError tells the runtime that an adapter needs more input, not
+// that its execution failed. Source: DI-lumek
+type WorkflowWaitingError struct{ Reason string }
+
+func (err *WorkflowWaitingError) Error() string   { return err.Reason }
+func WaitingForWorkflowInput(reason string) error { return &WorkflowWaitingError{Reason: reason} }
+
+func (runtime *Runtime) SupplyWorkflowRun(ctx context.Context, runID string, input WorkflowHandoff) (WorkflowRun, error) {
+	run, err := runtime.WorkflowRun(runID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if run.State != WorkflowRunWaiting {
+		return WorkflowRun{}, errors.New("workflow run is not waiting for input")
+	}
+	workflow, err := runtime.workflow(run.Workflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if workflow.State != WorkflowActive {
+		return WorkflowRun{}, errors.New("workflow is not active")
+	}
+	manifest, err := runtime.VerifyWorkflow(run.Workflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if input.PCID != manifest.InputPCID {
+		return WorkflowRun{}, errors.New("workflow input pCID is not accepted")
+	}
+	raw, err := EncodeWorkflowHandoff(input)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	inputCID, err := runtime.cas.PutCID(raw)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	resumed, err := runtime.resumeWorkflowRun(run, inputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	return runtime.executeWorkflowRun(ctx, resumed, manifest, input)
+}
+func (runtime *Runtime) RetryWorkflowRun(ctx context.Context, runID string) (WorkflowRun, error) {
+	run, err := runtime.WorkflowRun(runID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if run.State != WorkflowRunFailed && run.State != WorkflowRunRunning {
+		return WorkflowRun{}, errors.New("workflow run is not failed or recovery-running")
+	}
+	workflow, err := runtime.workflow(run.Workflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if workflow.State != WorkflowActive {
+		return WorkflowRun{}, errors.New("workflow is not active")
+	}
+	manifest, err := runtime.VerifyWorkflow(run.Workflow)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	inputCID, err := cid.Decode(run.InputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	raw, err := runtime.cas.GetCID(inputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	input, err := DecodeWorkflowHandoff(raw)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	resumed, err := runtime.resumeWorkflowRun(run, inputCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	return runtime.executeWorkflowRun(ctx, resumed, manifest, input)
+}
+func (runtime *Runtime) resumeWorkflowRun(run WorkflowRun, input cid.Cid) (WorkflowRun, error) {
+	head, err := cid.Decode(run.EventCID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	root, err := cid.Decode(run.ID)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	reason := ""
+	if run.State == WorkflowRunRunning {
+		// Intent: Preserve an auditable, operator-only recovery edge after a
+		// physical persistence interruption; ordinary running transitions remain
+		// invalid. Source: DI-lumek
+		reason = "manual recovery"
+	}
+	return runtime.workflowRuns.append(workflowRunEvent{RunCID: root, Workflow: run.Workflow, State: WorkflowRunRunning, Input: input, Reason: reason, Parents: []cid.Cid{head}})
+}
+func (runtime *Runtime) SetWorkflowHandoffPolicy(policy WorkflowHandoffPolicy) error {
+	sourceWorkflow, err := runtime.workflow(policy.SourceWorkflow)
+	if err != nil {
+		return err
+	}
+	source, err := runtime.WorkflowManifest(sourceWorkflow.ArtifactCID)
+	if err != nil {
+		return err
+	}
+	targetWorkflow, err := runtime.workflow(policy.TargetWorkflow)
+	if err != nil {
+		return err
+	}
+	target, err := runtime.WorkflowManifest(targetWorkflow.ArtifactCID)
+	if err != nil {
+		return err
+	}
+	if source.OutputPCID != policy.OutputPCID || target.InputPCID != policy.InputPCID {
+		return errors.New("workflow handoff policy does not match declared pCIDs")
+	}
+	policies := []WorkflowHandoffPolicy{}
+	for _, existing := range runtime.handoffPolicies.List() {
+		if existing.SourceWorkflow != policy.SourceWorkflow || existing.OutputPCID != policy.OutputPCID {
+			policies = append(policies, existing)
+		}
+	}
+	policies = append(policies, policy)
+	if workflowPolicyReaches(policies, policy.TargetWorkflow, policy.SourceWorkflow) {
+		return errors.New("workflow handoff policy creates a cycle")
+	}
+	return runtime.handoffPolicies.Set(policy)
+}
+
+func (runtime *Runtime) RemoveWorkflowHandoffPolicy(source, output string) error {
+	return runtime.handoffPolicies.Remove(source, output)
+}
+func (runtime *Runtime) WorkflowHandoffPolicies() []WorkflowHandoffPolicy {
+	return runtime.handoffPolicies.List()
+}
+func (runtime *Runtime) WorkflowRuns() []WorkflowRun {
+	runtime.workflowRuns.mu.RLock()
+	defer runtime.workflowRuns.mu.RUnlock()
+	runs := make([]WorkflowRun, 0, len(runtime.workflowRuns.runs))
+	for _, run := range runtime.workflowRuns.runs {
+		runs = append(runs, run)
+	}
+	slices.SortFunc(runs, func(a, b WorkflowRun) int { return strings.Compare(a.ID, b.ID) })
+	return runs
 }
 
 func (runtime *Runtime) Close() error {

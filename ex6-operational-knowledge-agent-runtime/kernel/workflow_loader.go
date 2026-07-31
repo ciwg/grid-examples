@@ -22,6 +22,9 @@ type WorkflowManifest struct {
 	Summary           string   `json:"summary"`
 	RequiredPackages  []string `json:"required_packages"`
 	RequiredProtocols []string `json:"required_protocols"`
+	Adapter           string   `json:"adapter,omitempty"`
+	InputPCID         string   `json:"input_pcid,omitempty"`
+	OutputPCID        string   `json:"output_pcid,omitempty"`
 }
 
 // WorkflowStatus is one operator-facing view of a retained workflow artifact.
@@ -36,6 +39,13 @@ type WorkflowStatus struct {
 func (m WorkflowManifest) Validate() error {
 	if strings.TrimSpace(m.ID) == "" || strings.TrimSpace(m.Version) == "" || strings.TrimSpace(m.Summary) == "" {
 		return errors.New("workflow id, version, and summary are required")
+	}
+	for _, pcid := range []string{m.InputPCID, m.OutputPCID} {
+		if pcid != "" {
+			if err := validateWorkflowPCID(pcid); err != nil {
+				return err
+			}
+		}
 	}
 	seen := map[string]bool{}
 	for _, v := range append(append([]string{}, m.RequiredPackages...), m.RequiredProtocols...) {

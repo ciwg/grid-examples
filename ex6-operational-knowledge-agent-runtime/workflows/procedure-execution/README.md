@@ -1,7 +1,7 @@
 # Procedure Execution Workflow
 
-This loadable workflow turns an approved procedure into one auditable run:
-identify the responsible person and resource, perform the procedure, attach
-evidence, then record approval or rejection.
+This loadable workflow records one auditable use of an existing approved
+procedure.
 
-It is an artifact for the workflow basket, not an executable worker.
+When its exact artifact is active in the workflow basket, its trusted built-in
+adapter executes the declared procedure-use command. Source: DI-lumek.

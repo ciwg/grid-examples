@@ -1,7 +1,10 @@
 {
   "id": "inventory-receipt",
   "version": "1.0.0",
-  "summary": "Receive goods, record disposition, count inventory, and retain approval evidence.",
+  "summary": "Record an inventory count after inbound receipt and disposition are available.",
   "required_packages": ["context", "inventory", "receiving", "runs"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "inventory-receipt",
+  "input_pcid": "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq",
+  "output_pcid": "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
 }

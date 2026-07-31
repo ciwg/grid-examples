@@ -331,6 +331,116 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(string(output))
 		return nil
+	case matchesPrefix(args, "workflow", "run", "start"):
+		if len(args) < 5 || len(args[3:])%2 == 0 {
+			return errors.New("usage: workflow run start <alias> <key> <value> [<key> <value> ...]")
+		}
+		values := map[string]string{}
+		for index := 4; index < len(args); index += 2 {
+			values[args[index]] = args[index+1]
+		}
+		manifest, err := runtime.VerifyWorkflow(args[3])
+		if err != nil {
+			return err
+		}
+		run, err := runtime.StartWorkflowRun(ctx, args[3], kernel.WorkflowHandoff{PCID: manifest.InputPCID, Values: values})
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(run, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "run", "status"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow run status <run-id>")
+		}
+		run, err := runtime.WorkflowRun(args[3])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(run, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "run", "handoff"):
+		if len(args) != 5 {
+			return errors.New("usage: workflow run handoff <run-id> <target-alias>")
+		}
+		run, err := runtime.HandoffWorkflowRun(ctx, args[3], args[4])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(run, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "run", "supply"):
+		if len(args) < 6 || len(args[4:])%2 != 0 {
+			return errors.New("usage: workflow run supply <run-id> <key> <value> [<key> <value> ...]")
+		}
+		values := map[string]string{}
+		for index := 4; index < len(args); index += 2 {
+			values[args[index]] = args[index+1]
+		}
+		current, err := runtime.WorkflowRun(args[3])
+		if err != nil {
+			return err
+		}
+		manifest, err := runtime.VerifyWorkflow(current.Workflow)
+		if err != nil {
+			return err
+		}
+		run, err := runtime.SupplyWorkflowRun(ctx, args[3], kernel.WorkflowHandoff{PCID: manifest.InputPCID, Values: values})
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(run, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "run", "retry"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow run retry <run-id>")
+		}
+		run, err := runtime.RetryWorkflowRun(ctx, args[3])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(run, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "policy", "handoff", "set"):
+		if len(args) != 8 {
+			return errors.New("usage: workflow policy handoff set <source> <output-pcid> <target> <input-pcid>")
+		}
+		return runtime.SetWorkflowHandoffPolicy(kernel.WorkflowHandoffPolicy{SourceWorkflow: args[4], OutputPCID: args[5], TargetWorkflow: args[6], InputPCID: args[7]})
+	case matchesPrefix(args, "workflow", "policy", "handoff", "remove"):
+		if len(args) != 6 {
+			return errors.New("usage: workflow policy handoff remove <source> <output-pcid>")
+		}
+		return runtime.RemoveWorkflowHandoffPolicy(args[4], args[5])
+	case matchesPrefix(args, "workflow", "policy", "handoff", "list"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow policy handoff list")
+		}
+		output, err := json.MarshalIndent(runtime.WorkflowHandoffPolicies(), "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
 	case matchesPrefix(args, "workflow", "relay", "push"):
 		if len(args) != 5 {
 			return errors.New("usage: workflow relay push <alias> <peer-id>")
@@ -1185,6 +1295,11 @@ func registerBuiltins(runtime *kernel.Runtime) error {
 	}
 	if err := runtime.RegisterBuiltin(builtin.OpsPackage()); err != nil {
 		return err
+	}
+	for name, operation := range builtin.WorkflowOperations() {
+		if err := runtime.RegisterWorkflowOperation(name, operation); err != nil {
+			return err
+		}
 	}
 	return nil
 }

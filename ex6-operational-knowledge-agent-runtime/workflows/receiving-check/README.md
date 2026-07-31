@@ -1,9 +1,10 @@
 # Receiving Check Workflow
 
-This loadable workflow inspects inbound goods, records evidence, and retains an
-explicit receiving disposition: accepted, quarantined, or rejected.
+This loadable workflow records one inspection receipt for an existing inbound
+receiving item.
 
-It composes `context`, `receiving`, and `runs`. It is an artifact for the
-workflow basket, not an executable worker.
+It composes `context`, `receiving`, and `runs`. When its exact artifact is
+active in the workflow basket, its trusted built-in adapter executes the
+declared receiving-receipt command. Source: DI-lumek.
 
 Source: DI-zovuk.

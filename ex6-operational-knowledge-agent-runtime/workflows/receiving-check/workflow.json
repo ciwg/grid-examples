@@ -1,7 +1,10 @@
 {
   "id": "receiving-check",
   "version": "1.0.0",
-  "summary": "Inspect an inbound receipt, retain evidence, and record an accept, quarantine, or reject disposition.",
+  "summary": "Record one inspection receipt for an existing inbound receiving item.",
   "required_packages": ["context", "receiving", "runs"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "receiving-check",
+  "input_pcid": "bafkreibyegjb3p52b3hzf4lw3jwqu3hktxockiamrt2a3bee2gwdl46ja4",
+  "output_pcid": "bafkreib3rq3zyljjn4v7tunm2xqpy26i7mpr24bko2sdof524p7xnqnjo4"
 }

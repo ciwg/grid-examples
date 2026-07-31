@@ -1,9 +1,10 @@
 # Training Qualification Workflow
 
-This loadable workflow records a trainee's session, supporting evidence, and a
-completion or certification decision.
+This loadable workflow records one trainee session for an existing training
+item.
 
-It composes `training` and `runs`. It is an artifact for the workflow basket,
-not an executable worker.
+It composes `training` and `runs`. When its exact artifact is active in the
+workflow basket, its trusted built-in adapter executes the declared training
+session command. Source: DI-lumek.
 
 Source: DI-yavuk.

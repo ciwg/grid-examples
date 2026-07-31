@@ -1,7 +1,10 @@
 {
   "id": "knowledge-review",
   "version": "1.0.0",
-  "summary": "Snapshot a knowledge revision, review it, and explicitly approve or supersede the item.",
+  "summary": "Record an explicit approval for an existing reviewed knowledge item.",
   "required_packages": ["knowledge"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "knowledge-review",
+  "input_pcid": "bafkreig4pegj6ckn6hg2yci7i5tt4vcknd4e25ul7a7ugyel5gejjz7iti",
+  "output_pcid": "bafkreigkvvjof6vhurueeod4mqtghfosiwunlskzkuhjuskiy66cnx5yua"
 }

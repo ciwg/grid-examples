@@ -1,7 +1,10 @@
 {
   "id": "maintenance-round",
   "version": "1.0.0",
-  "summary": "Inspect a resource, record service work, retain findings, and attach approval evidence.",
+  "summary": "Record maintenance service work for an existing maintenance item and resource.",
   "required_packages": ["context", "maintenance", "runs"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "maintenance-round",
+  "input_pcid": "bafkreiboes7s6tcaebjnlibd7fkwj62typezjdsipskyafvtuzf74ypx3i",
+  "output_pcid": "bafkreicfalhnnj67rctw63c6j4w6x5l7ntmqtvyndmqi26vc46ukavmiha"
 }

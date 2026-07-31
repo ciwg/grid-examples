@@ -1,7 +1,10 @@
 {
   "id": "training-qualification",
   "version": "1.0.0",
-  "summary": "Record a training session, retain evidence, and make an explicit qualification decision.",
+  "summary": "Record one training session for an existing training item.",
   "required_packages": ["runs", "training"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "training-qualification",
+  "input_pcid": "bafkreigkwagey45deeh6cc2hirr53avia3rbt2vgixxcbvwiccctnobi2y",
+  "output_pcid": "bafkreifrf4xznrekx4lohyueahudtz6ju7qhgodpnbyrd4rytjauo7qgsm"
 }

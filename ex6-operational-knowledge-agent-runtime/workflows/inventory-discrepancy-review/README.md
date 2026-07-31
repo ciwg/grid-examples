@@ -1,9 +1,10 @@
 # Inventory Discrepancy Review Workflow
 
-This loadable workflow records a count discrepancy, its evidence, and a local
-reconciliation decision to adjust, investigate, or reject the count.
+This loadable workflow records a local reconciliation decision for an existing
+count discrepancy.
 
-It composes `context`, `inventory`, and `runs`. It is an artifact for the
-workflow basket, not an executable worker.
+It composes `context`, `inventory`, and `runs`. When its exact artifact is
+active in the workflow basket, its trusted built-in adapter executes the
+declared inventory reconciliation command through the runtime. Source: DI-lumek.
 
 Source: DI-pavuk.

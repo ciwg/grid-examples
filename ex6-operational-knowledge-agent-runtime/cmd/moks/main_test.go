@@ -162,8 +162,8 @@ func TestWorkflowDemoKnowledgeReview(t *testing.T) {
 }
 
 func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
-	// Intent: Prove that separately loaded workflow artifacts can guide real
-	// package commands over one shared runtime without pretending they execute. Source: DI-sovuk
+	// Intent: Prove that separately loaded workflow artifacts execute their
+	// declared built-in package commands over one shared runtime. Source: DI-lumek
 	workdir := t.TempDir()
 	for _, workflowID := range []string{
 		"procedure-execution",
@@ -185,6 +185,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	commands := [][]string{
 		{"context", "place", "create", "dock", "Dock", "Inbound"},
 		{"context", "resource", "create", "scale", "Scale", "Bench-scale", "dock"},
+		{"procedures", "create", "dock-procedure", "Dock-procedure", "Inspect-inbound-goods"},
 		{"receiving", "create", "receipt", "dock", "Inbound-receipt", "Pallet-inspection"},
 		{"receiving", "record-receipt", "receipt", "receive-run", "dock", "Alice", "accepted", "sealed"},
 		{"receiving", "record-disposition", "receipt", "receipt-disposition", "accepted", "scale", "accepted"},
@@ -212,6 +213,21 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	}
 	if strings.Count(workflows, `"state": "active"`) != 7 {
 		t.Fatalf("active workflow list = %s", workflows)
+	}
+	workflowRuns := [][]string{
+		{"workflow", "run", "start", "procedure-execution", "procedure_id", "dock-procedure", "run_id", "workflow-procedure-run", "actor", "Alice", "outcome", "accepted", "notes", "sealed"},
+		{"workflow", "run", "start", "inventory-receipt", "inventory_id", "stock", "run_id", "workflow-inventory-run", "place_id", "dock", "counter", "Bob", "quantity", "8", "outcome", "counted", "notes", "counted"},
+		{"workflow", "run", "start", "maintenance-round", "maintenance_id", "scale-check", "run_id", "workflow-maintenance-run", "resource_id", "scale", "performer", "Carol", "outcome", "completed", "notes", "calibrated"},
+		{"workflow", "run", "start", "receiving-check", "receiving_id", "receipt", "run_id", "workflow-receiving-run", "place_id", "dock", "receiver", "Alice", "outcome", "accepted", "notes", "sealed"},
+		{"workflow", "run", "start", "training-qualification", "training_id", "dock-training", "run_id", "workflow-training-run", "trainee", "Dave", "instructor", "Ellen", "outcome", "completed", "notes", "demonstrated"},
+		{"workflow", "run", "start", "inventory-discrepancy-review", "inventory_id", "stock", "event_id", "workflow-reconcile", "decision", "investigate", "resource_id", "scale", "notes", "variance"},
+		{"workflow", "run", "start", "knowledge-review", "item_id", "dock-guide", "event_id", "workflow-guide-approval", "notes", "approved"},
+	}
+	for _, command := range workflowRuns {
+		output, err := runCLI(t, workdir, command...)
+		if err != nil || !strings.Contains(output, `"state": "completed"`) {
+			t.Fatalf("run %q: %v\n%s", command, err, output)
+		}
 	}
 	for _, inspect := range [][]string{
 		{"receiving", "inspect", "receipt"},

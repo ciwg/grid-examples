@@ -1,7 +1,10 @@
 {
   "id": "inventory-discrepancy-review",
   "version": "1.0.0",
-  "summary": "Record a count discrepancy, retain evidence, and make an explicit reconciliation decision.",
+  "summary": "Record an explicit inventory reconciliation decision for an existing discrepancy.",
   "required_packages": ["context", "inventory", "runs"],
-  "required_protocols": []
+  "required_protocols": [],
+  "adapter": "inventory-discrepancy-review",
+  "input_pcid": "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae",
+  "output_pcid": "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
 }
