@@ -32,12 +32,14 @@ func (cas *CAS) Put(body []byte) (string, error) {
 	sum := sha256.Sum256(body)
 	objectID := "sha256:" + hex.EncodeToString(sum[:])
 	path := cas.pathFor(objectID)
-	if _, err := os.Stat(path); err == nil {
-		return objectID, nil
+	if existing, err := os.ReadFile(path); err == nil {
+		if sha256.Sum256(existing) == sum {
+			return objectID, nil
+		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := cas.writeObject(path, body); err != nil {
 		return "", err
 	}
 	return objectID, nil
@@ -56,17 +58,35 @@ func (cas *CAS) PutCID(body []byte) (cid.Cid, error) {
 		return cid.Undef, err
 	}
 	path := cas.pathFor(objectCID.String())
-	if _, err := os.Stat(path); err == nil {
-		return objectCID, nil
+	corruptCIDPath := false
+	if existing, err := os.ReadFile(path); err == nil {
+		actual, hashErr := cas.cidFor(existing)
+		if hashErr != nil {
+			return cid.Undef, hashErr
+		}
+		if actual == objectCID {
+			return objectCID, nil
+		}
+		corruptCIDPath = true
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return cid.Undef, err
 	}
-	if _, err := os.Stat(cas.pathFor(legacyObjectID(body))); err == nil {
-		return objectCID, nil
+	legacyPath := cas.pathFor(legacyObjectID(body))
+	if existing, err := os.ReadFile(legacyPath); err == nil {
+		actual, hashErr := cas.cidFor(existing)
+		if hashErr != nil {
+			return cid.Undef, hashErr
+		}
+		if actual == objectCID && !corruptCIDPath {
+			return objectCID, nil
+		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return cid.Undef, err
 	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	// Intent: Replace a known-bad object atomically so a retry repairs an
+	// interrupted write instead of preserving a corrupt filename forever.
+	// Source: DI-bavuk
+	if err := cas.writeObject(path, body); err != nil {
 		return cid.Undef, err
 	}
 	return objectCID, nil
@@ -116,7 +136,9 @@ func (cas *CAS) ListCIDs() ([]cid.Cid, error) {
 		}
 		objectCID, err := cas.cidFromFilename(entry.Name())
 		if err != nil {
-			return nil, err
+			// Intent: CAS replay must retain readable objects even if an interrupted
+			// write or unrelated file appears beside them. Source: DI-bavuk
+			continue
 		}
 		if _, exists := seen[objectCID.String()]; exists {
 			continue
@@ -128,6 +150,58 @@ func (cas *CAS) ListCIDs() ([]cid.Cid, error) {
 		return strings.Compare(left.String(), right.String())
 	})
 	return objectCIDs, nil
+}
+
+func (cas *CAS) writeObject(path string, body []byte) (result error) {
+	temporary, err := os.CreateTemp(cas.root, ".cas-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		if temporaryPath == "" {
+			return
+		}
+		if err := os.Remove(temporaryPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			result = errors.Join(result, err)
+		}
+	}()
+	if err := temporary.Chmod(0o644); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return err
+	}
+	if _, err := temporary.Write(body); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		if closeErr := temporary.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return err
+	}
+	temporaryPath = ""
+	directory, err := os.Open(cas.root)
+	if err != nil {
+		return err
+	}
+	if err := directory.Sync(); err != nil {
+		if closeErr := directory.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return err
+	}
+	return directory.Close()
 }
 
 func (cas *CAS) cidFor(body []byte) (cid.Cid, error) {

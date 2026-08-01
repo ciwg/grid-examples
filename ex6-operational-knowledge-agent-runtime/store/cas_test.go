@@ -2,6 +2,7 @@ package store
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -87,5 +88,79 @@ func TestCASListCIDsNormalizesLegacyObjects(t *testing.T) {
 	}
 	if !seen[currentCID.String()] || !seen[legacyCID.String()] {
 		t.Errorf("listed CIDs = %v, want %s and %s", objectCIDs, currentCID, legacyCID)
+	}
+}
+
+func TestCASPutCIDRepairsCorruptExistingObject(t *testing.T) {
+	cas, err := OpenCAS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("repairable")
+	objectCID, err := cas.cidFor(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cas.pathFor(objectCID.String()), []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cas.PutCID(body); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := cas.GetCID(objectCID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stored) != string(body) {
+		t.Fatalf("repaired body = %q, want %q", stored, body)
+	}
+}
+
+func TestCASPutCIDRepairsCorruptCIDWithValidLegacyFallback(t *testing.T) {
+	cas, err := OpenCAS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("legacy repairable")
+	if _, err := cas.Put(body); err != nil {
+		t.Fatal(err)
+	}
+	objectCID, err := cas.cidFor(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cas.pathFor(objectCID.String()), []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cas.PutCID(body); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := cas.GetCID(objectCID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stored) != string(body) {
+		t.Fatalf("repaired fallback body = %q, want %q", stored, body)
+	}
+}
+
+func TestCASListCIDsIgnoresUnexpectedFiles(t *testing.T) {
+	cas, err := OpenCAS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	objectCID, err := cas.PutCID([]byte("retained"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cas.root, ".cas-interrupted"), []byte("temporary"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	objectCIDs, err := cas.ListCIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objectCIDs) != 1 || objectCIDs[0] != objectCID {
+		t.Fatalf("listed CIDs = %v, want %s", objectCIDs, objectCID)
 	}
 }
