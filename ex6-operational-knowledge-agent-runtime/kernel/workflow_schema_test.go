@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -77,5 +78,31 @@ func TestCaptureWorkflowDirRejectsRetiredAdapterPCIDs(t *testing.T) {
 	}
 	if len(ids) != 0 {
 		t.Fatalf("retired capture persisted %d CAS objects", len(ids))
+	}
+}
+
+func TestWorkflowVerificationRequiresCanonicalSchemas(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := runtime.RegisterWorkflowOperation("test", func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) { return input, nil }); err != nil {
+		t.Fatal(err)
+	}
+	writeExecutableWorkflow(t, runtime.root, runtime, "test")
+	if err := runtime.ActivateWorkflow("test"); err != nil {
+		t.Fatal(err)
+	}
+	verification, err := runtime.VerifyWorkflowReadiness("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verification.Contract != "canonical" || !verification.AdapterAvailable || verification.SchemaCASReady || verification.EligibleToExecute || verification.Reason != "canonical workflow schemas are not ready in CAS" {
+		t.Fatalf("schema-less verification = %#v", verification)
 	}
 }

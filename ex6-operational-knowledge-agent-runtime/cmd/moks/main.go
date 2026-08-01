@@ -307,11 +307,11 @@ func run(ctx context.Context, args []string) error {
 		if len(args) != 3 {
 			return errors.New("usage: workflow verify <alias-or-cid>")
 		}
-		manifest, err := runtime.VerifyWorkflow(args[2])
+		verification, err := runtime.VerifyWorkflowReadiness(args[2])
 		if err != nil {
 			return err
 		}
-		output, err := json.MarshalIndent(manifest, "", "  ")
+		output, err := json.MarshalIndent(verification, "", "  ")
 		if err != nil {
 			return err
 		}

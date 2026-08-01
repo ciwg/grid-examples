@@ -179,6 +179,15 @@ envelope into a new one, and new capture rejects an old pCID.
 This preserves the exact contract of a retained egg while newer artifacts use
 the canonical embedded schemas. Source: DI-lumek.
 
+`moks workflow verify <alias-or-cid>` prints the manifest plus `contract`,
+`adapter_available`, `schema_cas_ready`, and `eligible_to_execute`. A retained
+v1 artifact can be eligible through its supported adapter even though it has no
+embedded canonical schema bytes; canonical artifacts report schema/CAS readiness
+only after their embedded schemas have verified and entered CAS, and cannot be
+eligible without that readiness. A structurally valid artifact with an
+unavailable package or protocol still prints this report with
+`eligible_to_execute: false` and a dependency `reason`. Source: DI-lumek.
+
 Missing adapter fields and schema-changing handoffs produce
 `waiting-for-input`; malformed or rejected commands produce durable `failed`
 state. The run cache is disposable: runtime open rebuilds it from a full CAS

@@ -101,6 +101,13 @@ func TestWorkflowOperationPreservesLegacyPCIDPair(t *testing.T) {
 	if err := runtime.ActivateWorkflow("legacy-inventory-receipt"); err != nil {
 		t.Fatal(err)
 	}
+	verification, err := runtime.VerifyWorkflowReadiness("legacy-inventory-receipt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verification.Contract != "retained-v1" || !verification.AdapterAvailable || verification.SchemaCASReady || !verification.EligibleToExecute {
+		t.Fatalf("legacy verification = %#v", verification)
+	}
 	run, err := runtime.StartWorkflowRun(context.Background(), "legacy-inventory-receipt", input)
 	if err != nil {
 		t.Fatal(err)

@@ -76,6 +76,75 @@ func TestWorkflowDemoInventoryReceipt(t *testing.T) {
 	}
 }
 
+func TestWorkflowVerifyReportsExecutionReadiness(t *testing.T) {
+	workdir := t.TempDir()
+	sourceDir := filepath.Join(repoRoot(t), "workflows", "inventory-receipt")
+	if _, err := runCLI(t, workdir, "workflow", "capture", sourceDir, "inventory-receipt"); err != nil {
+		t.Fatal(err)
+	}
+	output, err := runCLI(t, workdir, "workflow", "verify", "inventory-receipt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inactive struct {
+		Contract          string `json:"contract"`
+		AdapterAvailable  bool   `json:"adapter_available"`
+		SchemaCASReady    bool   `json:"schema_cas_ready"`
+		EligibleToExecute bool   `json:"eligible_to_execute"`
+	}
+	if err := json.Unmarshal([]byte(output), &inactive); err != nil {
+		t.Fatal(err)
+	}
+	if inactive.Contract != "canonical" || !inactive.AdapterAvailable || !inactive.SchemaCASReady || inactive.EligibleToExecute {
+		t.Fatalf("inactive verification = %#v", inactive)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "activate", "inventory-receipt"); err != nil {
+		t.Fatal(err)
+	}
+	output, err = runCLI(t, workdir, "workflow", "verify", "inventory-receipt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var active struct {
+		EligibleToExecute bool `json:"eligible_to_execute"`
+	}
+	if err := json.Unmarshal([]byte(output), &active); err != nil {
+		t.Fatal(err)
+	}
+	if !active.EligibleToExecute {
+		t.Fatalf("active verification = %s", output)
+	}
+}
+
+func TestWorkflowVerifyReportsMissingDependencyReadiness(t *testing.T) {
+	workdir := t.TempDir()
+	sourceDir := filepath.Join(t.TempDir(), "missing-dependency")
+	if err := os.Mkdir(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"id":"missing-dependency","version":"1","summary":"missing dependency","required_packages":["missing"],"required_protocols":[]}`
+	if err := os.WriteFile(filepath.Join(sourceDir, "workflow.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "capture", sourceDir, "missing-dependency"); err != nil {
+		t.Fatal(err)
+	}
+	output, err := runCLI(t, workdir, "workflow", "verify", "missing-dependency")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var verification struct {
+		EligibleToExecute bool   `json:"eligible_to_execute"`
+		Reason            string `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(output), &verification); err != nil {
+		t.Fatal(err)
+	}
+	if verification.EligibleToExecute || verification.Reason != "required package is not active: missing" {
+		t.Fatalf("missing dependency verification = %#v", verification)
+	}
+}
+
 func TestWorkflowDemoMaintenanceRound(t *testing.T) {
 	output, err := runCLI(t, repoRoot(t), "workflow", "demo", "maintenance-round")
 	if err != nil {

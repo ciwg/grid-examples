@@ -59,6 +59,18 @@ type WorkflowStatus struct {
 	Reason   string           `json:"reason,omitempty"`
 }
 
+// WorkflowVerification is the operator-facing execution readiness view for one
+// retained artifact. It separates successful structural verification from the
+// local activation and adapter conditions required to start a run.
+type WorkflowVerification struct {
+	Manifest          WorkflowManifest `json:"manifest"`
+	Contract          string           `json:"contract"`
+	AdapterAvailable  bool             `json:"adapter_available"`
+	SchemaCASReady    bool             `json:"schema_cas_ready"`
+	EligibleToExecute bool             `json:"eligible_to_execute"`
+	Reason            string           `json:"reason,omitempty"`
+}
+
 func (m WorkflowManifest) Validate() error {
 	if strings.TrimSpace(m.ID) == "" || strings.TrimSpace(m.Version) == "" || strings.TrimSpace(m.Summary) == "" {
 		return errors.New("workflow id, version, and summary are required")
@@ -365,17 +377,87 @@ func (runtime *Runtime) VerifyWorkflow(aliasOrCID string) (WorkflowManifest, err
 	if err != nil {
 		return WorkflowManifest{}, err
 	}
+	if err := runtime.workflowDependencyError(manifest); err != nil {
+		return WorkflowManifest{}, err
+	}
+	return manifest, nil
+}
+
+func (runtime *Runtime) workflowDependencyError(manifest WorkflowManifest) error {
 	for _, id := range manifest.RequiredPackages {
 		if _, ok := runtime.PackageManifest(id); !ok {
-			return WorkflowManifest{}, fmt.Errorf("required package is not active: %s", id)
+			return fmt.Errorf("required package is not active: %s", id)
 		}
 	}
 	for _, protocol := range manifest.RequiredProtocols {
 		if len(runtime.ProtocolRoutesForProtocol(protocol)) == 0 {
-			return WorkflowManifest{}, fmt.Errorf("required protocol has no route: %s", protocol)
+			return fmt.Errorf("required protocol has no route: %s", protocol)
 		}
 	}
-	return manifest, nil
+	return nil
+}
+
+// VerifyWorkflowReadiness reports whether a verified artifact can execute on
+// this runtime without changing its lifecycle state. Intent: Make the retained
+// v1 compatibility boundary visible before an operator starts work. Source:
+// DI-lumek
+func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVerification, error) {
+	artifactID := aliasOrCID
+	if workflow, err := runtime.workflow(aliasOrCID); err == nil {
+		artifactID = workflow.ArtifactCID
+	}
+	manifest, err := runtime.WorkflowManifest(artifactID)
+	if err != nil {
+		return WorkflowVerification{}, err
+	}
+	verification := WorkflowVerification{
+		Manifest:         manifest,
+		Contract:         "canonical",
+		AdapterAvailable: runtime.workflowOps[manifest.Adapter] != nil,
+		SchemaCASReady:   manifest.InputSchema != "" && manifest.OutputSchema != "",
+	}
+	if _, legacyInput := legacyWorkflowAdapterPCIDs[manifest.InputPCID]; legacyInput {
+		verification.Contract = "retained-v1"
+	}
+	if _, legacyOutput := legacyWorkflowAdapterPCIDs[manifest.OutputPCID]; legacyOutput {
+		verification.Contract = "retained-v1"
+	}
+	if err := runtime.workflowDependencyError(manifest); err != nil {
+		verification.Reason = err.Error()
+		return verification, nil
+	}
+	workflow, err := runtime.workflow(aliasOrCID)
+	if err != nil {
+		for _, candidate := range runtime.Workflows() {
+			if candidate.ArtifactCID == aliasOrCID {
+				workflow = candidate
+				err = nil
+				break
+			}
+		}
+	}
+	if err != nil {
+		verification.Reason = "workflow is not imported"
+		return verification, nil
+	}
+	if workflow.State != WorkflowActive {
+		verification.Reason = "workflow is not active"
+		return verification, nil
+	}
+	if manifest.Adapter == "" || manifest.InputPCID == "" || manifest.OutputPCID == "" {
+		verification.Reason = "workflow does not declare an executable adapter"
+		return verification, nil
+	}
+	if !verification.AdapterAvailable {
+		verification.Reason = "workflow adapter is unavailable"
+		return verification, nil
+	}
+	if verification.Contract == "canonical" && !verification.SchemaCASReady {
+		verification.Reason = "canonical workflow schemas are not ready in CAS"
+		return verification, nil
+	}
+	verification.EligibleToExecute = true
+	return verification, nil
 }
 
 // InspectWorkflowStatus summarizes local lifecycle and dependency readiness without mutation.
