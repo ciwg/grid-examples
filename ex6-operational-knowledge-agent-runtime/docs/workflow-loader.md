@@ -32,6 +32,15 @@ The artifact CID is the identity of the exact archived directory. The local
 alias is an operator-facing name only. Deactivation or revocation removes local
 availability without deleting the artifact or its lifecycle history.
 
+## Retained adapter contracts
+
+The loader retains old workflow artifacts as immutable evidence; upgrading the
+runtime does not rewrite their manifests. The shipped trusted adapters preserve
+their exact v1 input/output pCID pairs, so an already active historical artifact
+continues to run under its declared contract. New captures carry canonical
+embedded adapter schemas and reject retired pCIDs. There is no implicit
+translation between the two contracts. Source: DI-lumek.
+
 ## Local basket state
 
 The moks CLI uses .moks/ beneath its current working directory as its local

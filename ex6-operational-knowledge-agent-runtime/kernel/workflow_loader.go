@@ -29,6 +29,27 @@ type WorkflowManifest struct {
 	OutputSchema      string   `json:"output_schema,omitempty"`
 }
 
+// legacyWorkflowAdapterPCIDs identifies the retired adapter contracts emitted
+// before canonical embedded schemas. Intent: Preserve retained artifacts while
+// preventing new captures from extending an obsolete contract generation.
+// Source: DI-lumek
+var legacyWorkflowAdapterPCIDs = map[string]struct{}{
+	"bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae": {},
+	"bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy": {},
+	"bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq": {},
+	"bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q": {},
+	"bafkreig4pegj6ckn6hg2yci7i5tt4vcknd4e25ul7a7ugyel5gejjz7iti": {},
+	"bafkreigkvvjof6vhurueeod4mqtghfosiwunlskzkuhjuskiy66cnx5yua": {},
+	"bafkreiboes7s6tcaebjnlibd7fkwj62typezjdsipskyafvtuzf74ypx3i": {},
+	"bafkreicfalhnnj67rctw63c6j4w6x5l7ntmqtvyndmqi26vc46ukavmiha": {},
+	"bafkreih2mechxf4slowhcag6xac5fqn7wy7tw6pw2lj5nvhc5nthmrx54e": {},
+	"bafkreib6qcz4g3lsc4yzfulqihsbczc4wkpo3fwm5f7dvgrznv4qubwppe": {},
+	"bafkreibyegjb3p52b3hzf4lw3jwqu3hktxockiamrt2a3bee2gwdl46ja4": {},
+	"bafkreib3rq3zyljjn4v7tunm2xqpy26i7mpr24bko2sdof524p7xnqnjo4": {},
+	"bafkreigkwagey45deeh6cc2hirr53avia3rbt2vgixxcbvwiccctnobi2y": {},
+	"bafkreifrf4xznrekx4lohyueahudtz6ju7qhgodpnbyrd4rytjauo7qgsm": {},
+}
+
 // WorkflowStatus is one operator-facing view of a retained workflow artifact.
 type WorkflowStatus struct {
 	Workflow Workflow         `json:"workflow"`
@@ -88,11 +109,18 @@ func (runtime *Runtime) CaptureWorkflowDir(directory, alias string) (Workflow, e
 	if err = manifest.Validate(); err != nil {
 		return Workflow{}, err
 	}
+	if _, legacy := legacyWorkflowAdapterPCIDs[manifest.InputPCID]; legacy {
+		return Workflow{}, errors.New("new workflow capture cannot declare a retired adapter pCID")
+	}
+	if _, legacy := legacyWorkflowAdapterPCIDs[manifest.OutputPCID]; legacy {
+		return Workflow{}, errors.New("new workflow capture cannot declare a retired adapter pCID")
+	}
 	artifact, err := runtime.cas.PutCID(body)
 	if err != nil {
 		return Workflow{}, err
 	}
-	if _, err := runtime.WorkflowManifest(artifact.String()); err != nil {
+	manifest, err = runtime.WorkflowManifest(artifact.String())
+	if err != nil {
 		return Workflow{}, err
 	}
 	if err = runtime.ImportWorkflow(Workflow{ID: alias, ArtifactCID: artifact.String()}); err != nil {

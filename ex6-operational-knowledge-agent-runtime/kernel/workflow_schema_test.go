@@ -50,3 +50,32 @@ func TestWorkflowManifestRejectsPartialExecutableDeclaration(t *testing.T) {
 		t.Fatal("partial executable declaration accepted")
 	}
 }
+
+func TestCaptureWorkflowDirRejectsRetiredAdapterPCIDs(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for pcid := range legacyWorkflowAdapterPCIDs {
+		directory := t.TempDir()
+		manifest := `{"id":"retired","version":"1","summary":"retired","required_packages":[],"required_protocols":[],"adapter":"retired","input_pcid":"` + pcid + `","output_pcid":"` + WorkflowHandoffProtocolPCID + `"}`
+		if err := os.WriteFile(filepath.Join(directory, "workflow.json"), []byte(manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := runtime.CaptureWorkflowDir(directory, "retired"); err == nil {
+			t.Fatalf("capture accepted retired adapter pCID %s", pcid)
+		}
+	}
+	ids, err := runtime.cas.ListCIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("retired capture persisted %d CAS objects", len(ids))
+	}
+}

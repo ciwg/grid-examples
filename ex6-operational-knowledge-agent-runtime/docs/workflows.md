@@ -169,6 +169,16 @@ bytes; the schema test recomputes every shipped mapping. Each workflow artifact
 also carries its input and output schema under `schemas/`, and verification
 retains those exact bytes in local CAS. Source: DI-lumek.
 
+### Retained v1 artifacts
+
+Artifacts captured before the canonical schema publication can remain active.
+Their old input/output pCID pairs are supported only by the corresponding
+shipped trusted adapter, which emits the old declared output pCID when it
+receives the old declared input pCID. The runtime does not translate an old
+envelope into a new one, and new capture rejects an old pCID.
+This preserves the exact contract of a retained egg while newer artifacts use
+the canonical embedded schemas. Source: DI-lumek.
+
 Missing adapter fields and schema-changing handoffs produce
 `waiting-for-input`; malformed or rejected commands produce durable `failed`
 state. The run cache is disposable: runtime open rebuilds it from a full CAS

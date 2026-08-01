@@ -242,8 +242,8 @@ func TestWorkflowAllToAllHandoffMatrix(t *testing.T) {
 		}
 	}()
 	workflows := []string{"inventory-discrepancy-review", "inventory-receipt", "knowledge-review", "maintenance-round", "procedure-execution", "receiving-check", "training-qualification"}
-	inputs := []string{"bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae", "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq", "bafkreig4pegj6ckn6hg2yci7i5tt4vcknd4e25ul7a7ugyel5gejjz7iti", "bafkreiboes7s6tcaebjnlibd7fkwj62typezjdsipskyafvtuzf74ypx3i", "bafkreih2mechxf4slowhcag6xac5fqn7wy7tw6pw2lj5nvhc5nthmrx54e", "bafkreibyegjb3p52b3hzf4lw3jwqu3hktxockiamrt2a3bee2gwdl46ja4", "bafkreigkwagey45deeh6cc2hirr53avia3rbt2vgixxcbvwiccctnobi2y"}
-	outputs := []string{"bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy", "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q", "bafkreigkvvjof6vhurueeod4mqtghfosiwunlskzkuhjuskiy66cnx5yua", "bafkreicfalhnnj67rctw63c6j4w6x5l7ntmqtvyndmqi26vc46ukavmiha", "bafkreib6qcz4g3lsc4yzfulqihsbczc4wkpo3fwm5f7dvgrznv4qubwppe", "bafkreib3rq3zyljjn4v7tunm2xqpy26i7mpr24bko2sdof524p7xnqnjo4", "bafkreifrf4xznrekx4lohyueahudtz6ju7qhgodpnbyrd4rytjauo7qgsm"}
+	inputs := []string{"bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e", "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne", "bafkreigurwnuwdbri3ntiuzseyoft7tazq74rrxridxbpekqcqxd2rzvhi", "bafkreicuxiyha56khoiwfktrh3pqrq6v47uovjm52kmuskmkbeml6qyxsu", "bafkreiawxq2i7q57tks6f5viofxkko2jf2txmlurbp3i33svynytyjswfq", "bafkreicubq2eqovbcdvlj3ggpmrnwlzohp5no5yuwehk4eyucicia4kehy", "bafkreigdqszsce7qvcihohhsgr4r5wh7l3lgbqm3gd55befrf7d4hxpwyi"}
+	outputs := []string{"bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey", "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne", "bafkreigxtnvprgom4b6ftkavmvfeqv2teo45b7s3n57k3wn7ipziwlad4e", "bafkreifj3qpjinq4vanr5vo22dvazuybg6jrrawnfhw43pooqnzp62vtg4", "bafkreiamprv3apzowjzqbkp3hnrhrla5aq7lp5kyzbca5j3iv4v5jmhwa4", "bafkreiddsvg5v7a2dwa4omzicgobed5yqheehbkjw263kb3efvv2yfgnz4", "bafkreiauh6xo45sp3zhmhhjvehiqstp36loiyu26smicojfntl7ek75chy"}
 	for index, name := range workflows {
 		output := outputs[index]
 		if err := runtime.RegisterWorkflowOperation(name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
@@ -287,10 +287,10 @@ func TestWorkflowPolicyRoutesDistinctSchemasToWaitingInput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
-	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
-	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
-	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	const sourceInput = "bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e"
+	const sourceOutput = "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey"
+	const targetInput = "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne"
+	const targetOutput = "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
 	for _, schema := range []struct{ name, input, output string }{{"source", sourceInput, sourceOutput}, {"target", targetInput, targetOutput}} {
 		output := schema.output
 		if err := runtime.RegisterWorkflowOperation(schema.name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
@@ -338,10 +338,10 @@ func TestWorkflowIncompatibleHandoffRetainsExactSourceOutput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
-	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
-	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
-	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	const sourceInput = "bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e"
+	const sourceOutput = "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey"
+	const targetInput = "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne"
+	const targetOutput = "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
 	for _, schema := range []struct{ name, input, output string }{{"source", sourceInput, sourceOutput}, {"target", targetInput, targetOutput}} {
 		output := schema.output
 		if err := runtime.RegisterWorkflowOperation(schema.name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
@@ -381,10 +381,10 @@ func TestWorkflowIncompatibleHandoffRequiresAvailableTargetAdapter(t *testing.T)
 			t.Fatal(err)
 		}
 	}()
-	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
-	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
-	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
-	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	const sourceInput = "bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e"
+	const sourceOutput = "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey"
+	const targetInput = "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne"
+	const targetOutput = "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
 	if err := runtime.RegisterWorkflowOperation("source", func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
 		return WorkflowHandoff{PCID: sourceOutput, Values: input.Values}, nil
 	}); err != nil {
@@ -418,10 +418,10 @@ func TestWorkflowPolicyRejectsManifestPCIDMismatch(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	const sourceInput = "bafkreihjwthblvvsaxlngupwghkshl2lnwgcj5txrr3qpelxtb76stg7ae"
-	const sourceOutput = "bafkreihjhnfom2j2avcjjujcbvy22dbayjkdmkjj6ca3fbfjlm7vm23nxy"
-	const targetInput = "bafkreidndb65kuarxuv3eue6ij3qupblgfuvjmm6v4s5vcfo2d7acbbcwq"
-	const targetOutput = "bafkreie7k5xcmmvygwh5fqsbvruh5iivxsyduost7bzrwphhfhudx7ga4q"
+	const sourceInput = "bafkreigwhgyyvdxkjrckvimjhesxg2ms2wtahqcogu7276xqovcjoxif3e"
+	const sourceOutput = "bafkreichcquo564amype7v6locjdhc7xl5kgb6i7oyo25k65o677kyztey"
+	const targetInput = "bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne"
+	const targetOutput = "bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
 	for _, schema := range []struct{ name, input, output string }{{"source", sourceInput, sourceOutput}, {"target", targetInput, targetOutput}} {
 		if err := runtime.RegisterWorkflowOperation(schema.name, func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) {
 			return input, nil
