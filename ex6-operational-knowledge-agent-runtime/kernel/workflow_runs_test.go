@@ -2,11 +2,15 @@ package kernel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
 	"github.com/ipfs/go-cid"
 )
 
@@ -943,6 +947,151 @@ func mustWorkflowHandoff(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return raw
+}
+
+func TestInstalledWorkflowAdapterExecutesValidatedWorkerProposal(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	writeExecutableWorkflow(t, runtime.root, runtime, "worker")
+	if err := runtime.ActivateWorkflow("worker"); err != nil {
+		t.Fatal(err)
+	}
+	runtime.workflowAdapters["worker"] = packages.WorkflowAdapter{Name: "worker", Image: "example/worker:1", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID, CPUs: "0.5", Memory: "128m", PIDsLimit: 64, Timeout: "30s"}
+	runtime.workflowWorker = func(_ context.Context, adapter packages.WorkflowAdapter, raw []byte) ([]byte, error) {
+		if adapter.Name != "worker" {
+			t.Fatalf("unexpected adapter: %#v", adapter)
+		}
+		input, err := DecodeWorkflowHandoff(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if input.Values["subject"] != "egg" {
+			t.Fatalf("unexpected worker input: %#v", input)
+		}
+		return EncodeWorkflowAdapterResult(WorkflowAdapterResult{
+			Output:  input,
+			CAS:     []packages.CASWrite{{Alias: "body", Body: "worker evidence"}},
+			Records: []json.RawMessage{json.RawMessage(`{"family":"worker.note.v1","protocol_pcid":"pcid:worker.note.v1","record_id":"worker-1","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{"body_ref":"$cas:body"}}`)},
+		})
+	}
+	run, err := runtime.StartWorkflowRun(context.Background(), "worker", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.State != WorkflowRunCompleted || run.OutputCID == "" {
+		t.Fatalf("worker run = %#v", run)
+	}
+	if len(runtime.History()) != 1 || runtime.History()[0].Envelope.Family != "worker.note.v1" {
+		t.Fatalf("worker proposal was not runtime-mediated: %#v", runtime.History())
+	}
+}
+
+func TestInstalledWorkflowAdapterRejectsWrongOutputBeforeWrites(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	writeExecutableWorkflow(t, runtime.root, runtime, "worker")
+	if err := runtime.ActivateWorkflow("worker"); err != nil {
+		t.Fatal(err)
+	}
+	runtime.workflowAdapters["worker"] = packages.WorkflowAdapter{Name: "worker", Image: "example/worker:1", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID, CPUs: "0.5", Memory: "128m", PIDsLimit: 64, Timeout: "30s"}
+	runtime.workflowWorker = func(_ context.Context, _ packages.WorkflowAdapter, _ []byte) ([]byte, error) {
+		return EncodeWorkflowAdapterResult(WorkflowAdapterResult{
+			Output:  WorkflowHandoff{PCID: WorkflowRunProtocolPCID, Values: map[string]string{"subject": "wrong"}},
+			Records: []json.RawMessage{json.RawMessage(`{"family":"worker.note.v1","protocol_pcid":"pcid:worker.note.v1","record_id":"worker-1","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{}}`)},
+		})
+	}
+	run, err := runtime.StartWorkflowRun(context.Background(), "worker", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.State != WorkflowRunFailed || run.Reason != "workflow adapter emitted an undeclared output pCID" {
+		t.Fatalf("worker run = %#v", run)
+	}
+	if len(runtime.History()) != 0 {
+		t.Fatalf("wrong output applied proposed writes: %#v", runtime.History())
+	}
+}
+
+func TestActivePackageRegistersExactWorkflowAdapterContract(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	adapter := packages.WorkflowAdapter{Name: "worker", Image: "example/worker:1", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID, CPUs: "0.5", Memory: "128m", PIDsLimit: 64, Timeout: "30s"}
+	pkg := &activePackage{manifest: packages.Manifest{ID: "procedure-execution-adapter", Version: "0.1.0", WorkflowAdapters: []packages.WorkflowAdapter{adapter}}}
+	if err := runtime.activatePackage(pkg); err != nil {
+		t.Fatal(err)
+	}
+	if !runtime.workflowAdapterAvailable(WorkflowManifest{Adapter: "worker", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID}) {
+		t.Fatal("active package adapter was not available for its exact contract")
+	}
+	if runtime.workflowAdapterAvailable(WorkflowManifest{Adapter: "worker", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowRunProtocolPCID}) {
+		t.Fatal("active package adapter accepted a mismatched output contract")
+	}
+	if err := runtime.activatePackage(&activePackage{manifest: packages.Manifest{ID: "duplicate-adapter", Version: "0.1.0", WorkflowAdapters: []packages.WorkflowAdapter{adapter}}}); err == nil {
+		t.Fatal("duplicate active package workflow adapter was accepted")
+	}
+}
+
+func TestWorkerProposalPreflightRejectsInvalidRecordWithoutCASWrite(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	result := packages.CommandResult{
+		CAS:     []packages.CASWrite{{Alias: "body", Body: "must not persist"}},
+		Records: []json.RawMessage{json.RawMessage(`{"invalid":`)},
+	}
+	if _, err := runtime.applyExternalCommandResult(context.Background(), result); err == nil {
+		t.Fatal("invalid worker proposal was accepted")
+	}
+	if _, err := runtime.cas.Get(store.LegacyObjectID([]byte("must not persist"))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("invalid worker proposal persisted CAS: %v", err)
+	}
+}
+
+func TestWorkerProposalRejectsExternallyValidatedFamilyWithoutHostProcess(t *testing.T) {
+	runtime, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := runtime.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	runtime.families["external.note.v1"] = registeredFamily{
+		owner:        &activePackage{external: packages.Runner{Executable: filepath.Join(t.TempDir(), "must-not-run")}},
+		protocolPCID: "pcid:external.note.v1",
+	}
+	_, err = runtime.applyWorkflowAdapterResult(context.Background(), packages.CommandResult{Records: []json.RawMessage{json.RawMessage(`{"family":"external.note.v1","protocol_pcid":"pcid:external.note.v1","record_id":"one","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{}}`)}})
+	if err == nil || !strings.Contains(err.Error(), "cannot write externally validated family") {
+		t.Fatalf("external-family worker proposal error = %v", err)
+	}
 }
 
 func writeExecutableWorkflow(t *testing.T, root string, runtime *Runtime, name string) {

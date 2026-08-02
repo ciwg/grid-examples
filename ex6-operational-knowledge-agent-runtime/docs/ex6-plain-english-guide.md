@@ -146,12 +146,13 @@ the safer lower-level parts first:
 - explicit local activation;
 - independently verified node-to-node transfer.
 
-Docker-confined workers remain a later execution backend; current execution is
-the explicitly selected built-in adapter path. The next approved step is to
-declare an adapter in the installed package's `moks-package.json` and run it
-only in the locked-down Docker worker. That worker will not see the runtime's
+Docker-confined workers are now an available execution backend alongside the
+explicitly selected built-in adapter path. A package declares its adapter in
+`moks-package.json`; the artifact and package must agree on its name and pCID
+contracts before it can run. The locked-down worker cannot see the runtime's
 files, network, secrets, or keys, and it can only propose work for the runtime
-to validate and save. Source: `DI-lumek`; `DI-fofuh`; `TE-dovek`.
+to validate and save. No production Docker adapter image ships yet. Source:
+`DI-lumek`; `DI-fofuh`; `TE-dovek`.
 
 That is valuable because a user interface can change, but those trust and
 evidence boundaries must stay correct underneath it.

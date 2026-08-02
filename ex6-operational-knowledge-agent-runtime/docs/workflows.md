@@ -73,8 +73,9 @@ existing lifecycle protocol records whether that CID is locally imported,
 active, deactivated, or revoked. It retains the artifact and event history
 even when local availability is withdrawn.
 
-Import does not grant route or worker-execution authority. Activation and the
-manifest-selected built-in adapter make that authority explicit.
+Import does not grant route or worker-execution authority. Activation and a
+manifest-selected built-in or installed Docker adapter make that authority
+explicit.
 
 ## Composition
 
@@ -124,10 +125,11 @@ Source: DI-lumek.
 4. **Start.** `moks workflow run start <alias> <key> <value> ...` stores a
    canonical pCID-selected CBOR input envelope and CAS lifecycle event. Each
    active artifact validates its own required fields before calling its owning
-   built-in package command.
-5. **Execute.** The manifest-selected trusted built-in adapter validates the
-   input and emits a canonical pCID-selected CBOR output. Docker execution is a
-   later backend under TE-dovek.
+   built-in adapter or an installed Docker adapter declaration.
+5. **Execute.** The manifest-selected trusted adapter validates the input and
+   emits a canonical pCID-selected CBOR output. An installed adapter receives
+   exact input CBOR in a Docker-confined worker, returns a typed result proposal,
+   and cannot persist state directly.
 6. **Inspect.** `moks workflow run status <run-id>` shows durable state,
    input/output CIDs, and any failure reason.
 7. **Handoff.** `moks workflow run handoff <run-id> <target-alias>` passes the
@@ -201,12 +203,12 @@ domain rules.
 
 The runtime captures a valid workflow directory as a deterministic tar archive
 in CAS, imports it under a local alias, requires explicit activation, and
-dispatches through manifest-selected trusted built-in adapters. Worker backends
-are not implemented yet. The approved next stage declares an adapter in the
-active package's `moks-package.json` and runs it only as a Docker-confined
-worker after the artifact/package adapter name and input/output pCIDs match.
-The runtime will validate typed CBOR output and perform every durable write
-itself. Source: `DI-fofuh`; `TE-dovek`.
+dispatches through manifest-selected trusted built-in adapters. Installed-package
+Docker adapters are also supported. An installed adapter
+is eligible only when its active package declaration exactly matches the
+artifact adapter name and input/output pCIDs. The runtime validates typed CBOR
+output before applying every proposed durable write itself. No production
+Docker adapter image is currently shipped. Source: `DI-fofuh`; `TE-dovek`.
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

@@ -20,6 +20,7 @@ import (
 
 type BuiltinCommand func(context.Context, *Runtime, []string) (string, error)
 type BuiltinValidator func(records.Envelope) error
+type WorkflowAdapterWorker func(context.Context, packages.WorkflowAdapter, []byte) ([]byte, error)
 
 type workflowChainContextKey struct{}
 
@@ -72,6 +73,8 @@ type Runtime struct {
 	workflows        *WorkflowRegistry
 	workflowRuns     *WorkflowRunRegistry
 	workflowOps      map[string]WorkflowOperation
+	workflowAdapters map[string]packages.WorkflowAdapter
+	workflowWorker   WorkflowAdapterWorker
 	handoffPolicies  *WorkflowHandoffPolicies
 }
 
@@ -139,6 +142,8 @@ func Open(root string) (*Runtime, error) {
 		workflows:        workflowRegistry,
 		workflowRuns:     workflowRuns,
 		workflowOps:      map[string]WorkflowOperation{},
+		workflowAdapters: map[string]packages.WorkflowAdapter{},
+		workflowWorker:   runDockerWorkflowAdapter,
 		handoffPolicies:  handoffPolicies,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
@@ -150,6 +155,24 @@ func Open(root string) (*Runtime, error) {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+// runDockerWorkflowAdapter is the only production executable-adapter path.
+// Intent: Prevent an installed workflow adapter from receiving ambient host
+// authority or a direct-process fallback. Source: DI-fofuh
+func runDockerWorkflowAdapter(ctx context.Context, adapter packages.WorkflowAdapter, input []byte) ([]byte, error) {
+	timeout, err := time.ParseDuration(adapter.Timeout)
+	if err != nil {
+		return nil, fmt.Errorf("workflow adapter timeout: %w", err)
+	}
+	return (packages.DockerWorker{
+		Image:     adapter.Image,
+		Args:      adapter.Command,
+		CPUs:      adapter.CPUs,
+		Memory:    adapter.Memory,
+		PIDsLimit: adapter.PIDsLimit,
+		Timeout:   timeout,
+	}).Run(ctx, input)
 }
 
 // RegisterWorkflowOperation binds an active artifact's declared adapter to
@@ -209,6 +232,30 @@ func (runtime *Runtime) StartWorkflowRun(ctx context.Context, workflowID string,
 }
 
 func (runtime *Runtime) executeWorkflowRun(ctx context.Context, run WorkflowRun, manifest WorkflowManifest, input WorkflowHandoff) (WorkflowRun, error) {
+	if adapter, installed := runtime.workflowAdapters[manifest.Adapter]; installed {
+		if adapter.InputPCID != manifest.InputPCID || adapter.OutputPCID != manifest.OutputPCID {
+			return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "active package adapter contract does not match workflow")
+		}
+		inputBytes, err := EncodeWorkflowHandoff(input)
+		if err != nil {
+			return runtime.failWorkflowRun(run, "workflow input encoding: "+err.Error(), err)
+		}
+		workerOutput, err := runtime.workflowWorker(ctx, adapter, inputBytes)
+		if err != nil {
+			return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, err.Error())
+		}
+		proposal, err := DecodeWorkflowAdapterResult(workerOutput)
+		if err != nil {
+			return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow worker result: "+err.Error())
+		}
+		if proposal.Output.PCID != manifest.OutputPCID {
+			return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow adapter emitted an undeclared output pCID")
+		}
+		if _, err := runtime.applyWorkflowAdapterResult(ctx, packages.CommandResult{CAS: proposal.CAS, Records: proposal.Records}); err != nil {
+			return runtime.failWorkflowRun(run, "workflow worker proposal: "+err.Error(), err)
+		}
+		return runtime.completeWorkflowRun(ctx, run, manifest, proposal.Output)
+	}
 	operation := runtime.workflowOps[manifest.Adapter]
 	if operation == nil {
 		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow adapter is unavailable")
@@ -221,6 +268,10 @@ func (runtime *Runtime) executeWorkflowRun(ctx context.Context, run WorkflowRun,
 		}
 		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, err.Error())
 	}
+	return runtime.completeWorkflowRun(ctx, run, manifest, output)
+}
+
+func (runtime *Runtime) completeWorkflowRun(ctx context.Context, run WorkflowRun, manifest WorkflowManifest, output WorkflowHandoff) (WorkflowRun, error) {
 	if output.PCID != manifest.OutputPCID {
 		return runtime.transitionWorkflowRun(run, WorkflowRunFailed, cid.Undef, "workflow adapter emitted an undeclared output pCID")
 	}
@@ -575,6 +626,11 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 			return fmt.Errorf("family %s requires family-validator claim for protocol %s", family.Name, family.ProtocolPCID)
 		}
 	}
+	for _, adapter := range pkg.manifest.WorkflowAdapters {
+		if _, exists := runtime.workflowAdapters[adapter.Name]; exists {
+			return fmt.Errorf("workflow adapter already registered: %s", adapter.Name)
+		}
+	}
 	runtime.packages[pkg.manifest.ID] = pkg
 	for _, command := range pkg.manifest.Commands {
 		runtime.commands[command.Key()] = pkg
@@ -598,6 +654,9 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 			summary:      claim.Summary,
 			families:     pkg.manifest.FamiliesForProtocol(claim.ProtocolPCID),
 		})
+	}
+	for _, adapter := range pkg.manifest.WorkflowAdapters {
+		runtime.workflowAdapters[adapter.Name] = adapter
 	}
 	return nil
 }
@@ -754,9 +813,18 @@ func (runtime *Runtime) AppendRecord(ctx context.Context, raw []byte) (records.E
 }
 
 func (runtime *Runtime) appendRecord(ctx context.Context, raw []byte, signLocal bool) (records.Envelope, error) {
-	envelope, err := records.Parse(raw)
+	_, prepared, err := runtime.prepareRecord(ctx, raw, signLocal, true)
 	if err != nil {
 		return records.Envelope{}, err
+	}
+	envelope, _, err := runtime.history.AppendRaw(prepared)
+	return envelope, err
+}
+
+func (runtime *Runtime) prepareRecord(ctx context.Context, raw []byte, signLocal bool, allowExternalValidation bool) (records.Envelope, []byte, error) {
+	envelope, err := records.Parse(raw)
+	if err != nil {
+		return records.Envelope{}, nil, err
 	}
 	if signLocal && !envelope.HasAuthorSignature() {
 		// Intent: Sign locally authored durable records once at creation time so
@@ -764,7 +832,7 @@ func (runtime *Runtime) appendRecord(ctx context.Context, raw []byte, signLocal 
 		// Source: DI-sovem
 		envelope, err = runtime.peers.SignAuthorEnvelope(envelope)
 		if err != nil {
-			return records.Envelope{}, err
+			return records.Envelope{}, nil, err
 		}
 		raw = records.MustMarshal(envelope)
 	}
@@ -772,27 +840,29 @@ func (runtime *Runtime) appendRecord(ctx context.Context, raw []byte, signLocal 
 	// so bad author proofs are rejected even outside relay exchange.
 	// Source: DI-sovem
 	if err := runtime.peers.VerifyAuthorEnvelope(envelope); err != nil {
-		return records.Envelope{}, err
+		return records.Envelope{}, nil, err
 	}
 	if registered, exists := runtime.families[envelope.Family]; exists {
 		if envelope.ProtocolPCID != registered.protocolPCID {
-			return records.Envelope{}, fmt.Errorf("family %s expects protocol_pcid %s, got %s", envelope.Family, registered.protocolPCID, envelope.ProtocolPCID)
+			return records.Envelope{}, nil, fmt.Errorf("family %s expects protocol_pcid %s, got %s", envelope.Family, registered.protocolPCID, envelope.ProtocolPCID)
 		}
 		owner := registered.owner
 		if owner.builtin {
 			if validator := owner.validators[envelope.Family]; validator != nil {
 				if err := validator(envelope); err != nil {
-					return records.Envelope{}, err
+					return records.Envelope{}, nil, err
 				}
 			}
 		} else {
+			if !allowExternalValidation {
+				return records.Envelope{}, nil, fmt.Errorf("workflow adapter proposal cannot write externally validated family %s", envelope.Family)
+			}
 			if err := owner.external.ValidateEnvelope(ctx, raw); err != nil {
-				return records.Envelope{}, err
+				return records.Envelope{}, nil, err
 			}
 		}
 	}
-	envelope, _, err = runtime.history.AppendRaw(raw)
-	return envelope, err
+	return envelope, raw, nil
 }
 
 func (runtime *Runtime) History() []store.StoredEnvelope {
@@ -984,27 +1054,70 @@ func (runtime *Runtime) RunCommand(ctx context.Context, args []string) (string, 
 // external packages can extend the system without bypassing runtime-owned CAS
 // and append-only history. Source: DI-rovum
 func (runtime *Runtime) applyExternalCommandResult(ctx context.Context, result packages.CommandResult) (string, error) {
-	replacements := map[string]string{}
-	for _, write := range result.CAS {
-		if strings.TrimSpace(write.Alias) == "" {
-			return "", errors.New("cas alias is required")
-		}
-		objectID, err := runtime.PutCAS([]byte(write.Body))
-		if err != nil {
+	return runtime.applyProposedCommandResult(ctx, result, true)
+}
+
+// applyWorkflowAdapterResult never starts an installed package executable on
+// the host while accepting Docker-worker output. Intent: Confined adapter
+// execution must not regain host authority through record validation. Source:
+// DI-fofuh
+func (runtime *Runtime) applyWorkflowAdapterResult(ctx context.Context, result packages.CommandResult) (string, error) {
+	return runtime.applyProposedCommandResult(ctx, result, false)
+}
+
+func (runtime *Runtime) applyProposedCommandResult(ctx context.Context, result packages.CommandResult, allowExternalValidation bool) (string, error) {
+	prepared, err := runtime.prepareExternalCommandResult(ctx, result, allowExternalValidation)
+	if err != nil {
+		return "", err
+	}
+	for _, write := range prepared.CAS {
+		if _, err := runtime.PutCAS([]byte(write.Body)); err != nil {
 			return "", err
 		}
-		replacements["$cas:"+write.Alias] = objectID
 	}
+	for _, raw := range prepared.Records {
+		if _, _, err := runtime.history.AppendRaw(raw); err != nil {
+			return "", err
+		}
+	}
+	return prepared.Output, nil
+}
+
+type preparedExternalCommandResult struct {
+	Output  string
+	CAS     []packages.CASWrite
+	Records [][]byte
+}
+
+// prepareExternalCommandResult validates every worker-proposed durable write
+// before the first CAS or history mutation. Intent: A rejected proposal must
+// not leave valid-looking partial worker state behind. Source: DI-fofuh
+func (runtime *Runtime) prepareExternalCommandResult(ctx context.Context, result packages.CommandResult, allowExternalValidation bool) (preparedExternalCommandResult, error) {
+	replacements := map[string]string{}
+	seenAliases := map[string]struct{}{}
+	for _, write := range result.CAS {
+		if strings.TrimSpace(write.Alias) == "" {
+			return preparedExternalCommandResult{}, errors.New("cas alias is required")
+		}
+		if _, exists := seenAliases[write.Alias]; exists {
+			return preparedExternalCommandResult{}, fmt.Errorf("duplicate cas alias: %s", write.Alias)
+		}
+		seenAliases[write.Alias] = struct{}{}
+		replacements["$cas:"+write.Alias] = store.LegacyObjectID([]byte(write.Body))
+	}
+	prepared := preparedExternalCommandResult{Output: result.Output, CAS: append([]packages.CASWrite{}, result.CAS...), Records: make([][]byte, 0, len(result.Records))}
 	for _, raw := range result.Records {
 		replaced, err := replaceCASAliases(raw, replacements)
 		if err != nil {
-			return "", err
+			return preparedExternalCommandResult{}, err
 		}
-		if _, err := runtime.AppendRecord(ctx, replaced); err != nil {
-			return "", err
+		if _, signed, err := runtime.prepareRecord(ctx, replaced, true, allowExternalValidation); err != nil {
+			return preparedExternalCommandResult{}, err
+		} else {
+			prepared.Records = append(prepared.Records, signed)
 		}
 	}
-	return result.Output, nil
+	return prepared, nil
 }
 
 func replaceCASAliases(raw []byte, replacements map[string]string) ([]byte, error) {

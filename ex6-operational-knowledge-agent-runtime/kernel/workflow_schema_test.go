@@ -45,6 +45,24 @@ func TestShippedWorkflowSchemaPCIDsMatchCanonicalSpecifications(t *testing.T) {
 	}
 }
 
+func TestWorkflowAdapterResultPCIDMatchesCanonicalSpecification(t *testing.T) {
+	cas, err := store.OpenCAS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join("..", "docs", "protocols", "workflow-adapter-result-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := cas.PutCID(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual.String() != WorkflowAdapterResultProtocolPCID {
+		t.Fatalf("workflow adapter result pCID = %s, want %s", actual, WorkflowAdapterResultProtocolPCID)
+	}
+}
+
 func TestWorkflowManifestRejectsPartialExecutableDeclaration(t *testing.T) {
 	manifest := WorkflowManifest{ID: "test", Version: "1", Summary: "test", Adapter: "test", InputPCID: WorkflowHandoffProtocolPCID}
 	if err := manifest.Validate(); err == nil {

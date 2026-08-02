@@ -119,8 +119,13 @@ an explicitly chosen destination.
 
 Loading proves only that local CAS contains a structurally valid artifact.
 Activation is a local availability decision. Neither loading nor activation
-must silently grant route or worker-execution authority. Worker dispatch,
-receive-promise registration, and trust admission remain later explicit steps.
+must silently grant route or worker-execution authority. An installed worker
+can run only after its active package's self-checked `workflow_adapters`
+declaration exactly matches the active artifact's adapter name and pCIDs. The
+runtime sends it CBOR through the Docker confinement boundary and validates its
+returned output before applying any proposed writes. Receive-promise
+registration and broader trust admission remain later explicit steps. Source:
+`DI-fofuh`; `TE-dovek`.
 
 ### 6. Tests
 

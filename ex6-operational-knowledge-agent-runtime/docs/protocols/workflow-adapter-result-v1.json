@@ -1,0 +1,36 @@
+{
+  "encoding": {
+    "canonical": "RFC 8949 deterministic CBOR",
+    "content": "array whose first item is the selector and whose remaining items are the slots below",
+    "outer_tag": 1735551332,
+    "selector": "CBOR tag 42 containing CIDv1 binary bytes for this protocol pCID"
+  },
+  "kind": "moks.workflow.adapter.result",
+  "max_stream_bytes": 16777216,
+  "record_writes": {
+    "encoding": "UTF-8 JSON record envelopes",
+    "validation": "runtime validates every record before mutation; records for an externally validated installed-package family are rejected because adapter proposal validation never starts a host package process"
+  },
+  "slots": [
+    {
+      "index": 0,
+      "name": "output_cbor",
+      "type": "bytes containing one canonical moks.workflow.handoff grid() envelope",
+      "validation": "handoff pCID must equal the active workflow manifest output_pcid"
+    },
+    {
+      "entry": ["alias", "body"],
+      "index": 1,
+      "name": "cas_writes",
+      "type": "array of two-text-item arrays",
+      "validation": "aliases are non-empty and unique; $cas:<alias> record values resolve to the body SHA-256 identifier"
+    },
+    {
+      "index": 2,
+      "name": "record_writes",
+      "type": "array of bytes",
+      "validation": "each byte string is one valid UTF-8 JSON record envelope"
+    }
+  ],
+  "version": 1
+}

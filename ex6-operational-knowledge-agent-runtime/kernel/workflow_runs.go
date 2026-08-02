@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
 	"github.com/ipfs/go-cid"
@@ -18,9 +20,11 @@ import (
 
 const WorkflowHandoffProtocolPCID = "bafkreiahdp34nto2rnnqde26jw3xnkd6xnlalnr72sug3w7tjb3bhhoj4q"
 const WorkflowRunProtocolPCID = "bafkreifmttp5fwt3yvxvkb7ni6kwg3j3arl7mbjsyzszf7s7crxrncch24"
+const WorkflowAdapterResultProtocolPCID = "bafkreidkwfyyc4ch7n62uuny4cuge57l5rne55yelecpodjajxbqwzhthq"
 
 var workflowHandoffProtocolCID = cid.MustParse(WorkflowHandoffProtocolPCID)
 var workflowRunProtocolCID = cid.MustParse(WorkflowRunProtocolPCID)
+var workflowAdapterResultProtocolCID = cid.MustParse(WorkflowAdapterResultProtocolPCID)
 
 type WorkflowHandoff struct {
 	PCID   string            `json:"pcid"`
@@ -87,6 +91,87 @@ func DecodeWorkflowHandoff(raw []byte) (WorkflowHandoff, error) {
 		previous = key
 	}
 	return WorkflowHandoff{PCID: pcid, Values: values}, nil
+}
+
+// WorkflowAdapterResult is the only durable-write proposal an executable
+// workflow worker may return. Its output is typed CBOR; CAS and record writes
+// are proposals that the runtime validates and applies after output validation.
+// Intent: Keep worker execution confined while preserving the runtime as the
+// sole authority for durable state. Source: DI-fofuh
+type WorkflowAdapterResult struct {
+	Output  WorkflowHandoff
+	CAS     []packages.CASWrite
+	Records []json.RawMessage
+}
+
+func EncodeWorkflowAdapterResult(result WorkflowAdapterResult) ([]byte, error) {
+	output, err := EncodeWorkflowHandoff(result.Output)
+	if err != nil {
+		return nil, err
+	}
+	cas := make([]any, 0, len(result.CAS))
+	for _, write := range result.CAS {
+		if strings.TrimSpace(write.Alias) == "" {
+			return nil, errors.New("workflow adapter CAS alias is required")
+		}
+		cas = append(cas, []any{write.Alias, write.Body})
+	}
+	proposalRecords := make([]any, 0, len(result.Records))
+	for _, record := range result.Records {
+		if !json.Valid(record) {
+			return nil, errors.New("workflow adapter record must be JSON")
+		}
+		proposalRecords = append(proposalRecords, []byte(record))
+	}
+	return records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowAdapterResultProtocolCID, Slots: []any{output, cas, proposalRecords}})
+}
+
+func DecodeWorkflowAdapterResult(raw []byte) (WorkflowAdapterResult, error) {
+	envelope, err := records.DecodeGrid(raw)
+	if err != nil {
+		return WorkflowAdapterResult{}, err
+	}
+	if envelope.ProtocolPCID != workflowAdapterResultProtocolCID || len(envelope.Slots) != 3 {
+		return WorkflowAdapterResult{}, errors.New("invalid workflow adapter result envelope")
+	}
+	outputRaw, ok := envelope.Slots[0].([]byte)
+	if !ok {
+		return WorkflowAdapterResult{}, errors.New("workflow adapter output must be CBOR bytes")
+	}
+	output, err := DecodeWorkflowHandoff(outputRaw)
+	if err != nil {
+		return WorkflowAdapterResult{}, fmt.Errorf("workflow adapter output: %w", err)
+	}
+	casValues, ok := envelope.Slots[1].([]any)
+	if !ok {
+		return WorkflowAdapterResult{}, errors.New("workflow adapter CAS writes must be an array")
+	}
+	cas := make([]packages.CASWrite, 0, len(casValues))
+	for _, value := range casValues {
+		pair, pairOK := value.([]any)
+		if !pairOK || len(pair) != 2 {
+			return WorkflowAdapterResult{}, errors.New("workflow adapter CAS write must be an alias/body pair")
+		}
+		alias, aliasOK := pair[0].(string)
+		body, bodyOK := pair[1].(string)
+		if !aliasOK || !bodyOK || strings.TrimSpace(alias) == "" {
+			return WorkflowAdapterResult{}, errors.New("workflow adapter CAS write has invalid alias or body")
+		}
+		cas = append(cas, packages.CASWrite{Alias: alias, Body: body})
+	}
+	recordValues, ok := envelope.Slots[2].([]any)
+	if !ok {
+		return WorkflowAdapterResult{}, errors.New("workflow adapter records must be an array")
+	}
+	result := WorkflowAdapterResult{Output: output, CAS: cas, Records: make([]json.RawMessage, 0, len(recordValues))}
+	for _, value := range recordValues {
+		record, recordOK := value.([]byte)
+		if !recordOK || !json.Valid(record) {
+			return WorkflowAdapterResult{}, errors.New("workflow adapter record must be JSON bytes")
+		}
+		result.Records = append(result.Records, json.RawMessage(record))
+	}
+	return result, nil
 }
 
 type WorkflowRunState string

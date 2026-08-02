@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 )
 
 type Command struct {
@@ -32,14 +33,33 @@ type ImplementationClaim struct {
 	Summary        string   `json:"summary,omitempty"`
 }
 
+// WorkflowAdapter declares an executable workflow contract supplied by an
+// installed package. The runtime, rather than the package, owns invocation and
+// durable writes after validating this declaration during activation.
+// Intent: Keep executable workflow authority inside the package manifest that
+// is self-checked at installation, while retaining Docker as the only worker
+// boundary. Source: DI-fofuh
+type WorkflowAdapter struct {
+	Name       string   `json:"name"`
+	Image      string   `json:"image"`
+	Command    []string `json:"command,omitempty"`
+	InputPCID  string   `json:"input_pcid"`
+	OutputPCID string   `json:"output_pcid"`
+	CPUs       string   `json:"cpus"`
+	Memory     string   `json:"memory"`
+	PIDsLimit  int      `json:"pids_limit"`
+	Timeout    string   `json:"timeout"`
+}
+
 type Manifest struct {
-	ID          string                `json:"id"`
-	Version     string                `json:"version"`
-	Description string                `json:"description,omitempty"`
-	Executable  string                `json:"executable,omitempty"`
-	Commands    []Command             `json:"commands,omitempty"`
-	Families    []Family              `json:"families,omitempty"`
-	Claims      []ImplementationClaim `json:"claims,omitempty"`
+	ID               string                `json:"id"`
+	Version          string                `json:"version"`
+	Description      string                `json:"description,omitempty"`
+	Executable       string                `json:"executable,omitempty"`
+	Commands         []Command             `json:"commands,omitempty"`
+	Families         []Family              `json:"families,omitempty"`
+	Claims           []ImplementationClaim `json:"claims,omitempty"`
+	WorkflowAdapters []WorkflowAdapter     `json:"workflow_adapters,omitempty"`
 }
 
 func LoadManifest(path string) (Manifest, error) {
@@ -142,6 +162,28 @@ func (manifest Manifest) Validate() error {
 		}
 		familyNames[family.Name] = struct{}{}
 	}
+	adapterNames := map[string]struct{}{}
+	for _, adapter := range manifest.WorkflowAdapters {
+		if strings.TrimSpace(adapter.Name) == "" || strings.TrimSpace(adapter.Image) == "" || strings.TrimSpace(adapter.InputPCID) == "" || strings.TrimSpace(adapter.OutputPCID) == "" {
+			return fmt.Errorf("workflow adapter name, image, input_pcid, and output_pcid are required for package %s", manifest.ID)
+		}
+		if strings.TrimSpace(adapter.CPUs) == "" || strings.TrimSpace(adapter.Memory) == "" || adapter.PIDsLimit < 1 {
+			return fmt.Errorf("workflow adapter %s requires CPU, memory, and positive PID limits", adapter.Name)
+		}
+		timeout, err := time.ParseDuration(adapter.Timeout)
+		if err != nil || timeout <= 0 {
+			return fmt.Errorf("workflow adapter %s requires a positive timeout", adapter.Name)
+		}
+		for _, argument := range adapter.Command {
+			if strings.TrimSpace(argument) == "" {
+				return fmt.Errorf("workflow adapter %s command contains an empty argument", adapter.Name)
+			}
+		}
+		if _, exists := adapterNames[adapter.Name]; exists {
+			return fmt.Errorf("duplicate workflow adapter %q for package %s", adapter.Name, manifest.ID)
+		}
+		adapterNames[adapter.Name] = struct{}{}
+	}
 	return nil
 }
 
@@ -156,7 +198,8 @@ func (manifest Manifest) Equal(other Manifest) bool {
 		left.Executable == right.Executable &&
 		equalCommands(left.Commands, right.Commands) &&
 		equalFamilies(left.Families, right.Families) &&
-		equalClaims(left.Claims, right.Claims)
+		equalClaims(left.Claims, right.Claims) &&
+		equalWorkflowAdapters(left.WorkflowAdapters, right.WorkflowAdapters)
 }
 
 func (manifest Manifest) HasClaim(protocolPCID string, role string) bool {
@@ -208,10 +251,25 @@ func sortManifest(manifest *Manifest) {
 		}
 		return strings.Compare(left.NormalizedRouteType(), right.NormalizedRouteType())
 	})
+	slices.SortFunc(manifest.WorkflowAdapters, func(left, right WorkflowAdapter) int {
+		return strings.Compare(left.Name, right.Name)
+	})
 	for index := range manifest.Claims {
 		manifest.Claims[index].RouteType = manifest.Claims[index].NormalizedRouteType()
 		manifest.Claims[index].EmitsProtocols = manifest.Claims[index].SortedEmitsProtocols()
 	}
+}
+
+func equalWorkflowAdapters(left []WorkflowAdapter, right []WorkflowAdapter) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index].Name != right[index].Name || left[index].Image != right[index].Image || left[index].InputPCID != right[index].InputPCID || left[index].OutputPCID != right[index].OutputPCID || left[index].CPUs != right[index].CPUs || left[index].Memory != right[index].Memory || left[index].PIDsLimit != right[index].PIDsLimit || left[index].Timeout != right[index].Timeout || !slices.Equal(left[index].Command, right[index].Command) {
+			return false
+		}
+	}
+	return true
 }
 
 func equalCommands(left []Command, right []Command) bool {

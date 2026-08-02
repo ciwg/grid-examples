@@ -113,3 +113,34 @@ func TestManifestValidateRequiresEmitsForParserClaims(t *testing.T) {
 		t.Fatal("expected parser claim validation failure")
 	}
 }
+
+func TestManifestValidateWorkflowAdapters(t *testing.T) {
+	manifest := Manifest{
+		ID:      "procedure-execution-adapter",
+		Version: "0.1.0",
+		WorkflowAdapters: []WorkflowAdapter{{
+			Name:       "procedure-execution",
+			Image:      "example/procedure-execution:1",
+			Command:    []string{"worker"},
+			InputPCID:  "bafkreiahdp34nto2rnnqde26jw3xnkd6xnlalnr72sug3w7tjb3bhhoj4q",
+			OutputPCID: "bafkreifmttp5fwt3yvxvkb7ni6kwg3j3arl7mbjsyzszf7s7crxrncch24",
+			CPUs:       "0.5",
+			Memory:     "128m",
+			PIDsLimit:  64,
+			Timeout:    "30s",
+		}},
+	}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("validate workflow adapter: %v", err)
+	}
+	changed := manifest
+	changed.WorkflowAdapters = append([]WorkflowAdapter{}, manifest.WorkflowAdapters...)
+	changed.WorkflowAdapters[0].OutputPCID = "bafkreih6yllp2v7e5bmerznebzmohniezsv64hpqe2m33h6jclq6rfzqdu"
+	if manifest.Equal(changed) {
+		t.Fatal("manifest equality ignored workflow adapter output contract")
+	}
+	changed.WorkflowAdapters[0].PIDsLimit = 0
+	if err := changed.Validate(); err == nil {
+		t.Fatal("accepted workflow adapter without PID limit")
+	}
+}

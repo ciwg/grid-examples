@@ -255,6 +255,13 @@ func legacyObjectID(body []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// LegacyObjectID returns the deterministic compatibility identifier without
+// persisting bytes. It lets callers validate a complete write proposal before
+// beginning durable mutation. Source: DI-fofuh
+func LegacyObjectID(body []byte) string {
+	return legacyObjectID(body)
+}
+
 func legacyIDForCID(objectCID cid.Cid) (string, error) {
 	if err := validateCASCID(objectCID); err != nil {
 		return "", err

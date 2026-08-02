@@ -60,13 +60,12 @@ Current routing rule:
 
 Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`.
 
-## Approved Workflow-Adapter Extension
+## Workflow-Adapter Extension
 
-This is the approved next extension to the package contract; it is **not
-implemented yet**. An executable workflow adapter will be declared in the
-active package's `moks-package.json`, rather than in a separate adapter file.
-That declaration will name the adapter, Docker image/command, and exact input
-and output pCIDs.
+An executable workflow adapter is declared in the active package's
+`moks-package.json`, rather than in a separate adapter file. The declaration
+names the adapter, Docker image/command, exact input/output pCIDs, and required
+CPU, memory, PID, and timeout limits.
 
 The first package using this contract will be
 `procedure-execution-adapter`. A workflow artifact may use an adapter only
@@ -74,16 +73,29 @@ when its active manifest and the active package declaration agree exactly on
 the adapter name and input/output pCIDs.
 
 An adapter is an executable agent, not an ordinary package command. The
-runtime will send exact CBOR input to a Docker-confined worker through stdin.
+runtime sends exact CBOR input to a Docker-confined worker through stdin.
 The worker may return typed CBOR plus proposed CAS and record writes, but it
 cannot write runtime state itself. The runtime validates the declared output
-pCID before applying any proposed durable writes.
+pCID before applying any proposed durable writes. The worker result uses the
+frozen [`workflow-adapter-result-v1.json`](./protocols/workflow-adapter-result-v1.json)
+protocol and contains the output CBOR plus explicit CAS/record proposals.
+The runtime accepts at most 16 MiB on either worker stream.
+
+During this first confined-worker slice, a proposal may write an unknown family
+or a runtime/built-in validated family. A proposal for an externally validated
+installed-package family is rejected: validating it would otherwise start that
+package directly on the host. A future confined validator protocol can extend
+this safely. Source: `DI-fofuh`; `TE-dovek`.
 
 Workers will have no runtime-root, CAS, history, peer-key, Docker-socket, or
 ambient-secret access; no network; and no direct host-process fallback. The
 existing package `run` command remains its current separate contract and does
 not gain workflow-adapter authority merely by being installed. Source:
 `DI-fofuh`; `TE-dovek`.
+
+No production Docker adapter image is shipped in this repository yet. The
+existing built-in adapters remain available; an installed package becomes an
+adapter supplier only after its manifest and `describe` self-check agree.
 
 ## Current Activation Model
 
@@ -112,6 +124,12 @@ Current installed packages should support:
   result describing runtime-mediated CAS writes and record appends
 
 Source: `DI-moksu`.
+
+Packages that declare `workflow_adapters` additionally supply the Docker image
+and command named by that declaration. The worker itself receives CBOR on
+standard input and writes one CBOR adapter-result envelope to standard output;
+it does not implement a host-process `run` fallback. Source: `DI-fofuh`;
+`TE-dovek`.
 
 ## Minimal Manifest Example
 

@@ -45,6 +45,24 @@ func FuzzDecodeWorkflowRunEvent(f *testing.F) {
 	})
 }
 
+// Intent: A Docker worker's untrusted stdout must never panic or become a
+// durable proposal unless it decodes as the fixed adapter-result contract.
+// Source: DI-fofuh
+func FuzzDecodeWorkflowAdapterResult(f *testing.F) {
+	raw, err := EncodeWorkflowAdapterResult(WorkflowAdapterResult{
+		Output: WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "fuzz"}},
+	})
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(raw)
+	f.Fuzz(func(_ *testing.T, body []byte) {
+		if _, err := DecodeWorkflowAdapterResult(body); err != nil {
+			return
+		}
+	})
+}
+
 // Intent: Artifact verification must safely reject arbitrary CAS bytes before
 // they can become an executable workflow declaration. Source: DI-lumek
 func FuzzWorkflowArtifactVerification(f *testing.F) {

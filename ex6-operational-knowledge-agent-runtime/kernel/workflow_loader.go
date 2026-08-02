@@ -413,7 +413,7 @@ func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVeri
 	verification := WorkflowVerification{
 		Manifest:         manifest,
 		Contract:         "canonical",
-		AdapterAvailable: runtime.workflowOps[manifest.Adapter] != nil,
+		AdapterAvailable: runtime.workflowAdapterAvailable(manifest),
 		SchemaCASReady:   manifest.InputSchema != "" && manifest.OutputSchema != "",
 	}
 	if _, legacyInput := legacyWorkflowAdapterPCIDs[manifest.InputPCID]; legacyInput {
@@ -458,6 +458,13 @@ func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVeri
 	}
 	verification.EligibleToExecute = true
 	return verification, nil
+}
+
+func (runtime *Runtime) workflowAdapterAvailable(manifest WorkflowManifest) bool {
+	if adapter, installed := runtime.workflowAdapters[manifest.Adapter]; installed {
+		return adapter.InputPCID == manifest.InputPCID && adapter.OutputPCID == manifest.OutputPCID
+	}
+	return runtime.workflowOps[manifest.Adapter] != nil
 }
 
 // InspectWorkflowStatus summarizes local lifecycle and dependency readiness without mutation.
