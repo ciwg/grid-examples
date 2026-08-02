@@ -120,7 +120,7 @@ func TestManifestValidateWorkflowAdapters(t *testing.T) {
 		Version: "0.1.0",
 		WorkflowAdapters: []WorkflowAdapter{{
 			Name:       "procedure-execution",
-			Image:      "example/procedure-execution:1",
+			Image:      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Command:    []string{"worker"},
 			InputPCID:  "bafkreiahdp34nto2rnnqde26jw3xnkd6xnlalnr72sug3w7tjb3bhhoj4q",
 			OutputPCID: "bafkreifmttp5fwt3yvxvkb7ni6kwg3j3arl7mbjsyzszf7s7crxrncch24",
@@ -142,5 +142,17 @@ func TestManifestValidateWorkflowAdapters(t *testing.T) {
 	changed.WorkflowAdapters[0].PIDsLimit = 0
 	if err := changed.Validate(); err == nil {
 		t.Fatal("accepted workflow adapter without PID limit")
+	}
+	changed = manifest
+	changed.WorkflowAdapters = append([]WorkflowAdapter{}, manifest.WorkflowAdapters...)
+	changed.WorkflowAdapters[0].Image = "example/procedure-execution:1"
+	if err := changed.Validate(); err == nil {
+		t.Fatal("accepted workflow adapter with mutable Docker tag")
+	}
+	changed = manifest
+	changed.WorkflowAdapters = append([]WorkflowAdapter{}, manifest.WorkflowAdapters...)
+	changed.WorkflowAdapters[0].Image = "sha256:short"
+	if err := changed.Validate(); err == nil {
+		t.Fatal("accepted workflow adapter with incomplete Docker digest")
 	}
 }

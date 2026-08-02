@@ -116,6 +116,47 @@ func TestWorkflowVerifyReportsExecutionReadiness(t *testing.T) {
 	}
 }
 
+func TestProcedureExecutionAdapterDockerEndToEnd(t *testing.T) {
+	if os.Getenv("MOKS_DOCKER_INTEGRATION") != "1" {
+		t.Skip("set MOKS_DOCKER_INTEGRATION=1 after building the pinned procedure-execution adapter image")
+	}
+	workdir := t.TempDir()
+	root := repoRoot(t)
+	packageDir := filepath.Join(root, "examples", "procedure-execution-adapter")
+	workflowDir := filepath.Join(root, "workflows", "procedure-execution")
+	if _, err := runCLI(t, workdir, "package", "install", packageDir); err != nil {
+		t.Fatalf("install procedure adapter package: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "procedures", "create", "proc-1", "DockCheck", "dock-intake"); err != nil {
+		t.Fatalf("seed procedure: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "capture", workflowDir, "procedure-execution"); err != nil {
+		t.Fatalf("capture workflow: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "activate", "procedure-execution"); err != nil {
+		t.Fatalf("activate workflow: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "run", "start", "procedure-execution", "procedure_id", "proc-1", "run_id", "run-1", "actor", "alice", "outcome", "completed", "notes", "followed"); err != nil {
+		t.Fatalf("run Docker adapter: %v", err)
+	}
+	procedure, err := runCLI(t, workdir, "procedures", "inspect", "proc-1")
+	if err != nil {
+		t.Fatalf("inspect procedure: %v", err)
+	}
+	if !strings.Contains(procedure, "uses: run-1") {
+		t.Fatalf("procedure did not retain adapter use: %s", procedure)
+	}
+	runOutput, err := runCLI(t, workdir, "runs", "inspect", "run-1")
+	if err != nil {
+		t.Fatalf("inspect run: %v", err)
+	}
+	for _, expected := range []string{"item_id: proc-1", "actor: alice", "outcome: completed", "notes: followed"} {
+		if !strings.Contains(runOutput, expected) {
+			t.Fatalf("run inspect output missing %q: %s", expected, runOutput)
+		}
+	}
+}
+
 func TestWorkflowVerifyReportsMissingDependencyReadiness(t *testing.T) {
 	workdir := t.TempDir()
 	sourceDir := filepath.Join(t.TempDir(), "missing-dependency")

@@ -67,10 +67,11 @@ An executable workflow adapter is declared in the active package's
 names the adapter, Docker image/command, exact input/output pCIDs, and required
 CPU, memory, PID, and timeout limits.
 
-The first package using this contract will be
-`procedure-execution-adapter`. A workflow artifact may use an adapter only
-when its active manifest and the active package declaration agree exactly on
-the adapter name and input/output pCIDs.
+The first package using this contract is
+[`examples/procedure-execution-adapter/`](../examples/procedure-execution-adapter/).
+A workflow artifact may use an adapter only when its active manifest and the
+active package declaration agree exactly on the adapter name and input/output
+pCIDs.
 
 An adapter is an executable agent, not an ordinary package command. The
 runtime sends exact CBOR input to a Docker-confined worker through stdin.
@@ -93,9 +94,18 @@ existing package `run` command remains its current separate contract and does
 not gain workflow-adapter authority merely by being installed. Source:
 `DI-fofuh`; `TE-dovek`.
 
-No production Docker adapter image is shipped in this repository yet. The
-existing built-in adapters remain available; an installed package becomes an
+The repository now ships the source for a locally built procedure-execution
+image; its package declaration uses the immutable local Docker image ID, not
+the convenient mutable build tag. It is not registry-published.
+Existing built-in adapters remain available; an installed package becomes an
 adapter supplier only after its manifest and `describe` self-check agree.
+
+Build and install the first adapter from the ex6 root:
+
+```bash
+docker build -f examples/procedure-execution-adapter/Dockerfile -t moks/procedure-execution-adapter:dev .
+go run ./cmd/moks package install ./examples/procedure-execution-adapter
+```
 
 ## Current Activation Model
 

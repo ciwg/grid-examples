@@ -1,0 +1,9 @@
+# Keep local runtime state, repository metadata, and generated output out of
+# adapter builds. The Dockerfile additionally copies only build dependencies.
+.git
+.moks/
+**/.moks/
+bin/
+dist/
+coverage.out
+*.log

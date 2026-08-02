@@ -333,4 +333,4 @@ Affects: `moks-package.json` manifest contract, package activation self-check, D
 - [ ] Add separate deactivation and revocation withdrawal paths without deleting CAS or durable history. (DI-lovek; TE-gavuk)
 - [ ] Model pCID-scoped app receive promises and routing-role delivery promises before route-plan execution. (TE-ravuk)
 - [ ] Bind Docker worker dispatch only to active registered receive promises and record local lifecycle events. (TE-dovek; DI-lovek)
-- [ ] Extend active package manifests with Docker-confined workflow adapter declarations and bind matching active artifacts to those declarations. (TE-dovek; DI-fofuh)
+- [x] Extend active package manifests with Docker-confined workflow adapter declarations and bind matching active artifacts to those declarations. (TE-dovek; DI-fofuh; d86cef2)

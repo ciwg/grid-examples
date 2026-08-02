@@ -207,8 +207,11 @@ dispatches through manifest-selected trusted built-in adapters. Installed-packag
 Docker adapters are also supported. An installed adapter
 is eligible only when its active package declaration exactly matches the
 artifact adapter name and input/output pCIDs. The runtime validates typed CBOR
-output before applying every proposed durable write itself. No production
-Docker adapter image is currently shipped. Source: `DI-fofuh`; `TE-dovek`.
+output before applying every proposed durable write itself. The repository ships
+the source for a locally built, immutably pinned procedure-execution adapter
+image and its installed package; registry publication is not included. Source:
+`DI-fofuh`;
+`TE-dovek`.
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

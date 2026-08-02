@@ -151,8 +151,10 @@ explicitly selected built-in adapter path. A package declares its adapter in
 `moks-package.json`; the artifact and package must agree on its name and pCID
 contracts before it can run. The locked-down worker cannot see the runtime's
 files, network, secrets, or keys, and it can only propose work for the runtime
-to validate and save. No production Docker adapter image ships yet. Source:
-`DI-lumek`; `DI-fofuh`; `TE-dovek`.
+to validate and save. EX6 now ships source for one local Docker image, pinned
+in its package declaration by immutable image ID, which performs procedure
+execution.
+Source: `DI-lumek`; `DI-fofuh`; `TE-dovek`.
 
 That is valuable because a user interface can change, but those trust and
 evidence boundaries must stay correct underneath it.

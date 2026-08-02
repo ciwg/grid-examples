@@ -167,6 +167,9 @@ func (manifest Manifest) Validate() error {
 		if strings.TrimSpace(adapter.Name) == "" || strings.TrimSpace(adapter.Image) == "" || strings.TrimSpace(adapter.InputPCID) == "" || strings.TrimSpace(adapter.OutputPCID) == "" {
 			return fmt.Errorf("workflow adapter name, image, input_pcid, and output_pcid are required for package %s", manifest.ID)
 		}
+		if !immutableDockerImageReference(adapter.Image) {
+			return fmt.Errorf("workflow adapter %s requires an immutable Docker image reference", adapter.Name)
+		}
 		if strings.TrimSpace(adapter.CPUs) == "" || strings.TrimSpace(adapter.Memory) == "" || adapter.PIDsLimit < 1 {
 			return fmt.Errorf("workflow adapter %s requires CPU, memory, and positive PID limits", adapter.Name)
 		}
@@ -185,6 +188,26 @@ func (manifest Manifest) Validate() error {
 		adapterNames[adapter.Name] = struct{}{}
 	}
 	return nil
+}
+
+// immutableDockerImageReference accepts either a registry digest or Docker's
+// immutable local image ID. Tags are mutable names and therefore cannot be a
+// package adapter's durable execution dependency. Source: DI-fofuh
+func immutableDockerImageReference(image string) bool {
+	trimmed := strings.TrimSpace(image)
+	digest := trimmed
+	if separator := strings.LastIndex(trimmed, "@"); separator >= 0 {
+		digest = trimmed[separator+1:]
+	}
+	if !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+64 {
+		return false
+	}
+	for _, character := range digest[len("sha256:"):] {
+		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (manifest Manifest) Equal(other Manifest) bool {
