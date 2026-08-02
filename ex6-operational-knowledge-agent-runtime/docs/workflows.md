@@ -222,3 +222,5 @@ activates a received workflow or starts a run. Source: `DI-harib`; `DI-hapak`;
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).
+For the concise local, relay, and optional portable-image procedure, see the
+[EX6 operator deployment checklist](./operator-deployment-checklist.md).
