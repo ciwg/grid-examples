@@ -202,7 +202,11 @@ domain rules.
 The runtime captures a valid workflow directory as a deterministic tar archive
 in CAS, imports it under a local alias, requires explicit activation, and
 dispatches through manifest-selected trusted built-in adapters. Worker backends
-remain future work.
+are not implemented yet. The approved next stage declares an adapter in the
+active package's `moks-package.json` and runs it only as a Docker-confined
+worker after the artifact/package adapter name and input/output pCIDs match.
+The runtime will validate typed CBOR output and perform every durable write
+itself. Source: `DI-fofuh`; `TE-dovek`.
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

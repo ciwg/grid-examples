@@ -1,0 +1,5 @@
+# Global five-letter proquint reservations for TODO, TE, DR, and DI identifiers.
+# tools/mint-handle appends a handle before returning it, making allocation collision-safe.
+pokug	2026-08-02T19:46:46Z
+rabap	2026-08-02T19:46:46Z
+fofuh	2026-08-02T19:49:01Z

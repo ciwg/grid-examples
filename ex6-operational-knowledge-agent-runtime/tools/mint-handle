@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Mint one globally reserved five-letter proquint handle for TODO, TE, DR, and DI records.
+# The reservation ledger prevents two concurrent agents from selecting the same handle before
+# either has had a chance to write its corresponding coordination artifact.
+
+set -euo pipefail
+
+if [ "$#" -ne 0 ]; then
+  printf 'usage: tools/mint-handle\n' >&2
+  exit 64
+fi
+
+tool_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "$tool_dir/.." && pwd)
+ledger="$repo_root/TODO/handle-namespace.tsv"
+
+if [ ! -f "$ledger" ]; then
+  printf 'missing handle ledger: %s\n' "$ledger" >&2
+  exit 1
+fi
+
+# Lock the append-only ledger itself so the namespace check and reservation are one operation.
+exec 9>>"$ledger"
+flock -x 9
+
+is_reserved() {
+  candidate=$1
+  if awk -F '\t' -v handle="$candidate" '$1 == handle { found = 1 } END { exit !found }' "$ledger"; then
+    return 0
+  fi
+  if rg -q --glob '!.git/**' --glob '!TODO/handle-namespace.tsv' \
+    "(TODO|TE|DR|DI)-${candidate}([^a-z]|$)" "$repo_root"; then
+    return 0
+  fi
+  return 1
+}
+
+mint_proquint() {
+  value=$(od -An -N2 -tu2 /dev/urandom | awk '{print $1}')
+  awk -v value="$value" 'BEGIN {
+    consonants = "bdfghjklmnprstvz"
+    vowels = "aiou"
+    printf "%s%s%s%s%s\n", \
+      substr(consonants, int(value / 4096) % 16 + 1, 1), \
+      substr(vowels, int(value / 1024) % 4 + 1, 1), \
+      substr(consonants, int(value / 64) % 16 + 1, 1), \
+      substr(vowels, int(value / 16) % 4 + 1, 1), \
+      substr(consonants, value % 16 + 1, 1)
+  }'
+}
+
+while :; do
+  handle=$(mint_proquint)
+  if ! is_reserved "$handle"; then
+    printf '%s\t%s\n' "$handle" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$ledger"
+    printf '%s\n' "$handle"
+    exit 0
+  fi
+done

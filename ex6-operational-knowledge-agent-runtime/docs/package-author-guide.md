@@ -60,6 +60,31 @@ Current routing rule:
 
 Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`.
 
+## Approved Workflow-Adapter Extension
+
+This is the approved next extension to the package contract; it is **not
+implemented yet**. An executable workflow adapter will be declared in the
+active package's `moks-package.json`, rather than in a separate adapter file.
+That declaration will name the adapter, Docker image/command, and exact input
+and output pCIDs.
+
+The first package using this contract will be
+`procedure-execution-adapter`. A workflow artifact may use an adapter only
+when its active manifest and the active package declaration agree exactly on
+the adapter name and input/output pCIDs.
+
+An adapter is an executable agent, not an ordinary package command. The
+runtime will send exact CBOR input to a Docker-confined worker through stdin.
+The worker may return typed CBOR plus proposed CAS and record writes, but it
+cannot write runtime state itself. The runtime validates the declared output
+pCID before applying any proposed durable writes.
+
+Workers will have no runtime-root, CAS, history, peer-key, Docker-socket, or
+ambient-secret access; no network; and no direct host-process fallback. The
+existing package `run` command remains its current separate contract and does
+not gain workflow-adapter authority merely by being installed. Source:
+`DI-fofuh`; `TE-dovek`.
+
 ## Current Activation Model
 
 Installed packages are executable packages.

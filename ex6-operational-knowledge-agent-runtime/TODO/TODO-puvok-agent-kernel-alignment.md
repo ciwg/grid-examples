@@ -317,6 +317,15 @@ Constraints: The pCID protocol specification is frozen before implementation; li
 Affects: lifecycle protocol specification, `kernel/workflows.go`, CAS event storage and replay, local cache rebuild, tests, and operator documentation.
 Supersedes: DI-lovek (lifecycle-persistence clause only; manual handle because `tools/mint-handle` was unavailable)
 
+ID: DI-fofuh
+Date: 2026-08-02 12:49:04 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Declare executable workflow adapters in the active package's `moks-package.json`; use `procedure-execution-adapter` as the first adapter package; and run every such adapter only through the Docker-confined worker boundary.
+Intent: Keep package self-description, installation, activation self-check, and workflow-adapter authority in one inspectable contract while preventing an executable workflow from inheriting host or runtime authority.
+Constraints: The adapter declaration identifies its adapter name, Docker image/command, and exact input/output pCIDs; the runtime must require the active artifact manifest and active package declaration to match exactly; workers receive exact CBOR on stdin and may return only typed CBOR plus proposed CAS/record writes; the runtime validates output pCID and applies durable writes itself; no direct host-process fallback, runtime-root mount, CAS/history/peer-key mount, ambient secrets, network, or Docker socket is permitted.
+Affects: `moks-package.json` manifest contract, package activation self-check, Docker worker dispatch, workflow execution validation, package-author documentation, workflow documentation, and future tests.
+
 ## Alignment Implementation Queue
 
 - [x] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk; cdc0621)
@@ -324,3 +333,4 @@ Supersedes: DI-lovek (lifecycle-persistence clause only; manual handle because `
 - [ ] Add separate deactivation and revocation withdrawal paths without deleting CAS or durable history. (DI-lovek; TE-gavuk)
 - [ ] Model pCID-scoped app receive promises and routing-role delivery promises before route-plan execution. (TE-ravuk)
 - [ ] Bind Docker worker dispatch only to active registered receive promises and record local lifecycle events. (TE-dovek; DI-lovek)
+- [ ] Extend active package manifests with Docker-confined workflow adapter declarations and bind matching active artifacts to those declarations. (TE-dovek; DI-fofuh)
