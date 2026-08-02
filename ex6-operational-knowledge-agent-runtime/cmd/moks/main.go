@@ -549,7 +549,10 @@ func run(ctx context.Context, args []string) error {
 		}
 		return relayPeerDiscover(ctx, runtime, args[3], seed)
 	case matchesPrefix(args, "relay", "peer", "allow"):
-		if len(args) != 8 {
+		// Intent: Require every documented peer-trust field before changing
+		// local relay permissions, including both pull and push choices.
+		// Source: DI-rupem
+		if len(args) != 9 {
 			return errors.New("usage: relay peer allow <peer-id> <batch-url> <import-url> <public-key> <pull|no-pull> <push|no-push>")
 		}
 		return relayPeerAllow(runtime, args[3:])

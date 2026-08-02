@@ -4,16 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/kernel"
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
 )
 
 func TestBuiltinQuickstartFlow(t *testing.T) {
@@ -415,6 +420,204 @@ func TestWorkflowRelayEndpointTransfersArtifactWithoutActivatingIt(t *testing.T)
 	if _, err := target.GetCAS(sourceWorkflow.ArtifactCID); err != nil {
 		t.Fatalf("target missing transferred artifact: %v", err)
 	}
+}
+
+// Intent: Prove that two independently rooted, deployed relay processes
+// exchange exact workflow evidence without letting receipt change the
+// receiver's workflow lifecycle. Source: DI-novuk
+func TestDeployedTwoNodeWorkflowRelay(t *testing.T) {
+	if os.Getenv("MOKS_DEPLOYED_RELAY_INTEGRATION") != "1" {
+		t.Skip("set MOKS_DEPLOYED_RELAY_INTEGRATION=1 to build and run two local moks relay processes")
+	}
+	root := repoRoot(t)
+	binary := filepath.Join(t.TempDir(), "moks")
+	build := exec.Command("go", "build", "-o", binary, "./cmd/moks")
+	build.Dir = root
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build moks binary: %v: %s", err, output)
+	}
+	aliceDir := t.TempDir()
+	bobDir := t.TempDir()
+	workflowDir := filepath.Join(root, "workflows", "procedure-execution")
+	capture := runDeployedMoks(t, binary, aliceDir, "workflow", "capture", workflowDir, "procedure-execution")
+	var captured []kernel.Workflow
+	if err := json.Unmarshal([]byte(capture), &captured); err != nil || len(captured) != 1 {
+		t.Fatalf("decode captured workflow %q: %v", capture, err)
+	}
+	if _, err := runDeployedMoksResult(binary, aliceDir, "workflow", "activate", "procedure-execution"); err != nil {
+		t.Fatalf("activate Alice workflow: %v", err)
+	}
+	aliceRuntime, err := kernel.Open(filepath.Join(aliceDir, ".moks"))
+	if err != nil {
+		t.Fatalf("open Alice runtime for transfer inspection: %v", err)
+	}
+	transfer, err := aliceRuntime.ExportWorkflowTransfer("procedure-execution")
+	if closeErr := aliceRuntime.Close(); closeErr != nil {
+		t.Fatalf("close Alice transfer inspection runtime: %v", closeErr)
+	}
+	if err != nil {
+		t.Fatalf("export Alice workflow transfer: %v", err)
+	}
+	bobAddress := reserveDeployedRelayAddress(t)
+	aliceCard := deployedRelayPeerCard(t, aliceDir, "127.0.0.1:1")
+	bobCard := deployedRelayPeerCard(t, bobDir, bobAddress)
+	allowDeployedRelayPeer(t, binary, aliceDir, bobCard, "no-pull", "push")
+	allowDeployedRelayPeer(t, binary, bobDir, aliceCard, "no-pull", "push")
+	bob := startDeployedRelayNode(t, binary, bobDir, bobAddress)
+	push := runDeployedMoks(t, binary, aliceDir, "workflow", "relay", "push", "procedure-execution", bob.card.PeerID)
+	if !strings.Contains(push, "workflow relay pushed procedure-execution to "+bob.card.PeerID) {
+		t.Fatalf("unexpected relay push output: %s", push)
+	}
+	bob.stop(t)
+	bobWorkflows := runDeployedMoks(t, binary, bobDir, "workflow", "list")
+	if strings.TrimSpace(bobWorkflows) != "[]" {
+		t.Fatalf("workflow receipt changed Bob lifecycle: %s", bobWorkflows)
+	}
+	if captured[0].ArtifactCID == "" {
+		t.Fatal("capture did not produce an artifact CID")
+	}
+	bobRuntime, err := kernel.Open(filepath.Join(bobDir, ".moks"))
+	if err != nil {
+		t.Fatalf("open Bob runtime for transfer inspection: %v", err)
+	}
+	artifact, err := bobRuntime.GetCAS(captured[0].ArtifactCID)
+	if closeErr := bobRuntime.Close(); closeErr != nil {
+		t.Fatalf("close Bob transfer inspection runtime: %v", closeErr)
+	}
+	if err != nil {
+		t.Fatalf("read Bob transferred artifact: %v", err)
+	}
+	if !bytes.Equal(artifact, transfer.Artifact) {
+		t.Fatal("Bob transferred artifact bytes differ from Alice export")
+	}
+	evidenceStore, err := store.OpenCAS(filepath.Join(bobDir, ".moks", "workflow-evidence"))
+	if err != nil {
+		t.Fatalf("open Bob workflow evidence CAS: %v", err)
+	}
+	evidenceCIDs, err := evidenceStore.ListCIDs()
+	if err != nil {
+		t.Fatalf("list Bob workflow evidence: %v", err)
+	}
+	if len(evidenceCIDs) != 1 {
+		t.Fatalf("Bob workflow evidence count = %d, want 1", len(evidenceCIDs))
+	}
+	evidence, err := evidenceStore.GetCID(evidenceCIDs[0])
+	if err != nil {
+		t.Fatalf("read Bob workflow evidence: %v", err)
+	}
+	if !bytes.Equal(evidence, transfer.LifecycleEvent) {
+		t.Fatal("Bob lifecycle evidence bytes differ from Alice export")
+	}
+}
+
+type deployedRelayNode struct {
+	card    grid.PeerCard
+	command *exec.Cmd
+}
+
+func reserveDeployedRelayAddress(t *testing.T) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve relay address: %v", err)
+	}
+	address := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("release relay address: %v", err)
+	}
+	return address
+}
+
+func deployedRelayPeerCard(t *testing.T, workdir string, address string) grid.PeerCard {
+	t.Helper()
+	runtime, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open relay node runtime: %v", err)
+	}
+	defer func() {
+		if closeErr := runtime.Close(); closeErr != nil {
+			t.Errorf("close relay node runtime: %v", closeErr)
+		}
+	}()
+	baseURL := "http://" + address
+	return grid.PeerCard{
+		PeerID:            runtime.LocalPeerID(),
+		PublicKey:         runtime.LocalPeerPublicKey(),
+		BatchURL:          baseURL + "/relay/batch",
+		ImportURL:         baseURL + "/relay/import",
+		WorkflowImportURL: baseURL + "/relay/workflow/import",
+		DiscoverURL:       baseURL + "/relay/peer-card",
+	}
+}
+
+func startDeployedRelayNode(t *testing.T, binary string, workdir string, address string) deployedRelayNode {
+	t.Helper()
+	command := exec.Command(binary, "relay", "serve", address)
+	command.Dir = workdir
+	if err := command.Start(); err != nil {
+		t.Fatalf("start relay node: %v", err)
+	}
+	node := deployedRelayNode{command: command}
+	t.Cleanup(func() { node.stop(t) })
+	cardURL := "http://" + address + "/relay/peer-card"
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		response, err := http.Get(cardURL)
+		if err == nil {
+			if response.StatusCode == http.StatusOK {
+				var card grid.PeerCard
+				decodeErr := json.NewDecoder(response.Body).Decode(&card)
+				if closeErr := response.Body.Close(); closeErr != nil {
+					t.Fatalf("close relay peer card response: %v", closeErr)
+				}
+				if decodeErr == nil {
+					node.card = card
+					return node
+				}
+			} else if closeErr := response.Body.Close(); closeErr != nil {
+				t.Fatalf("close unsuccessful relay peer card response: %v", closeErr)
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("relay node did not serve peer card at %s", cardURL)
+	return deployedRelayNode{}
+}
+
+func (node deployedRelayNode) stop(t *testing.T) {
+	t.Helper()
+	if node.command == nil || (node.command.ProcessState != nil && node.command.ProcessState.Exited()) {
+		return
+	}
+	if err := node.command.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		t.Errorf("stop relay node: %v", err)
+	}
+	if err := node.command.Wait(); err != nil && node.command.ProcessState == nil {
+		t.Errorf("wait for relay node: %v", err)
+	}
+}
+
+func allowDeployedRelayPeer(t *testing.T, binary string, workdir string, peer grid.PeerCard, pull string, push string) {
+	t.Helper()
+	if _, err := runDeployedMoksResult(binary, workdir, "relay", "peer", "allow", peer.PeerID, peer.BatchURL, peer.ImportURL, peer.PublicKey, pull, push); err != nil {
+		t.Fatalf("allow peer %s: %v", peer.PeerID, err)
+	}
+}
+
+func runDeployedMoks(t *testing.T, binary string, workdir string, args ...string) string {
+	t.Helper()
+	output, err := runDeployedMoksResult(binary, workdir, args...)
+	if err != nil {
+		t.Fatalf("run moks %q: %v", args, err)
+	}
+	return output
+}
+
+func runDeployedMoksResult(binary string, workdir string, args ...string) (string, error) {
+	command := exec.Command(binary, args...)
+	command.Dir = workdir
+	output, err := command.CombinedOutput()
+	return strings.TrimSpace(string(output)), err
 }
 
 func TestInstalledWriterAgentExample(t *testing.T) {
