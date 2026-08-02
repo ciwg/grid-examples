@@ -326,6 +326,33 @@ Intent: Keep package self-description, installation, activation self-check, and 
 Constraints: The adapter declaration identifies its adapter name, Docker image/command, and exact input/output pCIDs; the runtime must require the active artifact manifest and active package declaration to match exactly; workers receive exact CBOR on stdin and may return only typed CBOR plus proposed CAS/record writes; the runtime validates output pCID and applies durable writes itself; no direct host-process fallback, runtime-root mount, CAS/history/peer-key mount, ambient secrets, network, or Docker socket is permitted.
 Affects: `moks-package.json` manifest contract, package activation self-check, Docker worker dispatch, workflow execution validation, package-author documentation, workflow documentation, and future tests.
 
+ID: DI-harib
+Date: 2026-08-02 13:41:27 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Distribute portable workflow-adapter images through digest-pinned OCI registry references, and permit a runtime to acquire an image only from an operator-configured registry allow-list.
+Intent: Make a transferred workflow independently executable on a receiving node without allowing an active package manifest to choose arbitrary network destinations or expanding workflow relay into an image-content transport.
+Constraints: Image references must remain registry-qualified immutable digests; workflow relay continues to carry artifact and lifecycle evidence only; a failed or disallowed pull leaves the adapter unavailable and does not alter lifecycle state; Docker worker confinement remains unchanged.
+Affects: adapter package manifests, local registry policy persistence, image availability/readiness reporting, Docker pull verification, workflow verification, operator documentation, and future two-node tests.
+
+ID: DI-hapak
+Date: 2026-08-02 13:58:08 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Persist the portable-image registry policy as an exact canonical host[:port] runtime allow-list and expose it through `moks registry allow|list|remove`.
+Intent: Keep image acquisition understandable and auditable as one local network-trust decision, without broad hostname patterns or package-lifecycle-coupled grants.
+Constraints: Reject schemes, paths, wildcard characters, empty hosts, and non-canonical duplicates; do not add credentials, wildcard matching, per-package exceptions, or image transfer in this slice.
+Affects: runtime policy persistence, registry CLI commands, OCI image-reference parsing, workflow readiness output, tests, and operator documentation.
+
+ID: DI-zivut
+Date: 2026-08-02 14:07:40 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Acquire a portable adapter image only through the explicit `moks workflow image pull <alias>` command.
+Intent: Keep workflow verification read-only and prevent lifecycle/start commands from hiding registry network activity or Docker state changes.
+Constraints: Resolve the image only from a verified artifact and matching installed package declaration; require the local registry allow-list and exact digest verification; pulling neither activates a workflow nor starts a run; unavailable images keep execution fail-closed.
+Affects: workflow CLI, image availability/readiness state, Docker pull integration, tests, and operator documentation.
+
 ## Alignment Implementation Queue
 
 - [x] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk; cdc0621)

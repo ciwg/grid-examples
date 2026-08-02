@@ -3,9 +3,11 @@ package grid
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -50,11 +52,89 @@ type TraceScopeAlias struct {
 }
 
 type TrustPolicy struct {
+	RegistryAllowList             []string                      `json:"registry_allow_list,omitempty"`
 	ClaimPolicies                 []ClaimTrustPolicy            `json:"claim_policies"`
 	RoutePlanPolicy               RoutePlanPolicy               `json:"route_plan_policy,omitempty"`
 	ProtocolRoutePlanPolicies     []ProtocolRoutePlanPolicy     `json:"protocol_route_plan_policies,omitempty"`
 	ProtocolRoleRoutePlanPolicies []ProtocolRoleRoutePlanPolicy `json:"protocol_role_route_plan_policies,omitempty"`
 	TraceScopeAliases             []TraceScopeAlias             `json:"trace_scope_aliases,omitempty"`
+}
+
+func (store *PolicyStore) RegistryAllowList() []string {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	return append([]string{}, store.policy.RegistryAllowList...)
+}
+
+func (store *PolicyStore) AllowRegistry(host string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	host, err := canonicalRegistryHost(host)
+	if err != nil {
+		return err
+	}
+	for _, existing := range store.policy.RegistryAllowList {
+		if existing == host {
+			return nil
+		}
+	}
+	store.policy.RegistryAllowList = append(store.policy.RegistryAllowList, host)
+	return store.persistLocked()
+}
+
+func (store *PolicyStore) RemoveRegistry(host string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	host, err := canonicalRegistryHost(host)
+	if err != nil {
+		return err
+	}
+	filtered := store.policy.RegistryAllowList[:0]
+	found := false
+	for _, existing := range store.policy.RegistryAllowList {
+		if existing == host {
+			found = true
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	if !found {
+		return fmt.Errorf("registry is not allowed: %s", host)
+	}
+	store.policy.RegistryAllowList = filtered
+	return store.persistLocked()
+}
+
+func canonicalRegistryHost(host string) (string, error) {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" || strings.ContainsAny(host, "/\\*?@ ") || strings.Contains(host, "://") {
+		return "", errors.New("registry host must be canonical host[:port]")
+	}
+	name := host
+	if strings.Count(host, ":") == 1 {
+		parsedName, port, err := net.SplitHostPort(host)
+		if err != nil || parsedName == "" {
+			return "", errors.New("registry host must be canonical host[:port]")
+		}
+		value, err := strconv.Atoi(port)
+		if err != nil || value < 1 || value > 65535 {
+			return "", errors.New("registry port must be between 1 and 65535")
+		}
+		name = parsedName
+	} else if strings.Contains(host, ":") {
+		return "", errors.New("registry host must be canonical host[:port]")
+	}
+	for _, label := range strings.Split(name, ".") {
+		if label == "" || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return "", errors.New("registry host has invalid label")
+		}
+		for _, character := range label {
+			if !(character >= 'a' && character <= 'z') && !(character >= '0' && character <= '9') && character != '-' {
+				return "", errors.New("registry host has invalid label")
+			}
+		}
+	}
+	return host, nil
 }
 
 type PolicyStore struct {
@@ -475,6 +555,19 @@ func (store *PolicyStore) VerifyClaimPolicies(batch Batch, knownPeers []AllowedP
 }
 
 func (store *PolicyStore) validateLocked() error {
+	registrySeen := map[string]struct{}{}
+	for index, host := range store.policy.RegistryAllowList {
+		canonical, err := canonicalRegistryHost(host)
+		if err != nil {
+			return err
+		}
+		if _, exists := registrySeen[canonical]; exists {
+			return fmt.Errorf("duplicate registry allow-list host: %s", canonical)
+		}
+		registrySeen[canonical] = struct{}{}
+		store.policy.RegistryAllowList[index] = canonical
+	}
+	slices.Sort(store.policy.RegistryAllowList)
 	seen := map[string]struct{}{}
 	for _, policy := range store.policy.ClaimPolicies {
 		if err := validateClaimTrustPolicy(policy); err != nil {

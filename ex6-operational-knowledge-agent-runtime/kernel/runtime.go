@@ -175,6 +175,41 @@ func runDockerWorkflowAdapter(ctx context.Context, adapter packages.WorkflowAdap
 	}).Run(ctx, input)
 }
 
+func (runtime *Runtime) RegistryAllowList() []string     { return runtime.policies.RegistryAllowList() }
+func (runtime *Runtime) AllowRegistry(host string) error { return runtime.policies.AllowRegistry(host) }
+func (runtime *Runtime) RemoveRegistry(host string) error {
+	return runtime.policies.RemoveRegistry(host)
+}
+
+// PullWorkflowImage explicitly acquires only the active package adapter image
+// matching a verified workflow. It does not change workflow lifecycle state.
+// Source: DI-zivut
+func (runtime *Runtime) PullWorkflowImage(ctx context.Context, alias string) error {
+	manifest, err := runtime.VerifyWorkflow(alias)
+	if err != nil {
+		return err
+	}
+	adapter, ok := runtime.workflowAdapters[manifest.Adapter]
+	if !ok {
+		return errors.New("workflow adapter is unavailable")
+	}
+	host, err := packages.RegistryHostFromImage(adapter.Image)
+	if err != nil {
+		return err
+	}
+	allowed := false
+	for _, entry := range runtime.RegistryAllowList() {
+		if entry == host {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return fmt.Errorf("adapter registry is not allowed: %s", host)
+	}
+	return packages.PullImage(ctx, adapter.Image)
+}
+
 // RegisterWorkflowOperation binds an active artifact's declared adapter to
 // trusted built-in behavior. Intent: Keep execution behind explicit artifact
 // activation rather than making installed capabilities implicitly runnable.

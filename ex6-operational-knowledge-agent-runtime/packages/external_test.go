@@ -156,3 +156,40 @@ func TestManifestValidateWorkflowAdapters(t *testing.T) {
 		t.Fatal("accepted workflow adapter with incomplete Docker digest")
 	}
 }
+
+func TestRegistryHostFromImage(t *testing.T) {
+	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	host, err := RegistryHostFromImage("REGISTRY.example:5000/moks/worker@sha256:" + digest)
+	if err != nil || host != "registry.example:5000" {
+		t.Fatalf("registry host = %q, %v", host, err)
+	}
+	for _, image := range []string{"sha256:" + digest, "registry.example/moks/worker:latest", "registry.example/moks/worker@sha256:short", "registry.example/@sha256:" + digest, "registry.example/moks/worker:tag@sha256:" + digest} {
+		if _, err := RegistryHostFromImage(image); err == nil {
+			t.Fatalf("accepted invalid portable image %q", image)
+		}
+	}
+}
+
+func TestPullImageRequiresExactRetainedDigest(t *testing.T) {
+	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	image := "registry.example/moks/worker@sha256:" + digest
+	docker := filepath.Join(t.TempDir(), "docker")
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = pull ]; then exit 0; fi\n" +
+		"if [ \"$1\" = image ]; then printf '%s\\n' '[\"registry.example/moks/worker@sha256:" + digest + "\"]'; exit 0; fi\n" +
+		"exit 64\n"
+	if err := os.WriteFile(docker, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", filepath.Dir(docker)+":"+os.Getenv("PATH"))
+	if err := PullImage(context.Background(), image); err != nil {
+		t.Fatalf("pull exact image: %v", err)
+	}
+	script = "#!/bin/sh\nif [ \"$1\" = pull ]; then exit 0; fi\nif [ \"$1\" = image ]; then printf '%s\\n' '[]'; exit 0; fi\nexit 64\n"
+	if err := os.WriteFile(docker, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := PullImage(context.Background(), image); err == nil {
+		t.Fatal("accepted image without requested retained digest")
+	}
+}

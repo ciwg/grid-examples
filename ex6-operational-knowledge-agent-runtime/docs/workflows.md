@@ -213,5 +213,12 @@ image and its installed package; registry publication is not included. Source:
 `DI-fofuh`;
 `TE-dovek`.
 
+Portable registry-backed adapters require a local `moks registry allow <host>`
+entry. `moks workflow verify <alias>` reports that policy and exact local image
+availability without changing Docker state. `moks workflow image pull <alias>`
+is the separate, explicit pull-and-digest-verification step; neither command
+activates a received workflow or starts a run. Source: `DI-harib`; `DI-hapak`;
+`DI-zivut`.
+
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

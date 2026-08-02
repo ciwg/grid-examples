@@ -62,6 +62,21 @@ Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; 
 
 ## Workflow-Adapter Extension
 
+Portable adapters use registry-qualified immutable OCI digest references. An
+operator controls their network trust locally:
+
+```bash
+go run ./cmd/moks registry allow registry.example.com
+go run ./cmd/moks registry list
+go run ./cmd/moks registry remove registry.example.com
+```
+
+`moks workflow verify <alias>` is read-only and reports both registry policy
+and whether Docker already has the exact image digest. To acquire a missing,
+allowed image, run `moks workflow image pull <alias>`. It resolves only the
+matching installed package image, pulls and verifies its digest, and neither
+activates nor starts the workflow. Source: `DI-harib`; `DI-hapak`; `DI-zivut`.
+
 An executable workflow adapter is declared in the active package's
 `moks-package.json`, rather than in a separate adapter file. The declaration
 names the adapter, Docker image/command, exact input/output pCIDs, and required

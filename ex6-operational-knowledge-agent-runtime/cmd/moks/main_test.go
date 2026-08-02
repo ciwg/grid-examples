@@ -121,6 +121,24 @@ func TestWorkflowVerifyReportsExecutionReadiness(t *testing.T) {
 	}
 }
 
+func TestRegistryCommandsPersistExactHostPolicy(t *testing.T) {
+	workdir := t.TempDir()
+	if _, err := runCLI(t, workdir, "registry", "allow", "REGISTRY.example:5000"); err != nil {
+		t.Fatal(err)
+	}
+	output, err := runCLI(t, workdir, "registry", "list")
+	if err != nil || output != "registry.example:5000" {
+		t.Fatalf("registry list = %q, %v", output, err)
+	}
+	if _, err := runCLI(t, workdir, "registry", "remove", "registry.example:5000"); err != nil {
+		t.Fatal(err)
+	}
+	output, err = runCLI(t, workdir, "registry", "list")
+	if err != nil || output != "" {
+		t.Fatalf("registry list after remove = %q, %v", output, err)
+	}
+}
+
 func TestProcedureExecutionAdapterDockerEndToEnd(t *testing.T) {
 	if os.Getenv("MOKS_DOCKER_INTEGRATION") != "1" {
 		t.Skip("set MOKS_DOCKER_INTEGRATION=1 after building the pinned procedure-execution adapter image")

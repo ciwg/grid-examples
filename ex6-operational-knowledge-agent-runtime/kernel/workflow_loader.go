@@ -3,6 +3,7 @@ package kernel
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
 )
 
 const workflowManifestName = "workflow.json"
@@ -67,6 +70,8 @@ type WorkflowVerification struct {
 	Contract          string           `json:"contract"`
 	AdapterAvailable  bool             `json:"adapter_available"`
 	SchemaCASReady    bool             `json:"schema_cas_ready"`
+	RegistryAllowed   bool             `json:"registry_allowed"`
+	ImageAvailable    bool             `json:"image_available"`
 	EligibleToExecute bool             `json:"eligible_to_execute"`
 	Reason            string           `json:"reason,omitempty"`
 }
@@ -416,6 +421,22 @@ func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVeri
 		AdapterAvailable: runtime.workflowAdapterAvailable(manifest),
 		SchemaCASReady:   manifest.InputSchema != "" && manifest.OutputSchema != "",
 	}
+	registryRequired := false
+	if adapter, installed := runtime.workflowAdapters[manifest.Adapter]; installed {
+		if host, hostErr := packages.RegistryHostFromImage(adapter.Image); hostErr == nil {
+			registryRequired = true
+			for _, allowed := range runtime.RegistryAllowList() {
+				if allowed == host {
+					verification.RegistryAllowed = true
+					break
+				}
+			}
+			available, availableErr := packages.ImageAvailable(context.Background(), adapter.Image)
+			if availableErr == nil {
+				verification.ImageAvailable = available
+			}
+		}
+	}
 	if _, legacyInput := legacyWorkflowAdapterPCIDs[manifest.InputPCID]; legacyInput {
 		verification.Contract = "retained-v1"
 	}
@@ -450,6 +471,14 @@ func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVeri
 	}
 	if !verification.AdapterAvailable {
 		verification.Reason = "workflow adapter is unavailable"
+		return verification, nil
+	}
+	if registryRequired && !verification.RegistryAllowed {
+		verification.Reason = "adapter registry is not allowed"
+		return verification, nil
+	}
+	if registryRequired && !verification.ImageAvailable {
+		verification.Reason = "adapter image is not available locally"
 		return verification, nil
 	}
 	if verification.Contract == "canonical" && !verification.SchemaCASReady {

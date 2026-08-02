@@ -317,6 +317,29 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(string(output))
 		return nil
+	case matchesPrefix(args, "workflow", "image", "pull"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow image pull <alias>")
+		}
+		return runtime.PullWorkflowImage(ctx, args[3])
+	case matchesPrefix(args, "registry", "list"):
+		if len(args) != 2 {
+			return errors.New("usage: registry list")
+		}
+		for _, host := range runtime.RegistryAllowList() {
+			fmt.Println(host)
+		}
+		return nil
+	case matchesPrefix(args, "registry", "allow"):
+		if len(args) != 3 {
+			return errors.New("usage: registry allow <host>")
+		}
+		return runtime.AllowRegistry(args[2])
+	case matchesPrefix(args, "registry", "remove"):
+		if len(args) != 3 {
+			return errors.New("usage: registry remove <host>")
+		}
+		return runtime.RemoveRegistry(args[2])
 	case matchesPrefix(args, "workflow", "status"):
 		if len(args) != 3 {
 			return errors.New("usage: workflow status <alias-or-cid>")
