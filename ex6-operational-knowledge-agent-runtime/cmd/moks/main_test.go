@@ -526,6 +526,45 @@ func TestDeployedTwoNodeWorkflowRelay(t *testing.T) {
 	if !bytes.Equal(evidence, transfer.LifecycleEvent) {
 		t.Fatal("Bob lifecycle evidence bytes differ from Alice export")
 	}
+	// Intent: Exercise Bob's explicit portable-image acquisition only when the
+	// caller supplies both Docker permission and a durable registry package.
+	// Source: DI-zivut
+	if os.Getenv("MOKS_PORTABLE_REGISTRY_INTEGRATION") != "1" || os.Getenv("MOKS_DOCKER_INTEGRATION") != "1" {
+		return
+	}
+	packageDir := os.Getenv("MOKS_PORTABLE_ADAPTER_PACKAGE")
+	if packageDir == "" {
+		t.Skip("set MOKS_PORTABLE_ADAPTER_PACKAGE to a package pinned to the supplied portable registry digest")
+	}
+	registryHost := os.Getenv("MOKS_PORTABLE_REGISTRY_HOST")
+	if registryHost == "" {
+		t.Skip("set MOKS_PORTABLE_REGISTRY_HOST to the exact registry host named by the supplied package")
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "package", "install", packageDir); err != nil {
+		t.Fatalf("install Bob procedure adapter package: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "registry", "allow", registryHost); err != nil {
+		t.Fatalf("allow Bob procedure adapter registry: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "workflow", "import", "procedure-execution", captured[0].ArtifactCID); err != nil {
+		t.Fatalf("import Bob transferred workflow: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "workflow", "activate", "procedure-execution"); err != nil {
+		t.Fatalf("activate Bob workflow: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "workflow", "image", "pull", "procedure-execution"); err != nil {
+		t.Fatalf("pull Bob adapter image: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "procedures", "create", "proc-1", "DockCheck", "dock-intake"); err != nil {
+		t.Fatalf("seed Bob procedure: %v", err)
+	}
+	if _, err := runDeployedMoksResult(binary, bobDir, "workflow", "run", "start", "procedure-execution", "procedure_id", "proc-1", "run_id", "run-1", "actor", "bob", "outcome", "completed", "notes", "received"); err != nil {
+		t.Fatalf("run Bob pulled adapter: %v", err)
+	}
+	runOutput := runDeployedMoks(t, binary, bobDir, "runs", "inspect", "run-1")
+	if !strings.Contains(runOutput, "actor: bob") || !strings.Contains(runOutput, "notes: received") {
+		t.Fatalf("Bob run did not retain adapter result: %s", runOutput)
+	}
 }
 
 type deployedRelayNode struct {
