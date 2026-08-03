@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -118,6 +119,244 @@ func TestWorkflowVerifyReportsExecutionReadiness(t *testing.T) {
 	}
 	if !active.EligibleToExecute {
 		t.Fatalf("active verification = %s", output)
+	}
+}
+
+func TestWorkflowOverviewSummarizesInboxAndNextImport(t *testing.T) {
+	workdir := t.TempDir()
+	source, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer func() {
+		if closeErr := source.Close(); closeErr != nil {
+			t.Errorf("close source: %v", closeErr)
+		}
+	}()
+	target, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open target: %v", err)
+	}
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:            source.LocalPeerID(),
+		BatchURL:          "https://source.invalid/relay/batch",
+		ImportURL:         "https://source.invalid/relay/import",
+		PublicKey:         source.LocalPeerPublicKey(),
+		AllowPush:         true,
+		AttesterClass:     "peer",
+		AttestationWeight: 1,
+		Federation:        "independent",
+	}); err != nil {
+		t.Fatalf("allow source: %v", err)
+	}
+	artifact, err := source.PutCAS([]byte("overview inbox workflow artifact"))
+	if err != nil {
+		t.Fatalf("store source artifact: %v", err)
+	}
+	if err := source.ImportWorkflow(kernel.Workflow{ID: "source-overview", ArtifactCID: artifact}); err != nil {
+		t.Fatalf("import source workflow: %v", err)
+	}
+	transfer, err := source.ExportWorkflowTransfer("source-overview")
+	if err != nil {
+		t.Fatalf("export source workflow: %v", err)
+	}
+	if err := target.ImportWorkflowTransferFromPeer(source.LocalPeerID(), transfer); err != nil {
+		t.Fatalf("receive source workflow: %v", err)
+	}
+	if closeErr := target.Close(); closeErr != nil {
+		t.Fatalf("close target: %v", closeErr)
+	}
+	overview, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("workflow overview: %v", err)
+	}
+	for _, expected := range []string{
+		"WORKFLOW OVERVIEW",
+		"[inbox] " + transfer.ArtifactCID + " — ready to import",
+		"NEXT: moks workflow inbox import " + transfer.ArtifactCID + " <alias>",
+	} {
+		if !strings.Contains(overview, expected) {
+			t.Fatalf("overview missing %q: %s", expected, overview)
+		}
+	}
+	if _, err := runCLI(t, workdir, "workflow", "inbox", "import", transfer.ArtifactCID, "received-overview"); err != nil {
+		t.Fatalf("import overview inbox: %v", err)
+	}
+	overview, err = runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("overview after inbox import: %v", err)
+	}
+	if strings.Contains(overview, "[inbox] "+transfer.ArtifactCID) || !strings.Contains(overview, "Needs attention: 1") || !strings.Contains(overview, "NEXT: moks workflow verify received-overview") {
+		t.Fatalf("overview retains imported inbox attention: %s", overview)
+	}
+}
+
+func TestWorkflowOverviewSelectsFirstImportableInboxArtifact(t *testing.T) {
+	workdir := t.TempDir()
+	source, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer func() {
+		if closeErr := source.Close(); closeErr != nil {
+			t.Errorf("close source: %v", closeErr)
+		}
+	}()
+	target, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open target: %v", err)
+	}
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:            source.LocalPeerID(),
+		BatchURL:          "https://source.invalid/relay/batch",
+		ImportURL:         "https://source.invalid/relay/import",
+		PublicKey:         source.LocalPeerPublicKey(),
+		AllowPush:         true,
+		AttesterClass:     "peer",
+		AttestationWeight: 1,
+		Federation:        "independent",
+	}); err != nil {
+		t.Fatalf("allow source: %v", err)
+	}
+	artifactCIDs := make([]string, 0, 2)
+	for _, fixture := range []struct {
+		alias string
+		body  string
+	}{
+		{alias: "source-first", body: "first overview inbox workflow artifact"},
+		{alias: "source-second", body: "second overview inbox workflow artifact"},
+	} {
+		artifactCID, err := source.PutCAS([]byte(fixture.body))
+		if err != nil {
+			t.Fatalf("store source artifact: %v", err)
+		}
+		if err := source.ImportWorkflow(kernel.Workflow{ID: fixture.alias, ArtifactCID: artifactCID}); err != nil {
+			t.Fatalf("import source workflow: %v", err)
+		}
+		transfer, err := source.ExportWorkflowTransfer(fixture.alias)
+		if err != nil {
+			t.Fatalf("export source workflow: %v", err)
+		}
+		if err := target.ImportWorkflowTransferFromPeer(source.LocalPeerID(), transfer); err != nil {
+			t.Fatalf("receive source workflow: %v", err)
+		}
+		artifactCIDs = append(artifactCIDs, transfer.ArtifactCID)
+	}
+	if closeErr := target.Close(); closeErr != nil {
+		t.Fatalf("close target: %v", closeErr)
+	}
+	slices.Sort(artifactCIDs)
+	overview, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("workflow overview: %v", err)
+	}
+	if !strings.Contains(overview, "NEXT: moks workflow inbox import "+artifactCIDs[0]+" <alias>") {
+		t.Fatalf("overview did not select first importable inbox artifact: %s", overview)
+	}
+}
+
+func TestWorkflowOverviewReportsEmptyRuntimeDeterministically(t *testing.T) {
+	workdir := t.TempDir()
+	first, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("first workflow overview: %v", err)
+	}
+	second, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("second workflow overview: %v", err)
+	}
+	if first != second {
+		t.Fatalf("overview is not deterministic:\nfirst:\n%s\nsecond:\n%s", first, second)
+	}
+	for _, expected := range []string{
+		"Ready: 0 active workflows",
+		"Needs attention: 0",
+		"Recent activity: none",
+		"NEXT: no action required",
+	} {
+		if !strings.Contains(first, expected) {
+			t.Fatalf("overview missing %q: %s", expected, first)
+		}
+	}
+}
+
+func TestWorkflowOverviewListsReadyWorkflow(t *testing.T) {
+	workdir := t.TempDir()
+	sourceDir := filepath.Join(repoRoot(t), "workflows", "inventory-receipt")
+	if _, err := runCLI(t, workdir, "workflow", "capture", sourceDir, "inventory-receipt"); err != nil {
+		t.Fatalf("capture workflow: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "activate", "inventory-receipt"); err != nil {
+		t.Fatalf("activate workflow: %v", err)
+	}
+	overview, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("workflow overview: %v", err)
+	}
+	if !strings.Contains(overview, "Ready: 1 active workflows") || !strings.Contains(overview, "[ready] inventory-receipt") {
+		t.Fatalf("ready overview = %s", overview)
+	}
+}
+
+func TestWorkflowOverviewPrioritizesSchemaReadinessBeforeActivation(t *testing.T) {
+	workdir := t.TempDir()
+	workflowDir := filepath.Join(t.TempDir(), "workflow")
+	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
+		t.Fatalf("make workflow directory: %v", err)
+	}
+	manifest := `{
+  "id":"overview-schema",
+  "version":"1.0.0",
+  "summary":"Overview schema prerequisite test.",
+  "required_packages":[],
+  "required_protocols":[],
+  "adapter":"inventory-receipt",
+  "input_pcid":"bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne",
+  "output_pcid":"bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
+}`
+	if err := os.WriteFile(filepath.Join(workflowDir, "workflow.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write workflow manifest: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "capture", workflowDir, "overview-schema"); err != nil {
+		t.Fatalf("capture workflow: %v", err)
+	}
+	overview, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("workflow overview: %v", err)
+	}
+	if !strings.Contains(overview, "[workflow] overview-schema — canonical workflow schemas are not ready in CAS") || !strings.Contains(overview, "NEXT: moks workflow verify overview-schema") {
+		t.Fatalf("schema-blocked overview = %s", overview)
+	}
+}
+
+func TestWorkflowOverviewReportsDependencyFailureBeforeGenericAdapterBlocker(t *testing.T) {
+	workdir := t.TempDir()
+	workflowDir := filepath.Join(t.TempDir(), "workflow")
+	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
+		t.Fatalf("make workflow directory: %v", err)
+	}
+	manifest := `{
+  "id":"overview-dependency",
+  "version":"1.0.0",
+  "summary":"Overview dependency prerequisite test.",
+  "required_packages":["missing-package"],
+  "required_protocols":[],
+  "adapter":"missing-adapter",
+  "input_pcid":"bafkreie3xn5cs7in24a5aenl7kpyaa22e346wr4tcqm4evxgcn2v55yvne",
+  "output_pcid":"bafkreibkoh3hdusvgscanho5rchq4esqjhd5kcbopnzzedhd7sgvime4ne"
+}`
+	if err := os.WriteFile(filepath.Join(workflowDir, "workflow.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write workflow manifest: %v", err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "capture", workflowDir, "overview-dependency"); err != nil {
+		t.Fatalf("capture workflow: %v", err)
+	}
+	overview, err := runCLI(t, workdir, "workflow", "overview")
+	if err != nil {
+		t.Fatalf("workflow overview: %v", err)
+	}
+	if !strings.Contains(overview, "[workflow] overview-dependency — required package is not active: missing-package") || !strings.Contains(overview, "NEXT: moks workflow verify overview-dependency") {
+		t.Fatalf("dependency-blocked overview = %s", overview)
 	}
 }
 

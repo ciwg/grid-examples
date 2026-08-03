@@ -8,11 +8,82 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
 	"github.com/ipfs/go-cid"
 )
+
+func TestWorkflowRunsOrderByDurableEventTimeAndRetainV1Heads(t *testing.T) {
+	newerTime := time.Unix(200, 0).UTC()
+	olderTime := time.Unix(100, 0).UTC()
+	newer := WorkflowRun{ID: "newer", Workflow: "newer", UpdatedAt: &newerTime}
+	older := WorkflowRun{ID: "older", Workflow: "older", UpdatedAt: &olderTime}
+	legacy := WorkflowRun{ID: "legacy", Workflow: "legacy"}
+	runtime := &Runtime{workflowRuns: &WorkflowRunRegistry{runs: map[string]WorkflowRun{
+		newer.ID:  newer,
+		older.ID:  older,
+		legacy.ID: legacy,
+	}}}
+	runs := runtime.WorkflowRuns()
+	if len(runs) != 3 || runs[0].ID != newer.ID || runs[1].ID != older.ID || runs[2].ID != legacy.ID {
+		t.Fatalf("recent run order = %#v", runs)
+	}
+	legacyJSON, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal retained v1 run: %v", err)
+	}
+	if strings.Contains(string(legacyJSON), "updated_at") {
+		t.Fatalf("retained v1 JSON reports an invented time: %s", legacyJSON)
+	}
+
+	root := t.TempDir()
+	cas, err := store.OpenCAS(root)
+	if err != nil {
+		t.Fatalf("open CAS: %v", err)
+	}
+	nonce, err := records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowRunProtocolV1CID, Slots: []any{"workflow-run-nonce", make([]byte, 32)}})
+	if err != nil {
+		t.Fatalf("encode retained v1 nonce: %v", err)
+	}
+	runCID, err := cas.PutCID(nonce)
+	if err != nil {
+		t.Fatalf("store retained v1 nonce: %v", err)
+	}
+	handoff, err := EncodeWorkflowHandoff(WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "legacy"}})
+	if err != nil {
+		t.Fatalf("encode retained v1 handoff: %v", err)
+	}
+	inputCID, err := cas.PutCID(handoff)
+	if err != nil {
+		t.Fatalf("store retained v1 handoff: %v", err)
+	}
+	legacyRaw, err := records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowRunProtocolV1CID, Slots: []any{
+		string(WorkflowRunRunning), runCID.Bytes(), "legacy", inputCID.Bytes(), []byte{}, "", []any{},
+	}})
+	if err != nil {
+		t.Fatalf("encode retained v1 event: %v", err)
+	}
+	decoded, err := decodeWorkflowRunEvent(legacyRaw)
+	if err != nil {
+		t.Fatalf("decode retained v1 event: %v", err)
+	}
+	if !decoded.RecordedAt.IsZero() {
+		t.Fatalf("retained v1 time = %s, want zero", decoded.RecordedAt)
+	}
+	if _, err := cas.PutCID(legacyRaw); err != nil {
+		t.Fatalf("store retained v1 event: %v", err)
+	}
+	registry, err := OpenWorkflowRunRegistry(filepath.Join(root, "state"), cas)
+	if err != nil {
+		t.Fatalf("replay retained v1 event: %v", err)
+	}
+	if run, ok := registry.get(runCID.String()); !ok || run.UpdatedAt != nil {
+		t.Fatalf("replayed retained v1 run = %#v, found=%t", run, ok)
+	}
+}
 
 func TestWorkflowRunRequiresActiveArtifact(t *testing.T) {
 	root := t.TempDir()
@@ -163,7 +234,7 @@ func TestWorkflowRunRebuildsAfterRestartAndDeletedCache(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if replayed.State != WorkflowRunCompleted || replayed.OutputCID == "" {
+	if replayed.State != WorkflowRunCompleted || replayed.OutputCID == "" || replayed.UpdatedAt == nil {
 		t.Fatalf("replayed run = %#v", replayed)
 	}
 }

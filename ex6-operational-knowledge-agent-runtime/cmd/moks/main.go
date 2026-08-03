@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/builtin"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/grid"
@@ -45,6 +46,124 @@ func workflowsPrint(workflows []kernel.Workflow) error {
 	}
 	fmt.Println(string(output))
 	return nil
+}
+
+// workflowOverview renders the read-only, human-first workflow briefing.
+// Intent: Give operators one deterministic status screen and one safe next
+// command without making overview another lifecycle authority. Source: DI-sotad
+func workflowOverview(runtime *kernel.Runtime) (string, error) {
+	var output strings.Builder
+	ready := make([]string, 0)
+	attention := make([]string, 0)
+	next := "no action required"
+	for _, workflow := range runtime.Workflows() {
+		verification, err := runtime.VerifyWorkflowReadiness(workflow.ID)
+		if err != nil {
+			attention = append(attention, fmt.Sprintf("[workflow] %s — %v", workflow.ID, err))
+			if next == "no action required" {
+				next = "moks workflow verify " + workflow.ID
+			}
+			continue
+		}
+		if verification.EligibleToExecute {
+			ready = append(ready, workflow.ID)
+			continue
+		}
+		reason := workflowOverviewBlocker(verification)
+		attention = append(attention, fmt.Sprintf("[workflow] %s — %s", workflow.ID, reason))
+		if next == "no action required" {
+			switch {
+			case verification.Reason != "" && verification.Reason != "workflow is not active":
+				next = "moks workflow verify " + workflow.ID
+			case verification.Contract == "canonical" && !verification.SchemaCASReady:
+				next = "moks workflow verify " + workflow.ID
+			case verification.ImageRequired && !verification.RegistryAllowed:
+				next = "moks workflow verify " + workflow.ID
+			case verification.ImageRequired && !verification.ImageAvailable:
+				next = "moks workflow image pull " + workflow.ID
+			case workflow.State == kernel.WorkflowImported && reason == "workflow is not active":
+				next = "moks workflow activate " + workflow.ID
+			}
+		}
+	}
+	inbox, err := runtime.ScanWorkflowInbox()
+	if err != nil {
+		return "", err
+	}
+	inboxNextSelected := false
+	for _, entry := range inbox {
+		if entry.AlreadyImported {
+			continue
+		}
+		detail := entry.Reason
+		if entry.ReadyToImport && !entry.AlreadyImported {
+			detail = "ready to import"
+			if !inboxNextSelected {
+				// Intent: Preserve the first CID-sorted importable receipt as the
+				// single deterministic inbox action. Source: DI-sotad
+				next = "moks workflow inbox import " + entry.ArtifactCID + " <alias>"
+				inboxNextSelected = true
+			}
+		} else if entry.AlreadyImported {
+			detail = "already imported"
+		}
+		if detail == "" {
+			detail = "not ready"
+		}
+		attention = append(attention, fmt.Sprintf("[inbox] %s — %s", entry.ArtifactCID, detail))
+	}
+	fmt.Fprintln(&output, "WORKFLOW OVERVIEW")
+	fmt.Fprintln(&output)
+	fmt.Fprintf(&output, "Ready: %d active workflows\n", len(ready))
+	for _, workflowID := range ready {
+		fmt.Fprintf(&output, "  [ready] %s\n", workflowID)
+	}
+	fmt.Fprintln(&output)
+	fmt.Fprintf(&output, "Needs attention: %d\n", len(attention))
+	for _, line := range attention {
+		fmt.Fprintf(&output, "  %s\n", line)
+	}
+	fmt.Fprintln(&output)
+	runs := runtime.WorkflowRuns()
+	if len(runs) == 0 {
+		fmt.Fprintln(&output, "Recent activity: none")
+	} else {
+		fmt.Fprintf(&output, "Recent activity: %d\n", len(runs))
+		for _, run := range runs {
+			when := "retained v1 (time unavailable)"
+			if run.UpdatedAt != nil {
+				when = run.UpdatedAt.UTC().Format(time.RFC3339Nano)
+			}
+			fmt.Fprintf(&output, "  [%s] %s — %s\n", run.State, run.Workflow, when)
+		}
+	}
+	fmt.Fprintln(&output)
+	fmt.Fprintln(&output, "NEXT: "+next)
+	return output.String(), nil
+}
+
+// workflowOverviewBlocker exposes execution prerequisites before lifecycle
+// state so NEXT can repair readiness rather than merely activate an artifact.
+// Intent: Keep the overview's action order aligned with operator safety.
+// Source: DI-sotad
+func workflowOverviewBlocker(verification kernel.WorkflowVerification) string {
+	if verification.Reason != "" && verification.Reason != "workflow is not active" {
+		return verification.Reason
+	}
+	switch {
+	case verification.Contract == "canonical" && !verification.SchemaCASReady:
+		return "canonical workflow schemas are not ready in CAS"
+	case !verification.AdapterAvailable:
+		return "workflow adapter is unavailable"
+	case verification.ImageRequired && !verification.RegistryAllowed:
+		return "adapter registry is not allowed"
+	case verification.ImageRequired && !verification.ImageAvailable:
+		return "adapter image is not available locally"
+	case verification.Reason != "":
+		return verification.Reason
+	default:
+		return "not ready"
+	}
 }
 
 func workflowDemo(ctx context.Context, workflowID string) error {
@@ -271,6 +390,16 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 		return workflowPrint(workflow)
+	case matchesPrefix(args, "workflow", "overview"):
+		if len(args) != 2 {
+			return errors.New("usage: workflow overview")
+		}
+		overview, err := workflowOverview(runtime)
+		if err != nil {
+			return err
+		}
+		fmt.Print(overview)
+		return nil
 	case matchesPrefix(args, "workflow", "import"):
 		if len(args) != 4 {
 			return errors.New("usage: workflow import <alias> <artifact-cid>")

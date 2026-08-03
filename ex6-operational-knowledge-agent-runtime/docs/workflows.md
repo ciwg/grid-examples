@@ -7,6 +7,11 @@ the local runtime's decision to retain or make that artifact available.
 
 Source: DI-lovek; DI-bavuk.
 
+Workflow-run heads retain a local UTC event timestamp under the v2 run-event
+selector. `moks workflow overview` uses it for newest-first Recent activity;
+retained v1 heads remain visible as `time unavailable` rather than being given
+invented chronology. Source: DI-gihor.
+
 ## Proposed layout
 
 Each workflow lives in its own self-contained directory:
@@ -222,6 +227,11 @@ artifact/evidence pairs through `workflow inbox list` and `workflow inbox
 inspect <artifact-cid>`; only `workflow inbox import <artifact-cid> <alias>`
 creates a local import. Source: `DI-harib`; `DI-hapak`; `DI-zivut`;
 `DI-jifuk`; `DI-rufir`.
+
+`moks workflow overview` is the human-first, read-only team briefing over
+workflow readiness, inbox attention, current runs, and one safe `NEXT:`
+command. It does not change lifecycle state or perform network work. Source:
+`DI-sotad`.
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

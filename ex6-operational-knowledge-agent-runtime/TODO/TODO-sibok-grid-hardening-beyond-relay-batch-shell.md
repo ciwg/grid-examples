@@ -148,6 +148,24 @@ Intent: Make trust stronger than raw local weights by letting an importing runti
 Constraints: Federation labels remain local metadata on known peers; spread is counted by distinct federation labels among matched attesters; do not claim global federation discovery, federation PKI, or cross-runtime consensus semantics.
 Affects: `grid/peers.go`, `grid/policy.go`, `kernel/runtime.go`, `cmd/moks`, runtime and CLI tests, README, and ex6 current-state docs.
 
+ID: DI-sotad
+Date: 2026-08-03 08:06:34 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Ship `moks workflow overview` first as a human-first, read-only operator screen whose `NEXT:` line names `moks workflow inbox import <cid> <alias>` when a received artifact is ready.
+Intent: Give a boss and team one clear workflow status briefing without requiring CID-oriented command assembly or allowing overview to change runtime state.
+Constraints: No JSON mode, terminal UI, network call, pull, import, activation, or execution in the first slice; preserve existing commands as authoritative detail views.
+Affects: workflow CLI, overview renderer/tests, operator documentation, and `docs/thought-experiments/TE-nakum-workflow-overview-operator-flow.md`.
+
+ID: DI-gihor
+Date: 2026-08-03 08:11:58 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Make the overview's Recent activity section order workflow-run heads by a durable UTC timestamp recorded in a new v2 run-event selector; retain and display v1 heads with time unavailable.
+Intent: Give operators an honest recent-activity view without treating content-address order as chronology or invalidating retained CAS history.
+Constraints: New events use the v2 selector and eight slots; replay accepts v1 seven-slot events; timestamps are local projection ordering evidence, not distributed clock truth; overview remains read-only and human-only.
+Affects: `kernel/workflow_runs.go`, `kernel/runtime.go`, `cmd/moks/main.go`, run/CLI tests, `docs/protocols/workflow-run-v2.md`, and operator documentation.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.

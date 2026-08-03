@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
@@ -19,10 +20,12 @@ import (
 )
 
 const WorkflowHandoffProtocolPCID = "bafkreiahdp34nto2rnnqde26jw3xnkd6xnlalnr72sug3w7tjb3bhhoj4q"
-const WorkflowRunProtocolPCID = "bafkreifmttp5fwt3yvxvkb7ni6kwg3j3arl7mbjsyzszf7s7crxrncch24"
+const WorkflowRunProtocolV1PCID = "bafkreifmttp5fwt3yvxvkb7ni6kwg3j3arl7mbjsyzszf7s7crxrncch24"
+const WorkflowRunProtocolPCID = "bafkreiejstdppcv25xazlzgszwrnjrf6rmnn3sosomkwhushkml3weit64"
 const WorkflowAdapterResultProtocolPCID = "bafkreidkwfyyc4ch7n62uuny4cuge57l5rne55yelecpodjajxbqwzhthq"
 
 var workflowHandoffProtocolCID = cid.MustParse(WorkflowHandoffProtocolPCID)
+var workflowRunProtocolV1CID = cid.MustParse(WorkflowRunProtocolV1PCID)
 var workflowRunProtocolCID = cid.MustParse(WorkflowRunProtocolPCID)
 var workflowAdapterResultProtocolCID = cid.MustParse(WorkflowAdapterResultProtocolPCID)
 
@@ -191,18 +194,23 @@ type WorkflowRun struct {
 	OutputCID string           `json:"output_cid,omitempty"`
 	Reason    string           `json:"reason,omitempty"`
 	EventCID  string           `json:"event_cid"`
+	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
 }
 type workflowRunEvent struct {
-	RunCID   cid.Cid
-	Workflow string
-	State    WorkflowRunState
-	Input    cid.Cid
-	Output   cid.Cid
-	Reason   string
-	Parents  []cid.Cid
+	RunCID     cid.Cid
+	Workflow   string
+	State      WorkflowRunState
+	Input      cid.Cid
+	Output     cid.Cid
+	Reason     string
+	Parents    []cid.Cid
+	RecordedAt time.Time
 }
 
 func encodeWorkflowRunEvent(event workflowRunEvent) ([]byte, error) {
+	if event.RecordedAt.IsZero() {
+		event.RecordedAt = time.Now().UTC()
+	}
 	if event.Workflow == "" || event.RunCID.Version() != 1 || event.Input.Version() != 1 || len(event.Parents) > 1 || !validWorkflowRunState(event.State) || (event.State != WorkflowRunRunning && len(event.Parents) != 1) {
 		return nil, errors.New("invalid workflow run event")
 	}
@@ -217,7 +225,7 @@ func encodeWorkflowRunEvent(event workflowRunEvent) ([]byte, error) {
 	if event.Output.Defined() {
 		output = event.Output.Bytes()
 	}
-	return records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowRunProtocolCID, Slots: []any{string(event.State), event.RunCID.Bytes(), event.Workflow, event.Input.Bytes(), output, event.Reason, parents}})
+	return records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowRunProtocolCID, Slots: []any{string(event.State), event.RunCID.Bytes(), event.Workflow, event.Input.Bytes(), output, event.Reason, parents, uint64(event.RecordedAt.UnixNano())}})
 }
 
 func validWorkflowRunState(state WorkflowRunState) bool {
@@ -247,7 +255,7 @@ func isRetainedWorkflowRunNonce(cas *store.CAS, runCID cid.Cid) bool {
 		return false
 	}
 	envelope, err := records.DecodeGrid(body)
-	if err != nil || envelope.ProtocolPCID != workflowRunProtocolCID || len(envelope.Slots) != 2 {
+	if err != nil || (envelope.ProtocolPCID != workflowRunProtocolCID && envelope.ProtocolPCID != workflowRunProtocolV1CID) || len(envelope.Slots) != 2 {
 		return false
 	}
 	label, labelOK := envelope.Slots[0].(string)
@@ -267,7 +275,11 @@ func decodeWorkflowRunEvent(raw []byte) (workflowRunEvent, error) {
 	if err != nil {
 		return workflowRunEvent{}, err
 	}
-	if envelope.ProtocolPCID != workflowRunProtocolCID || len(envelope.Slots) != 7 {
+	if envelope.ProtocolPCID != workflowRunProtocolCID && envelope.ProtocolPCID != workflowRunProtocolV1CID {
+		return workflowRunEvent{}, errors.New("invalid workflow run envelope")
+	}
+	legacy := envelope.ProtocolPCID == workflowRunProtocolV1CID
+	if (legacy && len(envelope.Slots) != 7) || (!legacy && len(envelope.Slots) != 8) {
 		return workflowRunEvent{}, errors.New("invalid workflow run envelope")
 	}
 	state, ok := envelope.Slots[0].(string)
@@ -326,8 +338,21 @@ func decodeWorkflowRunEvent(raw []byte) (workflowRunEvent, error) {
 		parents = append(parents, parent)
 	}
 	event := workflowRunEvent{RunCID: runCID, Workflow: workflow, State: WorkflowRunState(state), Input: input, Output: output, Reason: reason, Parents: parents}
-	if _, err = encodeWorkflowRunEvent(event); err != nil {
-		return workflowRunEvent{}, err
+	if !legacy {
+		recordedAt, timestampOK := envelope.Slots[7].(uint64)
+		if !timestampOK || recordedAt == 0 || recordedAt > uint64(^uint64(0)>>1) {
+			return workflowRunEvent{}, errors.New("workflow run time must be a Unix nanosecond timestamp")
+		}
+		event.RecordedAt = time.Unix(0, int64(recordedAt)).UTC()
+		if event.RecordedAt.IsZero() {
+			return workflowRunEvent{}, errors.New("workflow run time is required")
+		}
+	}
+	if event.Workflow == "" || event.RunCID.Version() != 1 || event.Input.Version() != 1 || len(event.Parents) > 1 || !validWorkflowRunState(event.State) || (event.State != WorkflowRunRunning && len(event.Parents) != 1) {
+		return workflowRunEvent{}, errors.New("invalid workflow run event")
+	}
+	if event.State == WorkflowRunCompleted && !event.Output.Defined() {
+		return workflowRunEvent{}, errors.New("completed workflow run event requires output")
 	}
 	return event, nil
 }
@@ -408,6 +433,10 @@ func (registry *WorkflowRunRegistry) rebuild() error {
 			return errors.New("workflow run has competing heads")
 		}
 		run := WorkflowRun{ID: runID, Workflow: event.Workflow, State: event.State, InputCID: event.Input.String(), Reason: event.Reason, EventCID: id.String()}
+		if !event.RecordedAt.IsZero() {
+			updatedAt := event.RecordedAt
+			run.UpdatedAt = &updatedAt
+		}
 		if event.Output.Defined() {
 			run.OutputCID = event.Output.String()
 		}
@@ -440,6 +469,9 @@ func (registry *WorkflowRunRegistry) cacheLocked() error {
 	return os.WriteFile(registry.cachePath, append(raw, '\n'), 0644)
 }
 func (registry *WorkflowRunRegistry) append(event workflowRunEvent) (WorkflowRun, error) {
+	if event.RecordedAt.IsZero() {
+		event.RecordedAt = time.Now().UTC()
+	}
 	raw, err := encodeWorkflowRunEvent(event)
 	if err != nil {
 		return WorkflowRun{}, err
@@ -461,6 +493,8 @@ func (registry *WorkflowRunRegistry) append(event workflowRunEvent) (WorkflowRun
 		return WorkflowRun{}, err
 	}
 	run := WorkflowRun{ID: event.RunCID.String(), Workflow: event.Workflow, State: event.State, InputCID: event.Input.String(), Reason: event.Reason, EventCID: eventCID.String()}
+	updatedAt := event.RecordedAt
+	run.UpdatedAt = &updatedAt
 	if event.Output.Defined() {
 		run.OutputCID = event.Output.String()
 	}

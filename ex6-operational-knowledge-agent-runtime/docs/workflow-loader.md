@@ -55,9 +55,14 @@ not.
 Inspect the current local basket with:
 
     go run ./cmd/moks workflow list
+    go run ./cmd/moks workflow overview
     go run ./cmd/moks workflow inspect <alias-or-cid>
     go run ./cmd/moks workflow inbox list
     go run ./cmd/moks workflow inbox inspect <artifact-cid>
+
+`moks workflow overview` is a read-only human briefing. Its Recent activity
+section orders current run heads by their durable local UTC event time; retained
+v1 run events report that their time is unavailable. Source: DI-gihor.
 
 ## What exists now
 
@@ -96,6 +101,7 @@ The same valid directory must always produce the same bytes and artifact CID.
 Expose the basket through a workflow command family:
 
     moks workflow capture <directory>
+    moks workflow overview
     moks workflow import <alias> <artifact-cid>
     moks workflow inbox list
     moks workflow inbox inspect <artifact-cid>

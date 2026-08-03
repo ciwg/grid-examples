@@ -605,7 +605,21 @@ func (runtime *Runtime) WorkflowRuns() []WorkflowRun {
 	for _, run := range runtime.workflowRuns.runs {
 		runs = append(runs, run)
 	}
-	slices.SortFunc(runs, func(a, b WorkflowRun) int { return strings.Compare(a.ID, b.ID) })
+	// Intent: Present current run heads in operator-relevant event order while
+	// retaining a stable identifier tie break and readable v1 history. Source: DI-gihor
+	slices.SortFunc(runs, func(a, b WorkflowRun) int {
+		switch {
+		case a.UpdatedAt == nil && b.UpdatedAt != nil:
+			return 1
+		case a.UpdatedAt != nil && b.UpdatedAt == nil:
+			return -1
+		case a.UpdatedAt != nil && b.UpdatedAt != nil:
+			if comparison := b.UpdatedAt.Compare(*a.UpdatedAt); comparison != 0 {
+				return comparison
+			}
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
 	return runs
 }
 

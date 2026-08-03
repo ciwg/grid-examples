@@ -78,9 +78,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-zumep`; 
 - pull or push remain disabled until an explicit `moks relay peer allow ...` command changes policy
 - `moks workflow relay push <alias> <peer-id>` transfers an exact workflow artifact and the sender's signed lifecycle evidence to an allowed peer; the receiver retains the artifact plus local authenticated receipt metadata but does not import or activate it
 - `moks workflow inbox list`, `inspect <artifact-cid>`, and `import <artifact-cid> <alias>` make retained receipt evidence visible and require a separate local import decision
+- `moks workflow overview` is the read-only team briefing for readiness, inbox attention, current runs, and one safe next command
 - claim attestation trust is local too: `moks relay peer classify ...` assigns class/weight, `moks relay peer federate ...` assigns federation, and `moks relay policy claim set-federated ...` decides what spread is enough before import
 
-Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-novuk`; `DI-jifuk`; `DI-rufir`.
+Source: `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-movek`; `DI-ravok`; `DI-rumek`; `DI-novuk`; `DI-jifuk`; `DI-rufir`; `DI-sotad`.
 
 ## Route Inspection
 

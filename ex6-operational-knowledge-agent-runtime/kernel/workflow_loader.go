@@ -71,6 +71,7 @@ type WorkflowVerification struct {
 	AdapterAvailable  bool             `json:"adapter_available"`
 	SchemaCASReady    bool             `json:"schema_cas_ready"`
 	RegistryAllowed   bool             `json:"registry_allowed"`
+	ImageRequired     bool             `json:"image_required"`
 	ImageAvailable    bool             `json:"image_available"`
 	EligibleToExecute bool             `json:"eligible_to_execute"`
 	Reason            string           `json:"reason,omitempty"`
@@ -425,6 +426,7 @@ func (runtime *Runtime) VerifyWorkflowReadiness(aliasOrCID string) (WorkflowVeri
 	if adapter, installed := runtime.workflowAdapters[manifest.Adapter]; installed {
 		if host, hostErr := packages.RegistryHostFromImage(adapter.Image); hostErr == nil {
 			registryRequired = true
+			verification.ImageRequired = true
 			for _, allowed := range runtime.RegistryAllowList() {
 				if allowed == host {
 					verification.RegistryAllowed = true

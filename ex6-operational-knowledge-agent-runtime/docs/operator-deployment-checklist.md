@@ -8,6 +8,12 @@ operator decisions. Source: `DI-lovek`; `DI-novuk`; `DI-harib`; `DI-zivut`.
 ## 1. Local workflow use
 
 - [ ] Start from the EX6 root in a clean working directory.
+- [ ] Begin with the read-only team briefing. It reports readiness, inbox
+  attention, current runs, and one safe `NEXT:` command. Source: `DI-sotad`.
+
+  ```bash
+  go run ./cmd/moks workflow overview
+  ```
 - [ ] Capture or import a workflow artifact.
 
   ```bash
@@ -61,6 +67,11 @@ operator decisions. Source: `DI-lovek`; `DI-novuk`; `DI-harib`; `DI-zivut`.
   ```
 
 - [ ] Then verify and activate that local alias as separate actions.
+
+- [ ] Use `moks workflow overview` for a human-readable current status view.
+  Its Recent activity section is newest-first by durable local run-event time;
+  retained v1 heads explicitly show when no event time is available. Source:
+  `DI-gihor`.
 
 ## 3. Optional portable Docker adapter image
 
