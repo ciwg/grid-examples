@@ -23,10 +23,13 @@ An allowed peer can additionally transfer an exact artifact plus signed
 lifecycle evidence through `moks workflow relay push <alias> <peer-id>`. The
 receiver verifies the configured peer identity and signature, retains the
 artifact in its own CAS, and retains the sender's lifecycle bytes in
-`<runtime root>/workflow-evidence`. It does not import or activate the workflow:
-that availability decision remains local.
+`<runtime root>/workflow-evidence`, with local authenticated sender identities in
+`<runtime root>/state/workflow-receipts.json`. It does not import or activate
+the workflow: that availability decision remains local. The receiver uses the
+CAS-derived inbox commands to inspect one retained artifact and only then makes
+an explicit local import decision.
 
-Source: DI-novuk.
+Source: DI-novuk; DI-jifuk; DI-rufir.
 
 The artifact CID is the identity of the exact archived directory. The local
 alias is an operator-facing name only. Deactivation or revocation removes local
@@ -53,6 +56,8 @@ Inspect the current local basket with:
 
     go run ./cmd/moks workflow list
     go run ./cmd/moks workflow inspect <alias-or-cid>
+    go run ./cmd/moks workflow inbox list
+    go run ./cmd/moks workflow inbox inspect <artifact-cid>
 
 ## What exists now
 
@@ -92,6 +97,9 @@ Expose the basket through a workflow command family:
 
     moks workflow capture <directory>
     moks workflow import <alias> <artifact-cid>
+    moks workflow inbox list
+    moks workflow inbox inspect <artifact-cid>
+    moks workflow inbox import <artifact-cid> <alias>
     moks workflow list
     moks workflow inspect <alias-or-cid>
     moks workflow verify <alias-or-cid>

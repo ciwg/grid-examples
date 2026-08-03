@@ -217,8 +217,11 @@ Portable registry-backed adapters require a local `moks registry allow <host>`
 entry. `moks workflow verify <alias>` reports that policy and exact local image
 availability without changing Docker state. `moks workflow image pull <alias>`
 is the separate, explicit pull-and-digest-verification step; neither command
-activates a received workflow or starts a run. Source: `DI-harib`; `DI-hapak`;
-`DI-zivut`.
+activates a received workflow or starts a run. A receiver can inspect retained
+artifact/evidence pairs through `workflow inbox list` and `workflow inbox
+inspect <artifact-cid>`; only `workflow inbox import <artifact-cid> <alias>`
+creates a local import. Source: `DI-harib`; `DI-hapak`; `DI-zivut`;
+`DI-jifuk`; `DI-rufir`.
 
 The complete generic loader contract is documented in
 [Workflow Loader: The Basket](./workflow-loader.md).

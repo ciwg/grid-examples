@@ -10,6 +10,24 @@ Intent: Prove PromiseGrid-style independent-node workflow exchange while keeping
 Constraints: Each receiver verifies and stores bytes in its own CAS; received lifecycle evidence never automatically imports or activates a workflow; top-level PromiseGrid semantics remain `promise`.
 Affects: `grid/peers.go`, workflow relay endpoint and transfer codec, multi-node simulation tests, peer-card metadata, workflow loader docs, and `docs/thought-experiments/TE-novuk-workflow-relay-endpoint.md`.
 
+ID: DI-jifuk
+Date: 2026-08-03 07:22:07 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Expose received workflow artifacts through a read-only CAS-derived inbox and import one only through `moks workflow inbox import <artifact-cid> <alias>`.
+Intent: Make retained remote artifacts discoverable while keeping local import, activation, and execution as independent decisions made by the receiving operator.
+Constraints: Scan existing artifact and workflow-evidence CAS stores; do not add a receipt ledger or top-level PromiseGrid action; group evidence by artifact CID; refuse inbox convenience import when matching valid evidence is absent.
+Affects: workflow relay receiver view, workflow CLI, inbox tests, operator documentation, and `docs/thought-experiments/TE-rasih-workflow-receipt-inbox.md`.
+
+ID: DI-rufir
+Date: 2026-08-03 07:28:53 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Retain authenticated workflow-transfer sender identity in a local receipt-metadata sidecar keyed by evidence CID and artifact CID.
+Intent: Make receipt inbox provenance auditable without rewriting signed evidence or treating receipt as a local workflow lifecycle event.
+Constraints: Sidecar data is local projection metadata only; exact evidence bytes remain in `workflow-evidence`; incomplete metadata/evidence pairs are visible but cannot use inbox convenience import.
+Affects: workflow relay import, receipt inbox projection, tests, and `docs/thought-experiments/TE-kitol-receipt-metadata-sidecar.md`.
+
 ID: DI-sibok
 Date: 2026-07-28 18:20:00
 Status: active

@@ -98,7 +98,15 @@ func (runtime *Runtime) ImportWorkflowTransferFromPeer(peerID string, transfer W
 	}
 	// Intent: Retain remote lifecycle evidence outside the replayed local CAS so
 	// a received statement cannot become a local lifecycle decision. Source: DI-novuk
-	if _, err := runtime.workflowEvidence.PutCID(transfer.LifecycleEvent); err != nil {
+	evidenceCID, err := runtime.workflowEvidence.PutCID(transfer.LifecycleEvent)
+	if err != nil {
+		return err
+	}
+	if err := runtime.workflowReceipts.record(WorkflowReceipt{
+		ArtifactCID: artifactCID.String(),
+		EvidenceCID: evidenceCID.String(),
+		PeerIDs:     []string{peerID},
+	}); err != nil {
 		return err
 	}
 	return nil

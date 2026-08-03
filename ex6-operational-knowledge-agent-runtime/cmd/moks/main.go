@@ -279,6 +279,49 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 		return workflowPrint(runtime.Workflows()[len(runtime.Workflows())-1])
+	// Intent: Make received workflow artifacts observable and explicitly
+	// importable without allowing remote receipt to alter local lifecycle state.
+	// Source: DI-jifuk; DI-rufir
+	case matchesPrefix(args, "workflow", "inbox", "list"):
+		if len(args) != 3 {
+			return errors.New("usage: workflow inbox list")
+		}
+		inbox, err := runtime.ScanWorkflowInbox()
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(inbox, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "inbox", "inspect"):
+		if len(args) != 4 {
+			return errors.New("usage: workflow inbox inspect <artifact-cid>")
+		}
+		entry, err := runtime.InspectWorkflowInbox(args[3])
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(entry, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	case matchesPrefix(args, "workflow", "inbox", "import"):
+		if len(args) != 5 {
+			return errors.New("usage: workflow inbox import <artifact-cid> <alias>")
+		}
+		entry, err := runtime.InspectWorkflowInbox(args[3])
+		if err != nil {
+			return err
+		}
+		if err := runtime.ImportWorkflowInbox(args[3], args[4]); err != nil {
+			return err
+		}
+		return workflowPrint(kernel.Workflow{ID: args[4], ArtifactCID: entry.ArtifactCID, State: kernel.WorkflowImported})
 	case matchesPrefix(args, "workflow", "list"):
 		if len(args) != 2 {
 			return errors.New("usage: workflow list")

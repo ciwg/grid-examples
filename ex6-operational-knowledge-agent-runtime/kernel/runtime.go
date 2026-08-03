@@ -64,6 +64,7 @@ type Runtime struct {
 	history          *store.History
 	cas              *store.CAS
 	workflowEvidence *store.CAS
+	workflowReceipts *workflowReceiptStore
 	peers            *grid.PeerStore
 	policies         *grid.PolicyStore
 	packages         map[string]*activePackage
@@ -94,6 +95,14 @@ func Open(root string) (*Runtime, error) {
 	// Intent: Keep received lifecycle evidence out of the CAS replayed as local
 	// workflow authority. Source: DI-novuk
 	evidenceStore, err := store.OpenCAS(filepath.Join(root, "workflow-evidence"))
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
+	// Intent: Retain authenticated sender provenance separately from raw remote
+	// evidence so receipt inspection cannot mutate local workflow lifecycle.
+	// Source: DI-rufir
+	receiptStore, err := openWorkflowReceiptStore(workflowReceiptPath(root))
 	if err != nil {
 		_ = history.Close()
 		return nil, err
@@ -133,6 +142,7 @@ func Open(root string) (*Runtime, error) {
 		history:          history,
 		cas:              casStore,
 		workflowEvidence: evidenceStore,
+		workflowReceipts: receiptStore,
 		peers:            peerStore,
 		policies:         policyStore,
 		packages:         map[string]*activePackage{},

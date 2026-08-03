@@ -41,11 +41,26 @@ operator decisions. Source: `DI-lovek`; `DI-novuk`; `DI-harib`; `DI-zivut`.
   go run ./cmd/moks workflow relay push <alias> <peer-id>
   ```
 
-- [ ] Receipt retains exact artifact and lifecycle-evidence bytes, but does not
-  add a local workflow listing, activate, or execute anything.
-- [ ] If the receiver wants to use it, explicitly import the transferred
-  artifact CID first; it can then inspect and activate that local alias as
-  separate actions.
+- [ ] Receipt retains exact artifact and lifecycle-evidence bytes, plus local
+  authenticated sender identities in `state/workflow-receipts.json`; it does not
+  add a local workflow listing, activate, or execute anything. Source:
+  `DI-jifuk`; `DI-rufir`.
+- [ ] On the receiver, scan the CAS-derived inbox and inspect the artifact's
+  evidence before making a local lifecycle decision:
+
+  ```bash
+  go run ./cmd/moks workflow inbox list
+  go run ./cmd/moks workflow inbox inspect <artifact-cid>
+  ```
+
+- [ ] Import only an inbox entry whose JSON says `ready_to_import: true`. This
+  creates a local alias; inspection and receipt never do:
+
+  ```bash
+  go run ./cmd/moks workflow inbox import <artifact-cid> <alias>
+  ```
+
+- [ ] Then verify and activate that local alias as separate actions.
 
 ## 3. Optional portable Docker adapter image
 

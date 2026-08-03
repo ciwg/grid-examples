@@ -121,6 +121,78 @@ func TestWorkflowVerifyReportsExecutionReadiness(t *testing.T) {
 	}
 }
 
+func TestWorkflowInboxCommandsInspectAndImportReceivedArtifact(t *testing.T) {
+	workdir := t.TempDir()
+	source, err := kernel.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer func() {
+		if closeErr := source.Close(); closeErr != nil {
+			t.Errorf("close source: %v", closeErr)
+		}
+	}()
+	target, err := kernel.Open(filepath.Join(workdir, ".moks"))
+	if err != nil {
+		t.Fatalf("open target: %v", err)
+	}
+	if err := target.AllowPeer(grid.AllowedPeer{
+		PeerID:            source.LocalPeerID(),
+		BatchURL:          "https://source.invalid/relay/batch",
+		ImportURL:         "https://source.invalid/relay/import",
+		PublicKey:         source.LocalPeerPublicKey(),
+		AllowPush:         true,
+		AttesterClass:     "peer",
+		AttestationWeight: 1,
+		Federation:        "independent",
+	}); err != nil {
+		t.Fatalf("allow source: %v", err)
+	}
+	artifact, err := source.PutCAS([]byte("CLI inbox workflow artifact"))
+	if err != nil {
+		t.Fatalf("store source artifact: %v", err)
+	}
+	if err := source.ImportWorkflow(kernel.Workflow{ID: "source-workflow", ArtifactCID: artifact}); err != nil {
+		t.Fatalf("import source workflow: %v", err)
+	}
+	transfer, err := source.ExportWorkflowTransfer("source-workflow")
+	if err != nil {
+		t.Fatalf("export source workflow: %v", err)
+	}
+	if err := target.ImportWorkflowTransferFromPeer(source.LocalPeerID(), transfer); err != nil {
+		t.Fatalf("receive source workflow: %v", err)
+	}
+	if closeErr := target.Close(); closeErr != nil {
+		t.Fatalf("close target: %v", closeErr)
+	}
+
+	list, err := runCLI(t, workdir, "workflow", "inbox", "list")
+	if err != nil {
+		t.Fatalf("list inbox: %v", err)
+	}
+	var entries []struct {
+		ArtifactCID   string `json:"artifact_cid"`
+		ReadyToImport bool   `json:"ready_to_import"`
+	}
+	if err := json.Unmarshal([]byte(list), &entries); err != nil {
+		t.Fatalf("decode inbox list: %v", err)
+	}
+	if len(entries) != 1 || entries[0].ArtifactCID != transfer.ArtifactCID || !entries[0].ReadyToImport {
+		t.Fatalf("inbox list = %s", list)
+	}
+	inspect, err := runCLI(t, workdir, "workflow", "inbox", "inspect", transfer.ArtifactCID)
+	if err != nil || !strings.Contains(inspect, source.LocalPeerID()) {
+		t.Fatalf("inspect inbox = %q, %v", inspect, err)
+	}
+	if _, err := runCLI(t, workdir, "workflow", "inbox", "import", transfer.ArtifactCID, "received-workflow"); err != nil {
+		t.Fatalf("import inbox: %v", err)
+	}
+	workflows, err := runCLI(t, workdir, "workflow", "list")
+	if err != nil || !strings.Contains(workflows, "received-workflow") {
+		t.Fatalf("workflow list after inbox import = %q, %v", workflows, err)
+	}
+}
+
 func TestRegistryCommandsPersistExactHostPolicy(t *testing.T) {
 	workdir := t.TempDir()
 	if _, err := runCLI(t, workdir, "registry", "allow", "REGISTRY.example:5000"); err != nil {
