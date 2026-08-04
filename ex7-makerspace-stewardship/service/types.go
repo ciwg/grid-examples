@@ -27,6 +27,7 @@ type Authority struct {
 type Qualification struct {
 	MemberID string `json:"memberId"`
 	AreaID   string `json:"areaId"`
+	Scope    string `json:"scope"`
 	IssuedBy string `json:"issuedBy"`
 	Status   string `json:"status"`
 }
@@ -47,14 +48,15 @@ type Photo struct {
 }
 
 type Tool struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	AreaID       string        `json:"areaId"`
-	OffSiteLoan  bool          `json:"offSiteLoan"`
-	Condition    string        `json:"condition"`
-	SafetyHold   bool          `json:"safetyHold"`
-	Observations []Observation `json:"observations"`
-	ActiveLoan   *Loan         `json:"activeLoan,omitempty"`
+	ID                    string        `json:"id"`
+	Name                  string        `json:"name"`
+	AreaID                string        `json:"areaId"`
+	OffSiteLoan           bool          `json:"offSiteLoan"`
+	RequiredQualification string        `json:"requiredQualification"`
+	Condition             string        `json:"condition"`
+	SafetyHold            bool          `json:"safetyHold"`
+	Observations          []Observation `json:"observations"`
+	ActiveLoan            *Loan         `json:"activeLoan,omitempty"`
 }
 
 type Loan struct {

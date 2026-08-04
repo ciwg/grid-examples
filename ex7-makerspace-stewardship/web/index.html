@@ -6,6 +6,7 @@
   <main>
     <section class="notice"><strong>How this works:</strong> in-space use does not require checkout. A safety report can pause a tool; an area-recognized steward clears it after inspection.</section>
     <section><h2>Equipment</h2><div id="tools" class="tool-grid"></div></section>
+    <section class="access"><h2>My access</h2><label>Viewing as <select id="access-member"></select></label><p id="qualification-summary"></p><div id="eligibility" class="tool-grid"></div></section>
     <section class="governance"><h2>Current area rules</h2><div id="policies" class="tool-grid"></div></section>
     <section class="governance"><h2>Recognized area authority</h2><div id="authorities" class="tool-grid"></div></section>
     <section class="record"><h2>Record an observation</h2><form id="observation-form"><label>Tool <select id="observation-tool"></select></label><label>Member <select id="reporter"></select></label><label>What did you observe?<textarea id="observation-text" required placeholder="Describe the condition you found."></textarea></label><label>Optional photos <input id="observation-photos" type="file" accept="image/*" multiple></label><label class="check"><input id="safety-hold" type="checkbox"> This may be unsafe — place a safety hold</label><button>Record observation</button></form></section>

@@ -63,6 +63,17 @@ func TestInSpaceOnlyToolCannotBeLoaned(t *testing.T) {
 	}
 }
 
+func TestQualificationIsScopedToTheTool(t *testing.T) {
+	app := NewDemoApp()
+	state := app.State()
+	if app.isQualifiedForTool("alice", state.Tools[0]) {
+		t.Fatal("portable-power-tools qualification granted table saw access")
+	}
+	if !app.isQualifiedForTool("alice", state.Tools[1]) {
+		t.Fatal("portable-power-tools qualification did not grant drill access")
+	}
+}
+
 func TestPersistentAppReplaysEvidence(t *testing.T) {
 	root := t.TempDir()
 	app, err := NewPersistentDemoApp(root)

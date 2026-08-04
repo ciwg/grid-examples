@@ -44,11 +44,11 @@ func NewDemoApp() *App {
 			{ID: "fiber", Name: "Fiber Arts", PolicyVersion: "v1", Policy: "Members use equipment in the space according to current area guidance. Portable tools may have separate loan terms.", DelegatedBy: "Makerspace governance"},
 		},
 		Authorities:    []Authority{{MemberID: "carol", AreaID: "woodworking", Scopes: []string{"recognize qualifications", "assess tool condition", "clear safety holds", "publish area policy"}, RecognizedBy: "Makerspace governance", ReviewAt: "2027-01-01"}},
-		Qualifications: []Qualification{{MemberID: "alice", AreaID: "woodworking", IssuedBy: "carol", Status: "accepted"}},
+		Qualifications: []Qualification{{MemberID: "alice", AreaID: "woodworking", Scope: "portable-power-tools", IssuedBy: "carol", Status: "accepted"}},
 		Tools: []Tool{
-			{ID: "table-saw", Name: "Table saw", AreaID: "woodworking", Condition: "Available for qualified in-space use"},
-			{ID: "cordless-drill", Name: "Cordless drill", AreaID: "woodworking", OffSiteLoan: true, Condition: "Available; tool only, no bits included"},
-			{ID: "sewing-machine", Name: "Sewing machine", AreaID: "fiber", OffSiteLoan: true, Condition: "Available; tension adjustment is stiff"},
+			{ID: "table-saw", Name: "Table saw", AreaID: "woodworking", RequiredQualification: "table-saw-safety", Condition: "Available for qualified in-space use"},
+			{ID: "cordless-drill", Name: "Cordless drill", AreaID: "woodworking", RequiredQualification: "portable-power-tools", OffSiteLoan: true, Condition: "Available; tool only, no bits included"},
+			{ID: "sewing-machine", Name: "Sewing machine", AreaID: "fiber", RequiredQualification: "fiber-equipment", OffSiteLoan: true, Condition: "Available; tension adjustment is stiff"},
 		},
 	}}
 }
@@ -152,8 +152,8 @@ func (a *App) CreateLoan(toolID, memberID string, dueAt time.Time) (Tool, error)
 	if tool.ActiveLoan != nil {
 		return Tool{}, errors.New("this tool is already loaned")
 	}
-	if !a.isQualified(memberID, tool.AreaID) {
-		return Tool{}, errors.New("member is not qualified for this area")
+	if !a.isQualifiedForTool(memberID, *tool) {
+		return Tool{}, errors.New("member does not hold this tool's required qualification")
 	}
 	if !dueAt.After(time.Now()) {
 		return Tool{}, errors.New("return deadline must be in the future")
@@ -263,9 +263,9 @@ func (a *App) memberExists(id string) bool {
 	}
 	return false
 }
-func (a *App) isQualified(memberID, areaID string) bool {
+func (a *App) isQualifiedForTool(memberID string, tool Tool) bool {
 	for _, qualification := range a.state.Qualifications {
-		if qualification.MemberID == memberID && qualification.AreaID == areaID && qualification.Status == "accepted" {
+		if qualification.MemberID == memberID && qualification.AreaID == tool.AreaID && qualification.Scope == tool.RequiredQualification && qualification.Status == "accepted" {
 			return true
 		}
 	}
