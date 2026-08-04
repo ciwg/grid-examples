@@ -38,9 +38,12 @@ func NewPersistentDemoApp(root string) (*App, error) {
 
 func NewDemoApp() *App {
 	return &App{state: State{
-		Members:        []Member{{ID: "alice", Name: "Alice Nguyen", Initials: "A.N."}, {ID: "carol", Name: "Carol Davis", Initials: "C.D."}, {ID: "dave", Name: "Dave Patel", Initials: "D.P."}},
-		Areas:          []Area{{ID: "woodworking", Name: "Woodworking"}, {ID: "fiber", Name: "Fiber Arts"}},
-		Authorities:    []Authority{{MemberID: "carol", AreaID: "woodworking", Scopes: []string{"recognize qualifications", "assess tool condition", "clear safety holds", "publish area policy"}}},
+		Members: []Member{{ID: "alice", Name: "Alice Nguyen", Initials: "A.N."}, {ID: "carol", Name: "Carol Davis", Initials: "C.D."}, {ID: "dave", Name: "Dave Patel", Initials: "D.P."}},
+		Areas: []Area{
+			{ID: "woodworking", Name: "Woodworking", PolicyVersion: "v1", Policy: "Qualified members may use tools in the space. Portable tools may be loaned when their own terms allow it. A safety hold prevents self-service use until cleared after inspection.", DelegatedBy: "Makerspace governance"},
+			{ID: "fiber", Name: "Fiber Arts", PolicyVersion: "v1", Policy: "Members use equipment in the space according to current area guidance. Portable tools may have separate loan terms.", DelegatedBy: "Makerspace governance"},
+		},
+		Authorities:    []Authority{{MemberID: "carol", AreaID: "woodworking", Scopes: []string{"recognize qualifications", "assess tool condition", "clear safety holds", "publish area policy"}, RecognizedBy: "Makerspace governance", ReviewAt: "2027-01-01"}},
 		Qualifications: []Qualification{{MemberID: "alice", AreaID: "woodworking", IssuedBy: "carol", Status: "accepted"}},
 		Tools: []Tool{
 			{ID: "table-saw", Name: "Table saw", AreaID: "woodworking", Condition: "Available for qualified in-space use"},

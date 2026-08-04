@@ -8,6 +8,8 @@ function member(id) { return state.members.find(item => item.id === id); }
 function area(id) { return state.areas.find(item => item.id === id).name; }
 function render() {
   byId('tools').innerHTML = state.tools.map(tool => `<article class="tool ${tool.safetyHold ? 'hold' : ''}"><h3>${escape(tool.name)}</h3><p>${escape(area(tool.areaId))}</p><p class="status">${escape(tool.safetyHold ? 'Safety hold — unavailable' : tool.activeLoan ? `Loaned to ${member(tool.activeLoan.memberId).initials} until ${new Date(tool.activeLoan.dueAt).toLocaleString()}` : tool.condition)}</p><p>${tool.offSiteLoan ? 'Off-site loan eligible under area rules.' : 'In-space use only.'}</p><p>${tool.observations.length} recorded observation(s).</p></article>`).join('');
+  byId('policies').innerHTML = state.areas.map(item => `<article class="tool"><h3>${escape(item.name)}</h3><p class="status">Current policy ${escape(item.policyVersion)}</p><p>${escape(item.policy)}</p><p><small>Authority delegated by ${escape(item.delegatedBy)}.</small></p></article>`).join('');
+  byId('authorities').innerHTML = state.authorities.map(authority => `<article class="tool"><h3>${escape(member(authority.memberId).name)}</h3><p>${escape(area(authority.areaId))} steward</p><p>${authority.scopes.map(escape).join(' · ')}</p><p><small>Recognized by ${escape(authority.recognizedBy)}; review by ${escape(authority.reviewAt)}.</small></p></article>`).join('');
   const tools = state.tools.map(tool => option(tool.id, tool.name)).join('');
   byId('observation-tool').innerHTML = tools; byId('clear-tool').innerHTML = tools;
   const members = state.members.map(item => option(item.id, `${item.name} (${item.initials})`)).join('');

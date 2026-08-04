@@ -9,14 +9,19 @@ type Member struct {
 }
 
 type Area struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	PolicyVersion string `json:"policyVersion"`
+	Policy        string `json:"policy"`
+	DelegatedBy   string `json:"delegatedBy"`
 }
 
 type Authority struct {
-	MemberID string   `json:"memberId"`
-	AreaID   string   `json:"areaId"`
-	Scopes   []string `json:"scopes"`
+	MemberID     string   `json:"memberId"`
+	AreaID       string   `json:"areaId"`
+	Scopes       []string `json:"scopes"`
+	RecognizedBy string   `json:"recognizedBy"`
+	ReviewAt     string   `json:"reviewAt"`
 }
 
 type Qualification struct {
