@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Makerspace Stewardship</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+  <header><p class="eyebrow">PromiseGrid example app</p><h1>Makerspace Stewardship</h1><p>Shared evidence for equipment, safety, qualifications, and voluntary off-site loans.</p></header>
+  <main>
+    <section class="notice"><strong>How this works:</strong> in-space use does not require checkout. A safety report can pause a tool; an area-recognized steward clears it after inspection.</section>
+    <section><h2>Equipment</h2><div id="tools" class="tool-grid"></div></section>
+    <section class="record"><h2>Record an observation</h2><form id="observation-form"><label>Tool <select id="observation-tool"></select></label><label>Member <select id="reporter"></select></label><label>What did you observe?<textarea id="observation-text" required placeholder="Describe the condition you found."></textarea></label><label>Optional photos <input id="observation-photos" type="file" accept="image/*" multiple></label><label class="check"><input id="safety-hold" type="checkbox"> This may be unsafe — place a safety hold</label><button>Record observation</button></form></section>
+    <section class="record"><h2>Clear a safety hold</h2><form id="clear-form"><label>Tool <select id="clear-tool"></select></label><label>Recognized steward <select id="steward"></select></label><label>Inspection assessment<textarea id="assessment" required placeholder="State the current condition and why the tool can return to service."></textarea></label><button>Clear after inspection</button></form></section>
+    <section class="record"><h2>Start an off-site loan</h2><form id="loan-form"><label>Loanable tool <select id="loan-tool"></select></label><label>Borrower <select id="borrower"></select></label><label>Promised return <input id="due-at" type="datetime-local" required></label><button>Accept loan terms</button></form></section>
+    <section class="record"><h2>Record an off-site return</h2><form id="return-form"><label>Loaned tool <select id="return-tool"></select></label><label>Borrower <select id="returner"></select></label><label>Return condition<textarea id="return-condition" required placeholder="Describe the condition and included durable accessories."></textarea></label><button>Record return</button></form></section>
+    <section><h2>Shared evidence</h2><div id="timeline" class="timeline"></div></section>
+    <p id="message" aria-live="polite"></p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
