@@ -27,7 +27,7 @@ extension-to-native-host path is actually reachable.
 
 ## Tasks
 
-- [x] fovek.1 Define the readiness probe boundary across page bridge, extension worker, and native host. See `../../docs/thought-experiments/TE-funek-ex5-browser-host-readiness-proof.md`.
+- [x] fovek.1 Define the readiness probe boundary across page bridge, extension worker, and native host. See `../docs/thought-experiments/TE-funek-ex5-browser-host-readiness-proof.md`.
 - [x] fovek.2 Add coverage for missing-host, misregistered-host, and healthy-host startup outcomes.
 - [x] fovek.3 Update runtime and operator docs so the readiness rule is stated explicitly.
 

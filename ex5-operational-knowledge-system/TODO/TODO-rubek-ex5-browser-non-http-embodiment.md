@@ -27,8 +27,8 @@ current local HTTP adapter as its primary runtime surface.
 
 ## Tasks
 
-- [x] rubek.1 Define the first direct browser embodiment contract candidate. See `../../docs/thought-experiments/TE-sarek-ex5-browser-non-http-embodiment-first-slice.md`.
-- [x] rubek.2 Compare it against the current local HTTP adapter behavior and migration cost. See `../../docs/thought-experiments/TE-sarek-ex5-browser-non-http-embodiment-first-slice.md`.
+- [x] rubek.1 Define the first direct browser embodiment contract candidate. See `../docs/thought-experiments/TE-sarek-ex5-browser-non-http-embodiment-first-slice.md`.
+- [x] rubek.2 Compare it against the current local HTTP adapter behavior and migration cost. See `../docs/thought-experiments/TE-sarek-ex5-browser-non-http-embodiment-first-slice.md`.
 - [x] rubek.3 Lock the first browser non-HTTP slice and stage implementation.
 
 ## Status

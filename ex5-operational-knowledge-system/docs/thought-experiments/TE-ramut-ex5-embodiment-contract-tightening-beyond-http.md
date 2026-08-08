@@ -74,7 +74,7 @@ Under this model:
 
 ## Scope and systems affected
 
-- `docs/thought-experiments/TE-ramut-ex5-embodiment-contract-tightening-beyond-http.md`
+- `ex5-operational-knowledge-system/docs/thought-experiments/TE-ramut-ex5-embodiment-contract-tightening-beyond-http.md`
 - `ex5-operational-knowledge-system/TODO/TODO-lurog-ex5-embodiment-contract-tightening-beyond-http.md`
 - `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`
 - `ex5-operational-knowledge-system/docs/http-api-guide.md`

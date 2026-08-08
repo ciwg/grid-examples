@@ -9,7 +9,7 @@ Status: active
 Decision: Track a newcomer-facing ex5 improvement wave for checked-in sample data under `sample-data/` and one canonical operator guide that is enough for a new user to understand and use the system.
 Intent: Make ex5 easier to approach as a serious reference implementation without blurring operator guidance into implementation/reference docs or turning the sample corpus into generator-shaped ambiguity.
 Constraints: Keep the sample corpus checked in and deterministic; keep one primary user guide; preserve separate deeper browser, terminal, API, and architecture/reference docs.
-Affects: `docs/thought-experiments/*`, `ex5-operational-knowledge-system/sample-data/*`, `ex5-operational-knowledge-system/docs/user-guide.md`, `ex5-operational-knowledge-system/docs/*`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/docs/thought-experiments/*`, `ex5-operational-knowledge-system/sample-data/*`, `ex5-operational-knowledge-system/docs/user-guide.md`, `ex5-operational-knowledge-system/docs/*`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
 ID: DI-rubav
 Date: 2026-07-22 22:31:52 -0700
@@ -27,7 +27,7 @@ sample corpus and one comprehensive operator guide.
 
 ## Tasks
 
-- [x] turem.1 Define the right sample-corpus and newcomer-guide boundary. See `../../docs/thought-experiments/TE-nobav-ex5-sample-data-and-newcomer-guide-boundary.md`.
+- [x] turem.1 Define the right sample-corpus and newcomer-guide boundary. See `../docs/thought-experiments/TE-nobav-ex5-sample-data-and-newcomer-guide-boundary.md`.
 - [x] turem.2 Lock the exact sample corpus scope and the exact user-guide coverage boundary.
 - [x] turem.3 Implement the checked-in corpus and expand the user guide to match.
 

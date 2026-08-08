@@ -86,7 +86,7 @@ Under this model:
 
 ## Scope and systems affected
 
-- `docs/thought-experiments/TE-loruk-ex5-peer-visible-entity-namespace-reconciliation.md`
+- `ex5-operational-knowledge-system/docs/thought-experiments/TE-loruk-ex5-peer-visible-entity-namespace-reconciliation.md`
 - `ex5-operational-knowledge-system/TODO/TODO-zavok-ex5-peer-visible-entity-namespace-reconciliation.md`
 - `ex5-operational-knowledge-system/service/types.go`
 - `ex5-operational-knowledge-system/service/app.go`

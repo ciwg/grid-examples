@@ -9,7 +9,7 @@ Status: active
 Decision: Canonicalize the runtime `data-root` once at startup and derive the advertised local socket path from that canonical root.
 Intent: Make `/api/meta` authoritative for terminal socket discovery even when the server and clients start from different working directories.
 Constraints: Preserve runtime-first discovery from TODO `121`; fix the root cause at runtime startup instead of teaching clients to reinterpret relative paths.
-Affects: `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/local_socket.go`, `ex5-operational-knowledge-system/service/server_test.go`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-zavuk-ex5-absolute-socket-path-advertisement.md`
+Affects: `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/local_socket.go`, `ex5-operational-knowledge-system/service/server_test.go`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-zavuk-ex5-absolute-socket-path-advertisement.md`
 Supersedes: DI-rusav
 
 ID: DI-rusav

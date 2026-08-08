@@ -26,7 +26,7 @@ Make browser live-transport connected state depend on explicit acknowledgement.
 
 ## Tasks
 
-- [x] vazek.1 Define what counts as a successful live-open acknowledgement for the browser embodiment. See `../../docs/thought-experiments/TE-morav-ex5-browser-live-open-acknowledgement.md`.
+- [x] vazek.1 Define what counts as a successful live-open acknowledgement for the browser embodiment. See `../docs/thought-experiments/TE-morav-ex5-browser-live-open-acknowledgement.md`.
 - [x] vazek.2 Align browser live state transitions and reconnect logic to that acknowledgement boundary.
 - [x] vazek.3 Add coverage and doc updates for the new live-open truth semantics.
 

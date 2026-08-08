@@ -90,7 +90,7 @@ Under this model:
 
 ## Scope and systems affected
 
-- `docs/thought-experiments/TE-ravum-ex5-peer-stable-identity-and-ordering.md`
+- `ex5-operational-knowledge-system/docs/thought-experiments/TE-ravum-ex5-peer-stable-identity-and-ordering.md`
 - `ex5-operational-knowledge-system/TODO/TODO-navud-ex5-peer-stable-identity-and-ordering.md`
 - `ex5-operational-knowledge-system/TODO/TODO-rumek-ex5-peer-exchange-beyond-bootstrap.md`
 - `ex5-operational-knowledge-system/service/types.go`

@@ -29,7 +29,7 @@ surface above them.
 
 ## Tasks
 
-- [x] tazum.1 Map the current adapter-shaped seams that still carry too much runtime meaning. See `../../docs/thought-experiments/TE-zoruk-ex5-runtime-contract-above-adapters.md`.
+- [x] tazum.1 Map the current adapter-shaped seams that still carry too much runtime meaning. See `../docs/thought-experiments/TE-zoruk-ex5-runtime-contract-above-adapters.md`.
 - [x] tazum.2 Define the next runtime-contract shape for those seams.
 - [x] tazum.3 Stage implementation and embodiment adoption order.
 

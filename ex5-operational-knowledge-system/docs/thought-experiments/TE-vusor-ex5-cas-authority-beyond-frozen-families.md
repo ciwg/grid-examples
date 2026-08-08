@@ -88,7 +88,7 @@ Under this model:
 
 ## Scope and systems affected
 
-- `docs/thought-experiments/TE-vusor-ex5-cas-authority-beyond-frozen-families.md`
+- `ex5-operational-knowledge-system/docs/thought-experiments/TE-vusor-ex5-cas-authority-beyond-frozen-families.md`
 - `ex5-operational-knowledge-system/TODO/TODO-tasem-ex5-cas-authority-beyond-frozen-families.md`
 - `ex5-operational-knowledge-system/service/persistence.go`
 - `ex5-operational-knowledge-system/service/app.go`

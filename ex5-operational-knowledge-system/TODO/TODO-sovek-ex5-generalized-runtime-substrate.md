@@ -18,7 +18,7 @@ Status: active
 Decision: Open a thin reusable PromiseGrid substrate wave under `promisegrid/records/` for the frozen-family durable record core only, leaving app persistence, projections, and operational workflows in `ex5`.
 Intent: Extract the reusable durable record truth first so identity, origin ordering, canonical durable ID derivation, and frozen-family signed-envelope replay/verification no longer live only as `ex5` service internals.
 Constraints: Do not generalize search, review, approval workflow composition, or app projections in this wave; preserve current runtime behavior and adapter surfaces while the record core is extracted.
-Affects: `docs/thought-experiments/TE-nivor-ex5-generalized-runtime-substrate-boundary.md`, `ex5-operational-knowledge-system/promisegrid/records/*`, `ex5-operational-knowledge-system/service/*.go`, `ex5-operational-knowledge-system/service/*_test.go`, `ex5-operational-knowledge-system/promisegrid/records/*_test.go`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/docs/thought-experiments/TE-nivor-ex5-generalized-runtime-substrate-boundary.md`, `ex5-operational-knowledge-system/promisegrid/records/*`, `ex5-operational-knowledge-system/service/*.go`, `ex5-operational-knowledge-system/service/*_test.go`, `ex5-operational-knowledge-system/promisegrid/records/*_test.go`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 Supersedes: DI-sovek
 
 ## Goal
@@ -28,7 +28,7 @@ layer beyond `ex5`, and what boundary should remain example-specific.
 
 ## Tasks
 
-- [x] sovek.1 Define the candidate split between `ex5` app logic and reusable runtime substrate. See `../../docs/thought-experiments/TE-nivor-ex5-generalized-runtime-substrate-boundary.md`.
+- [x] sovek.1 Define the candidate split between `ex5` app logic and reusable runtime substrate. See `../docs/thought-experiments/TE-nivor-ex5-generalized-runtime-substrate-boundary.md`.
 - [x] sovek.2 Evaluate migration cost, abstraction risk, and repository impact.
 - [x] sovek.3 Decide whether to open a real extraction wave.
 

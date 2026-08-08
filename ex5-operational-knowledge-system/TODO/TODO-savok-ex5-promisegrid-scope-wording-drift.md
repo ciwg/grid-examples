@@ -9,7 +9,7 @@ Status: active
 Decision: Rewrite the top-level ex5 PromiseGrid summary docs so they directly describe the shipped signed-envelope and relay layers instead of retaining the older “local-runtime layer only” framing.
 Intent: Make the repo's top-level PromiseGrid wording match the runtime that already ships frozen families, signed envelopes, local relay-feed exchange, and the dedicated remote relay binary.
 Constraints: This is a wording honesty pass, not a new transport or protocol expansion.
-Affects: `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/docs/product-overview.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-pavok-ex5-promisegrid-scope-wording-drift.md`
+Affects: `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/docs/product-overview.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-pavok-ex5-promisegrid-scope-wording-drift.md`
 Supersedes: DI-rubek
 
 ID: DI-rubek

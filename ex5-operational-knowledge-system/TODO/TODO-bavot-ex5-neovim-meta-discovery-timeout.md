@@ -9,7 +9,7 @@ Status: active
 Decision: Bound Neovim runtime-first `/api/meta` socket discovery with a short timeout and immediate repo-root socket fallback.
 Intent: Keep the runtime as the preferred discovery truth source without letting a dead `OKS_BASE_URL` stall editor startup.
 Constraints: Preserve runtime-first discovery and the direct local Unix-socket preference; avoid asynchronous transport switching during startup.
-Affects: `ex5-operational-knowledge-system/nvim/lua/oks/init.lua`, `ex5-operational-knowledge-system/nvim/snapshot_test.go`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-borav-ex5-neovim-meta-discovery-timeout.md`
+Affects: `ex5-operational-knowledge-system/nvim/lua/oks/init.lua`, `ex5-operational-knowledge-system/nvim/snapshot_test.go`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-borav-ex5-neovim-meta-discovery-timeout.md`
 Supersedes: DI-bavot
 
 ID: DI-bavot

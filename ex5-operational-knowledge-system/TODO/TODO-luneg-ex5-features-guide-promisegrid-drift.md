@@ -9,7 +9,7 @@ Status: active
 Decision: Fully align `docs/features-guide.md` with the shipped signed-envelope, relay, and current Neovim embodiment scope now.
 Intent: Remove the last remaining top-level summary drift so the feature guide matches the README, product overview, relay guide, and current runtime behavior.
 Constraints: Docs-only scope; do not change product boundaries or runtime semantics.
-Affects: `ex5-operational-knowledge-system/docs/features-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-lunok-ex5-features-guide-promisegrid-drift.md`
+Affects: `ex5-operational-knowledge-system/docs/features-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-lunok-ex5-features-guide-promisegrid-drift.md`
 Supersedes: DI-luneg
 
 ID: DI-luneg

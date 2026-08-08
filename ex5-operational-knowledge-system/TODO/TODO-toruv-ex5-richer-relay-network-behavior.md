@@ -9,7 +9,7 @@ Status: active
 Decision: Open a new ex5 follow-on wave for richer relay-network behavior after the current PromiseGrid scope is complete.
 Intent: Keep the next PromiseGrid expansion explicit and separate from the now-closed local-adapter, CAS, websocket, and Neovim embodiment waves.
 Constraints: Treat the current shipped peer exchange as the starting point; do not reopen frozen-family, canonical-ID, or CAS-authority decisions unless the relay TE proves a new dependency; keep direct non-HTTP embodiment contracts out of this TODO unless a later decision explicitly pulls them in.
-Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`, `docs/thought-experiments/TE-relav-ex5-richer-relay-network-scope.md`
+Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-relav-ex5-richer-relay-network-scope.md`
 
 ID: DI-pazek
 Date: 2026-07-22 15:18:00 -0700
@@ -18,7 +18,7 @@ Status: active
 Decision: Implement TODO `115` as an incremental relay feed over origin-aware signed records with separate blob transfer by CID. The first slice uses per-origin cursor requests, `POST` relay-feed export/import routes over the current local HTTP adapter, and `GET`/`PUT` relay blob routes for raw CAS object transfer.
 Intent: Advance `ex5` beyond local-adapter bundle exchange toward a cleaner PromiseGrid relay shape without reintroducing whole-bundle blob carriage or conflating durable feed exchange with live collaboration transport.
 Constraints: Keep the existing peer-exchange bundle routes working for compatibility; require evidence blobs to be staged into local CAS before relay-feed import of evidence records succeeds; do not reopen frozen-family, canonical-ID, websocket, or non-HTTP embodiment decisions in this slice.
-Affects: `ex5-operational-knowledge-system/service/**`, `ex5-operational-knowledge-system/docs/**`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`, `docs/thought-experiments/TE-relav-ex5-richer-relay-network-scope.md`
+Affects: `ex5-operational-knowledge-system/service/**`, `ex5-operational-knowledge-system/docs/**`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-toruv-ex5-richer-relay-network-behavior.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-relav-ex5-richer-relay-network-scope.md`
 
 ## Goal
 

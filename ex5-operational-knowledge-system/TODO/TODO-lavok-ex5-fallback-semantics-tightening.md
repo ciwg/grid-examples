@@ -27,7 +27,7 @@ where it should tighten further, and how operators should see those states.
 
 ## Tasks
 
-- [x] lavok.1 Review the remaining Neovim and browser fallback lanes and classify which are still necessary. See `../../docs/thought-experiments/TE-zunav-ex5-fallback-semantics-tightening.md`.
+- [x] lavok.1 Review the remaining Neovim and browser fallback lanes and classify which are still necessary. See `../docs/thought-experiments/TE-zunav-ex5-fallback-semantics-tightening.md`.
 - [x] lavok.2 Lock the explicit fallback policy per embodiment. Browser keeps implicit fallback inside `local_http`; Neovim compatibility now requires `oks-nvim --socket=off`.
 - [x] lavok.3 Implement the chosen tightening and align tests/docs.
 

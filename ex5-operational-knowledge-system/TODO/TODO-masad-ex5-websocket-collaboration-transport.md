@@ -18,7 +18,7 @@ Status: active
 Decision: Implement TODO `005` as a shared websocket-preferred live-draft transport for both browser and Neovim, while keeping the existing `/api/items/{id}/live` HTTP routes as fallback and compatibility paths.
 Intent: Remove HTTP polling as the primary live collaboration transport in `ex5` without reopening the durable PromiseGrid family design or forcing a flag-day client migration.
 Constraints: Websocket remains carriage for shared draft state and presence only; durable revisions, runs, approvals, evidence, and peer exchange stay on their existing routes; browser and Neovim must both prefer websocket when available; HTTP live routes stay working for fallback, bootstrap fetch, and older clients.
-Affects: `ex5-operational-knowledge-system/service/**`, `ex5-operational-knowledge-system/web/app.js`, `ex5-operational-knowledge-system/nvim/lua/oks/**`, `ex5-operational-knowledge-system/docs/**`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-tivok-ex5-websocket-collaboration-transport-scope.md`
+Affects: `ex5-operational-knowledge-system/service/**`, `ex5-operational-knowledge-system/web/app.js`, `ex5-operational-knowledge-system/nvim/lua/oks/**`, `ex5-operational-knowledge-system/docs/**`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-tivok-ex5-websocket-collaboration-transport-scope.md`
 
 ## Goal
 

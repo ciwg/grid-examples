@@ -9,7 +9,7 @@ Status: active
 Decision: Make the CLI fail closed when the preferred local Unix socket is unavailable, and require explicit HTTP opt-in through `-socket=off`.
 Intent: Keep the shipped direct terminal embodiment contract operationally honest instead of silently demoting commands onto the HTTP compatibility surface.
 Constraints: Preserve HTTP compatibility transport for explicit operator choice; do not change browser or Neovim transport policy in this pass.
-Affects: `ex5-operational-knowledge-system/cmd/oks-cli/main.go`, `ex5-operational-knowledge-system/cmd/oks-cli/socket_transport.go`, `ex5-operational-knowledge-system/cmd/oks-cli/main_test.go`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `docs/thought-experiments/TE-nurek-ex5-cli-socket-fallback-honesty.md`
+Affects: `ex5-operational-knowledge-system/cmd/oks-cli/main.go`, `ex5-operational-knowledge-system/cmd/oks-cli/socket_transport.go`, `ex5-operational-knowledge-system/cmd/oks-cli/main_test.go`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-nurek-ex5-cli-socket-fallback-honesty.md`
 
 ID: DI-musav
 Date: 2026-07-22 17:45:47 -0700

@@ -18,7 +18,7 @@ Status: active
 Decision: Lock TODO 093 by choosing the staged PromiseGrid migration path, with `knowledge-item` as the first frozen family and the wire/runtime slice deferred until after that freeze and implementation claim exist.
 Intent: Keep ex5 fully on the PromiseGrid path while still following the dev guide's spec-first rule. The first real runtime/wire work should now be narrow and tied to one frozen family rather than a broad rewrite.
 Constraints: Keep websocket transport deferred; do not start a broad relay-visible rewrite in this TODO; move the active work to TODO 094.
-Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`, `ex5-operational-knowledge-system/TODO/TODO-mibor-ex5-first-frozen-protocol-family.md`, `docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md`
+Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-ragup-ex5-promisegrid-wire-slice-decision.md`, `ex5-operational-knowledge-system/TODO/TODO-mibor-ex5-first-frozen-protocol-family.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md`
 
 ## Goal
 
@@ -44,7 +44,7 @@ Instead, the next PromiseGrid-aligned ex5 step is:
 
 Thought experiment:
 
-- `TE-lafiz` - [docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md](/home/jj/lab/cswg/grid-examples/docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md)
+- `TE-lafiz` - [ex5-operational-knowledge-system/docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md](/home/jj/lab/cswg/grid-examples/ex5-operational-knowledge-system/docs/thought-experiments/TE-lafiz-ex5-promisegrid-wire-slice-decision.md)
 
 Follow-on:
 

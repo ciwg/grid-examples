@@ -9,7 +9,7 @@ Status: active
 Decision: Track a follow-on wave to define an external browser-check repo for `grid-examples`, starting with the `ex5` demo path and keeping all such browser automation outside the main product repo.
 Intent: Add durable browser-demo confidence without polluting `grid-examples` with a second testing surface that is really about presenter-grade browser interaction checks.
 Constraints: Keep the browser-check repo external to `grid-examples`, align it explicitly to the `grid-examples` examples, and choose a harness that is strong on visible interaction proofs rather than only lower-level correctness.
-Affects: `docs/thought-experiments/TE-rasem-ex5-external-browser-check-repo.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/docs/thought-experiments/TE-rasem-ex5-external-browser-check-repo.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
 ID: DI-vuram
 Date: 2026-07-23 09:42:58 -0700

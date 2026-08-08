@@ -9,7 +9,7 @@ Status: active
 Decision: Track a browser-first ex5 demo-prep wave for one canonical live-demo path, one CLI proof slice, and the smallest honest recording-helper boundary that supports short repeatable videos.
 Intent: Make the next ex5 demonstration reproducible and newcomer-aligned by anchoring it to the same checked-in sample world and operator guidance already shipped, instead of building a second demo-only story.
 Constraints: Keep the browser as the primary demo embodiment; include a real CLI proof slice; keep recording helpers thin unless a broader helper layer is explicitly justified later; preserve alignment with `sample-data/newcomer-runtime/` and `docs/user-guide.md`.
-Affects: `docs/thought-experiments/*`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-mivor-ex5-browser-first-demo-prep.md`, `ex5-operational-knowledge-system/docs/*`, `ex5-operational-knowledge-system/scripts/*`
+Affects: `ex5-operational-knowledge-system/docs/thought-experiments/*`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/TODO/TODO-mivor-ex5-browser-first-demo-prep.md`, `ex5-operational-knowledge-system/docs/*`, `ex5-operational-knowledge-system/scripts/*`
 
 ID: DI-luren
 Date: 2026-07-23 08:05:17 -0700
@@ -27,7 +27,7 @@ and thin repeatability helpers for live use and short recordings.
 
 ## Tasks
 
-- [x] mivor.1 Define the browser-first demo-prep boundary. See `../../docs/thought-experiments/TE-lurak-ex5-browser-first-demo-prep-boundary.md`.
+- [x] mivor.1 Define the browser-first demo-prep boundary. See `../docs/thought-experiments/TE-lurak-ex5-browser-first-demo-prep-boundary.md`.
 - [ ] mivor.2 Lock the exact demo story arc, CLI proof slice, and helper boundary.
 - [ ] mivor.3 Implement the demo TODO, script, and any approved recording helpers.
 

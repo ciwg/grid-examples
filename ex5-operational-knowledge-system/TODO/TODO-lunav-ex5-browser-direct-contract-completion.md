@@ -27,7 +27,7 @@ forwarding.
 
 ## Tasks
 
-- [x] lunav.1 Identify which browser reads and writes still fall back to `type:"request"` instead of typed operations. See `../../docs/thought-experiments/TE-novek-ex5-browser-direct-contract-completion.md`.
+- [x] lunav.1 Identify which browser reads and writes still fall back to `type:"request"` instead of typed operations. See `../docs/thought-experiments/TE-novek-ex5-browser-direct-contract-completion.md`.
 - [x] lunav.2 Define the next typed browser/runtime operation slice for those remaining paths.
 - [x] lunav.3 Migrate the remaining browser direct-contract gaps and align the docs.
 

@@ -9,7 +9,7 @@ Status: active
 Decision: Do not make peer-visible `knowledge-evidence` depend on carried-along unfrozen `run_recorded` compatibility events. Freeze a PromiseGrid-native run family first, then implement peer-visible evidence exchange on top of that stronger run-context contract.
 Intent: Keep the peer-visible PromiseGrid surface centered on frozen families and durable contracts rather than on an ad-hoc compatibility exception for evidence replay.
 Constraints: The self-contained CID-keyed evidence-plus-blob carriage decision remains valid, but its implementation is blocked until the run-context family exists.
-Affects: `ex5-operational-knowledge-system/TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`, `docs/thought-experiments/TE-fubok-ex5-peer-visible-evidence-blob-carriage.md`, `docs/thought-experiments/TE-zuvem-ex5-peer-visible-evidence-run-context.md`, `ex5-operational-knowledge-system/TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/TODO/TODO-faruv-ex5-peer-visible-evidence-exchange.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-fubok-ex5-peer-visible-evidence-blob-carriage.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-zuvem-ex5-peer-visible-evidence-run-context.md`, `ex5-operational-knowledge-system/TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
 ID: DI-faruv
 Date: 2026-07-22 12:18:04 -0700
@@ -18,7 +18,7 @@ Status: active
 Decision: Extend bootstrap peer exchange to carry signed `knowledge-evidence` records plus inline CID-keyed CAS blobs, and materialize imported attachment blobs back into a local compatibility attachment path during replay/import.
 Intent: Make evidence actually peer-visible and usable on another host now, not merely signed locally or portable only on paper.
 Constraints: The importer remains bootstrap-only. Blob carriage is self-contained inside the bundle for the first slice rather than a separate fetch protocol. Run context now comes from the frozen `operational-run` family instead of carried-along unfrozen compatibility events.
-Affects: `ex5-operational-knowledge-system/service/peer_exchange.go`, `ex5-operational-knowledge-system/service/persistence.go`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/types.go`, `docs/thought-experiments/TE-fubok-ex5-peer-visible-evidence-blob-carriage.md`, `ex5-operational-knowledge-system/docs/promisegrid-peer-exchange-staging.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/service/peer_exchange.go`, `ex5-operational-knowledge-system/service/persistence.go`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-fubok-ex5-peer-visible-evidence-blob-carriage.md`, `ex5-operational-knowledge-system/docs/promisegrid-peer-exchange-staging.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/TODO/TODO-zaruv-ex5-sixth-frozen-protocol-family-run.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
 ## Goal
 

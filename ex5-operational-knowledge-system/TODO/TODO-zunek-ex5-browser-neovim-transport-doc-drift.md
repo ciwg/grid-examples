@@ -18,7 +18,7 @@ Status: active
 Decision: Apply the `136B.1` high-visibility transport sweep to the already-approved six doc surfaces only, aligning browser wording to the shipped Chrome/Chromium native-messaging embodiment and Neovim wording to the shipped socket-first contract with explicit compatibility mode.
 Intent: Make the main PromiseGrid reader path honest end to end without turning `136` into a full-corpus editorial rewrite.
 Constraints: Update stale wording rather than deleting explanatory material; keep the browser fail-closed unsupported-browser requirement explicit; describe Neovim compatibility as explicit opt-in instead of silent websocket demotion.
-Affects: `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/features-guide.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `docs/thought-experiments/TE-lurem-ex5-browser-neovim-transport-doc-drift.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
+Affects: `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/features-guide.md`, `ex5-operational-knowledge-system/docs/practical-implementation.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-lurem-ex5-browser-neovim-transport-doc-drift.md`, `ex5-operational-knowledge-system/TODO/TODO.md`
 
 ## Goal
 
@@ -27,7 +27,7 @@ Neovim transport model.
 
 ## Tasks
 
-- [x] zunek.1 Sweep the README and long-form guides for stale websocket-first or HTTP-primary wording. See `../../docs/thought-experiments/TE-lurem-ex5-browser-neovim-transport-doc-drift.md`.
+- [x] zunek.1 Sweep the README and long-form guides for stale websocket-first or HTTP-primary wording. See `../docs/thought-experiments/TE-lurem-ex5-browser-neovim-transport-doc-drift.md`.
 - [x] zunek.2 Update the affected passages to describe the shipped embodiment contracts directly.
 - [x] zunek.3 Recheck the main PromiseGrid doc surfaces for transport wording consistency.
 

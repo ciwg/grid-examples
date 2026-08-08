@@ -27,8 +27,8 @@ native-messaging embodiment carries runtime intents more directly.
 
 ## Tasks
 
-- [x] rumav.1 Identify which browser reads and writes still tunnel through generic `request` forwarding. See `../../docs/thought-experiments/TE-zovek-ex5-browser-direct-contract-above-routes.md`.
-- [x] rumav.2 Define the next typed browser/runtime operation slice beyond the current inspect/search/problem-review set. See `../../docs/thought-experiments/TE-zovek-ex5-browser-direct-contract-above-routes.md`.
+- [x] rumav.1 Identify which browser reads and writes still tunnel through generic `request` forwarding. See `../docs/thought-experiments/TE-zovek-ex5-browser-direct-contract-above-routes.md`.
+- [x] rumav.2 Define the next typed browser/runtime operation slice beyond the current inspect/search/problem-review set. See `../docs/thought-experiments/TE-zovek-ex5-browser-direct-contract-above-routes.md`.
 - [x] rumav.3 Migrate the highest-value browser workflows and align the contract docs.
 
 ## Status

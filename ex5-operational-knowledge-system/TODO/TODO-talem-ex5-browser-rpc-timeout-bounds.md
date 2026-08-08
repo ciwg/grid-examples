@@ -26,7 +26,7 @@ Add bounded failure semantics for browser direct-contract one-shot RPCs.
 
 ## Tasks
 
-- [x] talem.1 Define timeout and cleanup behavior for one-shot browser bridge RPCs. See `../../docs/thought-experiments/TE-suvik-ex5-browser-rpc-timeout-bounds.md`.
+- [x] talem.1 Define timeout and cleanup behavior for one-shot browser bridge RPCs. See `../docs/thought-experiments/TE-suvik-ex5-browser-rpc-timeout-bounds.md`.
 - [x] talem.2 Add regression coverage for lost reply, explicit error, and healthy reply cases.
 - [x] talem.3 Update docs so browser direct-contract failure semantics are stated honestly.
 

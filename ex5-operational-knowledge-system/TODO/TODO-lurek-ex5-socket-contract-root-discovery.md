@@ -9,7 +9,7 @@ Status: active
 Decision: Make the runtime authoritative for terminal socket discovery by having CLI and Neovim query `/api/meta` first for the canonical socket path, then use the direct Unix-socket contract from there.
 Intent: Eliminate custom-root ambiguity without demoting the terminal embodiments back to HTTP as their real transport.
 Constraints: Keep the Unix socket as the preferred terminal contract; HTTP remains discovery and compatibility, not the durable terminal transport itself.
-Affects: `ex5-operational-knowledge-system/cmd/oks-cli/main.go`, `ex5-operational-knowledge-system/nvim/lua/oks/init.lua`, `ex5-operational-knowledge-system/scripts/oks-nvim`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `docs/thought-experiments/TE-zurek-ex5-socket-contract-root-discovery.md`
+Affects: `ex5-operational-knowledge-system/cmd/oks-cli/main.go`, `ex5-operational-knowledge-system/nvim/lua/oks/init.lua`, `ex5-operational-knowledge-system/scripts/oks-nvim`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/docs/http-api-guide.md`, `ex5-operational-knowledge-system/TODO/TODO.md`, `ex5-operational-knowledge-system/docs/thought-experiments/TE-zurek-ex5-socket-contract-root-discovery.md`
 Supersedes: DI-movik
 
 ID: DI-movik

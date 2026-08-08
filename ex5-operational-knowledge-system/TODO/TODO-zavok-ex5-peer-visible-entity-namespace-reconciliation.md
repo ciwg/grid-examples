@@ -9,7 +9,7 @@ Status: active
 Decision: Lock TODO `109` to Alternative A with canonical durable entity IDs derived from the create-event envelope CID. The current short IDs become presentation aliases only.
 Intent: Make `ex5` fully PromiseGrid-native at the durable entity-identity layer instead of preserving local counter-minted IDs as the real keys.
 Constraints: Keep enough alias data for legacy replay compatibility and embodiment transition. Do not keep import-time namespace translation tables as the long-term model. Cross-record references, stored entities, and peer exchange must converge on the canonical ID.
-Affects: `docs/thought-experiments/TE-loruk-ex5-peer-visible-entity-namespace-reconciliation.md`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/peer_exchange.go`, frozen-family envelope helpers, browser/CLI/Neovim/API docs, and TODO `109`
+Affects: `ex5-operational-knowledge-system/docs/thought-experiments/TE-loruk-ex5-peer-visible-entity-namespace-reconciliation.md`, `ex5-operational-knowledge-system/service/types.go`, `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/peer_exchange.go`, frozen-family envelope helpers, browser/CLI/Neovim/API docs, and TODO `109`
 
 ## Goal
 
