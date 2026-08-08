@@ -102,14 +102,14 @@ inspection. `training-qualification` keeps training sessions separate from
 explicit certification decisions; `inventory-discrepancy-review` adds explicit
 count reconciliation for adjust, investigate, or reject decisions; and
 `knowledge-review` retains revision, approval, and supersedence review.
-Together, the eight artifacts demonstrate that the loader is not specific to
+Together, the nine artifacts demonstrate that the loader is not specific to
 procedure execution.
 
 Source: DI-voruk; DI-favuk; DI-zovuk; DI-yavuk; DI-pavuk; DI-dovuk.
 
 ## Shared-runtime scenario coverage
 
-The CLI scenario test loads and activates all eight artifacts in one runtime,
+The CLI scenario test loads and activates all nine artifacts in one runtime,
 then drives receiving, inventory, maintenance, training, and knowledge commands
 through the main `moks` command dispatcher. This proves shared operational
 interaction without claiming that workflow artifacts autonomously execute.
@@ -158,7 +158,7 @@ Source: DI-lumek.
 10. **Deactivate/revoke.** The artifact stays retained for audit/extraction, but the
    runtime refuses to start it again.
 
-The current eight artifacts each declare an adapter plus distinct input and
+The current nine artifacts each declare an adapter plus distinct input and
 output pCIDs. The common outer CBOR envelope carries sorted string fields, but
 the pCID identifies the individual adapter contract; the current adapters call
 these real package commands:
@@ -168,6 +168,7 @@ these real package commands:
 - `inventory-discrepancy-review`: `inventory record-reconcile`
 - `receiving-check`: `receiving record-receipt`
 - `receiving-exception`: `quarantine open`
+- `quarantine-resolution`: `quarantine release` or `quarantine reject`
 - `maintenance-round`: `maintenance record-service`
 - `training-qualification`: `training record-session`
 - `knowledge-review`: `knowledge item approve`
