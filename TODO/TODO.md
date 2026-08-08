@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] mituf - Repair missing TE editing-policy sources - `TODO/TODO-mituf-te-editing-policy-source-recovery.md`
 - [x] folip - Consolidate duplicate ex6 TODO records - `TODO/TODO-folip-consolidate-ex6-todo-records.md`
 - [x] rugum - Preserve historical handle labels - `TODO/TODO-rugum-preserve-historical-handle-labels.md`
 - [x] kuzan - Document root handle-minting workflow - `TODO/TODO-kuzan-document-root-handle-minting.md`

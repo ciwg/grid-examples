@@ -4,7 +4,7 @@ TE ID: TE-ravuk
 
 ## Status
 
-needs DF
+decided, refined
 
 ## Decision under test
 
@@ -157,4 +157,14 @@ partially locked: DI-kojab locks the first-slice model, condition boundary, name
 
 ## Refinements
 
-None.
+### 2026-08-07 — First local route-promise slice locked and implemented
+
+DI-kojab locked paired durable local `ReceivePromise` and `DeliveryPromise`
+records, enabled-only conditions, package claims as bootstrap hints, and the
+record-contract path. DI-komaz separated opaque local app labels from package
+IDs and durable identity. DI-butam required an explicit local `AgentBinding`.
+DI-zolil locked the local CLI commands that publish this evidence. Commit
+`51b51cf` implements the local, deterministic, non-executing, non-networked
+slice. Package claims do not activate routes automatically; planning requires
+enabled binding, receive, and delivery evidence. Route execution and network
+exchange remain out of scope.
