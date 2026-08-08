@@ -615,6 +615,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		"maintenance-round",
 		"receiving-check",
 		"receiving-exception",
+		"quarantine-resolution",
 		"training-qualification",
 		"inventory-discrepancy-review",
 		"knowledge-review",
@@ -656,7 +657,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list workflows: %v", err)
 	}
-	if strings.Count(workflows, `"state": "active"`) != 8 {
+	if strings.Count(workflows, `"state": "active"`) != 9 {
 		t.Fatalf("active workflow list = %s", workflows)
 	}
 	workflowRuns := [][]string{
@@ -665,6 +666,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		{"workflow", "run", "start", "maintenance-round", "maintenance_id", "scale-check", "run_id", "workflow-maintenance-run", "resource_id", "scale", "performer", "Carol", "outcome", "completed", "notes", "calibrated"},
 		{"workflow", "run", "start", "receiving-check", "receiving_id", "receipt", "run_id", "workflow-receiving-run", "place_id", "dock", "receiver", "Alice", "outcome", "accepted", "notes", "sealed"},
 		{"workflow", "run", "start", "receiving-exception", "receiving_id", "receipt", "receipt_run_id", "receive-run", "case_id", "workflow-quarantine-case", "actor", "Alice", "evidence_id", "inspection-record-1", "exception", "seal-mismatch", "notes", "hold"},
+		{"workflow", "run", "start", "quarantine-resolution", "case_id", "workflow-quarantine-case", "event_id", "workflow-quarantine-release", "actor", "Bob", "evidence_id", "resolution-review-1", "decision", "release", "notes", "cleared"},
 		{"workflow", "run", "start", "training-qualification", "training_id", "dock-training", "run_id", "workflow-training-run", "trainee", "Dave", "instructor", "Ellen", "outcome", "completed", "notes", "demonstrated"},
 		{"workflow", "run", "start", "inventory-discrepancy-review", "inventory_id", "stock", "event_id", "workflow-reconcile", "decision", "investigate", "resource_id", "scale", "notes", "variance"},
 		{"workflow", "run", "start", "knowledge-review", "item_id", "dock-guide", "event_id", "workflow-guide-approval", "notes", "approved"},

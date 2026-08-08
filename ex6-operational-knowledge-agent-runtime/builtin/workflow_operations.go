@@ -16,7 +16,37 @@ func WorkflowOperations() map[string]kernel.WorkflowOperation {
 	for name, specification := range workflowOperationSpecifications {
 		operations[name] = commandWorkflowOperation(specification)
 	}
+	operations["quarantine-resolution"] = quarantineResolutionWorkflowOperation
 	return operations
+}
+
+// Intent: Keep the resolution decision visible in the workflow's typed input
+// while delegating the durable terminal transition to the quarantine package.
+// Source: DI-nufav
+func quarantineResolutionWorkflowOperation(ctx context.Context, runtime *kernel.Runtime, input kernel.WorkflowHandoff) (kernel.WorkflowHandoff, error) {
+	if input.PCID != "bafkreifc4fblnznwseymqx2sub7ggxlecxm5rkuxegww3foqc376nyvj5q" {
+		return kernel.WorkflowHandoff{}, errors.New("workflow adapter input pCID is not supported")
+	}
+	decision := strings.TrimSpace(input.Values["decision"])
+	if decision != "release" && decision != "reject" {
+		return kernel.WorkflowHandoff{}, errors.New("quarantine resolution decision must be release or reject")
+	}
+	args := []string{"quarantine", decision}
+	for _, field := range []string{"case_id", "event_id", "actor", "evidence_id", "notes"} {
+		value := strings.TrimSpace(input.Values[field])
+		if value == "" {
+			return kernel.WorkflowHandoff{}, kernel.WaitingForWorkflowInput("workflow input requires " + field)
+		}
+		args = append(args, value)
+	}
+	if _, err := runtime.RunCommand(ctx, args); err != nil {
+		return kernel.WorkflowHandoff{}, err
+	}
+	output := kernel.WorkflowHandoff{PCID: "bafkreiezrx6njq5qxrl2plouy53ek5xidwwazqqfktzgxy2qd7ivx7nguu", Values: map[string]string{"stage": "completed"}}
+	for key, value := range input.Values {
+		output.Values[key] = value
+	}
+	return output, nil
 }
 
 type workflowOperationSpecification struct {

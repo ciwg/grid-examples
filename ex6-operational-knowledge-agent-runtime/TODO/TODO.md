@@ -1,5 +1,6 @@
 # OKAR TODO
 
+- [x] nosij - quarantine resolution workflow
 - [x] ronos - quarantine package and receiving-exception workflow
 - [x] lorup - context package foundation
 - [x] vakod - knowledge package foundation
