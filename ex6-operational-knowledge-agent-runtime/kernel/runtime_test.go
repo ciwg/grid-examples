@@ -660,6 +660,7 @@ func TestProtocolRoutesCanModelParserHop(t *testing.T) {
 	if err := runtime.RegisterBuiltin(parserPackage); err != nil {
 		t.Fatalf("register parser package: %v", err)
 	}
+	enablePackageRoutePromises(t, runtime, "parser-agent", "pcid:moks.raw.v1", "pcid:moks.parsed.v1")
 	routes := runtime.ProtocolRoutes()
 	foundParser := false
 	foundHandler := false
@@ -1410,6 +1411,7 @@ func TestProtocolRoutePlanPrefersDirectExecutableRoute(t *testing.T) {
 	if err := runtime.RegisterBuiltin(hybridPackage); err != nil {
 		t.Fatalf("register hybrid package: %v", err)
 	}
+	enablePackageRoutePromises(t, runtime, "hybrid-agent", "pcid:moks.hybrid.v1", "pcid:moks.hybrid.parsed.v1")
 	plan := runtime.ProtocolRoutePlan("pcid:moks.hybrid.v1")
 	if plan.Preferred == nil {
 		t.Fatalf("expected preferred route, got %#v", plan)
@@ -1450,6 +1452,7 @@ func TestProtocolRoutePlanPolicyCanPreferParserOverDirect(t *testing.T) {
 	if err := runtime.RegisterBuiltin(hybridPackage); err != nil {
 		t.Fatalf("register hybrid package: %v", err)
 	}
+	enablePackageRoutePromises(t, runtime, "hybrid-agent", "pcid:moks.hybrid.v1", "pcid:moks.hybrid.parsed.v1")
 	if err := runtime.SetRoutePlanPolicy(grid.RoutePlanPolicy{
 		PreferRouteTypes: []string{"parser"},
 		AvoidRouteTypes:  []string{"direct"},
@@ -1493,6 +1496,7 @@ func TestProtocolRoutePlanPolicyCanOverrideOneProtocolOnly(t *testing.T) {
 	if err := runtime.RegisterBuiltin(hybridPackage); err != nil {
 		t.Fatalf("register hybrid package: %v", err)
 	}
+	enablePackageRoutePromises(t, runtime, "hybrid-agent", "pcid:moks.hybrid.v1", "pcid:moks.hybrid.parsed.v1", "pcid:moks.other.v1", "pcid:moks.other.parsed.v1")
 	if err := runtime.SetRoutePlanPolicy(grid.RoutePlanPolicy{
 		PreferRouteTypes: []string{"direct"},
 	}); err != nil {
@@ -1545,6 +1549,7 @@ func TestProtocolRoutePlanPolicyCanOverrideByRoleWithinOneProtocol(t *testing.T)
 	if err := runtime.RegisterBuiltin(rolePackage); err != nil {
 		t.Fatalf("register role package: %v", err)
 	}
+	enablePackageRoutePromises(t, runtime, "role-agent", "pcid:moks.roleful.v1")
 	plan := runtime.ProtocolRoutePlan("pcid:moks.roleful.v1")
 	if plan.Preferred == nil || plan.Preferred.Route.Role != "handler" {
 		t.Fatalf("expected handler to win by default, got %#v", plan.Preferred)
@@ -2235,4 +2240,20 @@ esac
 		t.Fatalf("write writer manifest: %v", err)
 	}
 	return dir
+}
+
+func enablePackageRoutePromises(t *testing.T, runtime *kernel.Runtime, packageID string, protocols ...string) {
+	t.Helper()
+	agentID := packageID + "-app"
+	if err := runtime.BindAgent(kernel.AgentBinding{AgentID: agentID, PackageID: packageID, Enabled: true}); err != nil {
+		t.Fatalf("bind %s: %v", packageID, err)
+	}
+	for _, protocolPCID := range protocols {
+		if err := runtime.PublishReceivePromise(kernel.ReceivePromise{AgentID: agentID, ProtocolPCID: protocolPCID, Enabled: true}); err != nil {
+			t.Fatalf("publish receive promise for %s: %v", protocolPCID, err)
+		}
+		if err := runtime.PublishDeliveryPromise(kernel.DeliveryPromise{AgentID: "local-router", RecipientAgentID: agentID, ProtocolPCID: protocolPCID, Enabled: true}); err != nil {
+			t.Fatalf("publish delivery promise for %s: %v", protocolPCID, err)
+		}
+	}
 }

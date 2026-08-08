@@ -686,11 +686,16 @@ func (runtime *Runtime) protocolRoutePlan(protocolPCID string, seen map[string]s
 		candidate := RoutePlanCandidate{
 			Route: route,
 		}
+		// Intent: Package claims describe bootstrap capability only; an installed
+		// package is routable only after independently retained binding, receive,
+		// and delivery evidence proves the local agents currently promise it.
+		// Source: DI-kojab; DI-butam
+		evidenceReady := runtime.routePromises.routeExecutable(route.PackageID, protocolPCID)
 		switch route.RouteType {
 		case "", "direct":
-			candidate.Executable = true
+			candidate.Executable = evidenceReady
 		case "parser", "transform":
-			candidate.Executable = len(route.EmitsProtocols) > 0
+			candidate.Executable = evidenceReady && len(route.EmitsProtocols) > 0
 			for _, emitted := range route.EmitsProtocols {
 				subplan := runtime.protocolRoutePlan(emitted, nextSeen, trace)
 				candidate.Next = append(candidate.Next, subplan)

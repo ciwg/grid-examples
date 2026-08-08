@@ -77,6 +77,7 @@ type Runtime struct {
 	workflowAdapters map[string]packages.WorkflowAdapter
 	workflowWorker   WorkflowAdapterWorker
 	handoffPolicies  *WorkflowHandoffPolicies
+	routePromises    *RoutePromiseRegistry
 }
 
 func Open(root string) (*Runtime, error) {
@@ -136,6 +137,11 @@ func Open(root string) (*Runtime, error) {
 		_ = history.Close()
 		return nil, err
 	}
+	routePromises, err := OpenRoutePromiseRegistry(casStore)
+	if err != nil {
+		_ = history.Close()
+		return nil, err
+	}
 	runtime := &Runtime{
 		root:             root,
 		packagesRoot:     filepath.Join(root, "packages"),
@@ -155,6 +161,7 @@ func Open(root string) (*Runtime, error) {
 		workflowAdapters: map[string]packages.WorkflowAdapter{},
 		workflowWorker:   runDockerWorkflowAdapter,
 		handoffPolicies:  handoffPolicies,
+		routePromises:    routePromises,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
@@ -189,6 +196,25 @@ func (runtime *Runtime) RegistryAllowList() []string     { return runtime.polici
 func (runtime *Runtime) AllowRegistry(host string) error { return runtime.policies.AllowRegistry(host) }
 func (runtime *Runtime) RemoveRegistry(host string) error {
 	return runtime.policies.RemoveRegistry(host)
+}
+
+// BindAgent records the local implementation adapter selected for an explicitly
+// named app agent. Intent: Keep package installation from silently becoming an
+// app identity or a live receive promise. Source: DI-komaz; DI-butam
+func (runtime *Runtime) BindAgent(binding AgentBinding) error {
+	return runtime.routePromises.BindAgent(binding)
+}
+
+// PublishReceivePromise retains an app agent's explicit local promise to
+// receive one pCID. Source: DI-kojab
+func (runtime *Runtime) PublishReceivePromise(promise ReceivePromise) error {
+	return runtime.routePromises.PublishReceivePromise(promise)
+}
+
+// PublishDeliveryPromise retains a routing-role agent's explicit local promise
+// to deliver one pCID to one named app agent. Source: DI-kojab
+func (runtime *Runtime) PublishDeliveryPromise(promise DeliveryPromise) error {
+	return runtime.routePromises.PublishDeliveryPromise(promise)
 }
 
 // PullWorkflowImage explicitly acquires only the active package adapter image

@@ -247,6 +247,47 @@ func run(ctx context.Context, args []string) error {
 		return errors.New("command is required")
 	}
 	switch {
+	// Intent: Require an operator to publish local binding and promise evidence
+	// before a package-derived route can become executable. Source: DI-zolil
+	case matchesPrefix(args, "route", "bind"):
+		if len(args) != 5 {
+			return errors.New("usage: route bind <agent-id> <package-id> <true|false>")
+		}
+		enabled, err := strconv.ParseBool(args[4])
+		if err != nil {
+			return errors.New("usage: route bind <agent-id> <package-id> <true|false>")
+		}
+		if err := runtime.BindAgent(kernel.AgentBinding{AgentID: args[2], PackageID: args[3], Enabled: enabled}); err != nil {
+			return err
+		}
+		fmt.Println("route binding recorded")
+		return nil
+	case matchesPrefix(args, "route", "promise", "receive"):
+		if len(args) != 6 {
+			return errors.New("usage: route promise receive <agent-id> <pcid> <true|false>")
+		}
+		enabled, err := strconv.ParseBool(args[5])
+		if err != nil {
+			return errors.New("usage: route promise receive <agent-id> <pcid> <true|false>")
+		}
+		if err := runtime.PublishReceivePromise(kernel.ReceivePromise{AgentID: args[3], ProtocolPCID: args[4], Enabled: enabled}); err != nil {
+			return err
+		}
+		fmt.Println("route receive promise recorded")
+		return nil
+	case matchesPrefix(args, "route", "promise", "deliver"):
+		if len(args) != 7 {
+			return errors.New("usage: route promise deliver <router-id> <recipient-id> <pcid> <true|false>")
+		}
+		enabled, err := strconv.ParseBool(args[6])
+		if err != nil {
+			return errors.New("usage: route promise deliver <router-id> <recipient-id> <pcid> <true|false>")
+		}
+		if err := runtime.PublishDeliveryPromise(kernel.DeliveryPromise{AgentID: args[3], RecipientAgentID: args[4], ProtocolPCID: args[5], Enabled: enabled}); err != nil {
+			return err
+		}
+		fmt.Println("route delivery promise recorded")
+		return nil
 	case matchesPrefix(args, "route", "list"):
 		if len(args) != 2 {
 			return errors.New("usage: route list")

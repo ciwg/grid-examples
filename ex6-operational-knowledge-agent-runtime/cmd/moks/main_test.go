@@ -1049,6 +1049,7 @@ func TestRouteInspectShowsProtocolRoutesForPCID(t *testing.T) {
 
 func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 	workdir := t.TempDir()
+	publishContextRoutePromises(t, workdir)
 	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1")
 	if err != nil {
 		t.Fatalf("route plan: %v", err)
@@ -1072,6 +1073,7 @@ func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 
 func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	workdir := t.TempDir()
+	publishContextRoutePromises(t, workdir)
 	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace")
 	if err != nil {
 		t.Fatalf("route plan trace: %v", err)
@@ -1831,6 +1833,20 @@ func runCLI(t *testing.T, workdir string, args ...string) (string, error) {
 		t.Fatalf("close reader: %v", err)
 	}
 	return strings.TrimSpace(string(body)), runErr
+}
+
+func publishContextRoutePromises(t *testing.T, workdir string) {
+	t.Helper()
+	commands := [][]string{
+		{"route", "bind", "context-app", "context", "true"},
+		{"route", "promise", "receive", "context-app", "pcid:moks.context.place.v1", "true"},
+		{"route", "promise", "deliver", "local-router", "context-app", "pcid:moks.context.place.v1", "true"},
+	}
+	for _, command := range commands {
+		if _, err := runCLI(t, workdir, command...); err != nil {
+			t.Fatalf("publish route evidence %q: %v", command, err)
+		}
+	}
 }
 
 func repoRoot(t *testing.T) string {

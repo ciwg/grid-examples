@@ -27,6 +27,34 @@ Intent: Keep the shipped ex6 example aligned with PromiseGrid's voluntary local-
 Constraints: The first slice remains local, deterministic, non-executing, and non-networked. Conditions, public names, and exact touched paths require further DF before code.
 Affects: `docs/thought-experiments/TE-ravuk-agent-route-registration.md`, route-planning implementation, durable local state, tests, CLI, and documentation.
 
+ID: DI-komaz
+Date: 2026-08-07 22:40:36 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Give each first-slice route promise an explicit opaque local `agent_id`; it is neither a package ID nor a durable PromiseGrid identity. Any package association remains bootstrap or implementation metadata outside the promise's agent identity.
+Intent: Keep live voluntary promises attributable to app agents without falsely treating a package label as identity or prematurely claiming signing-key continuity.
+Constraints: This local non-networked slice has no signing or cross-node identity claim. A later signed protocol must use a new pCID if it changes the record's meaning or encoding.
+Affects: `docs/protocols/route-promises.md`, route-promise record/replay code, route planning, tests, and CLI.
+Supersedes: DI-nuvom
+
+ID: DI-butam
+Date: 2026-08-07 22:42:57 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Require an explicit local append-only `AgentBinding` that maps each opaque `agent_id` to installed implementation package and route metadata. A binding is local adapter metadata, not a promise and not an identity claim.
+Intent: Let route planning connect voluntarily published app and routing-role promises to the current implementation while keeping package installation incapable of creating a live promise by inference.
+Constraints: The planner must require a valid binding plus enabled receive and delivery promises. Bindings are retained in local CAS and rebuilt from it; no network exchange, signing, or automatic binding from package claims occurs in this slice.
+Affects: `docs/protocols/route-promises.md`, route-promise record/replay code, runtime setup, route planning, tests, and CLI.
+
+ID: DI-zolil
+Date: 2026-08-07 22:48:30 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Expose first-slice local route evidence through `moks route bind <agent-id> <package-id> <true|false>`, `moks route promise receive <agent-id> <pcid> <true|false>`, and `moks route promise deliver <router-id> <recipient-id> <pcid> <true|false>`.
+Intent: Make bindings and promises explicit operator actions that create retained local evidence instead of letting package installation silently create live route authority.
+Constraints: Commands create only local CAS records; they do not communicate with peers, authenticate durable identity, or execute a route.
+Affects: `cmd/moks/main.go`, CLI tests, route-promise documentation, and operator-facing route planning.
+
 ID: DI-ruvot
 Date: 2026-07-28 10:23:13
 Status: active
