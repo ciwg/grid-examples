@@ -18,4 +18,4 @@ quarantine case.
 
 ## Status
 
-- [ ] Implement and verify the locked opening-review slice.
+- [x] Implement and verify the locked opening-review slice.

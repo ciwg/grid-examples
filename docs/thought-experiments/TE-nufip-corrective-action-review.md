@@ -4,7 +4,7 @@ TE ID: TE-nufip
 
 ## Status
 
-needs DF
+decided
 
 ## Decision under test
 
@@ -108,4 +108,4 @@ Remaining decisions:
 
 ## Decision status
 
-needs DF
+Locked by DI-hiboj.
