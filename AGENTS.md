@@ -15,6 +15,7 @@
 ## Handle Minting (Required)
 - When the user says "mint a handle," run the repository-root `tools/mint-handle` command and use the exact returned reservation for the requested TODO, TE, DR, or DI record. Do not manually select a proquint or reuse a historical handle. (DI-hidiz)
 - Treat `TODO/handle-namespace.tsv` as the append-only repository-wide reservation ledger. Commit the reservation with the artifact that consumes it; the allocator checks both this ledger and existing identifier owners before returning a value. (DI-hidiz)
+- Do not retroactively rename historical manual or noncanonical identifiers merely to conform to the current allocator. Preserve those labels as stable historical references; use `tools/mint-handle` for all new records unless the user explicitly requests a scoped migration. (DI-jutok)
 
 ## Promise Action Minimalism (Required)
 - Future PromiseGrid protocol, simulation, POC, scoring, generation, and guide work must not invent workflow-specific top-level action kinds by default. The default future-facing top-level semantic action is `promise`. (DI-mosoj)

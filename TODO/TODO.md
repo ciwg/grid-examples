@@ -1,5 +1,6 @@
 # TODO
 
+- [x] rugum - Preserve historical handle labels - `TODO/TODO-rugum-preserve-historical-handle-labels.md`
 - [x] kuzan - Document root handle-minting workflow - `TODO/TODO-kuzan-document-root-handle-minting.md`
 - [x] komud - Reconcile global handle reservations - `TODO/TODO-komud-global-handle-reservations.md`
 - [x] nujof - Make handle minting repo-wide - `TODO/TODO-nujof-repo-wide-handle-minting.md`
