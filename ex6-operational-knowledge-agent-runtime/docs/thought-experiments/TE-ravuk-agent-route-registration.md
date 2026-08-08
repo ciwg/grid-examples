@@ -133,14 +133,13 @@ authority.
 
 ## Decisions still requiring DF
 
-1. Should the first registry persist across runtime restarts, or begin in-memory
-   with a persistence boundary designed but unimplemented?
-2. Should package claims seed active bootstrap registrations automatically, or
-   require an explicit operator command to import them?
-3. Should the first record condition model support only identity, expiry, and
+1. Should the first record condition model support only identity, expiry, and
    enabled state, or also arbitrary pCID-defined condition payloads?
-4. What names should the public types and CLI surface use for acceptance and
+2. What names should the public types and CLI surface use for acceptance and
    delivery promises?
+3. What exact production, test, and durable-record paths should the first implementation touch?
+
+Locked first-slice decisions: paired durable local `ReceivePromise` and `DeliveryPromise` records; enabled-only conditions; package claims are bootstrap hints only; and `docs/protocols/route-promises.md` is the record-contract path. Source: DI-kojab.
 
 ## Implications for open TODOs and pending DIs
 
@@ -154,7 +153,7 @@ authority.
 
 ## Decision status
 
-needs DF
+partially locked: DI-kojab locks the first-slice model, condition boundary, names, and protocol-spec path. Exact implementation, test, and runtime paths still need DF.
 
 ## Refinements
 

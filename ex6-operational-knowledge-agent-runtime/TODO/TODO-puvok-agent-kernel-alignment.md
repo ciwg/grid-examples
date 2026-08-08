@@ -18,6 +18,15 @@ Intent: Move ex6 one concrete step toward the routing-agent model from the boss 
 Constraints: Keep the current package manifest format; treat claim-derived routes as the intermediate embodiment of startup promises; do not introduce parser-agent hops yet.
 Affects: `kernel/` route registration and activation behavior, `cmd/moks/` route inspection, runtime/package tests, and ex6 docs that describe the kernel/app boundary.
 
+ID: DI-nuvom
+Date: 2026-08-07 22:24:19 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Replace package-claim-derived live route authority with paired, explicit app-acceptance and routing-role delivery promises stored as durable local records. Package claims remain bootstrap hints only and never become active promises automatically.
+Intent: Keep the shipped ex6 example aligned with PromiseGrid's voluntary local-promise model instead of inferring a running agent's availability from package installation.
+Constraints: The first slice remains local, deterministic, non-executing, and non-networked. Conditions, public names, and exact touched paths require further DF before code.
+Affects: `docs/thought-experiments/TE-ravuk-agent-route-registration.md`, route-planning implementation, durable local state, tests, CLI, and documentation.
+
 ID: DI-ruvot
 Date: 2026-07-28 10:23:13
 Status: active
@@ -352,6 +361,16 @@ Decision: Acquire a portable adapter image only through the explicit `moks workf
 Intent: Keep workflow verification read-only and prevent lifecycle/start commands from hiding registry network activity or Docker state changes.
 Constraints: Resolve the image only from a verified artifact and matching installed package declaration; require the local registry allow-list and exact digest verification; pulling neither activates a workflow nor starts a run; unavailable images keep execution fail-closed.
 Affects: workflow CLI, image availability/readiness state, Docker pull integration, tests, and operator documentation.
+
+ID: DI-kojab
+Date: 2026-08-07 22:34:58 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: For the first route-promise slice, define the record contract in `docs/protocols/route-promises.md`; use `ReceivePromise` and `DeliveryPromise` as durable local, append-only CAS records; support enabled-only conditions; rebuild any local index from retained record bytes.
+Intent: Make ex6's routing model conform to the PromiseGrid Development Guide without adding unstated clock semantics or treating package claims as active agent promises.
+Constraints: Package claims remain bootstrap hints only. The first slice remains local, deterministic, non-executing, and non-networked. Exact implementation and test paths must be approved before code edits.
+Affects: `docs/protocols/route-promises.md`, `docs/thought-experiments/TE-ravuk-agent-route-registration.md`, route-planning implementation, durable local state, tests, CLI, and documentation.
+Supersedes: DI-nuvom
 
 ## Alignment Implementation Queue
 
