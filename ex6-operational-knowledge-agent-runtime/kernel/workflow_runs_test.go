@@ -1094,6 +1094,22 @@ func TestInstalledWorkflowAdapterExecutesValidatedWorkerProposal(t *testing.T) {
 		t.Fatal(err)
 	}
 	runtime.workflowAdapters["worker"] = packages.WorkflowAdapter{Name: "worker", Image: "example/worker:1", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID, CPUs: "0.5", Memory: "128m", PIDsLimit: 64, Timeout: "30s"}
+	runtime.workflowAdapterPackages["worker"] = "worker-package"
+	if _, err := runtime.StartWorkflowRun(context.Background(), "worker", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}}); err == nil || !strings.Contains(err.Error(), "not currently promised") {
+		t.Fatalf("missing route evidence error = %v", err)
+	}
+	if len(runtime.WorkflowRuns()) != 0 {
+		t.Fatalf("pre-dispatch refusal created runs: %#v", runtime.WorkflowRuns())
+	}
+	if err := runtime.BindAgent(AgentBinding{AgentID: "worker-app", PackageID: "worker-package", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.PublishReceivePromise(ReceivePromise{AgentID: "worker-app", ProtocolPCID: WorkflowHandoffProtocolPCID, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.PublishDeliveryPromise(DeliveryPromise{AgentID: "local-router", RecipientAgentID: "worker-app", ProtocolPCID: WorkflowHandoffProtocolPCID, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
 	runtime.workflowWorker = func(_ context.Context, adapter packages.WorkflowAdapter, raw []byte) ([]byte, error) {
 		if adapter.Name != "worker" {
 			t.Fatalf("unexpected adapter: %#v", adapter)
@@ -1138,6 +1154,16 @@ func TestInstalledWorkflowAdapterRejectsWrongOutputBeforeWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	runtime.workflowAdapters["worker"] = packages.WorkflowAdapter{Name: "worker", Image: "example/worker:1", InputPCID: WorkflowHandoffProtocolPCID, OutputPCID: WorkflowHandoffProtocolPCID, CPUs: "0.5", Memory: "128m", PIDsLimit: 64, Timeout: "30s"}
+	runtime.workflowAdapterPackages["worker"] = "worker-package"
+	if err := runtime.BindAgent(AgentBinding{AgentID: "worker-app", PackageID: "worker-package", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.PublishReceivePromise(ReceivePromise{AgentID: "worker-app", ProtocolPCID: WorkflowHandoffProtocolPCID, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.PublishDeliveryPromise(DeliveryPromise{AgentID: "local-router", RecipientAgentID: "worker-app", ProtocolPCID: WorkflowHandoffProtocolPCID, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
 	runtime.workflowWorker = func(_ context.Context, _ packages.WorkflowAdapter, _ []byte) ([]byte, error) {
 		return EncodeWorkflowAdapterResult(WorkflowAdapterResult{
 			Output:  WorkflowHandoff{PCID: WorkflowRunProtocolPCID, Values: map[string]string{"subject": "wrong"}},

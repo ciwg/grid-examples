@@ -400,11 +400,29 @@ Constraints: Package claims remain bootstrap hints only. The first slice remains
 Affects: `docs/protocols/route-promises.md`, `docs/thought-experiments/TE-ravuk-agent-route-registration.md`, route-planning implementation, durable local state, tests, CLI, and documentation.
 Supersedes: DI-nuvom
 
+ID: DI-bidam
+Date: 2026-08-08 10:39:55 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Before invoking a Docker workflow worker, require active workflow state plus enabled local AgentBinding, ReceivePromise, and DeliveryPromise evidence for the adapter's owning package and workflow input pCID. If evidence is missing, disabled, malformed, or conflicted, return a pre-dispatch local refusal without creating a workflow-run event.
+Intent: Make Docker dispatch obey the same explicit voluntary route evidence as planning, while keeping a non-dispatched worker from being misrepresented as a failed run or broken promise.
+Constraints: Retain existing Docker confinement and post-acceptance run lifecycle events; do not claim network delivery, durable identity, or distributed locking; use only `kernel/runtime.go` and `kernel/workflow_runs_test.go` in this slice.
+Affects: `kernel/runtime.go`, `kernel/workflow_runs_test.go`, and `docs/thought-experiments/TE-niliv-workflow-dispatch-route-evidence.md`.
+
+ID: DI-guraj
+Date: 2026-08-08 10:42:32 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Name the runtime's private adapter-name-to-active-package projection `workflowAdapterPackages`; keep the pre-dispatch eligibility check inline in `StartWorkflowRun`.
+Intent: Make the stored relation legible without broadening the first dispatch-gate slice with a new public API or helper abstraction.
+Constraints: The map is runtime-local derived state populated only during active-package registration; it does not create a binding or promise.
+Affects: `kernel/runtime.go` and `kernel/workflow_runs_test.go`.
+
 ## Alignment Implementation Queue
 
 - [x] Persist append-only local workflow lifecycle events and rebuild the local registry at startup. (DI-lovek; TE-gavuk; cdc0621)
 - [x] Split workflow import from explicit activation; route and worker eligibility require active state. (DI-lovek; TE-gavuk)
 - [x] Add separate deactivation and revocation withdrawal paths without deleting CAS or durable history. (DI-lovek; TE-gavuk)
 - [x] Model pCID-scoped app receive promises and routing-role delivery promises before route-plan execution. (TE-ravuk; DI-kojab; DI-komaz; DI-butam; DI-zolil; 51b51cf)
-- [ ] Bind Docker worker dispatch only to active registered receive promises and record local lifecycle events. (TE-dovek; DI-lovek)
+- [x] Bind Docker worker dispatch only to active registered receive promises and record local lifecycle events. (TE-dovek; TE-niliv; DI-bidam; DI-guraj)
 - [x] Extend active package manifests with Docker-confined workflow adapter declarations and bind matching active artifacts to those declarations. (TE-dovek; DI-fofuh; d86cef2)

@@ -59,25 +59,26 @@ type registeredFamily struct {
 }
 
 type Runtime struct {
-	root             string
-	packagesRoot     string
-	history          *store.History
-	cas              *store.CAS
-	workflowEvidence *store.CAS
-	workflowReceipts *workflowReceiptStore
-	peers            *grid.PeerStore
-	policies         *grid.PolicyStore
-	packages         map[string]*activePackage
-	commands         map[string]*activePackage
-	families         map[string]registeredFamily
-	routes           []registeredRoute
-	workflows        *WorkflowRegistry
-	workflowRuns     *WorkflowRunRegistry
-	workflowOps      map[string]WorkflowOperation
-	workflowAdapters map[string]packages.WorkflowAdapter
-	workflowWorker   WorkflowAdapterWorker
-	handoffPolicies  *WorkflowHandoffPolicies
-	routePromises    *RoutePromiseRegistry
+	root                    string
+	packagesRoot            string
+	history                 *store.History
+	cas                     *store.CAS
+	workflowEvidence        *store.CAS
+	workflowReceipts        *workflowReceiptStore
+	peers                   *grid.PeerStore
+	policies                *grid.PolicyStore
+	packages                map[string]*activePackage
+	commands                map[string]*activePackage
+	families                map[string]registeredFamily
+	routes                  []registeredRoute
+	workflows               *WorkflowRegistry
+	workflowRuns            *WorkflowRunRegistry
+	workflowOps             map[string]WorkflowOperation
+	workflowAdapters        map[string]packages.WorkflowAdapter
+	workflowAdapterPackages map[string]string
+	workflowWorker          WorkflowAdapterWorker
+	handoffPolicies         *WorkflowHandoffPolicies
+	routePromises           *RoutePromiseRegistry
 }
 
 func Open(root string) (*Runtime, error) {
@@ -143,25 +144,26 @@ func Open(root string) (*Runtime, error) {
 		return nil, err
 	}
 	runtime := &Runtime{
-		root:             root,
-		packagesRoot:     filepath.Join(root, "packages"),
-		history:          history,
-		cas:              casStore,
-		workflowEvidence: evidenceStore,
-		workflowReceipts: receiptStore,
-		peers:            peerStore,
-		policies:         policyStore,
-		packages:         map[string]*activePackage{},
-		commands:         map[string]*activePackage{},
-		families:         map[string]registeredFamily{},
-		routes:           []registeredRoute{},
-		workflows:        workflowRegistry,
-		workflowRuns:     workflowRuns,
-		workflowOps:      map[string]WorkflowOperation{},
-		workflowAdapters: map[string]packages.WorkflowAdapter{},
-		workflowWorker:   runDockerWorkflowAdapter,
-		handoffPolicies:  handoffPolicies,
-		routePromises:    routePromises,
+		root:                    root,
+		packagesRoot:            filepath.Join(root, "packages"),
+		history:                 history,
+		cas:                     casStore,
+		workflowEvidence:        evidenceStore,
+		workflowReceipts:        receiptStore,
+		peers:                   peerStore,
+		policies:                policyStore,
+		packages:                map[string]*activePackage{},
+		commands:                map[string]*activePackage{},
+		families:                map[string]registeredFamily{},
+		routes:                  []registeredRoute{},
+		workflows:               workflowRegistry,
+		workflowRuns:            workflowRuns,
+		workflowOps:             map[string]WorkflowOperation{},
+		workflowAdapters:        map[string]packages.WorkflowAdapter{},
+		workflowAdapterPackages: map[string]string{},
+		workflowWorker:          runDockerWorkflowAdapter,
+		handoffPolicies:         handoffPolicies,
+		routePromises:           routePromises,
 	}
 	if err := os.MkdirAll(runtime.packagesRoot, 0o755); err != nil {
 		_ = history.Close()
@@ -278,6 +280,16 @@ func (runtime *Runtime) StartWorkflowRun(ctx context.Context, workflowID string,
 	}
 	if input.PCID != manifest.InputPCID {
 		return WorkflowRun{}, errors.New("workflow input pCID is not accepted")
+	}
+	if _, installed := runtime.workflowAdapters[manifest.Adapter]; installed {
+		packageID, known := runtime.workflowAdapterPackages[manifest.Adapter]
+		// Intent: An active package and Docker confinement are not an app's
+		// current promise to receive work. Refuse before creating a run unless
+		// the complete local binding, receive, and delivery evidence is enabled.
+		// Source: DI-bidam; DI-guraj
+		if !known || !runtime.routePromises.routeExecutable(packageID, manifest.InputPCID) {
+			return WorkflowRun{}, errors.New("workflow adapter is not currently promised for its input pCID")
+		}
 	}
 	raw, err := EncodeWorkflowHandoff(input)
 	if err != nil {
@@ -742,6 +754,7 @@ func (runtime *Runtime) activatePackage(pkg *activePackage) error {
 	}
 	for _, adapter := range pkg.manifest.WorkflowAdapters {
 		runtime.workflowAdapters[adapter.Name] = adapter
+		runtime.workflowAdapterPackages[adapter.Name] = pkg.manifest.ID
 	}
 	return nil
 }
