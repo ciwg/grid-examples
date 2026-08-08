@@ -132,6 +132,65 @@ func TestWorkflowRunRequiresActiveArtifact(t *testing.T) {
 	}
 }
 
+func TestRevokedWorkflowRemainsIneligibleAfterRestart(t *testing.T) {
+	// Intent: A revoked workflow remains retained evidence, but restart must not
+	// restore local activation or execution eligibility. Source: DI-rupit.
+	root := t.TempDir()
+	runtime, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation := func(_ context.Context, _ *Runtime, input WorkflowHandoff) (WorkflowHandoff, error) { return input, nil }
+	if err := runtime.RegisterWorkflowOperation("test", operation); err != nil {
+		t.Fatal(err)
+	}
+	directory := filepath.Join(root, "workflow")
+	if err := os.Mkdir(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"id":"test","version":"1","summary":"test","required_packages":[],"required_protocols":[],"adapter":"test","input_pcid":"` + WorkflowHandoffProtocolPCID + `","output_pcid":"` + WorkflowHandoffProtocolPCID + `"}`
+	if err := os.WriteFile(filepath.Join(directory, "workflow.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	imported, err := runtime.CaptureWorkflowDir(directory, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.ActivateWorkflow("test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.RevokeWorkflow("test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := reopened.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := reopened.RegisterWorkflowOperation("test", operation); err != nil {
+		t.Fatal(err)
+	}
+	workflows := reopened.Workflows()
+	if len(workflows) != 1 || workflows[0].ArtifactCID != imported.ArtifactCID || workflows[0].State != WorkflowRevoked {
+		t.Fatalf("replayed workflows = %#v, want retained revoked artifact %q", workflows, imported.ArtifactCID)
+	}
+	if err := reopened.ActivateWorkflow("test"); err == nil {
+		t.Fatal("revoked workflow activated after restart")
+	}
+	input := WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}}
+	if _, err := reopened.StartWorkflowRun(context.Background(), "test", input); err == nil {
+		t.Fatal("revoked workflow started after restart")
+	}
+}
+
 func TestWorkflowHandoffRequiresActiveTarget(t *testing.T) {
 	root := t.TempDir()
 	runtime, err := Open(root)

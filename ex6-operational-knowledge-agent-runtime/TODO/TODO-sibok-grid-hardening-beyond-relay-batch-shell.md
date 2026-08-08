@@ -166,6 +166,15 @@ Intent: Give operators an honest recent-activity view without treating content-a
 Constraints: New events use the v2 selector and eight slots; replay accepts v1 seven-slot events; timestamps are local projection ordering evidence, not distributed clock truth; overview remains read-only and human-only.
 Affects: `kernel/workflow_runs.go`, `kernel/runtime.go`, `cmd/moks/main.go`, run/CLI tests, `docs/protocols/workflow-run-v2.md`, and operator documentation.
 
+ID: DI-rupit
+Date: 2026-08-07 22:09:45 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Keep the current workflow-lifecycle pCID unchanged: a replacement remains a separately imported immutable artifact CID, while revocation is a local withdrawal of availability that retains artifact and lifecycle evidence.
+Intent: Keep ex6's shipped example code consistent with the PromiseGrid Development Guide's local-promise model and the frozen workflow-lifecycle protocol.
+Constraints: Do not add a replacement-link field, automatic replacement behavior, or a new lifecycle operation under the current pCID. Prove revocation persists across restart and prevents later activation or workflow execution.
+Affects: `kernel/workflows_test.go`, `kernel/workflow_runs_test.go`, `docs/protocols/workflow-lifecycle.md`, and this TODO record.
+
 ## Goal
 
 Make the current relay shell safer and less noisy under repeated exchange.
@@ -184,5 +193,5 @@ malformed relay batches are not rejected early enough.
 
 ## Workflow Artifact Hardening
 
-- [ ] Preserve imported workflow artifact CIDs and provenance through deactivation, revocation, replacement, and restart. (DI-lovek; TE-gavuk)
+- [x] Prove that revocation persists across restart, retains its artifact and lifecycle evidence, and prevents reactivation or workflow execution; under the current protocol, a replacement remains a separate imported artifact CID. (DI-rupit; TE-gavuk)
 - [ ] Support local package-directory capture into CAS and direct CAS workflow-artifact import with validation. (DI-lovek; TE-gavuk)
