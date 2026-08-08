@@ -1,0 +1,1 @@
+{"fields":["quarantine_case_id","action_id","actor","evidence_id","summary","notes"],"kind":"moks.workflow.adapter.input","version":1,"workflow":"corrective-action-review"}

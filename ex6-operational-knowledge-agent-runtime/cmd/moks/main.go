@@ -18,6 +18,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/kernel"
 	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/context"
+	correctiveaction "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/correctiveaction"
 	inventorypkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/inventory"
 	knowledgepkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/knowledge"
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/links"
@@ -1507,6 +1508,9 @@ func fetchPeerCard(ctx context.Context, cardURL string) (grid.PeerCard, error) {
 
 func registerBuiltins(runtime *kernel.Runtime) error {
 	if err := runtime.RegisterBuiltin(contextpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(correctiveaction.Package()); err != nil {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(knowledgepkg.Package()); err != nil {

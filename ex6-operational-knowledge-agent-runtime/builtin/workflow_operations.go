@@ -17,7 +17,31 @@ func WorkflowOperations() map[string]kernel.WorkflowOperation {
 		operations[name] = commandWorkflowOperation(specification)
 	}
 	operations["quarantine-resolution"] = quarantineResolutionWorkflowOperation
+	operations["corrective-action-review"] = correctiveActionReviewWorkflowOperation
 	return operations
+}
+
+// Intent: Retain a typed review run before opening durable corrective follow-up. Source: DI-hiboj
+func correctiveActionReviewWorkflowOperation(ctx context.Context, runtime *kernel.Runtime, input kernel.WorkflowHandoff) (kernel.WorkflowHandoff, error) {
+	if input.PCID != "bafkreiaiurty25o3gykiyntve7bmya7236ik5wdcmfb6pl3toeigqip36e" {
+		return kernel.WorkflowHandoff{}, errors.New("workflow adapter input pCID is not supported")
+	}
+	args := []string{"correctiveaction", "open"}
+	for _, field := range []string{"action_id", "quarantine_case_id", "actor", "evidence_id", "summary", "notes"} {
+		value := strings.TrimSpace(input.Values[field])
+		if value == "" {
+			return kernel.WorkflowHandoff{}, kernel.WaitingForWorkflowInput("workflow input requires " + field)
+		}
+		args = append(args, value)
+	}
+	if _, err := runtime.RunCommand(ctx, args); err != nil {
+		return kernel.WorkflowHandoff{}, err
+	}
+	output := kernel.WorkflowHandoff{PCID: "bafkreieaju7kx62oi4ulqi5d2wajijdpm7wxomyj5m56m4kym7ogmyp5fm", Values: map[string]string{"stage": "completed"}}
+	for key, value := range input.Values {
+		output.Values[key] = value
+	}
+	return output, nil
 }
 
 // Intent: Keep the resolution decision visible in the workflow's typed input
