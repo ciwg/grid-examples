@@ -98,7 +98,8 @@ reconciliation, `maintenance-round`, which composes context, maintenance, and
 runs for resource inspection, service, and findings, `receiving-check`, which
 keeps inbound inspection and disposition separate from inventory, and
 `receiving-exception`, which opens a durable quarantine case after a failed
-inspection. `training-qualification` keeps training sessions separate from
+inspection, and `corrective-action-review`, which opens durable follow-up from
+a rejected quarantine case. `training-qualification` keeps training sessions separate from
 explicit certification decisions; `inventory-discrepancy-review` adds explicit
 count reconciliation for adjust, investigate, or reject decisions; and
 `knowledge-review` retains revision, approval, and supersedence review.
@@ -169,6 +170,7 @@ these real package commands:
 - `receiving-check`: `receiving record-receipt`
 - `receiving-exception`: `quarantine open`
 - `quarantine-resolution`: `quarantine release` or `quarantine reject`
+- `corrective-action-review`: `correctiveaction open`
 - `maintenance-round`: `maintenance record-service`
 - `training-qualification`: `training record-session`
 - `knowledge-review`: `knowledge item approve`

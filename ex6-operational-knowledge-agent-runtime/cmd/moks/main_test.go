@@ -616,6 +616,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		"receiving-check",
 		"receiving-exception",
 		"quarantine-resolution",
+		"corrective-action-review",
 		"training-qualification",
 		"inventory-discrepancy-review",
 		"knowledge-review",
@@ -635,6 +636,8 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		{"receiving", "create", "receipt", "dock", "Inbound-receipt", "Pallet-inspection"},
 		{"receiving", "record-receipt", "receipt", "receive-run", "dock", "Alice", "accepted", "sealed"},
 		{"receiving", "record-disposition", "receipt", "receipt-disposition", "accepted", "scale", "accepted"},
+		{"quarantine", "open", "review-reject-case", "receipt", "receive-run", "Alice", "review-inspection", "seal-mismatch", "hold"},
+		{"quarantine", "reject", "review-reject-case", "review-reject-event", "Bob", "review-evidence", "reject"},
 		{"inventory", "create", "stock", "dock", "Inbound-stock", "Count-after-receipt"},
 		{"inventory", "record-count", "stock", "count-run", "dock", "Bob", "8", "counted", "counted"},
 		{"inventory", "record-reconcile", "stock", "reconcile", "investigate", "scale", "variance"},
@@ -657,7 +660,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list workflows: %v", err)
 	}
-	if strings.Count(workflows, `"state": "active"`) != 9 {
+	if strings.Count(workflows, `"state": "active"`) != 10 {
 		t.Fatalf("active workflow list = %s", workflows)
 	}
 	workflowRuns := [][]string{
@@ -667,6 +670,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		{"workflow", "run", "start", "receiving-check", "receiving_id", "receipt", "run_id", "workflow-receiving-run", "place_id", "dock", "receiver", "Alice", "outcome", "accepted", "notes", "sealed"},
 		{"workflow", "run", "start", "receiving-exception", "receiving_id", "receipt", "receipt_run_id", "receive-run", "case_id", "workflow-quarantine-case", "actor", "Alice", "evidence_id", "inspection-record-1", "exception", "seal-mismatch", "notes", "hold"},
 		{"workflow", "run", "start", "quarantine-resolution", "case_id", "workflow-quarantine-case", "event_id", "workflow-quarantine-release", "actor", "Bob", "evidence_id", "resolution-review-1", "decision", "release", "notes", "cleared"},
+		{"workflow", "run", "start", "corrective-action-review", "quarantine_case_id", "review-reject-case", "action_id", "workflow-action", "actor", "Carol", "evidence_id", "action-review", "summary", "Correct-supplier-label", "notes", "opened"},
 		{"workflow", "run", "start", "training-qualification", "training_id", "dock-training", "run_id", "workflow-training-run", "trainee", "Dave", "instructor", "Ellen", "outcome", "completed", "notes", "demonstrated"},
 		{"workflow", "run", "start", "inventory-discrepancy-review", "inventory_id", "stock", "event_id", "workflow-reconcile", "decision", "investigate", "resource_id", "scale", "notes", "variance"},
 		{"workflow", "run", "start", "knowledge-review", "item_id", "dock-guide", "event_id", "workflow-guide-approval", "notes", "approved"},
