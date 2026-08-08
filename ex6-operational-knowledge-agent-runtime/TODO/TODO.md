@@ -1,5 +1,6 @@
 # OKAR TODO
 
+- [x] ronos - quarantine package and receiving-exception workflow
 - [x] lorup - context package foundation
 - [x] vakod - knowledge package foundation
 - [x] pamuk - runs, evidence, and approvals package foundation

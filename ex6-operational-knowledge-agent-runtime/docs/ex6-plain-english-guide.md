@@ -53,12 +53,12 @@ has the workflow bytes       !=       has decided to use the workflow
 
 Receiving an artifact does not mean receiving authority to run it.
 
-## The basket analogy
+## Workflow loading
 
-The workflow loader is the "basket."
+The workflow loader retains exact workflow artifacts in local CAS.
 
 1. Pick up a workflow directory.
-2. Put an exact archived copy into the basket (CAS).
+2. Put an exact archived copy into local CAS.
 3. Give that copy a CID.
 4. Optionally mark it active on this computer.
 5. Take out the exact copy later for inspection.

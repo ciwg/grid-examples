@@ -23,6 +23,7 @@ import (
 	linkspkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/links"
 	maintenancepkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/maintenance"
 	procedurespkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/procedures"
+	quarantinepkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/quarantine"
 	receivingpkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/receiving"
 	runspkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/runs"
 	trainingpkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/training"
@@ -1524,6 +1525,9 @@ func registerBuiltins(runtime *kernel.Runtime) error {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(receivingpkg.Package()); err != nil {
+		return err
+	}
+	if err := runtime.RegisterBuiltin(quarantinepkg.Package()); err != nil {
 		return err
 	}
 	if err := runtime.RegisterBuiltin(procedurespkg.Package()); err != nil {

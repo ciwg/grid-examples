@@ -17,7 +17,7 @@ func TestShippedWorkflowSchemaPCIDsMatchCanonicalSpecifications(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, workflow := range []string{"inventory-discrepancy-review", "inventory-receipt", "knowledge-review", "maintenance-round", "procedure-execution", "receiving-check", "training-qualification"} {
+	for _, workflow := range []string{"inventory-discrepancy-review", "inventory-receipt", "knowledge-review", "maintenance-round", "procedure-execution", "receiving-check", "receiving-exception", "training-qualification"} {
 		manifestRaw, err := os.ReadFile(filepath.Join(root, workflow, "workflow.json"))
 		if err != nil {
 			t.Fatal(err)

@@ -1,6 +1,6 @@
-# Workflow Loader: The Basket
+# Workflow Loader
 
-The workflow loader is the runtime-owned, workflow-agnostic basket. It accepts
+The workflow loader is runtime-owned and workflow-agnostic. It accepts
 any valid workflow directory, turns it into one immutable CAS artifact, and
 records the local lifecycle decision for that artifact. It does not execute a
 workflow or create a new top-level PromiseGrid action kind.
@@ -44,15 +44,15 @@ continues to run under its declared contract. New captures carry canonical
 embedded adapter schemas and reject retired pCIDs. There is no implicit
 translation between the two contracts. Source: DI-lumek.
 
-## Local basket state
+## Local runtime state
 
 The moks CLI uses .moks/ beneath its current working directory as its local
 runtime root. It holds CAS objects, lifecycle events, the disposable projection
 cache, local peer state, and history. It is intentionally ignored by Git:
-workflow source directories are committed; the locally loaded basket state is
+workflow source directories are committed; the locally loaded runtime state is
 not.
 
-Inspect the current local basket with:
+Inspect the current local runtime with:
 
     go run ./cmd/moks workflow list
     go run ./cmd/moks workflow overview
@@ -98,7 +98,7 @@ The same valid directory must always produce the same bytes and artifact CID.
 
 ### 3. Catalog and CLI
 
-Expose the basket through a workflow command family:
+Expose the workflow loader through a workflow command family:
 
     moks workflow capture <directory>
     moks workflow overview
@@ -149,7 +149,7 @@ and CLI end-to-end tests.
 
 ## Demonstrable first slice
 
-The first useful basket demonstration is:
+The first useful workflow-loader demonstration is:
 
 1. Capture a procedure-execution workflow directory.
 2. Display its CID and validated manifest.

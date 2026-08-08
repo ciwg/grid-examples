@@ -614,6 +614,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		"inventory-receipt",
 		"maintenance-round",
 		"receiving-check",
+		"receiving-exception",
 		"training-qualification",
 		"inventory-discrepancy-review",
 		"knowledge-review",
@@ -655,7 +656,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list workflows: %v", err)
 	}
-	if strings.Count(workflows, `"state": "active"`) != 7 {
+	if strings.Count(workflows, `"state": "active"`) != 8 {
 		t.Fatalf("active workflow list = %s", workflows)
 	}
 	workflowRuns := [][]string{
@@ -663,6 +664,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 		{"workflow", "run", "start", "inventory-receipt", "inventory_id", "stock", "run_id", "workflow-inventory-run", "place_id", "dock", "counter", "Bob", "quantity", "8", "outcome", "counted", "notes", "counted"},
 		{"workflow", "run", "start", "maintenance-round", "maintenance_id", "scale-check", "run_id", "workflow-maintenance-run", "resource_id", "scale", "performer", "Carol", "outcome", "completed", "notes", "calibrated"},
 		{"workflow", "run", "start", "receiving-check", "receiving_id", "receipt", "run_id", "workflow-receiving-run", "place_id", "dock", "receiver", "Alice", "outcome", "accepted", "notes", "sealed"},
+		{"workflow", "run", "start", "receiving-exception", "receiving_id", "receipt", "receipt_run_id", "receive-run", "case_id", "workflow-quarantine-case", "actor", "Alice", "evidence_id", "inspection-record-1", "exception", "seal-mismatch", "notes", "hold"},
 		{"workflow", "run", "start", "training-qualification", "training_id", "dock-training", "run_id", "workflow-training-run", "trainee", "Dave", "instructor", "Ellen", "outcome", "completed", "notes", "demonstrated"},
 		{"workflow", "run", "start", "inventory-discrepancy-review", "inventory_id", "stock", "event_id", "workflow-reconcile", "decision", "investigate", "resource_id", "scale", "notes", "variance"},
 		{"workflow", "run", "start", "knowledge-review", "item_id", "dock-guide", "event_id", "workflow-guide-approval", "notes", "approved"},
@@ -675,6 +677,7 @@ func TestMultiWorkflowScenarioUsesSharedMainProgramRuntime(t *testing.T) {
 	}
 	for _, inspect := range [][]string{
 		{"receiving", "inspect", "receipt"},
+		{"quarantine", "inspect", "workflow-quarantine-case"},
 		{"inventory", "inspect", "stock"},
 		{"maintenance", "inspect", "scale-check"},
 		{"training", "inspect", "dock-training"},

@@ -119,6 +119,9 @@ func TestWorkflowOperationPreservesLegacyPCIDPair(t *testing.T) {
 
 func TestWorkflowOperationSpecificationsPreserveAllLegacyPCIDPairs(t *testing.T) {
 	for workflow, specification := range workflowOperationSpecifications {
+		if specification.legacyInputPCID == "" {
+			continue
+		}
 		outputPCID, ok := specification.outputForInput(specification.legacyInputPCID)
 		if !ok {
 			t.Fatalf("%s does not accept its legacy input pCID", workflow)

@@ -95,28 +95,30 @@ for durable relationships between the resulting records.
 The repository also includes `inventory-receipt`, which composes context,
 receiving, inventory, and runs to document receipt, disposition, counting, and
 reconciliation, `maintenance-round`, which composes context, maintenance, and
-runs for resource inspection, service, and findings, and `receiving-check`,
-which keeps inbound inspection and disposition separate from inventory, and
-`training-qualification`, which keeps training sessions separate from explicit
-certification decisions. Together, the seven artifacts demonstrate that the
-loader is not specific to procedure execution. `inventory-discrepancy-review`
-adds explicit count reconciliation for adjust, investigate, or reject decisions,
-and `knowledge-review` retains revision, approval, and supersedence review.
+runs for resource inspection, service, and findings, `receiving-check`, which
+keeps inbound inspection and disposition separate from inventory, and
+`receiving-exception`, which opens a durable quarantine case after a failed
+inspection. `training-qualification` keeps training sessions separate from
+explicit certification decisions; `inventory-discrepancy-review` adds explicit
+count reconciliation for adjust, investigate, or reject decisions; and
+`knowledge-review` retains revision, approval, and supersedence review.
+Together, the eight artifacts demonstrate that the loader is not specific to
+procedure execution.
 
 Source: DI-voruk; DI-favuk; DI-zovuk; DI-yavuk; DI-pavuk; DI-dovuk.
 
 ## Shared-runtime scenario coverage
 
-The CLI scenario test loads and activates all seven artifacts in one runtime,
+The CLI scenario test loads and activates all eight artifacts in one runtime,
 then drives receiving, inventory, maintenance, training, and knowledge commands
 through the main `moks` command dispatcher. This proves shared operational
 interaction without claiming that workflow artifacts autonomously execute.
 
 Source: DI-sovuk.
 
-## Basket lifecycle and executable orchestration
+## Workflow lifecycle and executable orchestration
 
-The runtime is the basket; workflow artifacts are removable eggs. Capturing or
+The runtime retains and manages independently versioned workflow artifacts. Capturing or
 importing an artifact only puts exact bytes in CAS. Activating it makes that
 specific artifact eligible to run. Deactivating or revoking it blocks both new
 runs and handoffs, even when its built-in package capability remains installed.
@@ -153,10 +155,10 @@ Source: DI-lumek.
    <run-id>` using the exact retained input. If a physical persistence failure
    leaves a run in `running`, the same explicit retry command is the manual
    recovery path. There is no automatic retry.
-10. **Deactivate/revoke.** The egg stays retained for audit/extraction, but the
+10. **Deactivate/revoke.** The artifact stays retained for audit/extraction, but the
    runtime refuses to start it again.
 
-The current seven artifacts each declare an adapter plus distinct input and
+The current eight artifacts each declare an adapter plus distinct input and
 output pCIDs. The common outer CBOR envelope carries sorted string fields, but
 the pCID identifies the individual adapter contract; the current adapters call
 these real package commands:
@@ -165,6 +167,7 @@ these real package commands:
 - `inventory-receipt`: `inventory record-count`
 - `inventory-discrepancy-review`: `inventory record-reconcile`
 - `receiving-check`: `receiving record-receipt`
+- `receiving-exception`: `quarantine open`
 - `maintenance-round`: `maintenance record-service`
 - `training-qualification`: `training record-session`
 - `knowledge-review`: `knowledge item approve`
@@ -183,7 +186,7 @@ Their old input/output pCID pairs are supported only by the corresponding
 shipped trusted adapter, which emits the old declared output pCID when it
 receives the old declared input pCID. The runtime does not translate an old
 envelope into a new one, and new capture rejects an old pCID.
-This preserves the exact contract of a retained egg while newer artifacts use
+This preserves the exact contract of a retained artifact while newer artifacts use
 the canonical embedded schemas. Source: DI-lumek.
 
 `moks workflow verify <alias-or-cid>` prints the manifest plus `contract`,
@@ -234,6 +237,6 @@ command. It does not change lifecycle state or perform network work. Source:
 `DI-sotad`.
 
 The complete generic loader contract is documented in
-[Workflow Loader: The Basket](./workflow-loader.md).
+[Workflow Loader](./workflow-loader.md).
 For the concise local, relay, and optional portable-image procedure, see the
 [EX6 operator deployment checklist](./operator-deployment-checklist.md).

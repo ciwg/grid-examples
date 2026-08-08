@@ -30,7 +30,7 @@ route plans are not yet executed through a full worker-dispatch system.
 
 Source: DI-moksu, DI-puvok, DI-bavuk.
 
-## Meeting walkthrough: workflow basket
+## Meeting walkthrough: workflow loading
 
 Run:
 
@@ -45,4 +45,4 @@ The disposable demo proves four things:
 
 The final JSON status should show an active state and ready set to true. The
 demo uses a temporary runtime and removes it afterward, so it does not change
-the local basket under .moks/.
+the local runtime under .moks/.

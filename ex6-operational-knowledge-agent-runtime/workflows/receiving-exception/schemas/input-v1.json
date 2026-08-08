@@ -1,0 +1,1 @@
+{"fields":["receiving_id","receipt_run_id","case_id","actor","evidence_id","exception","notes"],"kind":"moks.workflow.adapter.input","version":1,"workflow":"receiving-exception"}

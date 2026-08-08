@@ -1,4 +1,4 @@
-# Writer Egg Example
+# Writer Package Example
 
 This is the smallest installed executable package in the repo that performs a
 real durable write through the runtime.
