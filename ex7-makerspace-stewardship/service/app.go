@@ -10,7 +10,7 @@ import (
 
 // App keeps the demo's shared equipment evidence in memory. Intent: make the
 // append-only observations and current safety status easy to inspect in the
-// first standalone example. Source: temporary DI pending mint-handle recovery.
+// first standalone example. Source: DI-dapod.
 type App struct {
 	mu    sync.RWMutex
 	state State
@@ -91,7 +91,7 @@ func (a *App) AddObservation(toolID, reporterID, text string, safetyHold bool, p
 		return Tool{}, err
 	}
 	// Intent: State only reflects evidence that has reached stable storage.
-	// Source: DI-pending-mint-ex7-001.
+	// Source: DI-dapod.
 	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
@@ -132,7 +132,7 @@ func (a *App) ClearSafetyHold(toolID, stewardID, assessment string) (Tool, error
 		return Tool{}, err
 	}
 	// Intent: State only reflects evidence that has reached stable storage.
-	// Source: DI-pending-mint-ex7-001.
+	// Source: DI-dapod.
 	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
@@ -184,7 +184,7 @@ func (a *App) CreateLoan(toolID, memberID string, dueAt time.Time) (Tool, error)
 		return Tool{}, err
 	}
 	// Intent: State only reflects evidence that has reached stable storage.
-	// Source: DI-pending-mint-ex7-001.
+	// Source: DI-dapod.
 	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
@@ -213,7 +213,7 @@ func (a *App) ReturnLoan(toolID, memberID, condition string) (Tool, error) {
 		return Tool{}, err
 	}
 	// Intent: State only reflects evidence that has reached stable storage.
-	// Source: DI-pending-mint-ex7-001.
+	// Source: DI-dapod.
 	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
@@ -249,7 +249,7 @@ func (a *App) applyEvent(event Event) error {
 				return errors.New("legacy loan event lacks a return deadline")
 			}
 			// Intent: Retain known legacy loan facts while exposing unavailable terms
-			// instead of inferring a current policy. Source: DI-pending-mint-ex7-004.
+			// instead of inferring a current policy. Source: DI-malih.
 			tool.ActiveLoan = &Loan{MemberID: event.ActorID, DueAt: event.DueAt, CreatedAt: event.CreatedAt, TermsComplete: false}
 			tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("replay-%d", len(tool.Observations)+1), ToolID: event.ToolID, ReporterID: event.ActorID, Text: "Off-site loan replayed with accepted terms unavailable. Return promised by " + event.DueAt.Format(time.RFC822), CreatedAt: event.CreatedAt})
 			break

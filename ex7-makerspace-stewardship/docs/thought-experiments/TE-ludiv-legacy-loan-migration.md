@@ -1,10 +1,12 @@
 # Legacy off-site loan evidence migration
 
-**TE ID:** TE-pending-mint-ex7-legacy-loan-migration
+**TE ID:** TE-ludiv
 
 ## Status
 
 decided
+
+Identifier migration per TODO-tagup: `TE-pending-mint-ex7-legacy-loan-migration` -> `TE-ludiv`. The related DIs unchanged in meaning are DI-malih and DI-lasif.
 
 ## Decision under test
 

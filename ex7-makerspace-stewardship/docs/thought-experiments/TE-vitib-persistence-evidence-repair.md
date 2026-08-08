@@ -1,16 +1,18 @@
 # Persistence evidence repair for Makerspace Stewardship
 
-**TE ID:** TE-pending-mint-ex7
+**TE ID:** TE-vitib
 
 ## Status
 
 decided
 
+Identifier migration per TODO-tagup: `TE-pending-mint-ex7` -> `TE-vitib`. The following DIs in the related decision record are unchanged in meaning: DI-dapod, DI-patag, DI-sapun, DI-malih, DI-lasif.
+
 ## Decision under test
 
 How `ex7-makerspace-stewardship` should make equipment evidence durable and replayable while fixing the review findings for oversized photo events, state changes that survive failed writes, and off-site loan terms that are not faithfully reconstructed.
 
-This temporary identifier is permitted by `ex7-makerspace-stewardship/TODO/TODO.md` while the repository's `tools/mint-handle` helper is unavailable. It must be replaced with a minted proquint handle when that helper is restored.
+The TE ID was minted through the repository-root allocator after the initial evidence repair; the decision content and scenario analysis are unchanged. Source: DI-dapod.
 
 ## Assumptions and scope
 
@@ -76,7 +78,7 @@ Rejected: current-policy reconstruction loses accepted-term provenance; mutate-f
 
 ## Decision status
 
-locked pending Decision Intent Log entries in the relevant ex7 TODO artifact.
+locked: DI-dapod, DI-patag, and DI-sapun in `../../TODO/TODO-tagup-persistence-evidence-repair.md`.
 
 ## Implications and future work
 

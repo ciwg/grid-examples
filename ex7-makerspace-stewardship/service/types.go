@@ -64,7 +64,7 @@ type Loan struct {
 	DueAt     time.Time `json:"dueAt"`
 	CreatedAt time.Time `json:"createdAt"`
 	// Intent: Distinguish a recorded accepted-policy snapshot from legacy loan
-	// evidence that cannot prove its terms. Source: DI-pending-mint-ex7-005.
+	// evidence that cannot prove its terms. Source: DI-lasif.
 	TermsComplete bool   `json:"termsComplete"`
 	PolicyVersion string `json:"policyVersion"`
 	Policy        string `json:"policy"`

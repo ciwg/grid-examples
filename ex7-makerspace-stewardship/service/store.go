@@ -19,10 +19,10 @@ type Event struct {
 	SafetyHold bool    `json:"safetyHold,omitempty"`
 	Photos     []Photo `json:"photos,omitempty"`
 	// Intent: Preserve the exact loan terms accepted at checkout so replay never
-	// substitutes a later area policy. Source: DI-pending-mint-ex7-002.
+	// substitutes a later area policy. Source: DI-patag.
 	Loan *Loan `json:"loan,omitempty"`
 	// Intent: Decode pre-snapshot loan events without rewriting their evidence.
-	// Source: DI-pending-mint-ex7-004.
+	// Source: DI-malih.
 	DueAt     time.Time `json:"dueAt,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -62,7 +62,7 @@ func (s *Store) Append(event Event) error {
 		return closeWithError(err)
 	}
 	// Intent: Do not acknowledge evidence until its bytes reach stable storage.
-	// Source: DI-pending-mint-ex7-001.
+	// Source: DI-dapod.
 	if err := file.Sync(); err != nil {
 		return closeWithError(err)
 	}

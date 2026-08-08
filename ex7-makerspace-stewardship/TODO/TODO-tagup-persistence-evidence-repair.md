@@ -2,11 +2,11 @@
 
 ## Decision Intent Log
 
-Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout. This file and its DI identifiers must be renamed to minted proquint handles when the helper is restored.
+Identifier migration per TODO-tagup: temporary identifiers were replaced with minted handles on 2026-08-07. The following DIs are unchanged in meaning: DI-dapod, DI-patag, DI-sapun, DI-malih, DI-lasif.
 
-### DI-pending-mint-ex7-001
+### DI-dapod
 
-- ID: DI-pending-mint-ex7-001
+- ID: DI-dapod
 - Date: 2026-08-06 09:25:55
 - Author: jj@thesalleys.com (JJ)
 - Status: active
@@ -15,9 +15,9 @@ Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout
 - Constraints: Keep the single-process local-demo scope. Do not add multi-writer coordination, authentication, or a new top-level PromiseGrid action kind.
 - Affects: `service/store.go`, `service/app.go`, `service/app_test.go`, `service/server_test.go`.
 
-### DI-pending-mint-ex7-002
+### DI-patag
 
-- ID: DI-pending-mint-ex7-002
+- ID: DI-patag
 - Date: 2026-08-06 09:25:55
 - Author: jj@thesalleys.com (JJ)
 - Status: active
@@ -26,9 +26,9 @@ Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout
 - Constraints: Use the existing `PolicyVersion` and `Policy` vocabulary. The repair does not add policy authoring or a separate per-tool policy model.
 - Affects: `service/types.go`, `service/store.go`, `service/app.go`, `service/app_test.go`.
 
-### DI-pending-mint-ex7-003
+### DI-sapun
 
-- ID: DI-pending-mint-ex7-003
+- ID: DI-sapun
 - Date: 2026-08-06 09:25:55
 - Author: jj@thesalleys.com (JJ)
 - Status: active
@@ -37,9 +37,9 @@ Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout
 - Constraints: The reader's explicit maximum event size must accommodate every valid photo event accepted by HTTP validation while bounding allocation.
 - Affects: `service/store.go`, `service/app_test.go`.
 
-### DI-pending-mint-ex7-004
+### DI-malih
 
-- ID: DI-pending-mint-ex7-004
+- ID: DI-malih
 - Date: 2026-08-07 20:04:58
 - Author: jj@thesalleys.com (JJ)
 - Status: active
@@ -48,9 +48,9 @@ Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout
 - Constraints: Never rewrite historical event bytes or substitute current area policy. New loan events continue to require complete snapshots.
 - Affects: `service/types.go`, `service/store.go`, `service/app.go`, `service/app_test.go`, `web/app.js`.
 
-### DI-pending-mint-ex7-005
+### DI-lasif
 
-- ID: DI-pending-mint-ex7-005
+- ID: DI-lasif
 - Date: 2026-08-07 20:07:55
 - Author: jj@thesalleys.com (JJ)
 - Status: active
@@ -61,4 +61,4 @@ Temporary identifier notice: `tools/mint-handle` is unavailable in this checkout
 
 ## Scope
 
-Implements the decisions recorded in `../docs/thought-experiments/TE-pending-mint-ex7-persistence-evidence-repair.md`.
+Implements the decisions recorded in `../docs/thought-experiments/TE-vitib-persistence-evidence-repair.md`.
