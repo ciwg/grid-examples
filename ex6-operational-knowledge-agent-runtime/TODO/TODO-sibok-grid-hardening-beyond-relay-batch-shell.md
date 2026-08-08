@@ -194,4 +194,4 @@ malformed relay batches are not rejected early enough.
 ## Workflow Artifact Hardening
 
 - [x] Prove that revocation persists across restart, retains its artifact and lifecycle evidence, and prevents reactivation or workflow execution; under the current protocol, a replacement remains a separate imported artifact CID. (DI-rupit; TE-gavuk)
-- [ ] Support local package-directory capture into CAS and direct CAS workflow-artifact import with validation. (DI-lovek; TE-gavuk)
+- [x] Support local package-directory capture into CAS and direct CAS workflow-artifact import with validation. (DI-lovek; TE-gavuk)
