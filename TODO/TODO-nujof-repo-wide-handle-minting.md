@@ -17,4 +17,4 @@
 
 - [x] nujof.1 Move the allocator, documentation, and ledger to repository-root ownership.
 - [x] nujof.2 Verify repository-root scanning and non-mutating command validation without creating an extra reservation.
-- [ ] nujof.3 Commit and push the isolated migration.
+- [x] nujof.3 Commit and push the isolated migration.
