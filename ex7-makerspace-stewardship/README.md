@@ -15,3 +15,8 @@ Then open `http://127.0.0.1:7037/`.
 The server writes its append-only local evidence log to
 `.makerspace-stewardship/events.jsonl` by default. Use `-runtime-root` to
 choose another location.
+
+Read the [operator guide](docs/operator-guide.md),
+[workflow and evidence guide](docs/workflow-and-evidence-guide.md), and
+[completeness verification guide](docs/completeness-verification.md) before
+evaluating the example.
