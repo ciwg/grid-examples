@@ -1,5 +1,6 @@
 # TODO
 
+- [x] komud - Reconcile global handle reservations - `TODO/TODO-komud-global-handle-reservations.md`
 - [x] nujof - Make handle minting repo-wide - `TODO/TODO-nujof-repo-wide-handle-minting.md`
 - [x] 006 - Polish ex5 workflow navigation and browser detail views - `TODO/TODO-savuk-ex5-workflow-navigation-polish.md`
 - [x] 005 - Expand ex5 to live collaborative operational workflow - `TODO/TODO-navud-ex5-live-operational-workflow.md`
