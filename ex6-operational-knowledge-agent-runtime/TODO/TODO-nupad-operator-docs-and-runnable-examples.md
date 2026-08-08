@@ -79,3 +79,16 @@ Affects: `README.md`, `docs/current-state.md`, `docs/package-author-guide.md`, `
 
 Make it easy to run the current ex6 system without reverse-engineering the
 tests or package source.
+
+## Scope
+
+- operator quickstart
+- package install examples
+- relay import/export examples
+- first-party package walkthroughs
+- sample runtime data
+
+## Why
+
+The repo should not require source diving to understand what ex6 currently is
+and how to use it.

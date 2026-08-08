@@ -181,3 +181,8 @@ Make the current relay shell safer and less noisy under repeated exchange.
 
 Without this pass, repeated imports can append the same raw record forever and
 malformed relay batches are not rejected early enough.
+
+## Workflow Artifact Hardening
+
+- [ ] Preserve imported workflow artifact CIDs and provenance through deactivation, revocation, replacement, and restart. (DI-lovek; TE-gavuk)
+- [ ] Support local package-directory capture into CAS and direct CAS workflow-artifact import with validation. (DI-lovek; TE-gavuk)
