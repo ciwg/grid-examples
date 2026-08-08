@@ -12,6 +12,10 @@
 - `AGENTS.md` is the canonical home for repo-wide protocol, workflow, and vocabulary rules. Role-specific files such as `AGENTS-codex.md` and `AGENTS-ppx.md` are overlays: they may add stricter role constraints, environment setup, and role-specific procedures, but they must not duplicate or relax canonical repo-wide rules. (DI-034-20260508-060134)
 - When a rule applies to every agent or every repo artifact, move it here and replace role-file copies with pointers. When a rule applies only to one agent's runtime environment, identity, credentials, branch lifecycle, or private logging system, keep it in that role overlay. (DI-034-20260508-060134)
 
+## Handle Minting (Required)
+- When the user says "mint a handle," run the repository-root `tools/mint-handle` command and use the exact returned reservation for the requested TODO, TE, DR, or DI record. Do not manually select a proquint or reuse a historical handle. (DI-hidiz)
+- Treat `TODO/handle-namespace.tsv` as the append-only repository-wide reservation ledger. Commit the reservation with the artifact that consumes it; the allocator checks both this ledger and existing identifier owners before returning a value. (DI-hidiz)
+
 ## Promise Action Minimalism (Required)
 - Future PromiseGrid protocol, simulation, POC, scoring, generation, and guide work must not invent workflow-specific top-level action kinds by default. The default future-facing top-level semantic action is `promise`. (DI-mosoj)
 - Treat observation as a promise that the promiser observed something from its local vantage. Treat refusal as absence of a promise, a promise not to do something, or a promise that the agent does not currently promise the requested behavior. (DI-mosoj)
