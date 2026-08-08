@@ -85,20 +85,20 @@ func (a *App) AddObservation(toolID, reporterID, text string, safetyHold bool, p
 	if err != nil {
 		return Tool{}, err
 	}
-	observation := Observation{ID: fmt.Sprintf("obs-%d", time.Now().UnixNano()), ToolID: toolID, ReporterID: reporterID, Text: text, SafetyHold: safetyHold, Photos: photos, CreatedAt: time.Now().UTC()}
-	tool.Observations = append(tool.Observations, observation)
-	if safetyHold {
-		tool.SafetyHold = true
-		tool.Condition = "Safety hold: awaiting area review"
+	createdAt := time.Now().UTC()
+	event := Event{Type: "observation", ToolID: toolID, ActorID: reporterID, Text: text, SafetyHold: safetyHold, Photos: photos, CreatedAt: createdAt}
+	if err := a.record(event); err != nil {
+		return Tool{}, err
 	}
-	if err := a.record(Event{Type: "observation", ToolID: toolID, ActorID: reporterID, Text: text, SafetyHold: safetyHold, Photos: photos, CreatedAt: observation.CreatedAt}); err != nil {
+	// Intent: State only reflects evidence that has reached stable storage.
+	// Source: DI-pending-mint-ex7-001.
+	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
 	return *tool, nil
 }
 
 func validatePhotos(photos []Photo) error {
-	const maxPhotoBytes = 1024 * 1024
 	if len(photos) > 3 {
 		return errors.New("at most three photos may be attached to one observation")
 	}
@@ -106,7 +106,7 @@ func validatePhotos(photos []Photo) error {
 		if !strings.HasPrefix(photo.DataURL, "data:image/") {
 			return errors.New("photo must be an image")
 		}
-		if len(photo.DataURL) > maxPhotoBytes*2 {
+		if len(photo.DataURL) > maxPhotoDataURLBytes {
 			return errors.New("photo is too large")
 		}
 	}
@@ -126,11 +126,14 @@ func (a *App) ClearSafetyHold(toolID, stewardID, assessment string) (Tool, error
 	if assessment == "" {
 		return Tool{}, errors.New("inspection assessment is required")
 	}
-	tool.SafetyHold = false
-	tool.Condition = assessment
 	createdAt := time.Now().UTC()
-	tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("obs-%d", time.Now().UnixNano()), ToolID: toolID, ReporterID: stewardID, Text: "Safety hold cleared after inspection: " + assessment, CreatedAt: createdAt})
-	if err := a.record(Event{Type: "clear-safety-hold", ToolID: toolID, ActorID: stewardID, Text: assessment, CreatedAt: createdAt}); err != nil {
+	event := Event{Type: "clear-safety-hold", ToolID: toolID, ActorID: stewardID, Text: assessment, CreatedAt: createdAt}
+	if err := a.record(event); err != nil {
+		return Tool{}, err
+	}
+	// Intent: State only reflects evidence that has reached stable storage.
+	// Source: DI-pending-mint-ex7-001.
+	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
 	return *tool, nil
@@ -158,22 +161,31 @@ func (a *App) CreateLoan(toolID, memberID string, dueAt time.Time) (Tool, error)
 	if !dueAt.After(time.Now()) {
 		return Tool{}, errors.New("return deadline must be in the future")
 	}
-	tool.ActiveLoan = &Loan{
+	loan := &Loan{
 		MemberID:      memberID,
 		DueAt:         dueAt.UTC(),
 		CreatedAt:     time.Now().UTC(),
-		PolicyVersion: "woodworking-off-site-lending/v1",
-		Policy:        "Terms accepted at checkout; later policy changes do not rewrite this loan.",
+		TermsComplete: true,
+	}
+	for _, candidate := range a.state.Areas {
+		if candidate.ID == tool.AreaID {
+			loan.PolicyVersion = candidate.PolicyVersion
+			loan.Policy = candidate.Policy
+			break
+		}
+	}
+	if loan.PolicyVersion == "" || loan.Policy == "" {
+		return Tool{}, errors.New("tool area has no loan policy")
 	}
 	createdAt := time.Now().UTC()
-	tool.Observations = append(tool.Observations, Observation{
-		ID:         fmt.Sprintf("obs-%d", time.Now().UnixNano()),
-		ToolID:     toolID,
-		ReporterID: memberID,
-		Text:       "Off-site loan accepted. Return promised by " + dueAt.UTC().Format(time.RFC822),
-		CreatedAt:  createdAt,
-	})
-	if err := a.record(Event{Type: "loan", ToolID: toolID, ActorID: memberID, DueAt: dueAt.UTC(), CreatedAt: createdAt}); err != nil {
+	loan.CreatedAt = createdAt
+	event := Event{Type: "loan", ToolID: toolID, ActorID: memberID, Loan: loan, CreatedAt: createdAt}
+	if err := a.record(event); err != nil {
+		return Tool{}, err
+	}
+	// Intent: State only reflects evidence that has reached stable storage.
+	// Source: DI-pending-mint-ex7-001.
+	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
 	return *tool, nil
@@ -195,17 +207,14 @@ func (a *App) ReturnLoan(toolID, memberID, condition string) (Tool, error) {
 	if condition == "" {
 		return Tool{}, errors.New("return condition is required")
 	}
-	tool.ActiveLoan = nil
-	tool.Condition = condition
 	createdAt := time.Now().UTC()
-	tool.Observations = append(tool.Observations, Observation{
-		ID:         fmt.Sprintf("obs-%d", time.Now().UnixNano()),
-		ToolID:     toolID,
-		ReporterID: memberID,
-		Text:       "Off-site return recorded: " + condition,
-		CreatedAt:  createdAt,
-	})
-	if err := a.record(Event{Type: "return", ToolID: toolID, ActorID: memberID, Text: condition, CreatedAt: createdAt}); err != nil {
+	event := Event{Type: "return", ToolID: toolID, ActorID: memberID, Text: condition, CreatedAt: createdAt}
+	if err := a.record(event); err != nil {
+		return Tool{}, err
+	}
+	// Intent: State only reflects evidence that has reached stable storage.
+	// Source: DI-pending-mint-ex7-001.
+	if err := a.applyEvent(event); err != nil {
 		return Tool{}, err
 	}
 	return *tool, nil
@@ -235,8 +244,22 @@ func (a *App) applyEvent(event Event) error {
 		tool.Condition = event.Text
 		tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("replay-%d", len(tool.Observations)+1), ToolID: event.ToolID, ReporterID: event.ActorID, Text: "Safety hold cleared after inspection: " + event.Text, CreatedAt: event.CreatedAt})
 	case "loan":
-		tool.ActiveLoan = &Loan{MemberID: event.ActorID, DueAt: event.DueAt, CreatedAt: event.CreatedAt, PolicyVersion: "woodworking-off-site-lending/v1", Policy: "Terms accepted at checkout; later policy changes do not rewrite this loan."}
-		tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("replay-%d", len(tool.Observations)+1), ToolID: event.ToolID, ReporterID: event.ActorID, Text: "Off-site loan accepted. Return promised by " + event.DueAt.Format(time.RFC822), CreatedAt: event.CreatedAt})
+		if event.Loan == nil {
+			if event.DueAt.IsZero() {
+				return errors.New("legacy loan event lacks a return deadline")
+			}
+			// Intent: Retain known legacy loan facts while exposing unavailable terms
+			// instead of inferring a current policy. Source: DI-pending-mint-ex7-004.
+			tool.ActiveLoan = &Loan{MemberID: event.ActorID, DueAt: event.DueAt, CreatedAt: event.CreatedAt, TermsComplete: false}
+			tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("replay-%d", len(tool.Observations)+1), ToolID: event.ToolID, ReporterID: event.ActorID, Text: "Off-site loan replayed with accepted terms unavailable. Return promised by " + event.DueAt.Format(time.RFC822), CreatedAt: event.CreatedAt})
+			break
+		}
+		if event.Loan.MemberID != event.ActorID || !event.Loan.TermsComplete || event.Loan.PolicyVersion == "" || event.Loan.Policy == "" {
+			return errors.New("loan event lacks a complete accepted policy snapshot")
+		}
+		loan := *event.Loan
+		tool.ActiveLoan = &loan
+		tool.Observations = append(tool.Observations, Observation{ID: fmt.Sprintf("replay-%d", len(tool.Observations)+1), ToolID: event.ToolID, ReporterID: event.ActorID, Text: "Off-site loan accepted. Return promised by " + loan.DueAt.Format(time.RFC822), CreatedAt: event.CreatedAt})
 	case "return":
 		tool.ActiveLoan = nil
 		tool.Condition = event.Text

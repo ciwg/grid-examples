@@ -12,15 +12,25 @@ import (
 )
 
 type Event struct {
-	Type       string    `json:"type"`
-	ToolID     string    `json:"toolId"`
-	ActorID    string    `json:"actorId"`
-	Text       string    `json:"text"`
-	SafetyHold bool      `json:"safetyHold,omitempty"`
-	Photos     []Photo   `json:"photos,omitempty"`
-	DueAt      time.Time `json:"dueAt,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
+	Type       string  `json:"type"`
+	ToolID     string  `json:"toolId"`
+	ActorID    string  `json:"actorId"`
+	Text       string  `json:"text"`
+	SafetyHold bool    `json:"safetyHold,omitempty"`
+	Photos     []Photo `json:"photos,omitempty"`
+	// Intent: Preserve the exact loan terms accepted at checkout so replay never
+	// substitutes a later area policy. Source: DI-pending-mint-ex7-002.
+	Loan *Loan `json:"loan,omitempty"`
+	// Intent: Decode pre-snapshot loan events without rewriting their evidence.
+	// Source: DI-pending-mint-ex7-004.
+	DueAt     time.Time `json:"dueAt,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
+
+const (
+	maxPhotoDataURLBytes = 2 * 1024 * 1024
+	maxEventBytes        = 8 * 1024 * 1024
+)
 
 type Store struct {
 	path string
@@ -41,18 +51,25 @@ func (s *Store) Append(event Event) error {
 	if err != nil {
 		return err
 	}
+	closeWithError := func(operationErr error) error {
+		if closeErr := file.Close(); closeErr != nil {
+			return errors.Join(operationErr, closeErr)
+		}
+		return operationErr
+	}
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(event); err != nil {
-		closeErr := file.Close()
-		if closeErr != nil {
-			return errors.Join(err, closeErr)
-		}
-		return err
+		return closeWithError(err)
 	}
-	return file.Close()
+	// Intent: Do not acknowledge evidence until its bytes reach stable storage.
+	// Source: DI-pending-mint-ex7-001.
+	if err := file.Sync(); err != nil {
+		return closeWithError(err)
+	}
+	return closeWithError(nil)
 }
 
-func (s *Store) ReadAll() ([]Event, error) {
+func (s *Store) ReadAll() (events []Event, returnErr error) {
 	file, err := os.Open(s.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -60,8 +77,13 @@ func (s *Store) ReadAll() ([]Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	var events []Event
+	defer func() {
+		if err := file.Close(); err != nil {
+			returnErr = errors.Join(returnErr, err)
+		}
+	}()
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), maxEventBytes)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -74,13 +96,6 @@ func (s *Store) ReadAll() ([]Event, error) {
 		events = append(events, event)
 	}
 	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
-		closeErr := file.Close()
-		if closeErr != nil {
-			return nil, errors.Join(err, closeErr)
-		}
-		return nil, err
-	}
-	if err := file.Close(); err != nil {
 		return nil, err
 	}
 	return events, nil

@@ -60,11 +60,14 @@ type Tool struct {
 }
 
 type Loan struct {
-	MemberID      string    `json:"memberId"`
-	DueAt         time.Time `json:"dueAt"`
-	CreatedAt     time.Time `json:"createdAt"`
-	PolicyVersion string    `json:"policyVersion"`
-	Policy        string    `json:"policy"`
+	MemberID  string    `json:"memberId"`
+	DueAt     time.Time `json:"dueAt"`
+	CreatedAt time.Time `json:"createdAt"`
+	// Intent: Distinguish a recorded accepted-policy snapshot from legacy loan
+	// evidence that cannot prove its terms. Source: DI-pending-mint-ex7-005.
+	TermsComplete bool   `json:"termsComplete"`
+	PolicyVersion string `json:"policyVersion"`
+	Policy        string `json:"policy"`
 }
 
 type State struct {
