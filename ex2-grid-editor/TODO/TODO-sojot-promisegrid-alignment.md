@@ -57,15 +57,37 @@
 - Constraints: Do not represent the relay key as a human identity; do not define key rotation, delegation, or cross-relay trust policy in this decision; document two-relay exchange in later guide/testing work; supersedes DI-lorud.
 - Affects: `ex2-grid-editor/{README.md,docs/architecture.md,docs/testing.md,service,store}`, `ex2-grid-editor/docs/thought-experiments/TE-tazoh-ex2-distributed-topology-and-identity.md`, `ex2-grid-editor/TODO/TODO-sojot-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
 
+### DI-guros
+
+- ID: DI-guros
+- Date: 2026-08-10 10:52:31 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Prove Ex2's published claims with focused tests that derive each pCID from its exact `protocols/*.md` source and compare both `docs/architecture.md` and `CHANGELOG.md`; assert raw CAS retention, one observation per receipt, and exclusion from accepted peer/replay paths; and retain existing interoperability tests as decentralized cross-node coverage.
+- Intent: Keep publication and observer-local evidence failures precise and deterministic while preserving existing browser/Neovim and peer-relay tests as the appropriate topology proof.
+- Constraints: Do not create a duplicate topology suite; do not make exception observations accepted replay input; do not replace source-derived comparison with runtime constants alone; use the testing guide in `sojot.4` to document the resulting layers.
+- Affects: `ex2-grid-editor/{protocol,service}/*_test.go`, `ex2-grid-editor/{CHANGELOG.md,docs/architecture.md,docs/testing.md}`, `ex2-grid-editor/docs/thought-experiments/TE-vikid-ex2-published-claim-regression-coverage.md`, `ex2-grid-editor/TODO/TODO-sojot-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
+### DI-bubab
+
+- ID: DI-bubab
+- Date: 2026-08-10 11:08:25 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Create one concise exercise-local `docs/testing.md` linked from the Ex2 README; document `go vet ./...`, `go test ./...`, and `errcheck ./...`; distinguish focused source-derived pCID and relay-local evidence tests from existing decentralized cross-node interoperability tests; and state that `t.TempDir()` relay roots are isolated, automatically removed test data rather than shared production evidence.
+- Intent: Give contributors reproducible verification commands and precise test-provenance boundaries without turning one-host test setup, relay-local observations, or passing focused tests into a claim of centralized or globally authoritative PromiseGrid behavior.
+- Constraints: Keep detailed test semantics out of the main README; preserve the existing architecture and local-draft scope documents as their respective sources of truth; do not add or change runtime behavior; use the canonical multi-relay topology of DI-nilas and the evidence boundary of DI-todav.
+- Affects: `ex2-grid-editor/{README.md,docs/testing.md}`, `ex2-grid-editor/TODO/TODO-sojot-promisegrid-alignment.md`, `ex2-grid-editor/docs/thought-experiments/TE-sapih-ex2-testing-guide.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] sojot.1 Publish a four-profile source-derived pCID inventory and
   local-draft implementation-scope declaration with explicit non-claims.
 - [x] sojot.2 Run a TE and DF for malformed and unsupported-envelope retention,
   local observations, and replay behavior before changing relay semantics.
-- [ ] sojot.3 Add regression coverage for published pCID inventory, selected
+- [x] sojot.3 Add regression coverage for published pCID inventory, selected
   evidence behavior, raw/CAS replay, and cross-embodiment interoperability.
-- [ ] sojot.4 Add `docs/testing.md`, link it from the README, and document the
+- [x] sojot.4 Add `docs/testing.md`, link it from the README, and document the
   verification commands, test layers, and artifact assertions.
 - [ ] sojot.5 Complete the final README guide pass for local-draft scope,
   relay-versus-embodiment identity, reproducible operation, and artifact

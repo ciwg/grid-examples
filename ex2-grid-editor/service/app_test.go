@@ -3,6 +3,7 @@ package service_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -176,6 +177,8 @@ func TestIngestRejectsAuthorProofMismatch(t *testing.T) {
 
 func TestIngestRecordsMalformedInput(t *testing.T) {
 	t.Parallel()
+	// Intent: A relay records one local evidence observation per rejected receipt
+	// while keeping rejected bytes out of accepted peer exchange. Source: DI-guros.
 	root := filepath.Join(t.TempDir(), "relay")
 	app, err := service.NewApp(root)
 	if err != nil {
@@ -184,6 +187,9 @@ func TestIngestRecordsMalformedInput(t *testing.T) {
 	raw := []byte{0xff}
 	if err := app.IngestRawBase64(base64.StdEncoding.EncodeToString(raw)); err == nil {
 		t.Fatal("expected malformed input error")
+	}
+	if err := app.IngestRawBase64(base64.StdEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("expected repeated malformed input error")
 	}
 	file, err := os.Open(filepath.Join(root, "observations.jsonl"))
 	if err != nil {
@@ -194,18 +200,32 @@ func TestIngestRecordsMalformedInput(t *testing.T) {
 			t.Errorf("close observations: %v", closeErr)
 		}
 	}()
-	var observation store.Observation
-	if err := json.NewDecoder(file).Decode(&observation); err != nil {
-		t.Fatalf("decode observation: %v", err)
+	decoder := json.NewDecoder(file)
+	var observations []store.Observation
+	for {
+		var observation store.Observation
+		err := decoder.Decode(&observation)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("decode observation: %v", err)
+		}
+		observations = append(observations, observation)
 	}
-	if observation.Kind != "malformed_input" || observation.ObserverKeyID != app.Meta().LocalID {
-		t.Fatalf("observation = %#v", observation)
+	if len(observations) != 2 {
+		t.Fatalf("observation count = %d, want 2", len(observations))
+	}
+	for _, observation := range observations {
+		if observation.Kind != "malformed_input" || observation.ObserverKeyID != app.Meta().LocalID {
+			t.Fatalf("observation = %#v", observation)
+		}
 	}
 	casStore, err := cas.Open(filepath.Join(root, "cas"))
 	if err != nil {
 		t.Fatalf("open cas: %v", err)
 	}
-	retained, err := casStore.Get(observation.RawCID)
+	retained, err := casStore.Get(observations[0].RawCID)
 	if err != nil {
 		t.Fatalf("read retained bytes: %v", err)
 	}
