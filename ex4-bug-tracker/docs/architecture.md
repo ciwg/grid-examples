@@ -38,6 +38,22 @@ This keeps the durable workflow state in one place while allowing multiple
 embodiments over the same shared model. Source: `DI-dajak`; `DI-nunit`;
 `DI-ninuf`.
 
+## PromiseGrid scope boundary
+
+The current browser and CLI are local adapters of one HTTP server; they are
+not independent PromiseGrid agents, and their common server projection is not
+cross-node corroboration. `events.jsonl` is durable local application history
+for that server. It is not a signed PromiseGrid promise ledger, independently
+verifiable shared evidence, or proof of another actor's intent.
+
+Ex4 has selected a future bounded layer of signed, pCID-selected
+issue-promise artifacts. That layer is not implemented: its own TE and
+Decision Framing must select profiles, signing identity, accepted/rejected
+artifact rules, adapter projection, and any remote exchange. The current
+built-in identities, role checks, and fixed workflow remain local application
+policy and do not establish general identity, delegation, role continuity, or
+portable authorization. Source: `DI-nibuh`.
+
 ## Shared data model
 
 Every issue carries:

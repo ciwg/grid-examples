@@ -9,6 +9,16 @@ status changes, and attachments are stored as append-only events, and the
 current issue view is projected from that history. Source: `DI-nunit`;
 `DI-ninuf`.
 
+## PromiseGrid scope
+
+Today Ex4 is one durable local HTTP-server workflow: the browser and CLI are
+local adapters, and `events.jsonl` is durable local application history rather
+than a signed PromiseGrid promise ledger or shared proof of another actor's
+intent. A bounded pCID-selected signed issue-promise layer is planned but not
+implemented. Built-in identities, role checks, and status transitions remain
+local application policy, not general identity, delegation, or authorization.
+Source: `DI-nibuh`.
+
 ## Features
 
 - queue view with status and assignee filters
@@ -125,6 +135,7 @@ go run ./cmd/bug-tracker-cli --user engineer comment BUG-0001 "working on a fix"
 
 ## Docs
 
+- [Implementation scope and non-claims](CHANGELOG.md)
 - [Architecture notes](docs/architecture.md)
 - [Practical implementation notes](docs/practical-implementation.md)
 - [Browser UI example](docs/bug-tracker-ui-example.md)
