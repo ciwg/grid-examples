@@ -220,7 +220,7 @@ pass `--data-root`, that directory is created next to this README.
 Start the local relay:
 
 ```bash
-go run ./cmd/grid-relay --listen 127.0.0.1:7015
+go run ./cmd/grid-relay --listen 127.0.0.1:7015 --data-root .grid-editor/alice
 ```
 
 Then pick an embodiment:
@@ -235,8 +235,30 @@ relays with `--peer` instead of pointing remote editors at one shared relay.
 If you want a second relay to poll the first one for peer exchange:
 
 ```bash
-go run ./cmd/grid-relay --listen 127.0.0.1:7016 --peer http://127.0.0.1:7015
+go run ./cmd/grid-relay --listen 127.0.0.1:7016 --data-root .grid-editor/bob \
+  --peer http://127.0.0.1:7015
 ```
+
+## Scope, topology, and evidence
+
+Ex2 implements four source-derived, repo-local draft profiles. They are not
+frozen upstream PromiseGrid specifications or automatic interoperability
+claims. The exact pCIDs, implemented scope, and explicit non-claims are in the
+[implementation scope declaration](CHANGELOG.md).
+
+The normal decentralized collaboration model is one relay per logical node.
+The browser and Neovim are local embodiments; they do not establish separate
+cryptographic identities in this slice. The two commands above can simulate
+Alice and Bob on one host because they use distinct relay processes, keys, and
+data roots. On separate machines, use the same arrangement with each relay's
+own local root and reachable peer URL.
+
+Each relay root contains that relay's durable, local artifacts. To inspect a
+run, use the root selected by its `--data-root` value, then follow the
+[architecture overview](docs/architecture.md) and [testing guide](docs/testing.md)
+for storage, exception-evidence, and verification semantics. A relay-local
+observation is not shared proof and does not settle another participant's
+intent. Source: `DI-bafar`; `DI-nilas`; `DI-todav`.
 
 ## Browser Version
 
@@ -386,6 +408,5 @@ Use these as the main reading path after this README:
 
 ## Tests
 
-```bash
-go test ./...
-```
+See the [testing guide](docs/testing.md) for the complete verification command
+set and the distinct claims covered by each test layer. Source: `DI-bafar`.

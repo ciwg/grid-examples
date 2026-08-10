@@ -79,6 +79,17 @@
 - Constraints: Keep detailed test semantics out of the main README; preserve the existing architecture and local-draft scope documents as their respective sources of truth; do not add or change runtime behavior; use the canonical multi-relay topology of DI-nilas and the evidence boundary of DI-todav.
 - Affects: `ex2-grid-editor/{README.md,docs/testing.md}`, `ex2-grid-editor/TODO/TODO-sojot-promisegrid-alignment.md`, `ex2-grid-editor/docs/thought-experiments/TE-sapih-ex2-testing-guide.md`, `TODO/handle-namespace.tsv`
 
+### DI-bafar
+
+- ID: DI-bafar
+- Date: 2026-08-10 11:30:27 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Add one concise README section for Ex2's local-draft scope, decentralized relay topology, and relay-local evidence boundary; include a reproducible `--data-root` one-relay example and a separate-root two-relay `--peer` example; point readers to the selected relay root while leaving artifact semantics to the architecture and testing guides; and replace the stale final `go test ./...` snippet with a link to `docs/testing.md`.
+- Intent: Make the primary Ex2 entry point operationally reproducible and PromiseGrid-aligned without duplicating canonical scope, architecture, or verification material or treating a local demo as a global trust claim.
+- Constraints: Do not change runtime behavior, profiles, or test semantics; keep `CHANGELOG.md`, `docs/architecture.md`, and `docs/testing.md` as the detailed sources of truth; preserve the canonical multi-relay topology and relay-local evidence boundary of DI-nilas and DI-todav.
+- Affects: `ex2-grid-editor/{README.md,TODO/TODO-sojot-promisegrid-alignment.md}`, `ex2-grid-editor/docs/thought-experiments/TE-mahot-ex2-final-readme-alignment.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] sojot.1 Publish a four-profile source-derived pCID inventory and
@@ -89,6 +100,6 @@
   evidence behavior, raw/CAS replay, and cross-embodiment interoperability.
 - [x] sojot.4 Add `docs/testing.md`, link it from the README, and document the
   verification commands, test layers, and artifact assertions.
-- [ ] sojot.5 Complete the final README guide pass for local-draft scope,
+- [x] sojot.5 Complete the final README guide pass for local-draft scope,
   relay-versus-embodiment identity, reproducible operation, and artifact
   inspection.
