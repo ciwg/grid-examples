@@ -79,6 +79,17 @@
 - Constraints: Do not create a duplicate topology suite; do not replace exact-source comparisons with runtime constants; do not treat automated tests as closure of TODO tamuk's manual private-browser requirement; use `fozoz.4` to document the resulting test layers.
 - Affects: `ex3-grid-editor-websocket/{protocol,service,store}/*_test.go`, `ex3-grid-editor-websocket/{CHANGELOG.md,docs/architecture.md,docs/testing.md}`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-nadut-ex3-published-claim-regression-coverage.md`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
 
+### DI-hosit
+
+- ID: DI-hosit
+- Date: 2026-08-10 13:52:23 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Create one concise Ex3 `docs/testing.md` linked from README; document grouped Go (`go vet ./...`, `go test ./...`, `errcheck ./...`), browser (`npm test`, `npm run build`), and sidecar (`npm run build`) commands; distinguish focused pCID/evidence/admission tests from existing interoperability, headless, browser-JavaScript, sidecar, and WebSocket suites; and explain both `t.TempDir()` isolation and TODO tamuk's still-open manual private-window verification.
+- Intent: Give Ex3 contributors reproducible verification and precise confidence boundaries without treating any local suite, temporary relay root, or automated private-browser hardening as global trust proof or closure of the outstanding manual condition.
+- Constraints: Keep detailed testing semantics out of the main README; do not add or change runtime behavior; retain TODO tamuk as open; preserve architecture and scope documents as their respective sources of truth.
+- Affects: `ex3-grid-editor-websocket/{README.md,docs/testing.md}`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-dohuf-ex3-testing-guide.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] fozoz.1 Publish source-derived local-draft pCID inventory and provisional
@@ -87,7 +98,7 @@
   relay-local rejected-ingress evidence policy before behavior changes.
 - [x] fozoz.3 Add focused regression coverage for published pCIDs, remote
   admission/evidence boundaries, and existing decentralized interoperability.
-- [ ] fozoz.4 Add `docs/testing.md`, link it from the README, and document Go,
+- [x] fozoz.4 Add `docs/testing.md`, link it from the README, and document Go,
   browser JavaScript, sidecar, and cross-node verification layers.
 - [ ] fozoz.5 Complete the final README guide pass for local-draft scope,
   provisional remote admission, reproducible multi-relay operation, evidence

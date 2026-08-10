@@ -201,6 +201,7 @@ Useful docs:
 
 - [Implementation scope declaration](CHANGELOG.md)
 - [Current local-draft protocol inventory](docs/architecture.md#current-local-draft-protocol-inventory)
+- [Testing guide](docs/testing.md)
 - [Browser UI walkthrough](docs/grid-editor-ui-example.md)
 - [Feature guide](docs/features-guide.md)
 - [Architecture overview](docs/architecture.md)
