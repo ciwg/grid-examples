@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/awareness"
+	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/cas"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/crdt"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/identity"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/protocol"
@@ -253,6 +254,17 @@ func TestIngestRecordsMalformedInputOutsideAcceptedReplay(t *testing.T) {
 		if observation.Kind != "malformed_input" || observation.RawCID == "" {
 			t.Fatalf("observation = %#v", observation)
 		}
+	}
+	casStore, err := cas.Open(filepath.Join(root, "cas"))
+	if err != nil {
+		t.Fatalf("open cas: %v", err)
+	}
+	retained, err := casStore.Get(observations[0].RawCID)
+	if err != nil {
+		t.Fatalf("read retained bytes: %v", err)
+	}
+	if string(retained) != string(raw) {
+		t.Fatalf("retained bytes = %x, want %x", retained, raw)
 	}
 	messages, _ := app.PeerMessagesSince(0, 8)
 	if len(messages) != 0 {

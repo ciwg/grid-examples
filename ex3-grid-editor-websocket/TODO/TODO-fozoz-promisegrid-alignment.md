@@ -68,13 +68,24 @@
 - Constraints: The method must never accept or persist bearer capabilities, bootstrap secrets, or raw WebSocket frames; it writes only to the DI-darif admission-diagnostic stream and remains outside accepted replay.
 - Affects: `ex3-grid-editor-websocket/{service/app.go,service/server.go,service/live_socket.go}`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
 
+### DI-dilav
+
+- ID: DI-dilav
+- Date: 2026-08-10 13:39:50 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Add focused regression coverage that derives each Ex3 local-draft pCID from exact `protocols/*.md` source bytes and compares both `docs/architecture.md` and `CHANGELOG.md`; directly prove raw CAS retention, one observation per rejected receipt, accepted replay/feed exclusion, and non-secret admission diagnostics; and retain existing browser/Neovim, peer-relay, WebSocket, headless late-join, browser-JavaScript, and sidecar suites as decentralized coverage without duplicating topology tests.
+- Intent: Make Ex3's published and relay-local claims deterministic and auditable while preserving existing cross-embodiment evidence as the correct level for decentralized behavior.
+- Constraints: Do not create a duplicate topology suite; do not replace exact-source comparisons with runtime constants; do not treat automated tests as closure of TODO tamuk's manual private-browser requirement; use `fozoz.4` to document the resulting test layers.
+- Affects: `ex3-grid-editor-websocket/{protocol,service,store}/*_test.go`, `ex3-grid-editor-websocket/{CHANGELOG.md,docs/architecture.md,docs/testing.md}`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-nadut-ex3-published-claim-regression-coverage.md`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] fozoz.1 Publish source-derived local-draft pCID inventory and provisional
   remote-admission scope declaration with explicit non-claims.
 - [x] fozoz.2 Run a TE and DF for remote capability, WebSocket-carriage, and
   relay-local rejected-ingress evidence policy before behavior changes.
-- [ ] fozoz.3 Add focused regression coverage for published pCIDs, remote
+- [x] fozoz.3 Add focused regression coverage for published pCIDs, remote
   admission/evidence boundaries, and existing decentralized interoperability.
 - [ ] fozoz.4 Add `docs/testing.md`, link it from the README, and document Go,
   browser JavaScript, sidecar, and cross-node verification layers.
