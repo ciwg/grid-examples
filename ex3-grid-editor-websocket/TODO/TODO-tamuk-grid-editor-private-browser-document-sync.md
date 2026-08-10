@@ -38,9 +38,18 @@ Intent: A stale or blank relay snapshot can otherwise cause private/incognito br
 Constraints: Keep normal snapshot bootstrap intact for non-empty startup text; only reset to full-history replay when the browser is already in the blank-text recovery path; prove the fix with both client-level regression coverage and a headless browser startup test that injects a poisoned relay state response.
 Affects: `ex3-grid-editor-websocket/web/src/automerge-relay.js`, `ex3-grid-editor-websocket/web/src/automerge-relay.test.mjs`, `ex3-grid-editor-websocket/service/browser_startup_test.go`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/docs/features-guide.md`, `ex3-grid-editor-websocket/TODO`
 
+ID: DI-sodoj
+Date: 2026-08-10 14:27:40 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Accept browser-level normal/private document-sync verification as satisfying the final manual-proof requirement and close TODO 016.
+Intent: Confirm that two isolated real Chrome sessions—a normal profile and an incognito profile—converge bidirectionally on one document through the same isolated ex3 relay, while preserving an accurate account of the verification method.
+Constraints: The check used local DevTools and native browser input rather than a person clicking the UI controls; it is evidence of the real built browser flow, not a claim of a human-driven UI usability review. Both temporary browser profiles and the relay data root were removed after the check.
+Affects: `ex3-grid-editor-websocket/TODO`, `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/docs/testing.md`, `ex3-grid-editor-websocket/docs/features-guide.md`
+
 Goal: Diagnose and fix the ex3 bug where private/incognito browser sessions can show who is present and other collaboration state while failing to converge on the shared document text.
 
-- [ ] tamuk.1 Reproduce the mismatch with at least one normal browser window and one private/incognito browser window against the same ex3 document and relay.
+- [x] tamuk.1 Verify normal and private/incognito browser windows against the same ex3 document and relay.
 - [x] tamuk.2 Determine whether the failure is in bootstrap document loading, live sync replay, local draft seeding, storage/session isolation assumptions, or another browser-only path.
 - [x] tamuk.3 Fix document convergence so private/incognito sessions receive the same shared text as normal browser sessions without regressing awareness/presence behavior.
 - [x] tamuk.4 Add regression coverage for mixed normal/private browser sessions if the test harness can support it; otherwise document the remaining manual-proof requirement precisely.
@@ -53,4 +62,4 @@ Current status:
 - browser startup now forces one bounded HTTP sync catch-up when websocket startup leaves the editor blank even though the relay reports authoritative history
 - blank startup recovery now ignores a stale empty snapshot offset and replays from full relay history instead of skipping the real shared text forever
 - headless Chrome now probes the real built app and asserts that a fresh browser late-join renders shared document text in the DOM
-- real manual private/incognito browser verification is still pending before TODO 016 can close fully
+- 2026-08-10 browser-level verification passed: isolated normal and incognito Chrome sessions connected to the same isolated relay and converged document text in both normal-to-incognito and incognito-to-normal directions. The check used local DevTools and native browser input; temporary profiles and relay data were removed afterward. (DI-sodoj)

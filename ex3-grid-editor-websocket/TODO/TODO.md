@@ -2,7 +2,7 @@
 
 - [x] fozoz - Ex3 PromiseGrid alignment - `TODO/TODO-fozoz-promisegrid-alignment.md`
 - [x] 015 - grid-editor conference demo fixes and PromiseGrid trace surface - `TODO/TODO-pukur-grid-editor-demo-fixes.md`
-- [ ] 016 - grid-editor private/incognito browser document-sync mismatch - `TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md`
+- [x] 016 - grid-editor private/incognito browser document-sync mismatch - `TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md`
 - [x] 014 - grid-editor remote mutation capabilities for multi-machine ex3 - `TODO/TODO-buvir-grid-editor-remote-mutation-capabilities.md`
 - [x] 013 - grid-editor websocket live transport for browser sync and awareness - `TODO/TODO-luzig-grid-editor-websocket-live-transport.md`
 - [x] 012 - grid-editor browser color chooser visibility in Chrome - `TODO/TODO-furav-grid-editor-browser-color-preview.md`

@@ -304,10 +304,13 @@ for accepted replay, observations, admission diagnostics, and verification
 semantics. Those relay-local records are not shared proof and do not settle
 another participant's intent.
 
-Automated hardening covers likely private/incognito startup problems, but the
-real normal-window plus private-window manual scenario remains open in
+Automated hardening covers likely private/incognito startup problems. Browser-level
+verification has also passed with isolated normal and incognito Chrome sessions
+against one isolated relay, confirming bidirectional document-text convergence.
+The check used local DevTools and native browser input rather than a human-driven
+usability review; see the completed
 [TODO tamuk](TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md).
-Source: `DI-tajin`; `DI-hadil`; `DI-pazis`; `DI-hosit`.
+Source: `DI-tajin`; `DI-hadil`; `DI-pazis`; `DI-hosit`; `DI-sodoj`.
 
 ## Docker Container Start
 
@@ -484,8 +487,10 @@ Phase 4 browser exchange surfaces now include:
   relay reports shared history, the browser now forces one bounded HTTP sync
   catch-up before staying empty. If the relay state advertises a stale blank
   snapshot, that recovery path now distrusts the snapshot offset and replays
-  from full history instead of skipping the real shared text forever. The
-  final real private-window manual verification is still tracked in TODO 016.
+  from full history instead of skipping the real shared text forever. Isolated
+  normal and incognito Chrome sessions now have browser-level bidirectional
+  document-sync verification through one relay; the DevTools/native-input
+  method is recorded in TODO 016. Source: `DI-sodoj`.
 - `Preview` opens the markdown preview pane below the editor.
 - `Split View` shows the editor and preview together.
 - import/exchange from a published manifest URL

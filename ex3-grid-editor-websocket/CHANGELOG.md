@@ -50,9 +50,11 @@ Ex3 does not claim:
 - that the bootstrap secret, local HTTP adapter, browser polling, sidecar
   transport, Docker topology, or local filesystem layout is a portable
   protocol contract; or
-- completed private/incognito-browser interoperability: automated hardening
-  and regression coverage exist, but TODO tamuk's real manual verification
-  remains open.
+- a human-driven usability review of private/incognito browser operation.
+  Browser-level verification has passed with isolated normal and incognito
+  Chrome sessions connected to one isolated relay and converging document text
+  in both directions; it used local DevTools and native browser input. Source:
+  `DI-sodoj`.
 
 When Ex3 adopts a frozen upstream spec, a later entry will use the guide's
 formal implementation-promise fields (`claim`, `spec`, `scope`,

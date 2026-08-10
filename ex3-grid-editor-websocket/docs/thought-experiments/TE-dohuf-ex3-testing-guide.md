@@ -117,3 +117,14 @@ explicitly retain TODO tamuk's manual private-browser status.
 - `fozoz.4` can create the guide and README link after DF is locked.
 - `fozoz.5` should link the guide rather than duplicate it.
 - TODO tamuk remains open and cannot be completed by this documentation pass.
+
+## Refinements
+
+### 2026-08-10 — Private-browser verification resolved
+
+TODO tamuk is now complete. Isolated normal and incognito Chrome sessions
+converged document text in both directions through one isolated relay. The
+browser-level check used local DevTools and native browser input, not a
+human-driven usability review; see `DI-sodoj` in
+`TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md` for the exact
+evidence and constraint.

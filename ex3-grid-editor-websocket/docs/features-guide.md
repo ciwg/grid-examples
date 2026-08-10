@@ -294,8 +294,11 @@ Private/incognito note:
 - if relay state advertises a stale blank snapshot, that HTTP recovery path
   now restarts from full relay history instead of trusting the bad snapshot
   offset and staying empty forever
-- a final real private-browser manual verification pass is still tracked
-  separately in TODO 016
+- browser-level verification passed with isolated normal and incognito Chrome
+  sessions against one isolated relay, including bidirectional document-text
+  convergence; the local DevTools/native-input method is recorded in completed
+  TODO 016 rather than presented as a human-driven usability review. Source:
+  `DI-sodoj`
 
 ### Help
 

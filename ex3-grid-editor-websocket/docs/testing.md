@@ -78,10 +78,12 @@ with separate relay processes, keys, and data roots. Separate roots preserve
 each relay's local evidence and identity even when a test host is shared.
 
 Automated browser storage fallback, late-join, and blank-snapshot recovery are
-covered. The real normal-window plus private/incognito-window manual scenario
-remains open in [TODO tamuk](../TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md);
-do not treat the automated suite as closure of that condition. Source:
-`DI-hosit`; `DI-figak`; `DI-hadil`.
+covered. Browser-level verification has also passed with isolated normal and
+incognito Chrome sessions using one isolated relay, including convergence in
+both directions. The check used local DevTools and native browser input rather
+than a human-driven usability review; its exact evidence is in the completed
+[TODO tamuk](../TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md).
+Source: `DI-hosit`; `DI-figak`; `DI-hadil`; `DI-sodoj`.
 
 ## Related documents
 
