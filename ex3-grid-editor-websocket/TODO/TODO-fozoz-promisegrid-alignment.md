@@ -90,6 +90,17 @@
 - Constraints: Keep detailed testing semantics out of the main README; do not add or change runtime behavior; retain TODO tamuk as open; preserve architecture and scope documents as their respective sources of truth.
 - Affects: `ex3-grid-editor-websocket/{README.md,docs/testing.md}`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-dohuf-ex3-testing-guide.md`, `TODO/handle-namespace.tsv`
 
+### DI-tajin
+
+- ID: DI-tajin
+- Date: 2026-08-10 14:08:29 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Add one concise Ex3 README orientation section for local-draft scope, decentralized relay topology, provisional remote admission, and relay-local evidence; use explicit one-relay and separate-root two-relay commands; label `ex3-demo-access` as a checked-in demo-only bootstrap value and direct operators to choose their own local secret; point readers to the selected relay root, canonical architecture/testing guides, and TODO tamuk; and replace the stale final `go test ./...` snippet with the testing-guide link.
+- Intent: Make Ex3's primary reader path reproducible and PromiseGrid-aligned without duplicating detailed documentation, turning the sample token into deployment guidance, or treating local relay facts and automated private-browser hardening as global proof.
+- Constraints: Do not change runtime behavior, profiles, or capability semantics; preserve `CHANGELOG.md`, `docs/architecture.md`, and `docs/testing.md` as canonical detail; retain TODO tamuk as open; do not expose secret material beyond the preexisting checked-in demo value.
+- Affects: `ex3-grid-editor-websocket/{README.md,TODO/TODO-fozoz-promisegrid-alignment.md}`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-gotan-ex3-final-readme-alignment.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] fozoz.1 Publish source-derived local-draft pCID inventory and provisional
@@ -100,6 +111,6 @@
   admission/evidence boundaries, and existing decentralized interoperability.
 - [x] fozoz.4 Add `docs/testing.md`, link it from the README, and document Go,
   browser JavaScript, sidecar, and cross-node verification layers.
-- [ ] fozoz.5 Complete the final README guide pass for local-draft scope,
+- [x] fozoz.5 Complete the final README guide pass for local-draft scope,
   provisional remote admission, reproducible multi-relay operation, evidence
   inspection, and the still-open manual private-browser condition.

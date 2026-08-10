@@ -234,7 +234,7 @@ can run beside `ex2-grid-editor` on the same machine. Source: `DI-vatub`.
 Start the local relay:
 
 ```bash
-go run ./cmd/grid-relay --listen 127.0.0.1:7025
+go run ./cmd/grid-relay --listen 127.0.0.1:7025 --data-root .grid-editor/alice
 ```
 
 Then pick an embodiment:
@@ -249,6 +249,10 @@ share that token in the document link or sidecar environment:
 ```bash
 go run ./cmd/grid-relay --listen 0.0.0.0:7025 --remote-access-token ex3-demo-access
 ```
+
+`ex3-demo-access` is a checked-in demo-only value for this example. Operators
+must choose their own local bootstrap secret for a real deployment; it remains
+relay-local configuration, not a general PromiseGrid identity or auth API.
 
 Then open the browser with:
 
@@ -270,8 +274,40 @@ Source: `DI-povip`.
 If you want a second relay to poll the first one for peer exchange:
 
 ```bash
-go run ./cmd/grid-relay --listen 127.0.0.1:7026 --peer http://127.0.0.1:7025
+go run ./cmd/grid-relay --listen 127.0.0.1:7026 --data-root .grid-editor/bob \
+  --peer http://127.0.0.1:7025
 ```
+
+## Scope, topology, admission, and evidence
+
+Ex3 implements four source-derived, repo-local draft profiles. They are not
+frozen upstream PromiseGrid specifications or automatic interoperability
+claims. The exact pCIDs, implemented scope, and explicit non-claims are in the
+[implementation scope declaration](CHANGELOG.md).
+
+The normal decentralized collaboration model is one relay per logical node.
+Browser and Neovim are local embodiments; their participant fields do not make
+them separate cryptographic identities in this slice. The two commands above
+can simulate Alice and Bob on one host because they use distinct relay
+processes, keys, and data roots. On separate machines, use the same arrangement
+with each relay's own local root and reachable peer URL.
+
+For remote mutation, the relay uses its operator-configured bootstrap secret
+only to mint short-lived capabilities for the selected document and profile.
+WebSocket carries live traffic but does not define a fifth profile or replace
+the pCID-selected protocol meanings.
+
+Each relay root contains that relay's durable local artifacts. To inspect a
+run, use the root selected by its `--data-root` value, then follow the
+[architecture overview](docs/architecture.md) and [testing guide](docs/testing.md)
+for accepted replay, observations, admission diagnostics, and verification
+semantics. Those relay-local records are not shared proof and do not settle
+another participant's intent.
+
+Automated hardening covers likely private/incognito startup problems, but the
+real normal-window plus private-window manual scenario remains open in
+[TODO tamuk](TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md).
+Source: `DI-tajin`; `DI-hadil`; `DI-pazis`; `DI-hosit`.
 
 ## Docker Container Start
 
@@ -543,6 +579,5 @@ Use these as the main reading path after this README:
 
 ## Tests
 
-```bash
-go test ./...
-```
+See the [testing guide](docs/testing.md) for the complete verification command
+set and the distinct claims covered by each test layer. Source: `DI-tajin`.
