@@ -3,6 +3,21 @@
 `grid-editor` centers the PromiseGrid-facing contract in one place and keeps
 the embodiment plumbing local.
 
+## Current local-draft protocol inventory
+
+These pCIDs are derived from the exact local profile bytes in `protocols/`.
+They identify Ex3's current example contracts, not frozen upstream PromiseGrid
+specifications or automatic independent-peer interoperability claims. The
+complete implemented scope and non-claims are recorded in the
+[implementation scope declaration](../CHANGELOG.md). Source: `DI-hadil`.
+
+| Local draft profile | Current pCID | Canonical local source | Implemented role |
+| --- | --- | --- |
+| `live-document` | `bafkreidoqtzj76jlzzbytfrtni655k6zk4ymo2zuhgwnzqfiz6wtrgzwje` | [`protocols/live-document.md`](../protocols/live-document.md) | Relay-signed CRDT change carriage and embodiment-local replica convergence. |
+| `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | [`protocols/live-awareness.md`](../protocols/live-awareness.md) | Relay-signed latest-state presence carriage and local presentation. |
+| `document-metadata` | `bafkreih7sut3exri37qperlyvohk74vmreppzmcoxenjzozj6zkblanday` | [`protocols/document-metadata.md`](../protocols/document-metadata.md) | Relay-signed current metadata and catalog search. |
+| `publish-document` | `bafkreibhvpjr5uddw5z5qmkkowfucawuvzr7hafvsc5djetkax3s6amt3a` | [`protocols/publish-document.md`](../protocols/publish-document.md) | Relay-signed publish manifests and CAS-backed local import/exchange resolution. |
+
 ## Topology
 
 ```text
@@ -35,6 +50,12 @@ The browser UI and the Neovim sidecar own:
 They do not define the peer-visible protocol truth. Source: `DI-lodug`;
 `DI-tofug`; `DI-jilin`; `DI-ramuv`; `DI-tavul`.
 
+For a non-loopback session, a browser or Neovim embodiment can bootstrap with
+the relay and present its short-lived, relay-signed capability for the selected
+document and profile mutation path. This is local relay admission mechanics;
+it does not make the embodiment a separate cryptographic identity or add a
+new peer-visible protocol. Source: `DI-hadil`; `DI-povip`.
+
 ## Public versus internal boundaries
 
 Public, PromiseGrid-facing:
@@ -48,9 +69,25 @@ Public, PromiseGrid-facing:
 Internal-only:
 
 - local HTTP endpoints
+- WebSocket carriage for live document and awareness traffic
+- bootstrap-secret and short-lived remote mutation capability handling
 - browser polling loop and local UI state
 - Neovim helper transport and `vim.system` plumbing
 - browser-local review/workflow registry
+
+## Remote mutation admission
+
+The operator may configure a relay-local bootstrap secret. For remote HTTP or
+WebSocket mutation, the relay uses it only to issue short-lived signed
+capabilities scoped to an audience, document ID, selected profile pCID, and
+`mutate` action; the relay verifies those claims and expiry on use. Loopback
+mutation remains a local fast path.
+
+This mechanism is not a fifth profile, a frozen PromiseGrid application-auth
+API, a general person-identity system, or a cross-relay delegation/role
+protocol. The relay key is the current app-node identity; participant and
+capability audience fields are scoped local inputs. Source: `DI-hadil`;
+`DI-povip`.
 
 ## Protocol roles
 
