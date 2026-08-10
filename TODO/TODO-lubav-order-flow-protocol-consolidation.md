@@ -170,6 +170,17 @@ Affects: ex1-order-flow/protocol, ex1-order-flow/docs/design.md, ex1-order-flow/
 - Constraints: Put focused tests beside their respective packages; extend the existing E2E package only for cross-role behavior; use Go-managed temporary roots; do not add a kernel pCID allow-list, a new top-level wire action, or E2E duplicates for every rejection class.
 - Affects: `ex1-order-flow/{artifact,agent,protocol,token,kernel}/*_test.go`, `ex1-order-flow/e2e/e2e_test.go`, `ex1-order-flow/docs/design.md`, `ex1-order-flow/CHANGELOG.md`, `ex1-order-flow/docs/thought-experiments/TE-pokis-ex1-regression-coverage.md`, `TODO/TODO-lubav-order-flow-protocol-consolidation.md`, `TODO/handle-namespace.tsv`
 
+### DI-motiv
+
+- ID: DI-motiv
+- Date: 2026-08-10 09:41:27 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Complete Ex1's guide-facing documentation by extending its README with a concise walkthrough for the happy path, warehouse refusal, and carrier timeout fixtures; name the collector DAG, per-role raw artifacts, and local observations with their evidence boundaries; and state that a failed run is not a completed demo claim and must be rerun from a fresh selected root.
+- Intent: Make the local-draft implementation scope, repeatable demo, and observer-local evidence legible from the entry document without creating a second guide that could drift from the existing wrapper, profile, and testing documentation.
+- Constraints: Keep detailed contracts in `docs/design.md` and `specdocs/`; keep verification detail in `docs/testing.md`; link the implementation-scope declaration; do not imply frozen-spec conformance, peer interoperability, shared evidence, or an inference about another agent's intent.
+- Affects: `ex1-order-flow/README.md`, `ex1-order-flow/docs/thought-experiments/TE-tivot-ex1-guide-facing-documentation.md`, `TODO/TODO-lubav-order-flow-protocol-consolidation.md`, `TODO/handle-namespace.tsv`
+
 ## PromiseGrid Alignment Plan
 
 Source review: `~/lab/cswg/promisegrid-dev-guide/README.md`, App Devs
@@ -209,7 +220,7 @@ not lock those later decisions.
   profile/pCID inventory consistency, signature and capability rejection,
   refusal versus promise assessment, timeout/observer-evidence behavior after
   its decision is locked, and replay/audit of retained raw artifacts.
-- [ ] lubav.7 Perform a final guide-facing documentation pass: a reader can
+- [x] lubav.7 Perform a final guide-facing documentation pass: a reader can
   identify what Ex1 claims to implement, what remains local/provisional, how
   to reproduce the demo, and how to inspect evidence without mistaking the
   Docker topology or current source path for the protocol contract.

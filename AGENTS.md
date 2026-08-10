@@ -273,6 +273,10 @@ Reference pattern:
 - Use Go's standard `testing` package with deterministic tests.
 - Avoid network calls in tests unless explicitly required and documented.
 - When changing `plan/run` behavior, add coverage for both command paths when possible.
+- During every exercise's PromiseGrid-alignment pass, create or update that
+  exercise's `docs/testing.md` guide and link it from the exercise `README.md`.
+  The guide must state the verification commands, the behavior each test layer
+  proves, and any local evidence or artifact assertions. Source: DI-potoj.
 
 ## Commit & Pull Request Guidelines
 - Treat a line containing only `commit` as: add and commit all changes with an AGENTS-compliant message.
