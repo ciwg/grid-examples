@@ -507,13 +507,24 @@ func (server *Server) requireMutationAccess(request *http.Request, participantID
 		return nil
 	}
 	if participantID == "" {
-		return fmt.Errorf("participant_id is required for remote mutation")
+		err := fmt.Errorf("participant_id is required for remote mutation")
+		if diagnosticErr := server.app.RecordAdmissionDiagnostic("http", err.Error()); diagnosticErr != nil {
+			return fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+		}
+		return err
 	}
 	token := bearerToken(request)
 	if token == "" {
-		return fmt.Errorf("remote mutation requires a bearer capability")
+		err := fmt.Errorf("remote mutation requires a bearer capability")
+		if diagnosticErr := server.app.RecordAdmissionDiagnostic("http", err.Error()); diagnosticErr != nil {
+			return fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+		}
+		return err
 	}
 	if _, err := verifyMutationCapability(token, participantID, documentID, protocolCID, "mutate", time.Now().UTC()); err != nil {
+		if diagnosticErr := server.app.RecordAdmissionDiagnostic("http", err.Error()); diagnosticErr != nil {
+			return fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+		}
 		return err
 	}
 	return nil
@@ -528,7 +539,11 @@ func (server *Server) requireSessionBootstrap(request *http.Request) error {
 		return nil
 	}
 	if !server.app.RemoteAccessEnabled() {
-		return fmt.Errorf("remote mutation bootstrap is disabled")
+		err := fmt.Errorf("remote mutation bootstrap is disabled")
+		if diagnosticErr := server.app.RecordAdmissionDiagnostic("http", err.Error()); diagnosticErr != nil {
+			return fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+		}
+		return err
 	}
 	if server.app.ValidateRemoteAccessToken(request.Header.Get("X-Grid-Access-Token")) {
 		return nil
@@ -536,7 +551,11 @@ func (server *Server) requireSessionBootstrap(request *http.Request) error {
 	if server.app.ValidateRemoteAccessToken(request.URL.Query().Get("access_token")) {
 		return nil
 	}
-	return fmt.Errorf("remote session bootstrap requires X-Grid-Access-Token")
+	err := fmt.Errorf("remote session bootstrap requires X-Grid-Access-Token")
+	if diagnosticErr := server.app.RecordAdmissionDiagnostic("http", err.Error()); diagnosticErr != nil {
+		return fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+	}
+	return err
 }
 
 func decodeJSONBody(writer http.ResponseWriter, request *http.Request, value any) error {

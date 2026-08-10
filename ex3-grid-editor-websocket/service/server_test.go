@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -24,6 +25,36 @@ func TestServerRejectsRemoteSyncMutation(t *testing.T) {
 
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	}
+}
+
+func TestServerRecordsRemoteAdmissionDenialWithoutAcceptedMessage(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root, service.AppOptions{RemoteAccessToken: "ex3-demo-access"})
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := service.NewServer(app)
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/sync", bytes.NewBufferString(`{"participant_id":"browser-a","recipient_id":"","message_base64":"AQID","embodiment":"browser"}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	}
+	diagnostics, err := os.ReadFile(filepath.Join(root, "admission-diagnostics.jsonl"))
+	if err != nil {
+		t.Fatalf("read admission diagnostics: %v", err)
+	}
+	if !strings.Contains(string(diagnostics), `"transport":"http"`) || strings.Contains(string(diagnostics), "ex3-demo-access") {
+		t.Fatalf("admission diagnostics = %s", diagnostics)
+	}
+	messages, _ := app.PeerMessagesSince(0, 8)
+	if len(messages) != 0 {
+		t.Fatalf("admission denial entered peer feed: %d messages", len(messages))
 	}
 }
 

@@ -129,12 +129,28 @@ The relay data root stores:
 
 - the relay signing identity
 - the append-only message log
+- append-only relay-local rejected-envelope observations
+- append-only relay-local remote-admission diagnostics
 - CAS-backed signed envelopes
 - CAS-backed signed metadata envelopes
 - CAS-backed published text bytes
 - CAS-backed published replica bytes
 
 These are the durable artifacts the relay can verify and serve back later.
+
+Bounded malformed, invalid-proof, invalid-payload, and valid-but-unsupported
+peer envelopes are retained as exact CAS bytes plus one `observations.jsonl`
+record per receipt. They do not enter `message-log.jsonl`, accepted replay,
+peer feed, or document/metadata projections. `no_supported_handler` states
+only that this relay lacks a handler for the selected pCID; it does not make a
+global validity claim. Each observation names the relay key that observed it.
+
+Remote capability and bootstrap denials append non-secret local facts to
+`admission-diagnostics.jsonl`: reason, time, transport, and observing relay.
+They never retain bearer capabilities, bootstrap secrets, or raw WebSocket
+frames. WebSocket framing and JSON failures remain connection-local carriage
+errors rather than durable profile evidence. Source: `DI-pazis`; `DI-darif`;
+`DI-lozut`.
 
 ### Embodiment-local state
 

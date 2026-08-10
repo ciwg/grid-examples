@@ -321,6 +321,10 @@ func (server *Server) authorizeSocket(socket *websocketConn, documentID string, 
 		return "", err
 	}
 	if auth.Type != "auth" || auth.Capability == "" {
+		diagnosticErr := server.app.RecordAdmissionDiagnostic("websocket", "remote websocket auth required")
+		if diagnosticErr != nil {
+			return "", fmt.Errorf("record admission diagnostic: %w", diagnosticErr)
+		}
 		if err := socket.WriteJSON(map[string]any{
 			"type":    "error",
 			"message": "remote websocket auth required",
@@ -331,6 +335,9 @@ func (server *Server) authorizeSocket(socket *websocketConn, documentID string, 
 	}
 	claims, err := verifyMutationCapability(auth.Capability, "", documentID, protocolCID, "mutate", time.Now().UTC())
 	if err != nil {
+		if diagnosticErr := server.app.RecordAdmissionDiagnostic("websocket", err.Error()); diagnosticErr != nil {
+			return "", fmt.Errorf("record admission diagnostic: %w", diagnosticErr)
+		}
 		if writeErr := socket.WriteJSON(map[string]any{
 			"type":    "error",
 			"message": err.Error(),
@@ -340,6 +347,10 @@ func (server *Server) authorizeSocket(socket *websocketConn, documentID string, 
 		return "", err
 	}
 	if claims.Audience == "" {
+		diagnosticErr := server.app.RecordAdmissionDiagnostic("websocket", "capability audience missing")
+		if diagnosticErr != nil {
+			return "", fmt.Errorf("record admission diagnostic: %w", diagnosticErr)
+		}
 		if err := socket.WriteJSON(map[string]any{
 			"type":    "error",
 			"message": "capability audience missing",

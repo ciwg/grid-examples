@@ -24,11 +24,55 @@
 - Constraints: Derive published pCIDs from exact current protocol-source bytes; do not alter profile documents or remote-admission behavior in this slice; do not create a normal frozen-spec implementation-promise claim; preserve TODO tamuk as open; add source-derived regression coverage in `fozoz.3`.
 - Affects: `ex3-grid-editor-websocket/{CHANGELOG.md,README.md,docs/architecture.md,protocols/*.md}`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-hujos-ex3-local-draft-remote-admission-scope.md`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
 
+### DI-pazis
+
+- ID: DI-pazis
+- Date: 2026-08-10 13:04:37 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: For bounded rejected peer-envelope ingress, retain exact bytes in CAS and append one relay-local observation per receipt while excluding observations from accepted log, replay, and peer feed; complete pCID support and payload validation before accepted CAS/log/replay mutation; retain remote capability denials only as non-secret local diagnostics; and return/close WebSocket framing or JSON failures without durable raw-frame evidence.
+- Intent: Preserve useful relay-local evidence and strict rebuildable accepted replay without exposing bearer/bootstrap material, inventing WebSocket protocol semantics, or turning local observations into global validity or intent claims.
+- Constraints: Apply ingress-size bounds before raw retention; do not retain capability tokens or bootstrap secrets; do not relay rejected bytes; classify a valid but unsupported pCID as this relay's `no_supported_handler`, not a global invalidity claim; keep capability diagnostics separate from peer-envelope observations.
+- Affects: `ex3-grid-editor-websocket/{cas,service,store}/*.go`, `ex3-grid-editor-websocket/{cas,service,store}/*_test.go`, `ex3-grid-editor-websocket/docs/{architecture.md,testing.md}`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-sozol-ex3-remote-admission-and-ingress-evidence-policy.md`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
+### DI-darif
+
+- ID: DI-darif
+- Date: 2026-08-10 13:08:32 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Implement rejected peer-envelope records as `store.Observation` and `store.ObservationLog` in `observations.jsonl`; implement non-secret remote capability denial records as `store.AdmissionDiagnostic` and `store.AdmissionDiagnosticLog` in separate `admission-diagnostics.jsonl`; and refactor `ingestEnvelopeLocked` to fully classify envelope support and payload before choosing either accepted CAS/log/replay persistence or the observation path.
+- Intent: Name records for what the relay actually knows, keep admission events distinct from peer-envelope observations, and structurally prevent rejected inputs from entering accepted replay.
+- Constraints: Preserve DI-pazis's raw-retention, secret-exclusion, and WebSocket rules; do not represent a sender as an authenticated peer before accepted envelope verification; do not add a top-level protocol action; supersedes no prior DI.
+- Affects: `ex3-grid-editor-websocket/{service,store}/*.go`, `ex3-grid-editor-websocket/{service,store}/*_test.go`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
+### DI-lubij
+
+- ID: DI-lubij
+- Date: 2026-08-10 13:13:42 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Name the no-side-effect ingress preflight helper `validateEnvelopeLocked`, the local rejected-envelope recorder `recordRejectedEnvelopeLocked`, and the relay evidence fields `observations` and `admissionDiagnostics`.
+- Intent: Keep names centered on validation and relay-local observation rather than prematurely identifying a sender as a peer or leaking file-format mechanics into behavior vocabulary.
+- Constraints: These helpers must preserve DI-pazis's accepted/rejected separation and DI-darif's record names and paths; do not add a new protocol action or sender-identity claim.
+- Affects: `ex3-grid-editor-websocket/service/app.go`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
+### DI-lozut
+
+- ID: DI-lozut
+- Date: 2026-08-10 13:22:21 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Name the relay-local, non-secret remote-admission recording method `RecordAdmissionDiagnostic(transport, reason string)`.
+- Intent: Record what the relay observed at its admission boundary without characterizing a requester, capability, or remote participant as globally failed or invalid.
+- Constraints: The method must never accept or persist bearer capabilities, bootstrap secrets, or raw WebSocket frames; it writes only to the DI-darif admission-diagnostic stream and remains outside accepted replay.
+- Affects: `ex3-grid-editor-websocket/{service/app.go,service/server.go,service/live_socket.go}`, `ex3-grid-editor-websocket/TODO/TODO-fozoz-promisegrid-alignment.md`, `TODO/handle-namespace.tsv`
+
 ## Alignment plan
 
 - [x] fozoz.1 Publish source-derived local-draft pCID inventory and provisional
   remote-admission scope declaration with explicit non-claims.
-- [ ] fozoz.2 Run a TE and DF for remote capability, WebSocket-carriage, and
+- [x] fozoz.2 Run a TE and DF for remote capability, WebSocket-carriage, and
   relay-local rejected-ingress evidence policy before behavior changes.
 - [ ] fozoz.3 Add focused regression coverage for published pCIDs, remote
   admission/evidence boundaries, and existing decentralized interoperability.

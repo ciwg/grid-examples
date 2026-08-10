@@ -64,15 +64,17 @@ type DocumentSnapshot struct {
 }
 
 type App struct {
-	dataRoot          string
-	identity          *identity.Identity
-	remoteAccessToken string
-	log               *store.Log
-	cas               *cas.Store
-	documentPCID      cid.Cid
-	awarenessPCID     cid.Cid
-	metadataPCID      cid.Cid
-	publishPCID       cid.Cid
+	dataRoot             string
+	identity             *identity.Identity
+	remoteAccessToken    string
+	log                  *store.Log
+	cas                  *cas.Store
+	observations         *store.ObservationLog
+	admissionDiagnostics *store.AdmissionDiagnosticLog
+	documentPCID         cid.Cid
+	awarenessPCID        cid.Cid
+	metadataPCID         cid.Cid
+	publishPCID          cid.Cid
 
 	mu                 sync.Mutex
 	maxLamport         uint64
@@ -121,23 +123,33 @@ func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open log: %w", err)
 	}
+	observations, err := store.OpenObservationLog(filepath.Join(dataRoot, "observations.jsonl"))
+	if err != nil {
+		return nil, fmt.Errorf("open observations: %w", err)
+	}
+	admissionDiagnostics, err := store.OpenAdmissionDiagnosticLog(filepath.Join(dataRoot, "admission-diagnostics.jsonl"))
+	if err != nil {
+		return nil, fmt.Errorf("open admission diagnostics: %w", err)
+	}
 	app := &App{
-		dataRoot:          dataRoot,
-		identity:          identityValue,
-		remoteAccessToken: option.RemoteAccessToken,
-		log:               logValue,
-		cas:               casValue,
-		documentPCID:      documentPCID,
-		awarenessPCID:     awarenessPCID,
-		metadataPCID:      metadataPCID,
-		publishPCID:       publishPCID,
-		seen:              map[string]struct{}{},
-		presence:          map[string]awareness.Index{},
-		syncFeeds:         map[string][]crdt.SyncRecord{},
-		syncSnapshots:     map[string]DocumentSnapshot{},
-		metadata:          map[string]metadata.Record{},
-		published:         map[string][]publish.Record{},
-		publishByCID:      map[string]publish.Record{},
+		dataRoot:             dataRoot,
+		identity:             identityValue,
+		remoteAccessToken:    option.RemoteAccessToken,
+		log:                  logValue,
+		cas:                  casValue,
+		observations:         observations,
+		admissionDiagnostics: admissionDiagnostics,
+		documentPCID:         documentPCID,
+		awarenessPCID:        awarenessPCID,
+		metadataPCID:         metadataPCID,
+		publishPCID:          publishPCID,
+		seen:                 map[string]struct{}{},
+		presence:             map[string]awareness.Index{},
+		syncFeeds:            map[string][]crdt.SyncRecord{},
+		syncSnapshots:        map[string]DocumentSnapshot{},
+		metadata:             map[string]metadata.Record{},
+		published:            map[string][]publish.Record{},
+		publishByCID:         map[string]publish.Record{},
 	}
 	for _, entry := range logValue.All() {
 		if err := app.replayEntry(entry); err != nil {
@@ -601,7 +613,29 @@ func (app *App) IngestRawBase64(raw string) error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	_, err = app.ingestEnvelopeLocked(envelopeBytes, nil)
+	if err != nil {
+		if observationErr := app.recordRejectedEnvelopeLocked(envelopeBytes, err); observationErr != nil {
+			return fmt.Errorf("%w (record rejected envelope: %v)", err, observationErr)
+		}
+	}
 	return err
+}
+
+// RecordAdmissionDiagnostic records the relay's local admission decision
+// without retaining bearer material or treating the decision as peer evidence.
+// Source: DI-pazis; DI-lozut.
+func (app *App) RecordAdmissionDiagnostic(transport string, reason string) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.admissionDiagnostics.Append(store.AdmissionDiagnostic{
+		Kind:          "admission_denied",
+		ObserverKeyID: app.identity.KeyID(),
+		Transport:     transport,
+		Reason:        reason,
+	}); err != nil {
+		return fmt.Errorf("append admission diagnostic: %w", err)
+	}
+	return nil
 }
 
 func (app *App) StartPeerPolling(ctx context.Context, peerURLs []string, interval time.Duration) {
@@ -714,6 +748,13 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 	if err := identity.VerifyProof(signable, envelope.Proof); err != nil {
 		return crdt.SyncRecord{}, fmt.Errorf("verify proof: %w", err)
 	}
+	if err := app.validateEnvelopeLocked(envelope); err != nil {
+		return crdt.SyncRecord{}, err
+	}
+
+	// Intent: Only a fully recognized and decodable profile can become accepted
+	// CAS/log/replay input; rejected envelopes use the separate observation path.
+	// Source: DI-pazis; DI-darif; DI-lubij.
 	address, err := app.cas.Put(envelopeBytes)
 	if err != nil {
 		return crdt.SyncRecord{}, fmt.Errorf("persist cas object: %w", err)
@@ -804,6 +845,74 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		app.onAwarenessChanged(awarenessDocumentID)
 	}
 	return record, nil
+}
+
+func (app *App) validateEnvelopeLocked(envelope protocol.Envelope) error {
+	switch envelope.PCID.String() {
+	case app.documentPCID.String():
+		var message crdt.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return fmt.Errorf("decode document payload: %w", err)
+		}
+		if message.Author != envelope.Proof.KeyID {
+			return fmt.Errorf("document author %q does not match proof key", message.Author)
+		}
+	case app.publishPCID.String():
+		var message publish.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return fmt.Errorf("decode publish payload: %w", err)
+		}
+		if message.Author != envelope.Proof.KeyID {
+			return fmt.Errorf("publish author %q does not match proof key", message.Author)
+		}
+	case app.metadataPCID.String():
+		var message metadata.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return fmt.Errorf("decode metadata payload: %w", err)
+		}
+		if message.Author != envelope.Proof.KeyID {
+			return fmt.Errorf("metadata author %q does not match proof key", message.Author)
+		}
+	case app.awarenessPCID.String():
+		var message awareness.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return fmt.Errorf("decode awareness payload: %w", err)
+		}
+		if message.Author != envelope.Proof.KeyID {
+			return fmt.Errorf("awareness author %q does not match proof key", message.Author)
+		}
+	default:
+		return fmt.Errorf("unknown pCID %s", envelope.PCID)
+	}
+	return nil
+}
+
+func (app *App) recordRejectedEnvelopeLocked(envelopeBytes []byte, reason error) error {
+	address, err := app.cas.Put(envelopeBytes)
+	if err != nil {
+		return fmt.Errorf("persist rejected envelope: %w", err)
+	}
+	observation := store.Observation{
+		Kind:          "invalid_payload",
+		ObserverKeyID: app.identity.KeyID(),
+		RawCID:        address,
+		Reason:        reason.Error(),
+	}
+	if envelope, parseErr := protocol.ParseEnvelope(envelopeBytes); parseErr == nil {
+		observation.ObservedPCID = envelope.PCID.String()
+	}
+	switch {
+	case strings.Contains(reason.Error(), "parse envelope"):
+		observation.Kind = "malformed_input"
+	case strings.Contains(reason.Error(), "verify proof"):
+		observation.Kind = "invalid_proof"
+	case strings.Contains(reason.Error(), "unknown pCID"):
+		observation.Kind = "no_supported_handler"
+	}
+	if err := app.observations.Append(observation); err != nil {
+		return fmt.Errorf("append observation: %w", err)
+	}
+	return nil
 }
 
 func (app *App) ingestPublishEnvelopeLocked(envelopeBytes []byte, existing *store.Entry) (publish.Record, error) {

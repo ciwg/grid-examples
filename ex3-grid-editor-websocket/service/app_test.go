@@ -11,6 +11,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/protocols"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/service"
+	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/store"
 )
 
 func TestPostSyncAppearsInFeedAndReplay(t *testing.T) {
@@ -223,6 +224,42 @@ func TestIngestRejectsAuthorProofMismatch(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatalf("expected author/proof mismatch error")
+	}
+}
+
+func TestIngestRecordsMalformedInputOutsideAcceptedReplay(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	raw := []byte{0xff}
+	encoded := base64.StdEncoding.EncodeToString(raw)
+	if err := app.IngestRawBase64(encoded); err == nil {
+		t.Fatal("expected malformed input error")
+	}
+	if err := app.IngestRawBase64(encoded); err == nil {
+		t.Fatal("expected repeated malformed input error")
+	}
+	observations, err := store.ReadObservations(filepath.Join(root, "observations.jsonl"))
+	if err != nil {
+		t.Fatalf("read observations: %v", err)
+	}
+	if len(observations) != 2 {
+		t.Fatalf("observation count = %d, want 2", len(observations))
+	}
+	for _, observation := range observations {
+		if observation.Kind != "malformed_input" || observation.RawCID == "" {
+			t.Fatalf("observation = %#v", observation)
+		}
+	}
+	messages, _ := app.PeerMessagesSince(0, 8)
+	if len(messages) != 0 {
+		t.Fatalf("rejected input entered peer feed: %d messages", len(messages))
+	}
+	if _, err := service.NewApp(root); err != nil {
+		t.Fatalf("restart with rejected observation: %v", err)
 	}
 }
 
