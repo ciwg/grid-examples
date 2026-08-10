@@ -19,7 +19,10 @@ services:
     entrypoint: ["/usr/local/bin/pg-order-kernel"]
     environment:
       PG_KERNEL_LISTEN_ADDR: ":7000"
+      PG_DATA_DIR: "/data/kernel"
     depends_on: [collector]
+    volumes:
+      - ${EX1_DATA_ROOT:-/tmp/grid-examples-ex1-data}:/data
 
   seller:
     build:

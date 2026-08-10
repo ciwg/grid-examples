@@ -37,6 +37,7 @@ cleanup_data_root
 
 mkdir -p \
   "$data_root/collector" \
+  "$data_root/kernel" \
   "$data_root/intake" \
   "$data_root/seller" \
   "$data_root/warehouse" \

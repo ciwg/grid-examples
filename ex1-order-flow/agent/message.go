@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/artifact"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/token"
 )
@@ -43,15 +44,21 @@ func VerifyMessageCapability(tokenBytes []byte, expectedIssuer string, audience 
 	return err
 }
 
-func ReceiveTyped[T any](ctx context.Context, client *Client, expectedRole string, expectedPCID protocol.Profile, out *T) (protocol.Envelope, string, error) {
-	envelope, exactCID, err := client.Receive(ctx)
+func ReceiveTyped[T any](ctx context.Context, client *Client, expectedRole string, expectedPCID protocol.Profile, out *T) (envelope protocol.Envelope, exactCID string, err error) {
+	envelope, exactCID, err = client.Receive(ctx)
 	if err != nil {
 		return protocol.Envelope{}, "", err
 	}
 	if envelope.PCID.String() != expectedPCID.CID.String() {
+		if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "unexpected_pcid", ObservedPCID: envelope.PCID.String(), ExpectedCID: expectedPCID.CID.String()}); observationErr != nil {
+			return protocol.Envelope{}, "", observationErr
+		}
 		return protocol.Envelope{}, "", fmt.Errorf("unexpected pCID %s", envelope.PCID.String())
 	}
 	if err := VerifySignedEnvelope(expectedRole, envelope); err != nil {
+		if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "invalid_proof", RawCID: exactCID, ObservedPCID: envelope.PCID.String(), Reason: err.Error()}); observationErr != nil {
+			return protocol.Envelope{}, "", observationErr
+		}
 		return protocol.Envelope{}, "", err
 	}
 	if err := protocol.Unmarshal(envelope.PayloadBytes, out); err != nil {

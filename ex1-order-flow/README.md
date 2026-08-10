@@ -87,4 +87,5 @@ multi-agent topology with the least manual setup.
 ## Docs
 
 - [Design notes](docs/design.md)
-
+- [Current local protocol inventory](docs/design.md#protocol-inventory-current-local-draft-profiles)
+- [Testing guide](docs/testing.md)

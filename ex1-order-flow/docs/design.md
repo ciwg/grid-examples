@@ -17,6 +17,47 @@ This example should:
   Devs` guidance around pCID-selected envelopes, local promise interpretation,
   append-only artifacts, and `poc12` hybrid fulfillment orientation
 
+## Protocol Inventory: Current Local Draft Profiles
+
+The following profile pCIDs are derived from the exact Markdown bytes under
+`specdocs/` at build time. They identify Ex1's local example profiles, not
+frozen upstream PromiseGrid specifications. Editing one of those source
+documents changes its pCID and therefore creates a distinct local protocol
+profile. Source: the current PromiseGrid development guide's App Devs guidance
+on pCID-selected contracts and draft-versus-frozen status.
+
+| Profile | Current pCID | Canonical local source | Sending and receiving handlers |
+| --- | --- | --- | --- |
+| `order` | `bafkreiadgrunjzobfflgs4m4f7xzisuehhgd2s3w2ptl5xwvntis6ir4oy` | `specdocs/order.md` | Intake submits and receives finals; seller receives submits and sends finals. |
+| `pick_pack` | `bafkreiafy57gl5b2pn4pj5qkczund3jrp42tqq46rzb6ipw5wyxi6hlwoy` | `specdocs/pick-pack.md` | Seller sends requests and receives results; warehouse receives requests and sends results. |
+| `accounting` | `bafkreib3bo5sdzsk276qnxtlppyyqfwjuafx33jqotc35mm53ucayrmon4` | `specdocs/accounting.md` | Seller sends requests and receives results; accounting receives requests and sends results. |
+| `shipment` | `bafkreieivmdty4siq2smgjg27x62mgv5g5oqdr7h2l4hvbw46fk6z6vaki` | `specdocs/shipment.md` | Seller sends requests and receives results; carrier receives requests and sends results. |
+| `kernel_register` | `bafkreidscjgld22lrvsr5wk3lwlzspnifv4e2ewsgsqsg3old3q3pvqpre` | `specdocs/kernel-register.md` | Every app role sends registration; the kernel verifies it and records the pCIDs that role receives. |
+
+All profiles use the outer `grid([42(pCID), payload, proof])` shape. The
+selected pCID owns payload meaning, proof validation, and capability-token
+semantics; the kernel uses the selector only to dispatch exact envelope bytes.
+It does not decide whether a business promise was kept.
+
+### Evidence and claim boundary
+
+Each sender stores its raw envelope under
+`/tmp/grid-examples-ex1-data/<role>/message-cas/` and appends a local
+`messages.jsonl` record. The sender also publishes the raw envelope and parent
+links to the collector; the collector retains them under
+`/tmp/grid-examples-ex1-data/collector/message-cas/` and
+`message-dag.jsonl` for the analyzer. Recipients retain their own received raw
+envelope locally. Each agent and the kernel additionally append local
+`observations.jsonl` entries for exceptional evidence such as malformed input,
+invalid proof or capability, verified refusal, and timeout. For a valid envelope
+with no current kernel subscriber, the kernel records
+`no_registered_recipient`; this is a local dispatch fact, not a claim that the
+pCID is globally unknown or invalid. Those entries describe only the observer's
+local assessment; a signed refusal remains the signer’s evidence. The current
+implementation has not yet published an
+implementation-promise claim against any frozen upstream spec doc-CID; its
+scope is therefore limited to these named local draft/example profiles.
+
 ## Why This Example
 
 The fulfillment demo demonstrates why the mechanics matter:

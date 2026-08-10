@@ -105,8 +105,15 @@ func (client *Client) Receive(ctx context.Context) (protocol.Envelope, string, e
 	if err != nil {
 		return protocol.Envelope{}, "", err
 	}
+	rawCID, err := client.store.SaveRawBytes(envelopeBytes)
+	if err != nil {
+		return protocol.Envelope{}, "", err
+	}
 	envelope, err := protocol.ParseEnvelope(envelopeBytes)
 	if err != nil {
+		if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "malformed_input", RawCID: rawCID, Reason: err.Error()}); observationErr != nil {
+			return protocol.Envelope{}, "", observationErr
+		}
 		return protocol.Envelope{}, "", err
 	}
 	exactCID, err := client.store.SaveEnvelope("recv", envelopeBytes, nil, envelope.PCID.String())
@@ -114,6 +121,10 @@ func (client *Client) Receive(ctx context.Context) (protocol.Envelope, string, e
 		return protocol.Envelope{}, "", err
 	}
 	return envelope, exactCID, nil
+}
+
+func (client *Client) RecordObservation(record artifact.ObservationRecord) error {
+	return client.store.AppendObservation(record)
 }
 
 func writeFrame(ctx context.Context, conn net.Conn, payload []byte) error {

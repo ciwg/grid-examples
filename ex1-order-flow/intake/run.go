@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/agent"
+	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/artifact"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/protocol"
 )
 
@@ -69,6 +70,9 @@ func Run(ctx context.Context, cfg agent.Config, fixturePath string) (result Resu
 		return Result{}, err
 	}
 	if err := agent.VerifyMessageCapability(final.CapabilityToken, "seller", "intake", protocol.OrderProfile, final.Kind); err != nil {
+		if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "invalid_capability", RawCID: finalCID, ObservedPCID: protocol.OrderProfile.CID.String(), Reason: err.Error()}); observationErr != nil {
+			return Result{}, observationErr
+		}
 		return Result{}, err
 	}
 	result = Result{

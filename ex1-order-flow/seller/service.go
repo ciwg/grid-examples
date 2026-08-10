@@ -3,10 +3,12 @@ package seller
 import (
 	"bytes"
 	"context"
+	"errors"
 
 	"github.com/ipfs/go-cid"
 
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/agent"
+	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/artifact"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/protocol"
 )
 
@@ -50,6 +52,9 @@ func handleOneOrder(ctx context.Context, client *agent.Client, cfg agent.Config)
 	orderCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
 	if err := agent.VerifyMessageCapability(submit.CapabilityToken, "intake", "seller", protocol.OrderProfile, submit.Kind); err != nil {
+		if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "invalid_capability", RawCID: requestCID, ObservedPCID: protocol.OrderProfile.CID.String(), Reason: err.Error()}); observationErr != nil {
+			return observationErr
+		}
 		return sendFailure(ctx, client, submit, requestCID, "seller_validation", "failed", "invalid intake capability token")
 	}
 	// Intent: Fail malformed intake orders before contacting downstream services so
@@ -67,6 +72,9 @@ func handleOneOrder(ctx context.Context, client *agent.Client, cfg agent.Config)
 		return sendFailure(ctx, client, submit, requestCID, "warehouse", "failed", err.Error())
 	}
 	if pickPackResult.Status == "refused" {
+		if err := client.RecordObservation(artifact.ObservationRecord{Kind: "refusal_observed", RawCID: pickPackResultCID, ObservedPCID: protocol.PickPackProfile.CID.String()}); err != nil {
+			return err
+		}
 		return sendFinal(ctx, client, submit, requestCID, protocol.OrderMessage{
 			Kind:               "final",
 			CustomerOrderRef:   submit.CustomerOrderRef,
@@ -82,6 +90,9 @@ func handleOneOrder(ctx context.Context, client *agent.Client, cfg agent.Config)
 		return sendFailure(ctx, client, submit, requestCID, "accounting", "failed", err.Error())
 	}
 	if accountingResult.Status == "refused" {
+		if err := client.RecordObservation(artifact.ObservationRecord{Kind: "refusal_observed", RawCID: accountingResultCID, ObservedPCID: protocol.AccountingProfile.CID.String()}); err != nil {
+			return err
+		}
 		return sendFinal(ctx, client, submit, requestCID, protocol.OrderMessage{
 			Kind:                "final",
 			CustomerOrderRef:    submit.CustomerOrderRef,
@@ -96,6 +107,11 @@ func handleOneOrder(ctx context.Context, client *agent.Client, cfg agent.Config)
 	}
 	shipmentResult, shipmentResultCID, err := runShipment(orderCtx, client, submit, requestCIDParsed.Bytes(), pickPackCID.Bytes(), accountingCID.Bytes(), pickPackResult)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			if observationErr := client.RecordObservation(artifact.ObservationRecord{Kind: "timeout_observed", ExpectedCID: requestCID, ObservedPCID: protocol.ShipmentProfile.CID.String(), Reason: "seller shipment deadline elapsed"}); observationErr != nil {
+				return observationErr
+			}
+		}
 		return sendFailure(ctx, client, submit, requestCID, "carrier", "failed", err.Error())
 	}
 	return sendFinal(ctx, client, submit, requestCID, protocol.OrderMessage{
@@ -247,6 +263,11 @@ func runShipment(ctx context.Context, client *agent.Client, submit protocol.Orde
 		var result protocol.ShipmentMessage
 		_, resultCID, err := agent.ReceiveTyped(ctx, client, "carrier", protocol.ShipmentProfile, &result)
 		if err != nil {
+			// Intent: Preserve the seller's local deadline observation even when the
+			// socket surfaces the expired context as a transport timeout. Source: DI-vihoz
+			if ctx.Err() != nil {
+				return protocol.ShipmentMessage{}, "", ctx.Err()
+			}
 			return protocol.ShipmentMessage{}, "", err
 		}
 		if err := agent.VerifyMessageCapability(result.CapabilityToken, "carrier", "seller", protocol.ShipmentProfile, result.Kind); err != nil {

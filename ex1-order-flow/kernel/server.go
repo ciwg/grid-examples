@@ -11,15 +11,18 @@ import (
 
 	"github.com/ipfs/go-cid"
 
+	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/artifact"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex1-order-flow/token"
 )
 
 type Server struct {
 	Address string
+	DataDir string
 
 	mu          sync.RWMutex
 	subscribers map[string]map[*clientConn]bool
+	store       *artifact.Store
 }
 
 type clientConn struct {
@@ -40,6 +43,10 @@ func (server *Server) Run(ctx context.Context) (runErr error) {
 			runErr = closeErr
 		}
 	}()
+	server.store, err = artifact.NewStore("kernel", server.DataDir)
+	if err != nil {
+		return fmt.Errorf("open kernel evidence store: %w", err)
+	}
 	server.subscribers = map[string]map[*clientConn]bool{}
 	go func() {
 		<-ctx.Done()
@@ -71,8 +78,13 @@ func (server *Server) handleConn(ctx context.Context, conn net.Conn) {
 	if err != nil {
 		return
 	}
+	registerCID, err := server.store.SaveRawBytes(registerBytes)
+	if err != nil {
+		return
+	}
 	registerEnvelope, err := protocol.ParseEnvelope(registerBytes)
 	if err != nil {
+		server.recordObservation("malformed_input", registerCID, "", "", err.Error())
 		return
 	}
 	if registerEnvelope.PCID.String() != protocol.KernelRegisterProfile.CID.String() {
@@ -97,11 +109,18 @@ func (server *Server) handleConn(ctx context.Context, conn net.Conn) {
 		if err != nil {
 			return
 		}
-		envelope, err := protocol.ParseEnvelope(envelopeBytes)
+		rawCID, err := server.store.SaveRawBytes(envelopeBytes)
 		if err != nil {
 			return
 		}
-		server.broadcast(client, envelope.PCID, envelopeBytes)
+		envelope, err := protocol.ParseEnvelope(envelopeBytes)
+		if err != nil {
+			server.recordObservation("malformed_input", rawCID, "", "", err.Error())
+			return
+		}
+		if !server.broadcast(client, envelope.PCID, envelopeBytes) {
+			server.recordObservation("no_registered_recipient", rawCID, envelope.PCID.String(), "", "no registered recipient")
+		}
 	}
 }
 
@@ -132,7 +151,7 @@ func (server *Server) removeClient(client *clientConn) {
 	}
 }
 
-func (server *Server) broadcast(sender *clientConn, pcid cid.Cid, envelopeBytes []byte) {
+func (server *Server) broadcast(sender *clientConn, pcid cid.Cid, envelopeBytes []byte) bool {
 	server.mu.RLock()
 	targets := make([]*clientConn, 0, len(server.subscribers[pcid.String()]))
 	for client := range server.subscribers[pcid.String()] {
@@ -141,12 +160,25 @@ func (server *Server) broadcast(sender *clientConn, pcid cid.Cid, envelopeBytes 
 		}
 	}
 	server.mu.RUnlock()
+	if len(targets) == 0 {
+		return false
+	}
 	for _, target := range targets {
 		target.send.Lock()
 		if err := writeFrame(context.Background(), target.conn, envelopeBytes); err != nil {
 			fmt.Fprintf(os.Stderr, "kernel broadcast to %s failed: %v\n", target.role, err)
 		}
 		target.send.Unlock()
+	}
+	return true
+}
+
+func (server *Server) recordObservation(kind string, rawCID string, observedPCID string, expectedCID string, reason string) {
+	if server.store == nil {
+		return
+	}
+	if err := server.store.AppendObservation(artifact.ObservationRecord{Kind: kind, RawCID: rawCID, ObservedPCID: observedPCID, ExpectedCID: expectedCID, Reason: reason}); err != nil {
+		fmt.Fprintf(os.Stderr, "kernel observation %s: %v\n", kind, err)
 	}
 }
 

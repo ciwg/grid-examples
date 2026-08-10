@@ -17,7 +17,12 @@ func main() {
 	if address == "" {
 		address = ":7000"
 	}
-	server := &kernel.Server{Address: address}
+	dataDir := os.Getenv("PG_DATA_DIR")
+	if dataDir == "" {
+		fmt.Fprintln(os.Stderr, "pg-order-kernel: PG_DATA_DIR is required")
+		os.Exit(1)
+	}
+	server := &kernel.Server{Address: address, DataDir: dataDir}
 	if err := server.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "pg-order-kernel: %v\n", err)
 		os.Exit(1)
