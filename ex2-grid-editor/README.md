@@ -189,6 +189,8 @@ docs below for architecture, protocols, browser usage, and Neovim usage.
 
 Useful docs:
 
+- [Implementation scope declaration](CHANGELOG.md)
+- [Current local-draft protocol inventory](docs/architecture.md#current-local-draft-protocol-inventory)
 - [Browser UI walkthrough](docs/grid-editor-ui-example.md)
 - [Architecture overview](docs/architecture.md)
 - [Practical implementation notes](docs/practical-implementation.md)

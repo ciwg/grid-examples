@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] 013 - grid-editor PromiseGrid alignment - `TODO/TODO-sojot-promisegrid-alignment.md`
 - [ ] 012 - grid-editor browser color chooser visibility in Chrome - `TODO/TODO-furav-grid-editor-browser-color-preview.md`
 - [x] 011 - grid-editor browser inline underline rendering - `TODO/TODO-huvok-grid-editor-browser-underline.md`
 - [x] 010 - grid-editor phase 4 document metadata slice - `TODO/TODO-pamov-grid-editor-phase-4-metadata.md`

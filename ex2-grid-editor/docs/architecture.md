@@ -3,6 +3,26 @@
 `grid-editor` centers the PromiseGrid-facing contract in one place and keeps
 the embodiment plumbing local.
 
+## Current local-draft protocol inventory
+
+These pCIDs are derived from the exact local profile bytes in `protocols/`.
+They identify Ex2's current example contracts, not frozen upstream PromiseGrid
+specifications or interoperability claims. The complete implemented scope and
+non-claims are recorded in the [implementation scope declaration](../CHANGELOG.md).
+Source: DI-ralit.
+
+| Local draft profile | Current pCID | Canonical local source | Implemented role |
+| --- | --- | --- | --- |
+| `live-document` | `bafkreidoqtzj76jlzzbytfrtni655k6zk4ymo2zuhgwnzqfiz6wtrgzwje` | [`protocols/live-document.md`](../protocols/live-document.md) | Relay-signed CRDT change carriage and embodiment-local replica convergence. |
+| `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | [`protocols/live-awareness.md`](../protocols/live-awareness.md) | Relay-signed latest-state presence carriage and local presentation. |
+| `document-metadata` | `bafkreih7sut3exri37qperlyvohk74vmreppzmcoxenjzozj6zkblanday` | [`protocols/document-metadata.md`](../protocols/document-metadata.md) | Relay-signed current metadata and catalog search. |
+| `publish-document` | `bafkreibhvpjr5uddw5z5qmkkowfucawuvzr7hafvsc5djetkax3s6amt3a` | [`protocols/publish-document.md`](../protocols/publish-document.md) | Relay-signed publish manifests and CAS-backed local import/exchange resolution. |
+
+The relay signing key is Ex2's current app identity. Browser and Neovim
+participant IDs, display names, colors, and embodiment labels are local
+presentation or routing data, not independent peer identities or a
+signing-key-continuity protocol. Source: DI-ralit.
+
 ## Topology
 
 ```text
@@ -92,12 +112,22 @@ The relay data root stores:
 
 - the relay signing identity
 - the append-only message log
+- append-only relay-local exception observations
 - CAS-backed signed envelopes
 - CAS-backed signed metadata envelopes
 - CAS-backed published text bytes
 - CAS-backed published replica bytes
 
 These are the durable artifacts the relay can verify and serve back later.
+
+Malformed input, invalid proof, and a valid envelope with no locally supported
+handler are retained as bounded raw CAS bytes plus relay-local
+`observations.jsonl` records. They do not enter `message-log.jsonl`, feed
+replay, or any document/metadata projection. `no_supported_handler` states
+only that this relay lacks a handler for the selected pCID; it does not make a
+global validity claim. Each record names the observing relay key, so evidence
+remains attributable to that decentralized relay node rather than to a browser
+or Neovim display label. Source: DI-todav; DI-nilas.
 
 ### Embodiment-local state
 

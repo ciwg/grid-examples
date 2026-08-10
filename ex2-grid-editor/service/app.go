@@ -57,6 +57,7 @@ type App struct {
 	dataRoot      string
 	identity      *identity.Identity
 	log           *store.Log
+	observations  *store.ObservationLog
 	cas           *cas.Store
 	documentPCID  cid.Cid
 	awarenessPCID cid.Cid
@@ -103,10 +104,15 @@ func NewApp(dataRoot string) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open log: %w", err)
 	}
+	observationLog, err := store.OpenObservationLog(filepath.Join(dataRoot, "observations.jsonl"))
+	if err != nil {
+		return nil, fmt.Errorf("open observation log: %w", err)
+	}
 	app := &App{
 		dataRoot:      dataRoot,
 		identity:      identityValue,
 		log:           logValue,
+		observations:  observationLog,
 		cas:           casValue,
 		documentPCID:  documentPCID,
 		awarenessPCID: awarenessPCID,
@@ -639,6 +645,9 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 	}
 	envelope, err := protocol.ParseEnvelope(envelopeBytes)
 	if err != nil {
+		if observationErr := app.recordObservationLocked("malformed_input", envelopeBytes, "", err.Error()); observationErr != nil {
+			return crdt.SyncRecord{}, observationErr
+		}
 		return crdt.SyncRecord{}, fmt.Errorf("parse envelope: %w", err)
 	}
 	signable, err := envelope.SignableBytes()
@@ -646,7 +655,18 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		return crdt.SyncRecord{}, fmt.Errorf("build signable bytes: %w", err)
 	}
 	if err := identity.VerifyProof(signable, envelope.Proof); err != nil {
+		if observationErr := app.recordObservationLocked("invalid_proof", envelopeBytes, envelope.PCID.String(), err.Error()); observationErr != nil {
+			return crdt.SyncRecord{}, observationErr
+		}
 		return crdt.SyncRecord{}, fmt.Errorf("verify proof: %w", err)
+	}
+	switch envelope.PCID.String() {
+	case app.documentPCID.String(), app.publishPCID.String(), app.metadataPCID.String(), app.awarenessPCID.String():
+	default:
+		if observationErr := app.recordObservationLocked("no_supported_handler", envelopeBytes, envelope.PCID.String(), "relay has no supported handler for selected pCID"); observationErr != nil {
+			return crdt.SyncRecord{}, observationErr
+		}
+		return crdt.SyncRecord{}, fmt.Errorf("no supported handler for pCID %s", envelope.PCID)
 	}
 	address, err := app.cas.Put(envelopeBytes)
 	if err != nil {
@@ -723,11 +743,29 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 		if message.Lamport > app.maxLamport {
 			app.maxLamport = message.Lamport
 		}
-	default:
-		return crdt.SyncRecord{}, fmt.Errorf("unknown pCID %s", envelope.PCID)
 	}
 	app.seen[envelopeCIDString] = struct{}{}
 	return record, nil
+}
+
+// Intent: Retain this relay's bounded exception evidence without admitting it
+// to accepted-message replay or claiming a global verdict. Source: DI-todav; DI-nilas
+func (app *App) recordObservationLocked(kind string, envelopeBytes []byte, observedPCID string, reason string) error {
+	rawCID, err := app.cas.Put(envelopeBytes)
+	if err != nil {
+		return fmt.Errorf("persist observation bytes: %w", err)
+	}
+	if err := app.observations.Append(store.Observation{
+		Kind:          kind,
+		ObservedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+		ObserverKeyID: app.identity.KeyID(),
+		RawCID:        rawCID,
+		ObservedPCID:  observedPCID,
+		Reason:        reason,
+	}); err != nil {
+		return fmt.Errorf("append observation: %w", err)
+	}
+	return nil
 }
 
 func (app *App) ingestPublishEnvelopeLocked(envelopeBytes []byte, existing *store.Entry) (publish.Record, error) {

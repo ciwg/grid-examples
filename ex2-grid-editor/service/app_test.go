@@ -2,15 +2,19 @@ package service_test
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/awareness"
+	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/cas"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/crdt"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/identity"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/protocols"
 	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/service"
+	"github.com/computerscienceiscool/grid-examples/ex2-grid-editor/store"
 )
 
 func TestPostSyncAppearsInFeedAndReplay(t *testing.T) {
@@ -167,6 +171,165 @@ func TestIngestRejectsAuthorProofMismatch(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatalf("expected author/proof mismatch error")
+	}
+}
+
+func TestIngestRecordsMalformedInput(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	raw := []byte{0xff}
+	if err := app.IngestRawBase64(base64.StdEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("expected malformed input error")
+	}
+	file, err := os.Open(filepath.Join(root, "observations.jsonl"))
+	if err != nil {
+		t.Fatalf("open observations: %v", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			t.Errorf("close observations: %v", closeErr)
+		}
+	}()
+	var observation store.Observation
+	if err := json.NewDecoder(file).Decode(&observation); err != nil {
+		t.Fatalf("decode observation: %v", err)
+	}
+	if observation.Kind != "malformed_input" || observation.ObserverKeyID != app.Meta().LocalID {
+		t.Fatalf("observation = %#v", observation)
+	}
+	casStore, err := cas.Open(filepath.Join(root, "cas"))
+	if err != nil {
+		t.Fatalf("open cas: %v", err)
+	}
+	retained, err := casStore.Get(observation.RawCID)
+	if err != nil {
+		t.Fatalf("read retained bytes: %v", err)
+	}
+	if string(retained) != string(raw) {
+		t.Fatalf("retained bytes = %x, want %x", retained, raw)
+	}
+	messages, _ := app.PeerMessagesSince(0, 8)
+	if len(messages) != 0 {
+		t.Fatalf("rejected input entered peer feed: %d messages", len(messages))
+	}
+}
+
+func TestIngestRecordsInvalidProof(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	signer := loadIdentityForTest(t, filepath.Join(t.TempDir(), "signer"))
+	raw, err := base64.StdEncoding.DecodeString(signSyncMessage(t, signer, crdt.Message{
+		Kind:          "change",
+		DocumentID:    "demo",
+		Author:        signer.KeyID(),
+		ParticipantID: "browser-a",
+		ChangeBytes:   []byte{1, 2, 3},
+		Lamport:       1,
+		Embodiment:    "browser",
+	}))
+	if err != nil {
+		t.Fatalf("decode signed message: %v", err)
+	}
+	raw[len(raw)-1] ^= 0x01
+	if err := app.IngestRawBase64(base64.StdEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("expected invalid proof error")
+	}
+	file, err := os.Open(filepath.Join(root, "observations.jsonl"))
+	if err != nil {
+		t.Fatalf("open observations: %v", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			t.Errorf("close observations: %v", closeErr)
+		}
+	}()
+	var observation store.Observation
+	if err := json.NewDecoder(file).Decode(&observation); err != nil {
+		t.Fatalf("decode observation: %v", err)
+	}
+	if observation.Kind != "invalid_proof" || observation.ObservedPCID == "" {
+		t.Fatalf("observation = %#v", observation)
+	}
+	casStore, err := cas.Open(filepath.Join(root, "cas"))
+	if err != nil {
+		t.Fatalf("open cas: %v", err)
+	}
+	if _, err := casStore.Get(observation.RawCID); err != nil {
+		t.Fatalf("read retained bytes: %v", err)
+	}
+	messages, _ := app.PeerMessagesSince(0, 8)
+	if len(messages) != 0 {
+		t.Fatalf("rejected input entered peer feed: %d messages", len(messages))
+	}
+}
+
+func TestIngestRecordsNoSupportedHandler(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	signer := loadIdentityForTest(t, filepath.Join(t.TempDir(), "signer"))
+	unsupportedPCID, err := protocol.CIDForBytes([]byte("future-local-profile"))
+	if err != nil {
+		t.Fatalf("unsupported pCID: %v", err)
+	}
+	payloadBytes, err := protocol.Marshal(map[string]string{"kind": "future"})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	envelope := protocol.NewEnvelope(unsupportedPCID, payloadBytes, protocol.Proof{})
+	signable, err := envelope.SignableBytes()
+	if err != nil {
+		t.Fatalf("signable bytes: %v", err)
+	}
+	proof, err := signer.SignProof(signable)
+	if err != nil {
+		t.Fatalf("sign proof: %v", err)
+	}
+	envelope.Proof = proof
+	raw, err := envelope.Bytes()
+	if err != nil {
+		t.Fatalf("envelope bytes: %v", err)
+	}
+	if err := app.IngestRawBase64(base64.StdEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("expected unsupported-handler error")
+	}
+	file, err := os.Open(filepath.Join(root, "observations.jsonl"))
+	if err != nil {
+		t.Fatalf("open observations: %v", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			t.Errorf("close observations: %v", closeErr)
+		}
+	}()
+	var observation store.Observation
+	if err := json.NewDecoder(file).Decode(&observation); err != nil {
+		t.Fatalf("decode observation: %v", err)
+	}
+	if observation.Kind != "no_supported_handler" || observation.ObservedPCID != unsupportedPCID.String() {
+		t.Fatalf("observation = %#v", observation)
+	}
+	casStore, err := cas.Open(filepath.Join(root, "cas"))
+	if err != nil {
+		t.Fatalf("open cas: %v", err)
+	}
+	if _, err := casStore.Get(observation.RawCID); err != nil {
+		t.Fatalf("read retained bytes: %v", err)
+	}
+	messages, _ := app.PeerMessagesSince(0, 8)
+	if len(messages) != 0 {
+		t.Fatalf("unsupported input entered peer feed: %d messages", len(messages))
 	}
 }
 

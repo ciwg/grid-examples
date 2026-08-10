@@ -31,24 +31,31 @@ type Log struct {
 // Intent: Keep the local service history append-only so projections can be
 // rebuilt from exact observed message bytes rather than mutable summary state.
 // Source: DI-jilin
-func Open(path string) (*Log, error) {
+func Open(path string) (logValue *Log, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("mkdir log dir: %w", err)
 	}
-	log := &Log{path: path}
+	logValue = &Log{path: path}
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		file, err := os.OpenFile(path, os.O_CREATE, 0o644)
 		if err != nil {
 			return nil, fmt.Errorf("create log: %w", err)
 		}
-		_ = file.Close()
-		return log, nil
+		if err := file.Close(); err != nil {
+			return nil, fmt.Errorf("close created log: %w", err)
+		}
+		return logValue, nil
 	}
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open log: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			logValue = nil
+			err = fmt.Errorf("close log: %w", closeErr)
+		}
+	}()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -59,12 +66,12 @@ func Open(path string) (*Log, error) {
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			return nil, fmt.Errorf("decode log entry: %w", err)
 		}
-		log.entries = append(log.entries, entry)
+		logValue.entries = append(logValue.entries, entry)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan log: %w", err)
 	}
-	return log, nil
+	return logValue, nil
 }
 
 func (log *Log) Append(envelopeBytes []byte, pcid string) (Entry, error) {
@@ -85,7 +92,11 @@ func (log *Log) Append(envelopeBytes []byte, pcid string) (Entry, error) {
 	if err != nil {
 		return Entry{}, fmt.Errorf("open append log: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close append log: %w", closeErr)
+		}
+	}()
 	line, err := json.Marshal(entry)
 	if err != nil {
 		return Entry{}, fmt.Errorf("marshal entry: %w", err)
