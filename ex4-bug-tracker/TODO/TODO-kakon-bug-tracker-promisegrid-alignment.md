@@ -57,21 +57,138 @@
 - Constraints: These are local-draft profiles, not frozen specs; `events.jsonl` remains historical local application history; the server never holds client private keys or signs for clients; no unsigned mutation endpoints, cross-tracker exchange, generalized authorization, delegation, revocation, or recognized-role continuity are added; every behavior-changing code path must cite this DI.
 - Affects: `ex4-bug-tracker/{protocols,protocol,identity,cas,store,service,cmd,web,docs,TODO}`, `TODO/handle-namespace.tsv`
 
+### DI-tosoj
+
+- ID: DI-tosoj
+- Date: 2026-08-10 15:23:07 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Name the reusable envelope/CID types `protocol.Envelope`, `protocol.Proof`, and `protocol.CIDForBytes`; name local key/binding types `identity.AgentKey`, `identity.AgentID`, and `identity.Enrollment`; name durable stores `store.ArtifactStore`, `store.AcceptedPromiseLog`, `store.ObservationLog`, and `store.AgentBindingLog`; and name profile payloads `protocol.IssueReport`, `protocol.IssueLifecycleUpdate`, and `protocol.IssueAttachmentReference`.
+- Intent: Reuse the guide-consistent Ex3 vocabulary for the common envelope while keeping Ex4's local identity, durable artifact, and pCID-owned payload boundaries legible.
+- Constraints: These names carry no generalized agent identity, recognized role, authorization, or transport claim; keep `service.SubmitPromise` and `service.EnrollAgent` as previously locked; do not rename historical `IssueEvent` local-history records.
+- Affects: `ex4-bug-tracker/{protocol,identity,cas,store,service,TODO}`, `TODO/handle-namespace.tsv`
+
+### DI-nusop
+
+- ID: DI-nusop
+- Date: 2026-08-10 15:32:15 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Make enrollment an adapter-submitted canonical-CBOR `identity.Enrollment` claim accompanied by a detached `identity.EnrollmentProof`; `service.EnrollAgent` recomputes `agent_id` from the submitted public key and verifies the proof over the claim before appending the public local binding.
+- Intent: Prove local private-key possession at enrollment without server private-key access, server-signing on a client's behalf, or an implied general authorization claim.
+- Constraints: The proof is local bootstrap/admission evidence only; no silent enrollment, pre-enrolled private key, recognized-role continuity, delegation, revocation, or cross-machine trust is introduced; invalid enrollment is recorded only as a bounded local observation/diagnostic.
+- Affects: `ex4-bug-tracker/{identity,store,service,cmd,web,TODO}`, `TODO/handle-namespace.tsv`
+
+### DI-tofuf
+
+- ID: DI-tofuf
+- Date: 2026-08-10 15:34:24 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Carry both `POST /api/promises` signed envelopes and `POST /api/agents/enroll` canonical enrollment-claim/proof requests as raw CBOR request bodies rather than JSON/base64 wrappers.
+- Intent: Preserve exact bytes at the signed protocol boundary so adapter HTTP carriage does not become an alternate unsigned representation.
+- Constraints: The endpoints remain local adapters only; content type must identify CBOR; the server retains exact accepted envelope bytes in CAS and does not alter a client-signed envelope before verification.
+- Affects: `ex4-bug-tracker/{service,cmd,web,TODO}`, `TODO/handle-namespace.tsv`
+
+### DI-basok
+
+- ID: DI-basok
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Limit raw-CBOR enrollment and signed-promise adapter requests to 64 KiB.
+- Intent: Bound local adapter ingress while keeping attachment bytes outside promise requests in CAS.
+- Constraints: Applies only to the metadata-only profile requests; attachment objects retain their separate existing size policy.
+
+### DI-zubot
+
+- ID: DI-zubot
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Persist each browser profile's non-extractable WebCrypto signing key in IndexedDB.
+- Intent: Keep browser private keys embodiment-local and make a private/incognito profile naturally a distinct local agent.
+- Constraints: Do not serialize private keys into localStorage or send them to the server; a fresh profile requires separate local enrollment.
+
+### DI-tigid
+
+- ID: DI-tigid
+- Status: superseded
+- Author: jj@thesalleys.com (JJ)
+- Decision: Use a local signer bridge: Go builds canonical signable bytes, the browser's non-extractable IndexedDB WebCrypto key signs those bytes, and Go assembles and verifies the returned exact envelope before the browser submits it unchanged.
+- Intent: Preserve browser private-key custody while maintaining one verified canonical-CBOR envelope implementation.
+- Constraints: Local-only bridge; server never receives a private key or signs on a client's behalf; no browser CBOR encoder; exact returned envelope bytes must verify before submission.
+
+### DI-pusip
+
+- ID: DI-pusip
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Supersede DI-tigid's same-machine/local-only bridge constraint. The prepare/finalize signer bridge is network-reachable through the normal service transport, while each browser profile retains its own non-extractable private key and the service applies only service-scoped enrollment and acceptance policy.
+- Intent: Support decentralized multi-machine browser embodiments without moving client private keys to the service or turning local acceptance into global authority.
+- Constraints: Exact signable and finalized envelope bytes remain Go-canonical and are verified before acceptance; network reachability does not add cross-tracker federation, global identity, delegation, revocation, or recognized-role continuity.
+- Supersedes: DI-tigid
+
+### DI-gugah
+
+- ID: DI-gugah
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Expose network-reachable raw-CBOR `POST /api/promises/prepare` and `POST /api/promises/finalize` endpoints. Prepare validates service-scoped enrollment and profile payload then returns Go-canonical signable bytes; finalize verifies the browser proof, assembles the exact envelope, verifies it again, and returns its unchanged bytes for `POST /api/promises` submission.
+- Intent: Support multi-machine browser embodiments while preserving browser private-key custody and one canonical Go envelope implementation.
+- Constraints: Apply the 64 KiB bound; no server private key or signing on behalf of a browser; service enrollment/acceptance remains service-scoped, not global; no cross-tracker federation is implied.
+
+### DI-mofab
+
+- ID: DI-mofab
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Name the local signer-bridge service methods `PreparePromise` and `FinalizePromise`.
+- Intent: Describe canonical-byte construction and proof verification as adapter mechanics while keeping `promise` as the only protocol-level semantic action.
+- Constraints: These names do not introduce new wire actions or change the pCID-owned payload meanings.
+
+### DI-fadog
+
+- ID: DI-fadog
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Name the raw-CBOR prepare request `PromiseDraft` and the finalize request `PromiseProof`.
+- Intent: Keep the network adapter contract explicit without introducing a new protocol action or obscuring the signer-owned proof boundary.
+- Constraints: These are local bridge request types; pCID-selected payload semantics and final envelope proof remain protocol-owned.
+
+### DI-rutul
+
+- ID: DI-rutul
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Every pCID crossing the signer bridge uses CBOR tag 42 with binary CID bytes; printable CID text is limited to documentation, logs, and diagnostics.
+- Intent: Keep prepare/finalize selector bytes identical to the final Ex4 grid envelope.
+- Constraints: Supersedes any under-specified text-CID bridge interpretation; no bridge request may use a text CID as its protocol selector.
+
+### DI-kolaf
+
+- ID: DI-kolaf
+- Date: 2026-08-10 16:20:00 -0700
+- Status: active
+- Author: jj@thesalleys.com (JJ)
+- Decision: Supersede raw-CBOR carriage for the prepare/finalize adapter requests with bounded JSON requests that carry only a local profile name and profile fields. The service resolves the profile's embedded source to its pCID, creates canonical tag-42 signable bytes, verifies a client proof, and returns the unchanged final raw-CBOR envelope for `/api/promises`.
+- Intent: Remove the unsafe second browser CBOR implementation while retaining browser/CLI private-key custody, multi-machine reachability, and the exact PromiseGrid wire boundary.
+- Constraints: JSON is local adapter carriage only, never a promise artifact; neither bridge request carries a pCID; final signed envelopes remain raw canonical CBOR and `grid([42(pCID), payload, proof])`; drafts are bounded, short-lived, and service-scoped; no private key reaches the service.
+- Affects: `ex4-bug-tracker/{service,identity,cmd,web,docs,TODO}`
+- Supersedes: DI-tofuf (prepare/finalize request carriage only); DI-gugah (prepare/finalize request carriage only)
+
 ## Alignment plan
 
 - [x] kakon.1 Publish the current local-workflow scope, non-claims, and the
   boundary between durable application history and PromiseGrid evidence.
 - [x] kakon.2 Run a TE and DF for the bounded issue-promise profiles, their
   pCID-selected meaning, accepted/rejected artifacts, and adapter projection.
-- [ ] kakon.3 Implement the locked issue-promise layer with local durable
+- [x] kakon.3 Implement the locked issue-promise layer with local durable
   records, bounded rejection handling, and regression coverage.
 - [ ] kakon.4 Add `docs/testing.md`, link it from README, and document local
   workflow checks separately from promise/evidence and interoperability checks.
 - [ ] kakon.5 Complete the final README and architecture alignment pass.
 
-Status: active. The existing application workflow remains usable, but no
-PromiseGrid protocol behavior is authorized until `kakon.2` completes its TE
-and Decision Framing.
+Status: active. `kakon.3` implements the bounded local-draft promise layer;
+the remaining documentation and final alignment checks are tracked below.
 
 `kakon.1` completed with `CHANGELOG.md`, `docs/architecture.md`, and README
 scope/navigation updates. Source: `DI-nibuh`.

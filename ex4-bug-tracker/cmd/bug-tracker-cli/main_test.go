@@ -29,9 +29,10 @@ func TestCLIFlowsAgainstServerHandler(t *testing.T) {
 	}
 
 	cli := &CLI{
-		ServerURL:  "http://example.test",
-		User:       "engineer",
-		HTTPClient: server.client(),
+		ServerURL:    "http://example.test",
+		User:         "engineer",
+		AgentKeyPath: filepath.Join(t.TempDir(), "engineer.key"),
+		HTTPClient:   server.client(),
 	}
 
 	assignedOutput := captureStdout(t, func() {

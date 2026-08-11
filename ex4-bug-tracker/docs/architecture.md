@@ -7,18 +7,20 @@
 ```text
 Browser UI ----------------------\
                                   \
-CLI -------------------------------> local HTTP server -> append-only event log
+CLI -------------------------------> local HTTP server -> event projection + CAS
                                   /
-Attachment upload/download -------/
+Attachment object carriage --------/
 ```
 
 The server owns:
 
 - issue ID allocation
-- built-in identity and role validation
+- service-scoped public enrollment and proof validation
+- canonical pCID-selected envelope construction and verification
+- accepted-envelope CAS and separate rejected-ingress observations
 - append-only issue event persistence
 - current issue projection
-- attachment copy and download behavior
+- attachment-object carriage and signed reference projection
 - the queue and detail HTTP surface
 
 The browser UI owns:
@@ -40,19 +42,14 @@ embodiments over the same shared model. Source: `DI-dajak`; `DI-nunit`;
 
 ## PromiseGrid scope boundary
 
-The current browser and CLI are local adapters of one HTTP server; they are
-not independent PromiseGrid agents, and their common server projection is not
-cross-node corroboration. `events.jsonl` is durable local application history
-for that server. It is not a signed PromiseGrid promise ledger, independently
-verifiable shared evidence, or proof of another actor's intent.
-
-Ex4 has selected a future bounded layer of signed, pCID-selected
-issue-promise artifacts. That layer is not implemented: its own TE and
-Decision Framing must select profiles, signing identity, accepted/rejected
-artifact rules, adapter projection, and any remote exchange. The current
-built-in identities, role checks, and fixed workflow remain local application
-policy and do not establish general identity, delegation, role continuity, or
-portable authorization. Source: `DI-nibuh`.
+The browser and CLI are independent signing embodiments behind local adapters
+of one HTTP service. Each owns its private key; the service stores only an
+explicit, service-scoped public enrollment binding. The service prepares exact
+canonical signing bytes, verifies returned proofs, and accepts only final
+`grid([42(pCID), payload, proof])` envelopes. `events.jsonl` remains local
+projection history—not independently shared evidence or a general identity,
+delegation, role-continuity, or authorization system. Source: `DI-muzal`;
+`DI-kolaf`; `DI-ninul`.
 
 ## Shared data model
 
@@ -115,10 +112,11 @@ multi-team work without complicating the first usable release. Source:
 
 ## Attachment model
 
-Attachments are not external references. The server copies uploaded files into
-the local runtime root under `.bug-tracker/attachments/`, then records an
-attachment event in the issue timeline. Downloads resolve back through the
-server, not directly to original host paths. Source: `DI-nunit`.
+Attachment bytes first enter local CAS as opaque objects. They do not change an
+issue by themselves. A signed `issue-attachment-reference` promise names the
+CAS CID and gives the object issue-specific meaning; only then does the local
+projection append `attachment_added`. Downloads resolve through that accepted
+reference. Source: `DI-ninul`; `DI-kolaf`.
 
 ## Runtime layout
 
@@ -126,8 +124,10 @@ The default runtime root is `.bug-tracker/` and currently contains:
 
 - `events.jsonl`
   - append-only issue event log
-- `attachments/`
-  - copied uploaded files organized under per-issue paths
+- `cas/<CID>`
+  - accepted envelopes and attachment objects
+- `accepted-promises.jsonl`, `observations.jsonl`, `agent-bindings.jsonl`
+  - local acceptance, rejection, and public enrollment records
 
 This keeps the first example inspectable on disk and easy to reset locally.
 Source: `DI-dajak`; `DI-nunit`.

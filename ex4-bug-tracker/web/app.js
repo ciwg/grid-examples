@@ -1,3 +1,5 @@
+import { agentIDForRole, submitPromise } from "./promise.js";
+
 const state = {
   meta: null,
   issues: [],
@@ -384,15 +386,7 @@ newIssueForm.addEventListener("submit", async (event) => {
       description: document.getElementById("issue-description").value,
       severity: issueSeverity.value,
     };
-    const response = await apiFetch("/api/issues", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      setMessage("error", await response.text());
-      return;
-    }
-    const issue = await response.json();
+    const issue = await submitPromise(currentRole(), "issue-report", payload);
     setCurrentIssueID(issue.id);
     closeNewIssuePanel();
     await refreshAll(issue.id);
@@ -405,14 +399,8 @@ newIssueForm.addEventListener("submit", async (event) => {
 assignmentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await apiFetch(`/api/issues/${encodeURIComponent(state.currentIssueID)}/assignment`, {
-      method: "POST",
-      body: JSON.stringify({ assignee: assignmentSelect.value }),
-    });
-    if (!response.ok) {
-      setMessage("error", await response.text());
-      return;
-    }
+    const assigneeAgentID = assignmentSelect.value ? await agentIDForRole("engineer") : "";
+    await submitPromise(currentRole(), "issue-lifecycle-update", { issue_id: state.currentIssueID, kind: "assignment", assignee_agent_id: assigneeAgentID });
     await refreshAll(state.currentIssueID);
     setMessage("ok", "Assignment updated.");
   } catch (error) {
@@ -423,14 +411,7 @@ assignmentForm.addEventListener("submit", async (event) => {
 statusForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await apiFetch(`/api/issues/${encodeURIComponent(state.currentIssueID)}/status`, {
-      method: "POST",
-      body: JSON.stringify({ status: statusSelect.value }),
-    });
-    if (!response.ok) {
-      setMessage("error", await response.text());
-      return;
-    }
+    await submitPromise(currentRole(), "issue-lifecycle-update", { issue_id: state.currentIssueID, kind: "status", status: statusSelect.value });
     await refreshAll(state.currentIssueID);
     setMessage("ok", "Status updated.");
   } catch (error) {
@@ -441,14 +422,7 @@ statusForm.addEventListener("submit", async (event) => {
 commentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await apiFetch(`/api/issues/${encodeURIComponent(state.currentIssueID)}/comments`, {
-      method: "POST",
-      body: JSON.stringify({ comment: commentBody.value }),
-    });
-    if (!response.ok) {
-      setMessage("error", await response.text());
-      return;
-    }
+    await submitPromise(currentRole(), "issue-lifecycle-update", { issue_id: state.currentIssueID, kind: "comment", comment: commentBody.value });
     commentBody.value = "";
     await refreshAll(state.currentIssueID);
     setMessage("ok", "Comment posted.");
@@ -464,16 +438,24 @@ attachmentForm.addEventListener("submit", async (event) => {
       setMessage("error", "Choose a file first.");
       return;
     }
-    const formData = new FormData();
-    formData.append("attachment", attachmentFile.files[0]);
-    const response = await apiFetch(`/api/issues/${encodeURIComponent(state.currentIssueID)}/attachments`, {
+    const file = attachmentFile.files[0];
+    const response = await fetch("/api/attachments", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
     });
     if (!response.ok) {
       setMessage("error", await response.text());
       return;
     }
+    const object = await response.json();
+    await submitPromise(currentRole(), "issue-attachment-reference", {
+      issue_id: state.currentIssueID,
+      attachment_cid: object.cid,
+      name: file.name,
+      content_type: object.content_type || file.type || "application/octet-stream",
+      size: object.size,
+    });
     attachmentFile.value = "";
     await refreshAll(state.currentIssueID);
     setMessage("ok", "Attachment uploaded.");

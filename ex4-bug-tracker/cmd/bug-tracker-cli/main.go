@@ -10,6 +10,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/identity"
+	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/protocol"
+	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/protocols"
 	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/service"
 )
 
@@ -17,13 +20,14 @@ func main() {
 	var (
 		serverURL = flag.String("server", "http://127.0.0.1:7035", "bug tracker server URL")
 		user      = flag.String("user", "engineer", "identity to use")
+		agentKey  = flag.String("agent-key", "", "explicit path for this CLI's Ed25519 private key")
 	)
 	flag.Parse()
 	args := flag.Args()
 	if len(args) == 0 {
 		usage()
 	}
-	client := &CLI{ServerURL: strings.TrimRight(*serverURL, "/"), User: *user}
+	client := &CLI{ServerURL: strings.TrimRight(*serverURL, "/"), User: *user, AgentKeyPath: *agentKey}
 	var err error
 	switch args[0] {
 	case "assigned":
@@ -63,9 +67,10 @@ func usage() {
 }
 
 type CLI struct {
-	ServerURL  string
-	User       string
-	HTTPClient *http.Client
+	ServerURL    string
+	User         string
+	AgentKeyPath string
+	HTTPClient   *http.Client
 }
 
 func (cli *CLI) Assigned() error {
@@ -110,11 +115,81 @@ func (cli *CLI) Show(issueID string) error {
 }
 
 func (cli *CLI) Comment(issueID string, comment string) error {
-	return cli.post("/api/issues/"+issueID+"/comments", map[string]string{"comment": comment}, nil)
+	return cli.submitLifecycle(issueID, "comment", comment, "")
 }
 
 func (cli *CLI) ChangeStatus(issueID string, status string) error {
-	return cli.post("/api/issues/"+issueID+"/status", map[string]string{"status": status}, nil)
+	return cli.submitLifecycle(issueID, "status", "", status)
+}
+
+// Intent: Make CLI mutations client-signed pCID-selected promises instead of
+// legacy unsigned HTTP writes. Source: DI-gonok; DI-muzal
+func (cli *CLI) submitLifecycle(issueID, kind, comment, status string) error {
+	key, err := identity.LoadOrCreateAgentKey(cli.AgentKeyPath)
+	if err != nil {
+		return err
+	}
+	enrollment := identity.NewEnrollment(key, cli.User)
+	enrollmentProof, err := key.SignEnrollment(enrollment)
+	if err != nil {
+		return err
+	}
+	requestBytes, err := protocol.Marshal(struct {
+		Enrollment identity.Enrollment      `cbor:"enrollment"`
+		Proof      identity.EnrollmentProof `cbor:"proof"`
+	}{enrollment, enrollmentProof})
+	if err != nil {
+		return err
+	}
+	if err := cli.postCBOR("/api/agents/enroll", requestBytes, nil); err != nil {
+		return err
+	}
+	pcid, err := protocol.CIDForBytes(protocols.MustRead(protocols.IssueLifecycleUpdateSpec))
+	if err != nil {
+		return err
+	}
+	payload, err := protocol.Marshal(protocol.IssueLifecycleUpdate{AgentID: string(key.AgentID()), IssuedAt: "", IssueID: issueID, Kind: kind, Comment: comment, Status: status})
+	if err != nil {
+		return err
+	}
+	envelope := protocol.NewEnvelope(pcid, payload, protocol.Proof{Algorithm: "Ed25519", AgentID: string(key.AgentID()), PublicKey: key.PublicKey()})
+	signable, err := envelope.SignableBytes()
+	if err != nil {
+		return err
+	}
+	envelope.Proof.Signature = key.Sign(signable)
+	wire, err := envelope.Bytes()
+	if err != nil {
+		return err
+	}
+	return cli.postCBOR("/api/promises", wire, nil)
+}
+
+func (cli *CLI) postCBOR(path string, payloadBytes []byte, target any) error {
+	request, err := http.NewRequest(http.MethodPost, cli.ServerURL+path, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/cbor")
+	response, err := cli.httpClient().Do(request)
+	if err != nil {
+		return err
+	}
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil {
+		return readErr
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close response body: %w", closeErr)
+	}
+	if response.StatusCode >= 300 {
+		return fmt.Errorf("%s", strings.TrimSpace(string(body)))
+	}
+	if target != nil {
+		return json.Unmarshal(body, target)
+	}
+	return nil
 }
 
 func (cli *CLI) get(path string, target any) error {

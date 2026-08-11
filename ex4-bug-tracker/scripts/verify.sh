@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Intent: Keep Ex4's guide-facing verification reproducible, including the
+# actual browser-held WebCrypto signing path. Source: DI-kolaf; DI-zubot
+go test ./...
+go vet ./...
+errcheck ./...
+node scripts/verify-browser-webcrypto.mjs

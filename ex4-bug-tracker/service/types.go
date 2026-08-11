@@ -37,11 +37,12 @@ type Identity struct {
 }
 
 type Meta struct {
-	DataRoot   string     `json:"data_root"`
-	Statuses   []string   `json:"statuses"`
-	Severities []string   `json:"severities"`
-	Identities []Identity `json:"identities"`
-	Team       string     `json:"team"`
+	DataRoot   string            `json:"data_root"`
+	Statuses   []string          `json:"statuses"`
+	Severities []string          `json:"severities"`
+	Identities []Identity        `json:"identities"`
+	Team       string            `json:"team"`
+	Profiles   map[string]string `json:"profiles"`
 }
 
 type IssueSummary struct {

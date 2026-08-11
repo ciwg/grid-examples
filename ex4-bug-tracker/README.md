@@ -11,13 +11,13 @@ current issue view is projected from that history. Source: `DI-nunit`;
 
 ## PromiseGrid scope
 
-Today Ex4 is one durable local HTTP-server workflow: the browser and CLI are
-local adapters, and `events.jsonl` is durable local application history rather
-than a signed PromiseGrid promise ledger or shared proof of another actor's
-intent. A bounded pCID-selected signed issue-promise layer is planned but not
-implemented. Built-in identities, role checks, and status transitions remain
-local application policy, not general identity, delegation, or authorization.
-Source: `DI-nibuh`.
+Ex4 keeps one durable local HTTP-server workflow: `events.jsonl` is local
+application history, not shared proof. Its browser and CLI now create
+pCID-selected signed issue-report and lifecycle promises with embodiment-local
+keys; accepted envelopes are retained in CAS with append-only acceptance and
+observation records. The service's enrollment and acceptance policy is
+service-scoped, not a claim of global identity, delegation, federation, or
+authorization. Source: `DI-kolaf`; `DI-ninul`.
 
 ## Features
 
@@ -118,9 +118,9 @@ The CLI targets the same server:
 ```bash
 go run ./cmd/bug-tracker-cli --user engineer assigned
 go run ./cmd/bug-tracker-cli --user engineer show BUG-0001
-go run ./cmd/bug-tracker-cli --user engineer start BUG-0001
-go run ./cmd/bug-tracker-cli --user engineer resolve BUG-0001
-go run ./cmd/bug-tracker-cli --user engineer comment BUG-0001 "working on a fix"
+go run ./cmd/bug-tracker-cli --user engineer --agent-key /path/to/engineer.key start BUG-0001
+go run ./cmd/bug-tracker-cli --user engineer --agent-key /path/to/engineer.key resolve BUG-0001
+go run ./cmd/bug-tracker-cli --user engineer --agent-key /path/to/engineer.key comment BUG-0001 "working on a fix"
 ```
 
 ## Notes
@@ -137,6 +137,7 @@ go run ./cmd/bug-tracker-cli --user engineer comment BUG-0001 "working on a fix"
 
 - [Implementation scope and non-claims](CHANGELOG.md)
 - [Architecture notes](docs/architecture.md)
+- [Testing guide](docs/testing.md)
 - [Practical implementation notes](docs/practical-implementation.md)
 - [Browser UI example](docs/bug-tracker-ui-example.md)
 - [In-progress features](INPROGRESS-FEATURES.md)

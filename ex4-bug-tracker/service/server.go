@@ -7,10 +7,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/identity"
+	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex4-bug-tracker/web"
 )
 
 const maxAttachmentBytes = 8 << 20
+const maxPromiseBytes = 64 << 10
 
 type Server struct {
 	app *App
@@ -24,11 +27,153 @@ func (server *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", server.handleIndex)
 	mux.HandleFunc("/app.js", server.handleAppJS)
+	mux.HandleFunc("/promise.js", server.handlePromiseJS)
 	mux.HandleFunc("/style.css", server.handleStyleCSS)
 	mux.HandleFunc("/api/meta", server.handleMeta)
+	mux.HandleFunc("/api/agents/enroll", server.handleEnrollAgent)
+	mux.HandleFunc("/api/agents/enroll/prepare", server.handlePrepareEnrollment)
+	mux.HandleFunc("/api/agents/enroll/finalize", server.handleFinalizeEnrollment)
+	mux.HandleFunc("/api/promises/prepare", server.handlePreparePromise)
+	mux.HandleFunc("/api/promises/finalize", server.handleFinalizePromise)
+	mux.HandleFunc("/api/promises", server.handleSubmitPromise)
+	mux.HandleFunc("/api/attachments", server.handleAttachmentObject)
 	mux.HandleFunc("/api/issues", server.handleIssues)
 	mux.HandleFunc("/api/issues/", server.handleIssue)
 	return mux
+}
+
+func (server *Server) handleEnrollAgent(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !isCBORRequest(request) {
+		http.Error(writer, "Content-Type application/cbor is required", http.StatusUnsupportedMediaType)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	bytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var payload struct {
+		Enrollment identity.Enrollment      `cbor:"enrollment"`
+		Proof      identity.EnrollmentProof `cbor:"proof"`
+	}
+	if err := protocol.Unmarshal(bytes, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := server.app.EnrollAgent(payload.Enrollment, payload.Proof); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusCreated, payload.Enrollment)
+}
+
+func (server *Server) handlePrepareEnrollment(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	var payload struct {
+		PublicKey []byte `json:"public_key"`
+		Role      string `json:"role"`
+	}
+	if err := decodeJSONBody(request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	enrollment, signableBytes, err := server.app.PrepareEnrollment(payload.PublicKey, payload.Role)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, map[string]any{"enrollment": enrollment, "signable_bytes": signableBytes})
+}
+
+func (server *Server) handleFinalizeEnrollment(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	var payload struct {
+		Enrollment identity.Enrollment      `json:"enrollment"`
+		Proof      identity.EnrollmentProof `json:"proof"`
+	}
+	if err := decodeJSONBody(request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := server.app.EnrollAgent(payload.Enrollment, payload.Proof); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusCreated, payload.Enrollment)
+}
+
+func (server *Server) handleSubmitPromise(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !isCBORRequest(request) {
+		http.Error(writer, "Content-Type application/cbor is required", http.StatusUnsupportedMediaType)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	bytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	issue, err := server.app.SubmitPromise(bytes)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, issue)
+}
+
+func (server *Server) handlePreparePromise(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	var draft PromiseDraft
+	if err := decodeJSONBody(request, &draft); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	prepared, err := server.app.PreparePromise(draft)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, prepared)
+}
+
+func (server *Server) handleFinalizePromise(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxPromiseBytes)
+	var proof PromiseProof
+	if err := decodeJSONBody(request, &proof); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	wire, err := server.app.FinalizePromise(proof)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, map[string][]byte{"envelope": wire})
 }
 
 func (server *Server) handleIndex(writer http.ResponseWriter, request *http.Request) {
@@ -47,6 +192,14 @@ func (server *Server) handleAppJS(writer http.ResponseWriter, request *http.Requ
 	writeNoStoreHeaders(writer)
 	writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	if _, err := writer.Write(web.MustRead("app.js")); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (server *Server) handlePromiseJS(writer http.ResponseWriter, request *http.Request) {
+	writeNoStoreHeaders(writer)
+	writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	if _, err := writer.Write(web.MustRead("promise.js")); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -78,30 +231,8 @@ func (server *Server) handleIssues(writer http.ResponseWriter, request *http.Req
 			return
 		}
 		writeJSON(writer, http.StatusOK, map[string]any{"issues": issues})
-	case http.MethodPost:
-		actor, err := requestActor(request)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		request.Body = http.MaxBytesReader(writer, request.Body, 32*1024)
-		var payload struct {
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Severity    string `json:"severity"`
-		}
-		if err := decodeJSONBody(request, &payload); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		issue, err := server.app.CreateIssue(actor, payload.Title, payload.Description, payload.Severity)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		writeJSON(writer, http.StatusCreated, issue)
 	default:
-		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(writer, "signed promise submission is required", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -127,15 +258,9 @@ func (server *Server) handleIssue(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	switch parts[1] {
-	case "comments":
-		server.handleComment(writer, request, issueID)
-	case "assignment":
-		server.handleAssignment(writer, request, issueID)
-	case "status":
-		server.handleStatus(writer, request, issueID)
 	case "attachments":
 		if len(parts) == 2 {
-			server.handleAttachmentUpload(writer, request, issueID)
+			http.Error(writer, "signed attachment-reference promise is required", http.StatusMethodNotAllowed)
 			return
 		}
 		if len(parts) == 3 {
@@ -146,6 +271,27 @@ func (server *Server) handleIssue(writer http.ResponseWriter, request *http.Requ
 	default:
 		http.NotFound(writer, request)
 	}
+}
+
+// handleAttachmentObject accepts opaque bytes only; a signed attachment
+// reference is still required before the object appears in an issue timeline.
+func (server *Server) handleAttachmentObject(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxAttachmentBytes)
+	bytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cid, err := server.app.StoreAttachmentObject(bytes)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusCreated, map[string]any{"cid": cid, "size": len(bytes), "content_type": request.Header.Get("Content-Type")})
 }
 
 func (server *Server) handleComment(writer http.ResponseWriter, request *http.Request, issueID string) {
@@ -314,6 +460,11 @@ func decodeJSONBody(request *http.Request, target any) error {
 		return fmt.Errorf("decode json body: %w", err)
 	}
 	return nil
+}
+
+func isCBORRequest(request *http.Request) bool {
+	contentType := request.Header.Get("Content-Type")
+	return strings.EqualFold(strings.TrimSpace(strings.Split(contentType, ";")[0]), "application/cbor")
 }
 
 func writeJSON(writer http.ResponseWriter, statusCode int, value any) {

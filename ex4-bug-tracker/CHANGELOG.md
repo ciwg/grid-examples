@@ -1,6 +1,6 @@
 # Ex4 implementation scope
 
-## 2026-08-10 — Local workflow and future issue-promise boundary
+## 2026-08-10 — Bounded local-draft signed issue-promise layer
 
 This is a scope declaration for the Ex4 Bug Tracker example, not a formal
 PromiseGrid implementation-promise claim against a frozen upstream
@@ -19,22 +19,24 @@ inspection. It is not a signed PromiseGrid promise ledger, independently
 verifiable shared evidence, or proof of another actor's intent. Source:
 `DI-nibuh`.
 
-### Planned bounded issue-promise layer
+### Implemented bounded issue-promise layer
 
-Ex4's selected alignment direction is a later bounded layer of signed,
-pCID-selected issue-promise artifacts. That layer is not implemented yet. Its
-separate `kakon.2` thought experiment and Decision Framing must select the
-profile meaning, signing identity, accepted/rejected artifact rules, adapter
-projection, and any remote exchange before behavior changes. Source:
-`DI-gisor`; `DI-nibuh`.
+Ex4 implements three local-draft, pCID-selected signed promise profiles:
+issue report, lifecycle update, and attachment reference. Browser and CLI
+embodiments hold their own private keys; the service stores only public,
+service-scoped enrollment bindings. Accepted exact envelope bytes are retained
+in local CAS and acceptance records; rejected ingress is retained separately as
+local observation evidence. The service is not a general identity or authority
+system, and there is no cross-tracker interoperability claim. Source:
+`DI-ninul`; `DI-muzal`; `DI-kolaf`.
 
 ### Explicit non-claims
 
 Ex4 does not currently claim:
 
 - conformance to a frozen upstream PromiseGrid spec doc-CID;
-- signed, pCID-selected issue promises or independently verifiable shared
-  issue evidence;
+- conformance to a frozen upstream PromiseGrid specification or cross-tracker
+  interoperability merely because another app uses similar issue fields;
 - interoperability with another tracker based only on matching issue fields,
   HTTP endpoints, event names, or role labels;
 - that built-in identities, role checks, or fixed status transitions establish

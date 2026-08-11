@@ -1,8 +1,6 @@
 package service_test
 
 import (
-	"bytes"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -28,7 +26,21 @@ func TestServerDisablesCachingForIndex(t *testing.T) {
 	assertHeaderEquals(t, response, "Expires", "0")
 }
 
-func TestServerCreatesAndFetchesIssue(t *testing.T) {
+func TestServerServesBrowserSignerAdapter(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+	request := httptest.NewRequest(http.MethodGet, "/promise.js", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if !strings.Contains(response.Body.String(), "submitPromise") {
+		t.Fatal("served signer adapter omitted submitPromise")
+	}
+}
+
+func TestServerRejectsUnsignedIssueMutation(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
 
@@ -36,68 +48,19 @@ func TestServerCreatesAndFetchesIssue(t *testing.T) {
 	create.Header.Set("X-Bug-User", "reporter")
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, create)
-	if response.Code != http.StatusCreated {
-		t.Fatalf("create status = %d, want %d body=%s", response.Code, http.StatusCreated, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"id":"BUG-0001"`) {
-		t.Fatalf("create body = %s, want BUG-0001", response.Body.String())
-	}
-
-	get := httptest.NewRequest(http.MethodGet, "/api/issues/BUG-0001", nil)
-	getResponse := httptest.NewRecorder()
-	server.Handler().ServeHTTP(getResponse, get)
-	if getResponse.Code != http.StatusOK {
-		t.Fatalf("get status = %d, want %d body=%s", getResponse.Code, http.StatusOK, getResponse.Body.String())
-	}
-	if !strings.Contains(getResponse.Body.String(), `"status":"New"`) {
-		t.Fatalf("get body = %s, want status New", getResponse.Body.String())
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("create status = %d, want %d body=%s", response.Code, http.StatusMethodNotAllowed, response.Body.String())
 	}
 }
 
-func TestServerUploadsAndDownloadsAttachment(t *testing.T) {
+func TestServerRejectsUnsignedAttachmentReference(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
-
-	create := httptest.NewRequest(http.MethodPost, "/api/issues", strings.NewReader(`{"title":"Crash","description":"App crashes on upload.","severity":"High"}`))
-	create.Header.Set("X-Bug-User", "reporter")
-	createResponse := httptest.NewRecorder()
-	server.Handler().ServeHTTP(createResponse, create)
-	if createResponse.Code != http.StatusCreated {
-		t.Fatalf("create status = %d, want %d body=%s", createResponse.Code, http.StatusCreated, createResponse.Body.String())
-	}
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("attachment", "trace.log")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	if _, err := part.Write([]byte("stack trace")); err != nil {
-		t.Fatalf("write form file: %v", err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-	upload := httptest.NewRequest(http.MethodPost, "/api/issues/BUG-0001/attachments", body)
-	upload.Header.Set("Content-Type", writer.FormDataContentType())
-	upload.Header.Set("X-Bug-User", "reporter")
+	upload := httptest.NewRequest(http.MethodPost, "/api/issues/BUG-0001/attachments", strings.NewReader("legacy"))
 	uploadResponse := httptest.NewRecorder()
 	server.Handler().ServeHTTP(uploadResponse, upload)
-	if uploadResponse.Code != http.StatusOK {
-		t.Fatalf("upload status = %d, want %d body=%s", uploadResponse.Code, http.StatusOK, uploadResponse.Body.String())
-	}
-	if !strings.Contains(uploadResponse.Body.String(), `"attachment_id":"ATT-000002"`) {
-		t.Fatalf("upload body = %s, want ATT-000002", uploadResponse.Body.String())
-	}
-
-	download := httptest.NewRequest(http.MethodGet, "/api/issues/BUG-0001/attachments/ATT-000002?user=reporter", nil)
-	downloadResponse := httptest.NewRecorder()
-	server.Handler().ServeHTTP(downloadResponse, download)
-	if downloadResponse.Code != http.StatusOK {
-		t.Fatalf("download status = %d, want %d body=%s", downloadResponse.Code, http.StatusOK, downloadResponse.Body.String())
-	}
-	if body := downloadResponse.Body.String(); body != "stack trace" {
-		t.Fatalf("download body = %q, want stack trace", body)
+	if uploadResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("upload status = %d, want %d body=%s", uploadResponse.Code, http.StatusMethodNotAllowed, uploadResponse.Body.String())
 	}
 }
 
