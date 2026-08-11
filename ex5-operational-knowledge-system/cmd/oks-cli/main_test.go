@@ -538,25 +538,25 @@ func serveSingleLocalSocketRequest(t *testing.T, socketPath string, requests cha
 	t.Helper()
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		t.Fatalf("listen unix socket: %v", err)
+		t.Errorf("listen unix socket: %v", err)
 	}
 	defer func() {
 		_ = listener.Close()
 	}()
 	conn, err := listener.Accept()
 	if err != nil {
-		t.Fatalf("accept unix socket: %v", err)
+		t.Errorf("accept unix socket: %v", err)
 	}
 	defer func() {
 		_ = conn.Close()
 	}()
 	var request service.LocalEmbodimentRequest
 	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&request); err != nil {
-		t.Fatalf("decode unix socket request: %v", err)
+		t.Errorf("decode unix socket request: %v", err)
 	}
 	requests <- request
 	if err := json.NewEncoder(conn).Encode(response); err != nil {
-		t.Fatalf("encode unix socket response: %v", err)
+		t.Errorf("encode unix socket response: %v", err)
 	}
 }
 

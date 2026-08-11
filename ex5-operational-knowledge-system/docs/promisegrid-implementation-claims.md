@@ -35,11 +35,11 @@ Today it ships:
 - append-only operational event history
 - local durable draft manifests plus CAS-backed draft bodies, and durable
   attachment storage
-- Chrome/Chromium native-messaging live drafting for the browser, with the
+- verified Google Chrome native-messaging live drafting for the browser, with the
   older HTTP live routes no longer defining the primary browser contract
 - direct local Unix-socket embodiment contracts for CLI and Neovim, with HTTP
   kept only as explicit compatibility transport
-- Chrome/Chromium Manifest V3 browser embodiment over native messaging, with
+- verified Google Chrome Manifest V3 browser embodiment over native messaging, with
   the browser UI kept in `web/app.js` and bridged into the same direct local
   contract family
 - deterministic extension/native-host contract coverage for browser readiness,
@@ -49,7 +49,7 @@ Today it ships:
 - typed local socket `operation` messages for the terminal inspect/read slice,
   instead of generic route-shaped socket forwarding for those reads
 - projected read/query views over that history
-- browser over a Chrome/Chromium native-messaging bridge into the local
+- browser over a verified Google Chrome native-messaging bridge into the local
   runtime, plus CLI and Neovim over a direct local Unix-socket contract
 - one frozen `knowledge-item` profile selected from the exact shipped protocol
   bytes
@@ -107,8 +107,8 @@ Today it ships:
 
 Today it does **not** yet ship:
 
-- a browser embodiment for unsupported browsers outside the pinned
-  Chrome/Chromium direct-contract slice
+- a browser embodiment for unsupported browsers, including Chromium until its
+  native-host path receives separate passing verification under TODO 153
 
 ## What the shipped implementation does promise
 
@@ -116,7 +116,7 @@ Today it does **not** yet ship:
 
 Browser, CLI, and Neovim all read and write one shared ex5 runtime model. The
 embodiments are not separate durable systems. The browser now prefers a
-Chrome/Chromium native-messaging embodiment that bridges into the direct local
+verified Google Chrome native-messaging embodiment that bridges into the direct local
 contract, while CLI and Neovim prefer the direct local Unix-socket contract
 over that same runtime. Unsupported browsers do not silently fall back into the
 older HTTP browser path. Neovim also reaches websocket/HTTP compatibility only
@@ -211,6 +211,8 @@ The current shipped ex5 runtime does not yet promise:
 - that the local HTTP route names are the PromiseGrid peer contract
 - that ephemeral presence or derived projections are durable PromiseGrid
   families
+- Chromium support; Chromium-capable code remains explicitly unclaimed until
+  TODO 153 supplies separate evidence
 
 ## Done now vs. remaining
 
@@ -266,7 +268,7 @@ Done now:
 - the peer-exchange and relay-feed wire structs plus origin-aware transport
   filtering helpers now live in the reusable `promisegrid/transport/`
   substrate instead of being owned only as `service/` mirror types
-- the browser now projects through the direct Chrome/Chromium
+- the browser now projects through the verified Google Chrome
   native-messaging embodiment, while CLI and Neovim project through the local
   Unix-socket contract on top of those signed families
 

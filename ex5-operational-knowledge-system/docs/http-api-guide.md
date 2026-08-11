@@ -13,7 +13,7 @@ protocol-family seams described elsewhere.
 
 In current ex5, these HTTP routes are the browser shell/bootstrap surface and
 the explicit compatibility transport for CLI and Neovim. The browser's primary
-runtime contract now rides through the Chrome/Chromium native-messaging
+runtime contract now rides through the verified Google Chrome native-messaging
 embodiment instead of treating `/api/*` as the main browser semantics layer.
 These route names are not the signed PromiseGrid peer contract, and should not
 be read as frozen `pCID`-selected public wire meaning. The reusable
@@ -27,7 +27,7 @@ The adapter is served by the same Go 1.24.13 runtime pinned in this module's
 `grid-examples` modules.
 
 The browser UI still loads from this local shell, but operational request,
-review, create, and live-draft traffic now prefer the Chrome/Chromium direct
+review, create, and live-draft traffic now prefer the verified Google Chrome direct
 embodiment bridge. CLI and Neovim still keep HTTP as compatibility transport,
 while the direct local Unix-socket contract uses typed runtime `operation`
 messages for the first inspect/read slice instead of forwarding those reads as
@@ -84,15 +84,15 @@ HTTP capability path is unavailable. Source: `DI-bavuk`; `DI-zunep`;
 
 In the current runtime, `embodiments.browser` declares
 `chrome_native_messaging` as its primary adapter and `native_messaging` as its
-live-draft transport, with compatibility mode `chrome_or_chromium_required`.
-That means the shipped browser embodiment now requires Chrome or Chromium plus
+live-draft transport, with compatibility mode `chrome_required`.
+That means the shipped browser embodiment now requires verified Google Chrome plus
 the ex5 extension/native host; unsupported browsers do not silently demote to
 the older HTTP request path. `embodiments.cli` declares `local_unix_socket` as
 its primary adapter and marks HTTP compatibility as `explicit_opt_in`.
 `embodiments.neovim` also declares `local_unix_socket` as both its primary
 adapter and live-draft transport, with websocket and HTTP listed as
 compatibility transports that are only available through explicit opt-in mode
-(`oks-nvim --socket=off`). Terminal embodiments also repeat the canonical
+(`oks-nvim --socket=off`). Chromium remains unverified under TODO 153. Terminal embodiments also repeat the canonical
 `local_unix_socket_path` inside their own embodiment records. Source:
 `DI-vurak`; `DI-zorav`; `DI-fonuv`; `DI-punek`.
 

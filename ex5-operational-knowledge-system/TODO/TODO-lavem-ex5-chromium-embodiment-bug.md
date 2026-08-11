@@ -2,6 +2,15 @@
 
 ## Decision Intent Log
 
+ID: DI-bahak
+Date: 2026-08-10 20:05:49 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Retain Chromium-capable implementation code, but advertise, script, document, and verify only Chrome as the supported browser embodiment until Chromium has a separate passing verification path.
+Intent: Keep the shipped PromiseGrid embodiment claim evidence-backed without discarding the existing Chromium-capable path or conflating capability with verified support.
+Constraints: The Chrome demo must fail closed when Chrome is unavailable; Chromium remains explicitly deferred under TODO 153 and must not be selected as a substitute; browser metadata must name the verified Chrome requirement.
+Affects: `ex5-operational-knowledge-system/service/app.go`, `ex5-operational-knowledge-system/service/app_test.go`, `ex5-operational-knowledge-system/service/server_test.go`, `ex5-operational-knowledge-system/web/*`, `ex5-operational-knowledge-system/scripts/*`, `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/*`
+
 ID: DI-lavem
 Date: 2026-07-23 10:30:11 -0700
 Author: jj@thesalleys.com (JJ)

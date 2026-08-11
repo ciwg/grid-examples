@@ -1,6 +1,6 @@
 {
   "name": "operational_browser_host",
-  "description": "Ex5 Operational Knowledge Chrome/Chromium native-messaging host",
+  "description": "Ex5 Operational Knowledge verified Google Chrome native-messaging host; Chromium remains unverified",
   "path": "__BROWSER_HOST_PATH__",
   "type": "stdio",
   "allowed_origins": [

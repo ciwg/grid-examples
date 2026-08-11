@@ -14,7 +14,7 @@ claim:           partially-implements
 spec:            bafkreih5sww7apgdurye4n6el4nsdgwgbcawochqe42t3g3rrkjjehccgy
 scope:           local-runtime signed envelopes for `knowledge_item_created`, `revision_added`, `knowledge_item_status_changed`, and `knowledge_item_superseded`, surfaced through the shared runtime plus the direct browser, CLI, and Neovim embodiment contracts
 breaking-change: false
-notes:           `knowledge-item` is a shipped frozen family. Browser now reaches it through the Chrome/Chromium native-messaging embodiment, while CLI and Neovim prefer the direct local Unix-socket contract and keep HTTP only as explicit compatibility transport.
+notes:           `knowledge-item` is a shipped frozen family. Browser now reaches it through the verified Google Chrome native-messaging embodiment; Chromium remains unverified under TODO 153. CLI and Neovim prefer the direct local Unix-socket contract and keep HTTP only as explicit compatibility transport. Source: DI-bahak.
 
 ### knowledge-approval
 
@@ -86,9 +86,9 @@ notes:           This is the main PromiseGrid implementation surface in ex5. Bro
 
 claim:           partially-implements
 spec:            bafkreih5sww7apgdurye4n6el4nsdgwgbcawochqe42t3g3rrkjjehccgy, bafkreibdxszozhrp335vpi5v4hxaoqwp46q2xd22n4iwbniabhu6nfykau, bafkreidyre7waqivwh7ef5hb35rlzogpp3lbt4sdprygoi2ii47vaxh7h4, bafkreihl643tk2lawdfvyuexfrd3gtx3hrksdcrze66vvqubfbjxga3xui, bafkreihtw2i5j7au7xxuetrp2hunanl6rzyaiffg3ibuboqv46jlj56jfe, bafkreicn5t2ghs2d6b3olhhzayh2cle2n67ltu5lzcvxe4sp5x67frs5du, bafkreic3cc7tlg4gbbktkipkdzn2gjptibrmyszl75s4rjkn4umfglgtmu, bafkreihtahpvdzmtjr4ouf5oy3ixv7anfccn7mdda7yr7vz5khkv7pe3k4
-scope:           Chrome/Chromium Manifest V3 browser embodiment over native messaging, with typed runtime operations for day-to-day read, create, operate, and live-draft flows and no silent fallback to the older browser HTTP path
+scope:           verified Google Chrome Manifest V3 browser embodiment over native messaging, with typed runtime operations for day-to-day read, create, operate, and live-draft flows and no silent fallback to the older browser HTTP path
 breaking-change: false
-notes:           This embodiment depends on the shipped extension plus native host and delegates durable family semantics to the local runtime. Unsupported browsers are outside the current implementation promise.
+notes:           This embodiment depends on the shipped extension plus native host and delegates durable family semantics to the local runtime. Chromium is implementation-capable but unverified and therefore outside the current implementation promise; all other browsers are unsupported. Source: DI-bahak.
 
 ### CLI embodiment (`cmd/oks-cli`)
 

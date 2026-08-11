@@ -22,6 +22,14 @@ window.addEventListener("message", (event) => {
   }
   const message = event.data;
   if (message.kind === "handshake") {
+    // Intent: Return request-correlated bridge diagnostics to the page so a
+    // real browser proof can distinguish content-script, worker, and native
+    // host failures without claiming the embodiment is ready. Source: DI-vuduz.
+    postToPage({
+      kind: "diagnostic",
+      request_id: message.request_id,
+      stage: "content_script_received_handshake",
+    });
     chrome.runtime.sendMessage({
       kind: "rpc",
       request_id: message.request_id,
@@ -33,17 +41,30 @@ window.addEventListener("message", (event) => {
     }).then((response) => {
       const ok = !!(response && !response.error && response.response && response.response.status === 200);
       postToPage({
+        kind: "diagnostic",
+        request_id: message.request_id,
+        stage: "worker_response",
+        error: response && response.error ? response.error : "",
+      });
+      postToPage({
         kind: "handshake",
         request_id: message.request_id,
         ok,
         error: response && response.error ? response.error : "",
       });
     }).catch(() => {
+      const error = "bridge handshake failed before native-host response";
+      postToPage({
+        kind: "diagnostic",
+        request_id: message.request_id,
+        stage: "worker_message_failed",
+        error,
+      });
       postToPage({
         kind: "handshake",
         request_id: message.request_id,
         ok: false,
-        error: "bridge handshake failed before native-host response",
+        error,
       });
     });
     return;

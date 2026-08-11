@@ -23,7 +23,7 @@ history again.
 `ex5-operational-knowledge-system` is the first example in this repo that tries
 to solve that whole problem in one place. It is a durable operational memory
 example with shared browser, CLI, and Neovim embodiments over one local Go
-runtime, with the browser now requiring a Chrome/Chromium native-messaging
+runtime, with the browser now requiring a verified Google Chrome native-messaging
 bridge into the direct runtime contract and the two terminal surfaces
 preferring the direct local Unix-socket contract. Source: `DI-fudok`;
 `DI-zorav`; `DI-punek`.
@@ -61,7 +61,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
   - inventory audits
 - browser-shared live working drafts with participant presence and explicit
   revision snapshots
-- Chrome/Chromium browser embodiment over a native-messaging bridge into the
+- verified Google Chrome browser embodiment over a native-messaging bridge into the
   direct local runtime contract
 - browser startup falls back to ephemeral in-memory participant identity when
   storage or UUID helpers are restricted
@@ -88,7 +88,7 @@ projected into query views. Source: `DI-radok`; `DI-kovup`; `DI-zuvob`;
 - typed links across responsibilities, items, and runs
 - validated typed links across responsibilities, items, runs, places, and resources
 - browser dashboard and forms
-- browser direct contract now requires Chrome or Chromium plus the shipped ex5
+- browser direct contract now requires verified Google Chrome plus the shipped ex5
   extension/native host, with no silent fallback to the older HTTP browser path
 - browser search filters by kind, status, outcome, place, resource, and responsibility
 - browser search now reaches record IDs directly across places, resources, responsibilities, items, and runs
@@ -175,7 +175,7 @@ What the current runtime actually implements today:
 - generic place hierarchy and resource records
 - local HTTP API and browser shell/bootstrap surface
 - browser UI over that shell, with runtime traffic now preferring the direct
-  Chrome/Chromium native-messaging embodiment
+  verified Google Chrome native-messaging embodiment
 - CLI over a direct local Unix-socket contract, with HTTP available only as explicit compatibility opt-in through `-socket=off`
 - versioned text bodies inside knowledge-item revisions
 - local shared-draft persistence and live participant presence for browser
@@ -203,6 +203,7 @@ What the current runtime actually implements today:
 What is not yet implemented in the shipped runtime:
 
 - ERP-style inventory quantities, reservations, or planning logic
+- global identity, universal authority, or an unsupported-browser embodiment
 
 That distinction is intentional in the docs: this README describes the actual
 implemented ex5 application/runtime layer plus the currently extracted
@@ -292,8 +293,9 @@ Then open:
 http://127.0.0.1:7045/
 ```
 
-If you want the browser embodiment, use Chrome or Chromium plus the shipped
-extension/native-host path. If you want the quickest no-extra-setup tour, start
+If you want the browser embodiment, use verified Google Chrome plus the shipped
+extension/native-host path. Chromium remains unverified under TODO 153. If you
+want the quickest no-extra-setup tour, start
 with the CLI examples below against the sample runtime instead. Source:
 `DI-punek`; `DI-rubav`.
 
@@ -525,6 +527,9 @@ What it does not try to do yet:
 ## Docs
 
 - [Architecture notes](docs/architecture.md)
+- [Testing guide](docs/testing.md)
+- [PromiseGrid implementation claims](docs/promisegrid-implementation-claims.md)
+- [Browser setup and demo walkthrough](docs/user-guide.md#browser-path)
 - [Features guide](docs/features-guide.md)
 - [HTTP API guide](docs/http-api-guide.md)
 - [Practical implementation notes](docs/practical-implementation.md)
@@ -543,7 +548,7 @@ What it does not try to do yet:
 
 ## Current direction
 
-- keep the browser on the shipped Chrome/Chromium native-messaging embodiment over the direct local runtime contract, while CLI and Neovim use the local Unix-socket contract instead of treating the older HTTP adapter as the primary embodiment path
+- keep the browser on the verified Google Chrome native-messaging embodiment over the direct local runtime contract; Chromium remains deferred until separately verified, while CLI and Neovim use the local Unix-socket contract instead of treating the older HTTP adapter as the primary embodiment path
 - treat shared live drafting as the real-time collaboration transport while keeping the broader create/run/evidence workflow surface concentrated in the browser, CLI, and targeted Neovim actions
 - keep a richer future Neovim embodiment on the roadmap because it fits real team and customer workflows
 - ship PromiseGrid peer exchange for the eight signed families with origin-aware ongoing import, create-envelope-CID durable IDs plus preserved short aliases, bootstrap inline evidence blobs, and incremental relay-feed plus CID blob transfer

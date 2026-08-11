@@ -30,7 +30,7 @@ func NewBrowserHost() *BrowserHost {
 	return &BrowserHost{}
 }
 
-// Intent: Keep the Chrome/Chromium native host as a thin carriage bridge into
+// Intent: Keep the verified Google Chrome native host as a thin carriage bridge into
 // the existing direct local runtime contract instead of creating a second
 // browser-specific semantic layer. Source: DI-punek
 func (host *BrowserHost) ServeSession(stdin io.Reader, stdout io.Writer) error {

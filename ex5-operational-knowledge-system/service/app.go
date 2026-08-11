@@ -184,10 +184,13 @@ func (app *App) Meta() Meta {
 		LocalUnixSocketEnabled:    true,
 		LocalUnixSocketPath:       EmbodimentSocketPath(app.dataRoot),
 		Embodiments: map[string]EmbodimentTransport{
+			// Intent: Advertise only the browser embodiment with passing end-to-end
+			// evidence. Chromium-capable code remains deferred until its own
+			// verification path passes. Source: DI-bahak.
 			"browser": {
 				PrimaryAdapter:     "chrome_native_messaging",
 				LiveDraftTransport: "native_messaging",
-				CompatibilityMode:  "chrome_or_chromium_required",
+				CompatibilityMode:  "chrome_required",
 			},
 			"cli": {
 				PrimaryAdapter:      "local_unix_socket",

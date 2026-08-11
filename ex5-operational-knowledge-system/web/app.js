@@ -83,6 +83,7 @@ const operateApprovalDetailsEl = document.getElementById("operate-approval-detai
 const participantID = getParticipantID();
 const bridgePendingRPC = new Map();
 const bridgePendingHandshakes = new Map();
+const bridgeHandshakeDiagnostics = new Map();
 const bridgeRPCDeadlineMS = 1000;
 let bridgeSequence = 0;
 const editorState = {
@@ -165,6 +166,13 @@ window.addEventListener("message", (event) => {
     return;
   }
   const message = event.data;
+  if (message.kind === "diagnostic") {
+    const diagnostics = bridgeHandshakeDiagnostics.get(message.request_id);
+    if (diagnostics) {
+      diagnostics.push(`${message.stage || "bridge diagnostic"}${message.error ? `: ${message.error}` : ""}`);
+    }
+    return;
+  }
   if (message.kind === "handshake") {
     const resolve = bridgePendingHandshakes.get(message.request_id);
     if (resolve) {
@@ -751,26 +759,27 @@ function clearWorkspaceStatus() {
 }
 
 function browserEmbodimentUnavailableMessage() {
-  return "This embodiment currently requires Chrome or Chromium with the ex5 browser extension installed.";
+  return "This embodiment currently requires verified Google Chrome with the ex5 browser extension installed; Chromium remains unverified.";
 }
 
-function isChromeOrChromiumBrowser() {
+function isChromeBrowser() {
   const agent = navigator.userAgent || "";
   if (agent.includes("Edg/")) {
     return false;
   }
-  return agent.includes("Chrome/") || agent.includes("Chromium/");
+  return agent.includes("Chrome/") && !agent.includes("Chromium/");
 }
 
-// Intent: Make the browser embodiment state its Chrome/Chromium direct-contract
+// Intent: Make the browser embodiment state its verified Chrome direct-contract
 // requirement honestly up front and prove the extension/native-host/runtime
 // chain before startup marks the browser ready, instead of silently demoting
 // back into the older HTTP browser path or overstating readiness after only a
-// page-bridge check. Source: DI-punek; DI-salov
+// page-bridge check. Chromium remains deferred until separately verified.
+// Source: DI-punek; DI-salov; DI-bahak.
 async function initializeBrowserEmbodiment() {
-  browserBridgeState.supported = isChromeOrChromiumBrowser();
+  browserBridgeState.supported = isChromeBrowser();
   if (!browserBridgeState.supported) {
-    setWorkspaceStatus("Chrome or Chromium is required", "error", browserEmbodimentUnavailableMessage());
+    setWorkspaceStatus("Verified Google Chrome is required", "error", browserEmbodimentUnavailableMessage());
     return false;
   }
   const metaResponse = await fetch("/api/meta");
@@ -780,8 +789,8 @@ async function initializeBrowserEmbodiment() {
   browserBridgeState.meta = await metaResponse.json();
   browserBridgeState.socketPath = browserBridgeState.meta?.local_unix_socket_path || "";
   const browserEmbodiment = browserBridgeState.meta?.embodiments?.browser || {};
-  if (browserEmbodiment.primary_adapter !== "chrome_native_messaging") {
-    throw new Error("runtime does not advertise the direct Chrome/Chromium browser embodiment");
+  if (browserEmbodiment.primary_adapter !== "chrome_native_messaging" || browserEmbodiment.compatibility_mode !== "chrome_required") {
+    throw new Error("runtime does not advertise the verified Google Chrome browser embodiment");
   }
   const handshake = await bridgeHandshake();
   if (!handshake.ok) {
@@ -799,15 +808,22 @@ async function initializeBrowserEmbodiment() {
 function bridgeHandshake() {
   const requestID = nextBridgeRequestID("bridge-handshake");
   return new Promise((resolve) => {
+    const diagnostics = [];
+    bridgeHandshakeDiagnostics.set(requestID, diagnostics);
     const timer = setTimeout(() => {
       bridgePendingHandshakes.delete(requestID);
+      bridgeHandshakeDiagnostics.delete(requestID);
       resolve({
         ok: false,
-        error: "browser bridge handshake timed out",
+        // Intent: Surface the last confirmed browser bridge hop so operators
+        // can distinguish a missing content script from a native-host failure.
+        // Source: DI-vuduz.
+        error: diagnostics.length > 0 ? `browser bridge handshake timed out after ${diagnostics.join("; ")}` : "browser bridge handshake timed out before the content script responded",
       });
     }, 300);
     bridgePendingHandshakes.set(requestID, (handshake) => {
       clearTimeout(timer);
+      bridgeHandshakeDiagnostics.delete(requestID);
       resolve(handshake);
     });
     postBridgeMessage({

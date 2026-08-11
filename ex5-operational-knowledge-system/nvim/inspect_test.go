@@ -271,27 +271,27 @@ func serveSingleNvimSocketResponse(t *testing.T, socketPath string, expected ser
 	t.Helper()
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		t.Fatalf("listen unix socket: %v", err)
+		t.Errorf("listen unix socket: %v", err)
 	}
 	defer func() {
 		_ = listener.Close()
 	}()
 	conn, err := listener.Accept()
 	if err != nil {
-		t.Fatalf("accept unix socket: %v", err)
+		t.Errorf("accept unix socket: %v", err)
 	}
 	defer func() {
 		_ = conn.Close()
 	}()
 	var request service.LocalEmbodimentRequest
 	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&request); err != nil {
-		t.Fatalf("decode unix socket request: %v", err)
+		t.Errorf("decode unix socket request: %v", err)
 	}
 	if request.Type != expected.Type || request.Operation != expected.Operation || request.ItemID != expected.ItemID || request.EntityType != expected.EntityType || request.EntityID != expected.EntityID || request.RunID != expected.RunID {
-		t.Fatalf("unexpected socket request: got=%+v want=%+v", request, expected)
+		t.Errorf("unexpected socket request: got=%+v want=%+v", request, expected)
 	}
 	if err := json.NewEncoder(conn).Encode(response); err != nil {
-		t.Fatalf("encode unix socket response: %v", err)
+		t.Errorf("encode unix socket response: %v", err)
 	}
 }
 

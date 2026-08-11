@@ -2,6 +2,24 @@
 
 ## Decision Intent Log
 
+ID: DI-januk
+Date: 2026-08-10 21:25:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: The Neovim repo-root fallback regression uses an unreachable loopback metadata endpoint.
+Intent: Prove fallback socket derivation without a live Ex5 demo runtime advertising a different canonical socket through `/api/meta`.
+Constraints: Test only metadata-discovery failure and repo-root fallback; do not start, stop, or depend on ambient local runtime state.
+Affects: `ex5-operational-knowledge-system/nvim/snapshot_test.go`
+
+ID: DI-sumoh
+Date: 2026-08-10 21:20:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Neovim regression tests prepend the checked-out `nvim` directory to `runtimepath` before requiring `oks`.
+Intent: Test this repository's socket-root behavior even when an unrelated installed `oks` plugin is present in Neovim's ambient runtimepath.
+Constraints: Preserve `-u NONE` isolation and test only repository-local Lua code; do not depend on or modify user plugin state.
+Affects: `ex5-operational-knowledge-system/nvim/snapshot_test.go`
+
 ID: DI-sorek
 Date: 2026-07-22 17:15:03 -0700
 Author: jj@thesalleys.com (JJ)

@@ -200,7 +200,7 @@ func TestHeadlessBrowserFailsClosedWhenDirectBridgeIsUnavailable(t *testing.T) {
 	dom := string(output)
 	required := []string{
 		"Direct browser embodiment unavailable",
-		"This embodiment currently requires Chrome or Chromium with the ex5 browser extension installed.",
+		"This embodiment currently requires verified Google Chrome with the ex5 browser extension installed; Chromium remains unverified.",
 	}
 	for _, marker := range required {
 		if !strings.Contains(dom, marker) {
@@ -2147,7 +2147,7 @@ window.addEventListener("message", async (event) => {
 
 func addBrowserMetaHandler(mux *http.ServeMux) {
 	mux.HandleFunc("/api/meta", func(writer http.ResponseWriter, request *http.Request) {
-		writeJSON(writer, `{"local_unix_socket_path":"/tmp/embodiment.sock","embodiments":{"browser":{"primary_adapter":"chrome_native_messaging","live_draft_transport":"native_messaging","compatibility_mode":"chrome_or_chromium_required"}}}`)
+		writeJSON(writer, `{"local_unix_socket_path":"/tmp/embodiment.sock","embodiments":{"browser":{"primary_adapter":"chrome_native_messaging","live_draft_transport":"native_messaging","compatibility_mode":"chrome_required"}}}`)
 	})
 }
 

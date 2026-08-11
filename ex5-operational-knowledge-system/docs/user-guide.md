@@ -29,7 +29,7 @@ The fastest honest newcomer path is:
 1. Load the checked-in sample corpus into a fresh runtime root.
 2. Start the ex5 server against that runtime root.
 3. Use the CLI to inspect the sample world first.
-4. Use the browser if you have the shipped Chrome/Chromium embodiment set up.
+4. Use the browser if you have the verified Google Chrome embodiment set up.
 5. Use Neovim if you want live draft editing inside the editor.
 
 The sample corpus is not mock data. It is a checked-in runtime with real
@@ -251,6 +251,22 @@ Run these exact steps:
 ./scripts/verify-demo-browser.sh
 ```
 
+For the attach-only browser evidence harness, use the same setup but launch
+Chrome with an explicit DevTools port:
+
+```bash
+./scripts/setup-demo-browser.sh
+EX5_CHROME_DEBUG_PORT=9222 ./scripts/launch-demo-browser.sh
+./scripts/verify-demo-browser.sh
+cd ../grid-examples-browser-checks/ex5
+EX5_CHROME_DEBUG_PORT=9222 npm run test:demo
+```
+
+The launcher records and replaces only its prior disposable demo Chrome PID at
+`/tmp/ex5-demo-browser/chrome.pid`; it never targets an ordinary Chrome
+session. The harness attaches to that prelaunched session and creates its own
+test tabs. Source: `DI-danir`.
+
 What those do:
 
 - create a disposable demo runtime under `/tmp/ex5-demo-browser/runtime`
@@ -379,7 +395,7 @@ Make sure:
 
 Source: `DI-zorav`.
 
-### The browser says Chrome/Chromium is required
+### The browser says verified Google Chrome is required
 
 Run the three browser-demo commands in this guide exactly:
 
@@ -390,7 +406,8 @@ Run the three browser-demo commands in this guide exactly:
 ```
 
 If verification still does not pass, use the CLI or Neovim path instead.
-Source: `DI-punek`; `DI-fovek`; `DI-dabek`.
+Chromium is separately unverified under TODO 153 and is not a demo fallback.
+Source: `DI-punek`; `DI-fovek`; `DI-dabek`; `DI-bahak`.
 
 ### The launch script says `127.0.0.1:7045` is not serving the demo runtime
 

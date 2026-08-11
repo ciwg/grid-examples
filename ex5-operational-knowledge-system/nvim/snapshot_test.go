@@ -121,7 +121,9 @@ func TestNeovimSnapshotUsesRepoRootDefaultSocketPathAcrossWorkingDirectoryChange
 	scriptBody := fmt.Sprintf(`
 vim.env.OKS_SOCKET_PATH = nil
 local oks = require("oks")
-oks.setup({ repo_root = %q })
+-- Intent: Keep this fallback test independent from a live runtime advertising
+-- a socket through /api/meta. Source: DI-januk.
+oks.setup({ repo_root = %q, base_url = "http://127.0.0.1:0" })
 vim.cmd("cd %s")
 if oks.config.socket_path ~= %q then
   error("unexpected socket path " .. tostring(oks.config.socket_path))
@@ -139,7 +141,9 @@ vim.cmd("qa!")
 		nvimPath,
 		"--headless",
 		"-u", "NONE",
-		"-c", "set runtimepath+="+nvimRuntimeRoot,
+		// Intent: Prepend this checkout so require("oks") cannot resolve an
+		// unrelated user-installed plugin before the code under test. Source: DI-sumoh.
+		"-c", "set runtimepath^="+nvimRuntimeRoot,
 		"-l", script,
 	)
 	command.Dir = filepath.Join(root, "elsewhere")

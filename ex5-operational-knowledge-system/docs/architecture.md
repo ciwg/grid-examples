@@ -17,10 +17,13 @@ operational-knowledge application/runtime layer. Source: `DI-radok`;
                     local Go runtime and projections
                        /                        \
                       /                          \
-                 local HTTP API       local Unix socket
-                      │                     │
-          browser UI + live draft     CLI and Neovim
-             / presence surface      request/live clients
+       Chrome extension → native host     local Unix socket
+                    │                           │
+       browser UI + live draft          CLI and Neovim
+          / presence surface           request/live clients
+                    │
+          separate operational-relay
+           relay feed + CID blobs
 ```
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
@@ -74,7 +77,8 @@ back into a local compatibility attachment path on demand. Source:
 `DI-lavuz`; `DI-rovud`; `DI-faruv`.
 
 The embodiment contract also tightened another step after that milestone:
-browser now prefers the direct Chrome/Chromium native-messaging embodiment,
+browser now prefers the verified Google Chrome native-messaging embodiment;
+Chromium remains unverified under TODO 153,
 while CLI and Neovim prefer the direct local Unix-socket contract. The local
 HTTP surface remains the browser shell/bootstrap lane plus explicit
 compatibility transport, and it still exposes peer-exchange and CAS runtime

@@ -21,6 +21,16 @@ if ! command -v go >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v node >/dev/null 2>&1; then
+  echo "node is required to install the unpacked Ex5 Chrome extension" >&2
+  exit 1
+fi
+
+if ! command -v google-chrome >/dev/null 2>&1; then
+  echo "google-chrome is required; Chromium remains unverified" >&2
+  exit 1
+fi
+
 mkdir -p "${demo_root}" "${native_host_root}" "$(dirname -- "${host_manifest_chrome}")" "$(dirname -- "${host_manifest_profile}")"
 
 if [ ! -d "${runtime_root}" ]; then

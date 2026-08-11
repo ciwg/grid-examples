@@ -68,7 +68,8 @@ runtime:
 
 These are not separate backends. They all read and write the same projected
 state through one shared local runtime, with the browser now using the shipped
-Chrome/Chromium native-messaging embodiment and CLI plus Neovim preferring the
+verified Google Chrome native-messaging embodiment (with Chromium deferred
+until separately verified) and CLI plus Neovim preferring the
 direct local Unix-socket contract. Source: `DI-fudok`; `DI-givot`;
 `DI-lorav`; `DI-vamor`; `DI-bafor`; `DI-pudor`; `DI-ravum`; `DI-favel`;
 `DI-punek`.

@@ -314,7 +314,7 @@ shared draft surface that now spans browser native messaging plus terminal
 socket carriage.
 
 The current product direction is to keep browser live drafting inside the
-shipped Chrome/Chromium native-messaging embodiment over the direct local
+verified Google Chrome native-messaging embodiment over the direct local
 runtime contract, while giving terminal embodiments the same runtime through a
 direct local Unix-socket contract. Shared live drafting remains the real-time
 collaboration transport, but the carriage now splits by embodiment: browser
