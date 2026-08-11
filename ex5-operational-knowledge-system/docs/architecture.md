@@ -17,14 +17,22 @@ operational-knowledge application/runtime layer. Source: `DI-radok`;
                     local Go runtime and projections
                        /                        \
                       /                          \
-       Chrome extension → native host     local Unix socket
+ Chrome DevTools-pipe → extension → native host     local Unix socket
                     │                           │
-       browser UI + live draft          CLI and Neovim
+   attach-only UI at :9222 + live draft     CLI and Neovim
           / presence surface           request/live clients
                     │
           separate operational-relay
            relay feed + CID blobs
 ```
+
+For the verified browser embodiment, setup prepares the disposable profile and
+native-host registration. The launcher starts Google Chrome with both a
+DevTools pipe and local DevTools port `9222`, loads the unpacked Ex5 extension
+through that pipe, and retains the pipe owner for the session. The external
+browser suite attaches only through `9222`; it never launches its own browser.
+The live-session loader is necessary because Chrome disables unpacked developer
+extensions after a restart. Source: `DI-bilim`; `DI-sofol`.
 
 That top line is part of the PromiseGrid framing that ships with ex5. The
 shipped runtime already uses append-only events and shared embodiments, and it

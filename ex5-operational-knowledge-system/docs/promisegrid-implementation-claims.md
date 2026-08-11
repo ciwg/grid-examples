@@ -41,7 +41,9 @@ Today it ships:
   kept only as explicit compatibility transport
 - verified Google Chrome Manifest V3 browser embodiment over native messaging, with
   the browser UI kept in `web/app.js` and bridged into the same direct local
-  contract family
+  contract family; its demo launcher keeps Chrome's sanctioned DevTools-pipe
+  owner alive to load the unpacked extension for one session, while evidence
+  checks attach separately at local DevTools port `9222`
 - deterministic extension/native-host contract coverage for browser readiness,
   one-shot RPC forwarding, and live-port forwarding/disconnect behavior, with
   the broader DOM smoke suite still explicitly scoped to page-level mock-bridge

@@ -2,6 +2,15 @@
 
 ## Decision Intent Log
 
+ID: DI-sofol
+Date: 2026-08-10 21:35:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Browser and demo documentation must describe the session-owned Chrome DevTools-pipe loader and `9222` as the stable attach-only endpoint.
+Intent: Keep the documented Chrome-only proof truthful: setup prepares the native host, the launcher loads Ex5 into one live Chrome session, and external checks attach to that same session.
+Constraints: Do not imply that unpacked extensions persist across Chrome restarts; do not claim Chromium verification or allow a synthetic-browser fallback.
+Affects: `ex5-operational-knowledge-system/README.md`, `ex5-operational-knowledge-system/docs/user-guide.md`, `ex5-operational-knowledge-system/docs/testing.md`, `ex5-operational-knowledge-system/docs/architecture.md`, `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`
+
 ID: DI-bilim
 Date: 2026-08-10 21:10:00 -0700
 Author: jj@thesalleys.com (JJ)

@@ -251,8 +251,8 @@ Run these exact steps:
 ./scripts/verify-demo-browser.sh
 ```
 
-For the attach-only browser evidence harness, use the same setup but launch
-Chrome with an explicit DevTools port:
+For the attach-only browser evidence harness, use the stable DevTools port
+`9222`:
 
 ```bash
 ./scripts/setup-demo-browser.sh
@@ -262,16 +262,22 @@ cd ../grid-examples-browser-checks/ex5
 EX5_CHROME_DEBUG_PORT=9222 npm run test:demo
 ```
 
-The launcher records and replaces only its prior disposable demo Chrome PID at
-`/tmp/ex5-demo-browser/chrome.pid`; it never targets an ordinary Chrome
-session. The harness attaches to that prelaunched session and creates its own
-test tabs. Source: `DI-danir`.
+`setup-demo-browser.sh` prepares the disposable runtime and native-host
+registration. `launch-demo-browser.sh` then owns one disposable Google Chrome
+session, keeps its DevTools-pipe client alive, and loads the shipped unpacked
+Ex5 extension into that live session. Chrome disables unpacked developer
+extensions after a restart, so setup alone does not make the extension
+persistent. The harness attaches to that prelaunched session at `9222` and
+creates its own test tabs. The launcher records and replaces only its prior
+demo PID at `/tmp/ex5-demo-browser/chrome.pid`; it never targets an ordinary
+Chrome session. Source: `DI-danir`; `DI-bilim`; `DI-sofol`.
 
 What those do:
 
 - create a disposable demo runtime under `/tmp/ex5-demo-browser/runtime`
 - build and register the native host for `operational_browser_host`
-- launch Chrome with the shipped unpacked extension already loaded
+- launch Chrome and load the shipped unpacked extension through its live
+  DevTools-pipe owner
 - fail closed unless the runtime, host, and registration path are actually
   ready
 

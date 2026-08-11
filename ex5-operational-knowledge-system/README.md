@@ -294,7 +294,10 @@ http://127.0.0.1:7045/
 ```
 
 If you want the browser embodiment, use verified Google Chrome plus the shipped
-extension/native-host path. Chromium remains unverified under TODO 153. If you
+extension/native-host path. The browser demo launcher loads that unpacked
+extension into its own live Chrome DevTools-pipe session and exposes `9222` for
+attach-only checks; use the copyable sequence in the [user guide](docs/user-guide.md#browser-path).
+Chromium remains unverified under TODO 153. If you
 want the quickest no-extra-setup tour, start
 with the CLI examples below against the sample runtime instead. Source:
 `DI-punek`; `DI-rubav`.
