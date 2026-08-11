@@ -26,7 +26,11 @@ roadmap is published at
   for semantic author evidence; keep browser/account behavior distinct.
 - [ ] 4. Specify and implement byte carriage only after agents own verified
   durable records.
-- [ ] 5. Add the browser/account embodiment and an opt-in multi-agent proof.
+- [x] 5. Add the browser/account embodiment and an opt-in multi-agent proof.
+  `scripts/run-two-agent-browser-proof.sh` owns a disposable Alice/Bob/Chrome
+  session and emits an inspectable per-run evidence directory. The browser
+  transports unsigned requests only; author evidence remains Alice's returned
+  signed record. Source: DI-fuzar; DI-hibok; DI-kasaz.
 - [ ] 6. Publish implementation claims, testing evidence, and all deferrals.
 
 ## Completion condition

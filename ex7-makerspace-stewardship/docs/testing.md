@@ -12,3 +12,15 @@ command proof: recognized observation projection, unrecognized exact-byte
 retention without projection, and rejection of a recognized non-steward
 clearance. The fixture generator is test-only and never supplies browser or
 account authoring. Source: DI-tohak; DI-piruf; DI-likoh; DI-kasaz; DI-sisad.
+
+Run `scripts/run-two-agent-browser-proof.sh` for the browser-level proof. It
+starts disposable Alice and Bob agents in one process session with Chrome
+DevTools, has Bob submit an unsigned request to Alice's explicit loopback
+target, approves from Alice's local page, and waits for Bob to independently
+ingest and project the returned exact signed record. The runner requires both
+agent listeners, DevTools, the local approval response, and nonempty
+`bob-final.png`; it fails closed if any condition is absent. It prints the
+per-run evidence root as `/tmp/ex7-browser-proof.XXXXXX`. Inspect
+`bob-final.png`, `alice-approval-response.json`, and the Alice, Bob, and
+Chrome logs in that directory. This proves request transport and record
+ingress, not browser or account signing. Source: DI-fuzar; DI-hibok; DI-kasaz.

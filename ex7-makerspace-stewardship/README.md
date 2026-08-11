@@ -39,3 +39,10 @@ Read the [operator guide](docs/operator-guide.md),
 [implementation claims](docs/promisegrid-implementation-claims.md),
 [completeness verification guide](docs/completeness-verification.md), and
 [CHANGELOG](CHANGELOG.md) before evaluating the example.
+
+For the repeatable Chrome embodiment proof, run
+`scripts/run-two-agent-browser-proof.sh`. It prints the disposable evidence
+directory containing `bob-final.png`, Alice's approval response, and process
+logs. The proof transports an unsigned terminal request to a participant
+agent; the browser and any account context never author the returned record.
+Source: DI-fuzar; DI-hibok.

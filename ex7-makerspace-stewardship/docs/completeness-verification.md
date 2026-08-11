@@ -22,3 +22,12 @@ make startup fail without changing its bytes. This embodiment provides no
 browser signing, account-based authoring, a running peer-discovery or relay
 service, blob retrieval, or portable governance. Source: DI-tohak; DI-piruf;
 DI-kasaz; DI-sisad.
+
+For the complete two-agent browser evidence, run
+`scripts/run-two-agent-browser-proof.sh`. It creates a disposable Alice/Bob
+session, performs Bob's unsigned terminal request and Alice's local approval,
+then requires Bob's final browser projection. The runner prints its temporary
+evidence root (`/tmp/ex7-browser-proof.XXXXXX`); inspect `bob-final.png`,
+`alice-approval-response.json`, `alice.log`, `bob.log`, and `chrome.log` in
+that root. This check does not alter the non-claim above: browser controls and
+accounts are not signing embodiments. Source: DI-fuzar; DI-hibok; DI-kasaz.

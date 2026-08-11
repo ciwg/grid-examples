@@ -13,5 +13,14 @@ locally recognized steward role cannot clear a safety hold. Source: DI-tohak;
 DI-piruf.
 
 The displayed Alice/Carol/Dave names are local projection/bootstrap data. They
-are not login credentials or author evidence. Key continuity, account access,
-browser signing, blob retrieval, and record carriage remain deferred.
+are not login credentials or author evidence. Signed participant history and
+exact-byte carriage are implemented; browser signing, account-based authoring,
+running relay/discovery, blob retrieval, and portable governance remain
+outside this embodiment.
+
+For a real browser evidence run, use
+`scripts/run-two-agent-browser-proof.sh`. It shows Bob's unsigned terminal
+request, Alice's local approval, and Bob's final projection of Alice's returned
+signed record. The runner prints its disposable evidence directory, containing
+`bob-final.png`, `alice-approval-response.json`, and the agent and Chrome
+logs. Source: DI-fuzar; DI-hibok; DI-kasaz.
