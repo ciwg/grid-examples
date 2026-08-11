@@ -60,6 +60,7 @@ type Tool struct {
 }
 
 type Loan struct {
+	RecordID  string    `json:"recordId,omitempty"`
 	MemberID  string    `json:"memberId"`
 	DueAt     time.Time `json:"dueAt"`
 	CreatedAt time.Time `json:"createdAt"`

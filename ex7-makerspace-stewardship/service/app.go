@@ -12,25 +12,39 @@ import (
 // append-only observations and current safety status easy to inspect in the
 // first standalone example. Source: DI-dapod.
 type App struct {
-	mu    sync.RWMutex
-	state State
-	store *Store
+	mu          sync.RWMutex
+	state       State
+	store       *Store
+	recognition RecognitionPolicy
 }
 
 func NewPersistentDemoApp(root string) (*App, error) {
+	return newPersistentApp(root, RecognitionPolicy{})
+}
+
+// NewPersistentRecordApp starts a record-backed agent view with the caller's
+// local public-key recognition policy. Source: DI-piruf.
+func NewPersistentRecordApp(root string, recognition RecognitionPolicy) (*App, error) {
+	return newPersistentApp(root, recognition)
+}
+
+func newPersistentApp(root string, recognition RecognitionPolicy) (*App, error) {
 	app := NewDemoApp()
+	app.recognition = recognition
 	store, err := NewStore(root)
 	if err != nil {
 		return nil, err
 	}
 	app.store = store
-	events, err := store.ReadAll()
+	frames, err := store.ReadRecordFrames()
 	if err != nil {
 		return nil, err
 	}
-	for _, event := range events {
-		if err := app.applyEvent(event); err != nil {
-			return nil, err
+	for _, frame := range frames {
+		for _, raw := range frame {
+			if err := app.applyRecord(raw); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return app, nil
@@ -67,6 +81,112 @@ func (a *App) State() State {
 		}
 	}
 	return state
+}
+
+// IngestRecords durably retains externally signed record bytes before applying
+// only locally recognized known-family effects. It acknowledges only after the
+// exact frame is durable and its local projection is updated. Source: DI-tohak;
+// DI-piruf.
+func (a *App) IngestRecords(records [][]byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.store == nil {
+		return errors.New("record ingress requires persistent storage")
+	}
+	for _, raw := range records {
+		record, err := ParseRecord(raw)
+		if err != nil {
+			return err
+		}
+		if err := validateKnownRecord(record); err != nil {
+			return err
+		}
+	}
+	if err := a.store.AppendRecords(records); err != nil {
+		return err
+	}
+	for _, raw := range records {
+		if err := a.applyRecord(raw); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *App) applyRecord(raw []byte) error {
+	record, err := ParseRecord(raw)
+	if err != nil {
+		return err
+	}
+	if err := validateKnownRecord(record); err != nil {
+		return err
+	}
+	if !a.recognition.recognizes(record) {
+		return nil
+	}
+	createdAt, err := time.Parse(time.RFC3339, record.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("parse record created_at: %w", err)
+	}
+	switch record.Protocol {
+	case observationPCID:
+		var payload observationPayload
+		if err := decodePayload(record.Payload, &payload); err != nil {
+			return err
+		}
+		tool, err := a.tool(payload.ToolID)
+		if err != nil {
+			return nil
+		}
+		tool.Observations = append(tool.Observations, Observation{ID: record.ID, ToolID: payload.ToolID, ReporterID: record.Signer, Text: payload.Observation, CreatedAt: createdAt})
+	case safetyPCID:
+		var payload safetyPayload
+		if err := decodePayload(record.Payload, &payload); err != nil {
+			return err
+		}
+		tool, err := a.tool(payload.ToolID)
+		if err != nil {
+			return nil
+		}
+		if payload.Disposition == "hold" {
+			tool.SafetyHold = true
+			tool.Condition = "Safety hold: awaiting area review"
+			return nil
+		}
+		if !a.hasScope(record.Signer, tool.AreaID, "clear safety holds") {
+			return nil
+		}
+		tool.SafetyHold = false
+		tool.Condition = payload.Assessment
+	case loanPCID:
+		var payload loanPayload
+		if err := decodePayload(record.Payload, &payload); err != nil {
+			return err
+		}
+		tool, err := a.tool(payload.ToolID)
+		if err != nil {
+			return nil
+		}
+		dueAt, err := time.Parse(time.RFC3339, payload.DueAt)
+		if err != nil {
+			return err
+		}
+		tool.ActiveLoan = &Loan{RecordID: record.ID, MemberID: record.Signer, DueAt: dueAt, CreatedAt: createdAt, TermsComplete: true, PolicyVersion: payload.PolicyVersion, Policy: payload.Policy}
+	case returnPCID:
+		var payload returnPayload
+		if err := decodePayload(record.Payload, &payload); err != nil {
+			return err
+		}
+		tool, err := a.tool(payload.ToolID)
+		if err != nil {
+			return nil
+		}
+		if tool.ActiveLoan != nil && tool.ActiveLoan.RecordID == payload.LoanRecordID && tool.ActiveLoan.MemberID == record.Signer {
+			tool.ActiveLoan = nil
+			tool.Condition = payload.Condition
+		}
+	}
+	return nil
 }
 
 func (a *App) AddObservation(toolID, reporterID, text string, safetyHold bool, photos []Photo) (Tool, error) {
@@ -224,7 +344,7 @@ func (a *App) record(event Event) error {
 	if a.store == nil {
 		return nil
 	}
-	return a.store.Append(event)
+	return errors.New("unsigned draft cannot enter persistent record history")
 }
 
 func (a *App) applyEvent(event Event) error {

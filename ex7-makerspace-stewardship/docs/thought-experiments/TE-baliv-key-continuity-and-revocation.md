@@ -4,7 +4,7 @@ TE ID: TE-baliv
 
 ## Status
 
-needs DF
+superseded by TE-biban / DI-tohak
 
 ## Decision under test
 
@@ -36,4 +36,6 @@ B and C are rejected. A is recommended, with one new frozen pCID per continuity 
 
 ## Decision status
 
-needs DF
+superseded by TE-biban / DI-tohak. The proposed continuity and revocation
+families are not implementation evidence and require a later source-grounded
+decision after Ex7's first record-contract claim is real.

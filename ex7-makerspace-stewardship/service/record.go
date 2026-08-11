@@ -41,8 +41,7 @@ func (r Record) marshal(signature []byte) ([]byte, error) {
 	if len(r.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid author public key")
 	}
-	digest := sha256.Sum256(r.PublicKey)
-	if r.KeyID != "ed25519:"+hex.EncodeToString(digest[:]) {
+	if r.KeyID != keyID(r.PublicKey) {
 		return nil, errors.New("author key ID does not match public key")
 	}
 	encoder, err := cbor.CanonicalEncOptions().EncMode()
@@ -50,6 +49,11 @@ func (r Record) marshal(signature []byte) ([]byte, error) {
 		return nil, err
 	}
 	return encoder.Marshal(cbor.Tag{Number: gridTag, Content: []any{cbor.Tag{Number: 42, Content: p.Bytes()}, r.ID, r.Signer, r.CreatedAt, []byte(r.Payload), r.KeyID, r.PublicKey, signature}})
+}
+
+func keyID(publicKey ed25519.PublicKey) string {
+	digest := sha256.Sum256(publicKey)
+	return "ed25519:" + hex.EncodeToString(digest[:])
 }
 
 func (r Record) Sign(private ed25519.PrivateKey) (Record, []byte, error) {

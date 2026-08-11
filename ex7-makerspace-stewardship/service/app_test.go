@@ -1,193 +1,139 @@
 package service
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
+	"crypto/ed25519"
+	"crypto/sha256"
 	"testing"
-	"time"
 )
 
-func TestAnyMemberCanPlaceSafetyHoldButOnlyStewardClearsIt(t *testing.T) {
-	app := NewDemoApp()
-	if _, err := app.AddObservation("table-saw", "alice", "Blade guard is loose", true, nil); err != nil {
-		t.Fatalf("place safety hold: %v", err)
-	}
-	if _, err := app.ClearSafetyHold("table-saw", "alice", "Looks safe"); err == nil {
-		t.Fatal("unrecognized member cleared safety hold")
-	}
-	tool, err := app.ClearSafetyHold("table-saw", "carol", "Guard fastener tightened; available for qualified in-space use")
+func signedTestRecord(t *testing.T, protocol, id, signer, payload string) ([]byte, ed25519.PublicKey) {
+	t.Helper()
+	seed := sha256.Sum256([]byte("ex7 record signer: " + signer))
+	private := ed25519.NewKeyFromSeed(seed[:])
+	public := private.Public().(ed25519.PublicKey)
+	record := Record{Protocol: protocol, ID: id, Signer: signer, CreatedAt: "2026-08-11T22:10:00Z", Payload: []byte(payload), KeyID: keyID(public), PublicKey: public}
+	_, raw, err := record.Sign(private)
 	if err != nil {
-		t.Fatalf("recognized steward clears safety hold: %v", err)
+		t.Fatalf("sign record: %v", err)
 	}
-	if tool.SafetyHold {
-		t.Fatal("tool remains on safety hold")
-	}
+	return raw, public
 }
 
-func TestObservationAcceptsAnOptionalPhoto(t *testing.T) {
-	app := NewDemoApp()
-	tool, err := app.AddObservation("table-saw", "alice", "Scratch near fence", false, []Photo{{Name: "scratch.png", DataURL: "data:image/png;base64,aGVsbG8="}})
-	if err != nil {
-		t.Fatalf("record photo observation: %v", err)
-	}
-	if len(tool.Observations[0].Photos) != 1 {
-		t.Fatal("photo was not preserved")
-	}
-}
-
-func TestLoanPreservesAcceptedPolicyAndReturnEvidence(t *testing.T) {
-	app := NewDemoApp()
-	loaned, err := app.CreateLoan("cordless-drill", "alice", time.Now().Add(48*time.Hour))
-	if err != nil {
-		t.Fatalf("create loan: %v", err)
-	}
-	if loaned.ActiveLoan == nil || !loaned.ActiveLoan.TermsComplete || loaned.ActiveLoan.PolicyVersion == "" {
-		t.Fatal("loan does not preserve policy evidence")
-	}
-	returned, err := app.ReturnLoan("cordless-drill", "alice", "Returned in expected condition; charger and case present")
-	if err != nil {
-		t.Fatalf("return loan: %v", err)
-	}
-	if returned.ActiveLoan != nil {
-		t.Fatal("returned tool is still loaned")
-	}
-	if !strings.Contains(returned.Observations[len(returned.Observations)-1].Text, "return") {
-		t.Fatal("return observation missing")
-	}
-}
-
-func TestInSpaceOnlyToolCannotBeLoaned(t *testing.T) {
-	app := NewDemoApp()
-	_, err := app.CreateLoan("table-saw", "alice", time.Now().Add(24*time.Hour))
-	if err == nil || !strings.Contains(err.Error(), "in-space") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestQualificationIsScopedToTheTool(t *testing.T) {
-	app := NewDemoApp()
-	state := app.State()
-	if app.isQualifiedForTool("alice", state.Tools[0]) {
-		t.Fatal("portable-power-tools qualification granted table saw access")
-	}
-	if !app.isQualifiedForTool("alice", state.Tools[1]) {
-		t.Fatal("portable-power-tools qualification did not grant drill access")
-	}
-}
-
-func TestPersistentAppReplaysEvidence(t *testing.T) {
+func TestPersistentRecordAppReplaysObservationAndSafetyDisposition(t *testing.T) {
+	observation, aliceKey := signedTestRecord(t, observationPCID, "obs-1", "alice", `{"observation":"Guard is loose","tool_id":"table-saw"}`)
+	hold, carolKey := signedTestRecord(t, safetyPCID, "hold-1", "carol", `{"assessment":"Guard is loose","basis_record_id":"obs-1","disposition":"hold","tool_id":"table-saw"}`)
+	policy := NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey, "carol": carolKey})
 	root := t.TempDir()
-	app, err := NewPersistentDemoApp(root)
+	app, err := NewPersistentRecordApp(root, policy)
 	if err != nil {
-		t.Fatalf("create persistent app: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	if _, err := app.AddObservation("table-saw", "alice", "Fence alignment needs review", true, nil); err != nil {
-		t.Fatalf("record durable observation: %v", err)
+	if err := app.IngestRecords([][]byte{observation, hold}); err != nil {
+		t.Fatalf("ingest evidence frame: %v", err)
 	}
-	reloaded, err := NewPersistentDemoApp(root)
+	reloaded, err := NewPersistentRecordApp(root, policy)
 	if err != nil {
-		t.Fatalf("reload persistent app: %v", err)
+		t.Fatalf("replay record app: %v", err)
 	}
 	tool := reloaded.State().Tools[0]
 	if !tool.SafetyHold || len(tool.Observations) != 1 {
-		t.Fatalf("did not replay safety evidence: %+v", tool)
+		t.Fatalf("replayed tool = %+v", tool)
 	}
 }
 
-func TestPersistentAppReplaysLargestAcceptedPhoto(t *testing.T) {
+func TestPersistentRecordAppRetainsUnrecognizedEvidenceWithoutProjection(t *testing.T) {
+	record, _ := signedTestRecord(t, observationPCID, "obs-1", "mallory", `{"observation":"Untrusted claim","tool_id":"table-saw"}`)
 	root := t.TempDir()
-	app, err := NewPersistentDemoApp(root)
+	app, err := NewPersistentRecordApp(root, RecognitionPolicy{})
 	if err != nil {
-		t.Fatalf("create persistent app: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	prefix := "data:image/png;base64,"
-	photo := Photo{Name: "large.png", DataURL: prefix + strings.Repeat("a", maxPhotoDataURLBytes-len(prefix))}
-	if _, err := app.AddObservation("table-saw", "alice", "Large photo evidence", false, []Photo{photo}); err != nil {
-		t.Fatalf("record large photo: %v", err)
+	if err := app.IngestRecords([][]byte{record}); err != nil {
+		t.Fatalf("retain unrecognized record: %v", err)
 	}
-	reloaded, err := NewPersistentDemoApp(root)
+	if got := len(app.State().Tools[0].Observations); got != 0 {
+		t.Fatalf("unrecognized record changed projection: %d observations", got)
+	}
+	frames, err := app.store.ReadRecordFrames()
 	if err != nil {
-		t.Fatalf("replay large photo: %v", err)
+		t.Fatalf("read retained evidence: %v", err)
 	}
-	if got := len(reloaded.State().Tools[0].Observations[0].Photos); got != 1 {
-		t.Fatalf("replayed photos = %d, want 1", got)
+	if len(frames) != 1 || string(frames[0][0]) != string(record) {
+		t.Fatal("unrecognized record was not retained exactly")
 	}
 }
 
-func TestFailedAppendDoesNotChangeLiveState(t *testing.T) {
-	app := NewDemoApp()
-	app.store = &Store{path: t.TempDir()}
-	if _, err := app.AddObservation("table-saw", "alice", "Guard is loose", true, nil); err == nil {
-		t.Fatal("recorded observation despite an unwritable event path")
-	}
-	tool := app.State().Tools[0]
-	if tool.SafetyHold || len(tool.Observations) != 0 {
-		t.Fatalf("failed append changed live state: %+v", tool)
-	}
-}
-
-func TestPersistentAppFailsClosedOnMalformedEvidence(t *testing.T) {
+func TestPersistentRecordAppReplaysUnknownPCIDWithoutProjection(t *testing.T) {
+	unknownPCID := rawCIDv1([]byte("ex7 unknown family test specification"))
+	record, aliceKey := signedTestRecord(t, unknownPCID, "unknown-1", "alice", `{}`)
 	root := t.TempDir()
-	path := filepath.Join(root, "events.jsonl")
-	if err := os.WriteFile(path, []byte(`{"type":"observation"`), 0o600); err != nil {
-		t.Fatalf("write malformed evidence: %v", err)
-	}
-	if _, err := NewPersistentDemoApp(root); err == nil {
-		t.Fatal("started with malformed evidence")
-	}
-	contents, err := os.ReadFile(path)
+	policy := NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey})
+	app, err := NewPersistentRecordApp(root, policy)
 	if err != nil {
-		t.Fatalf("read preserved evidence: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	if string(contents) != `{"type":"observation"` {
-		t.Fatalf("malformed evidence changed to %q", contents)
+	if err := app.IngestRecords([][]byte{record}); err != nil {
+		t.Fatalf("retain unknown family: %v", err)
+	}
+	reloaded, err := NewPersistentRecordApp(root, policy)
+	if err != nil {
+		t.Fatalf("replay unknown family: %v", err)
+	}
+	if got := len(reloaded.State().Tools[0].Observations); got != 0 {
+		t.Fatalf("unknown pCID changed projection: %d observations", got)
+	}
+	frames, err := reloaded.store.ReadRecordFrames()
+	if err != nil || len(frames) != 1 || string(frames[0][0]) != string(record) {
+		t.Fatalf("unknown pCID replay = %#v, %v", frames, err)
 	}
 }
 
-func TestLoanReplayPreservesAcceptedAreaPolicy(t *testing.T) {
-	root := t.TempDir()
-	app, err := NewPersistentDemoApp(root)
+func TestPersistentRecordAppDoesNotApplyRoleMismatchedRecognizedKey(t *testing.T) {
+	hold, aliceKey := signedTestRecord(t, safetyPCID, "hold-1", "alice", `{"assessment":"Guard is loose","disposition":"hold","tool_id":"table-saw"}`)
+	clear, _ := signedTestRecord(t, safetyPCID, "clear-1", "alice", `{"assessment":"Looks safe","disposition":"clear","tool_id":"table-saw"}`)
+	app, err := NewPersistentRecordApp(t.TempDir(), NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey}))
 	if err != nil {
-		t.Fatalf("create persistent app: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	app.state.Areas[0].PolicyVersion = "woodworking-lending/v2"
-	app.state.Areas[0].Policy = "Return the drill with its charger and case."
-	if _, err := app.CreateLoan("cordless-drill", "alice", time.Now().Add(24*time.Hour)); err != nil {
-		t.Fatalf("create loan: %v", err)
+	if err := app.IngestRecords([][]byte{hold, clear}); err != nil {
+		t.Fatalf("ingest role-mismatched records: %v", err)
 	}
-	reloaded, err := NewPersistentDemoApp(root)
-	if err != nil {
-		t.Fatalf("replay loan: %v", err)
-	}
-	loan := reloaded.State().Tools[1].ActiveLoan
-	if loan == nil {
-		t.Fatal("replayed loan is missing")
-	}
-	if loan.PolicyVersion != "woodworking-lending/v2" || loan.Policy != "Return the drill with its charger and case." {
-		t.Fatalf("replayed policy = %q / %q", loan.PolicyVersion, loan.Policy)
+	if !app.State().Tools[0].SafetyHold {
+		t.Fatal("recognized non-steward key cleared a safety hold")
 	}
 }
 
-func TestPersistentAppReplaysLegacyLoanWithIncompleteTerms(t *testing.T) {
-	root := t.TempDir()
-	store, err := NewStore(root)
+func TestPersistentRecordAppRejectsMalformedKnownPayloadBeforeWrite(t *testing.T) {
+	record, aliceKey := signedTestRecord(t, observationPCID, "obs-1", "alice", `{"observation":"Missing tool"}`)
+	app, err := NewPersistentRecordApp(t.TempDir(), NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey}))
 	if err != nil {
-		t.Fatalf("create store: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	dueAt := time.Now().Add(24 * time.Hour).UTC()
-	if err := store.Append(Event{Type: "loan", ToolID: "cordless-drill", ActorID: "alice", DueAt: dueAt, CreatedAt: time.Now().UTC()}); err != nil {
-		t.Fatalf("append legacy loan: %v", err)
+	if err := app.IngestRecords([][]byte{record}); err == nil {
+		t.Fatal("accepted malformed known-family payload")
 	}
-	app, err := NewPersistentDemoApp(root)
+	if _, err := app.store.ReadRecordFrames(); err != nil {
+		t.Fatalf("read empty record history: %v", err)
+	}
+}
+
+func TestPersistentRecordAppProjectsLoanAndLinkedReturn(t *testing.T) {
+	loan, aliceKey := signedTestRecord(t, loanPCID, "loan-1", "alice", `{"borrower_id":"alice","due_at":"2030-01-02T15:04:05Z","policy":"Return with charger","policy_version":"v1","tool_id":"cordless-drill"}`)
+	returned, _ := signedTestRecord(t, returnPCID, "return-1", "alice", `{"condition":"Returned with charger","loan_record_id":"loan-1","tool_id":"cordless-drill"}`)
+	app, err := NewPersistentRecordApp(t.TempDir(), NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey}))
 	if err != nil {
-		t.Fatalf("replay legacy loan: %v", err)
+		t.Fatalf("create persistent record app: %v", err)
 	}
-	loan := app.State().Tools[1].ActiveLoan
-	if loan == nil || loan.TermsComplete {
-		t.Fatalf("legacy loan terms completeness = %+v", loan)
+	if err := app.IngestRecords([][]byte{loan}); err != nil {
+		t.Fatalf("ingest loan: %v", err)
 	}
-	if loan.PolicyVersion != "" || loan.Policy != "" || !loan.DueAt.Equal(dueAt) {
-		t.Fatalf("legacy loan evidence = %+v", loan)
+	if app.State().Tools[1].ActiveLoan == nil {
+		t.Fatal("loan was not projected")
+	}
+	if err := app.IngestRecords([][]byte{returned}); err != nil {
+		t.Fatalf("ingest return: %v", err)
+	}
+	if app.State().Tools[1].ActiveLoan != nil {
+		t.Fatal("linked return did not clear active loan")
 	}
 }

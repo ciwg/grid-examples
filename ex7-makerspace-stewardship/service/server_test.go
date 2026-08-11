@@ -2,48 +2,39 @@ package service
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
-func TestHTTPWorkflowRecordsSafetyHoldLoanAndReturn(t *testing.T) {
-	app := NewDemoApp()
-	handler := app.Handler()
-
-	request := httptest.NewRequest(http.MethodPost, "/api/tools/table-saw/observations", bytes.NewBufferString(`{"reporterId":"alice","text":"Guard is loose","safetyHold":true,"photos":[{"name":"guard.png","dataUrl":"data:image/png;base64,aGVsbG8="}]}`))
-	request.Header.Set("Content-Type", "application/json")
+func TestHTTPSignedRecordIngressProjectsRecognizedEvidence(t *testing.T) {
+	record, aliceKey := signedTestRecord(t, observationPCID, "obs-1", "alice", `{"observation":"Guard is loose","tool_id":"table-saw"}`)
+	app, err := NewPersistentRecordApp(t.TempDir(), NewRecognitionPolicy(map[string]ed25519.PublicKey{"alice": aliceKey}))
+	if err != nil {
+		t.Fatalf("create record app: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/records", bytes.NewBufferString(`{"records":["`+base64.StdEncoding.EncodeToString(record)+`"]}`))
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("record safety hold status = %d, body = %s", response.Code, response.Body.String())
+	app.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("ingress status = %d, body = %s", response.Code, response.Body.String())
 	}
-
-	dueAt := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
-	request = httptest.NewRequest(http.MethodPost, "/api/tools/cordless-drill/loans", bytes.NewBufferString(`{"memberId":"alice","dueAt":"`+dueAt+`"}`))
-	request.Header.Set("Content-Type", "application/json")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("create loan status = %d, body = %s", response.Code, response.Body.String())
-	}
-
-	request = httptest.NewRequest(http.MethodPost, "/api/tools/cordless-drill/returns", bytes.NewBufferString(`{"memberId":"alice","condition":"Returned with charger"}`))
-	request.Header.Set("Content-Type", "application/json")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("return loan status = %d, body = %s", response.Code, response.Body.String())
+	if got := len(app.State().Tools[0].Observations); got != 1 {
+		t.Fatalf("projected observations = %d", got)
 	}
 }
 
-func TestMalformedJSONStopsRequest(t *testing.T) {
-	app := NewDemoApp()
-	request := httptest.NewRequest(http.MethodPost, "/api/tools/table-saw/observations", bytes.NewBufferString(`not-json`))
+func TestHTTPRecordIngressRejectsMalformedBase64(t *testing.T) {
+	app, err := NewPersistentRecordApp(t.TempDir(), RecognitionPolicy{})
+	if err != nil {
+		t.Fatalf("create record app: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/records", bytes.NewBufferString(`{"records":["not-base64"]}`))
 	response := httptest.NewRecorder()
 	app.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
-		t.Fatalf("malformed JSON status = %d, body = %s", response.Code, response.Body.String())
+		t.Fatalf("malformed record status = %d, body = %s", response.Code, response.Body.String())
 	}
 }

@@ -1,8 +1,15 @@
 # Makerspace Stewardship
 
-`ex7-makerspace-stewardship` is a browser-first PromiseGrid example application for a single volunteer makerspace. It models equipment condition, area qualifications, voluntary authority, safety holds, and off-site lending without a checkout master.
+`ex7-makerspace-stewardship` is an Ex7 makerspace record-agent example. It
+retains externally signed, pCID-selected makerspace records and derives a
+local view only from known-family records whose public keys its local policy
+recognizes. It is not a browser-signing, account-identity, relay, or portable
+governance implementation. Source: DI-tohak; DI-piruf.
 
-In-space use is not a checkout workflow. Any member can record an observation and place a potential safety hold; only a recognized area steward can clear it after recording an inspection. Loanable portable tools have a separate handoff and return record that preserves the terms accepted at checkout.
+The browser displays local state and submits already signed record bytes. A
+selected name, browser session, or account does not author a promise. Unknown
+or unrecognized records remain retained evidence without changing the local
+projection.
 
 Run it with:
 
@@ -12,11 +19,19 @@ go run ./cmd/makerspace-stewardship
 
 Then open `http://127.0.0.1:7037/`.
 
-The server writes its append-only local evidence log to
-`.makerspace-stewardship/events.jsonl` by default. Use `-runtime-root` to
-choose another location.
+The server writes append-only exact record frames to
+`.makerspace-stewardship/records.frames` by default. Use `-runtime-root` to
+choose another location. Existing browser workflow controls are intentionally
+replaced by signed-record ingress until a separate signing embodiment exists.
+The stock command starts with no recognized public keys, so it retains valid
+records without projecting them; configuring a local recognition policy is the
+next embodiment slice. Create `.makerspace-stewardship/recognition.json` with
+mode `0600`, or use `-allow-empty-recognition` only for retention-only
+bootstrap. Source: DI-piruf; DI-likoh.
 
 Read the [operator guide](docs/operator-guide.md),
 [workflow and evidence guide](docs/workflow-and-evidence-guide.md), and
-[completeness verification guide](docs/completeness-verification.md) before
-evaluating the example.
+[testing guide](docs/testing.md),
+[implementation claims](docs/promisegrid-implementation-claims.md),
+[completeness verification guide](docs/completeness-verification.md), and
+[CHANGELOG](CHANGELOG.md) before evaluating the example.

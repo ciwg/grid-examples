@@ -224,27 +224,130 @@
   the repository handle ledger.
 - Supersedes: DI-zumat
 
+### DI-basun
+
+- ID: DI-basun
+- Date: 2026-08-11 13:57:38
+- Author: jj@thesalleys.com (JJ)
+- Status: superseded
+- Decision: Establish one Ed25519 root signing key per independently owned
+  participant agent. The root key signs ordinary Ex7 makerspace promises and
+  participant key-continuity and key-revocation promises directly. Freeze
+  `participant-key-continuity-v1`, `participant-key-revocation-v1`, and the
+  signed public `participant-peer-card-v1` bootstrap artifact under
+  `docs/protocols/participant-identity/`, with their immutable CIDv1 mappings
+  in `docs/protocols/participant-identity-pcid-registry.md`.
+- Intent: Give participants a portable, independently verifiable identity
+  anchor without making an account, browser profile, relay, delegated device
+  key, or shared service an authoring authority.
+- Constraints: Continuity and revocation use the top-level semantic action
+  `promise` and preserve local trust assessment. A peer card is public,
+  signed discovery data, not a durable promise, account credential, membership
+  assertion, current-key authority, or global identity registry. No delegated
+  operational/device keys, recovery witnesses, or account-derived signatures
+  are introduced in this slice. Exact local private-key path and bootstrap
+  implementation remain a subsequent Slice 1 decision.
+- Affects: `docs/thought-experiments/TE-mamop-participant-root-identity-and-bootstrap.md`,
+  `docs/thought-experiments/TE-baliv-key-continuity-and-revocation.md`,
+  `docs/protocols/participant-identity/`,
+  `docs/protocols/participant-identity-pcid-registry.md`, `service/`, tests,
+  docs, and the repository handle ledger.
+- Supersedes: none
+
+### DI-tohak
+
+- ID: DI-tohak
+- Date: 2026-08-11 21:37:00
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Re-create Ex7 by Alternative A from TE-biban: retain the four
+  makerspace family specifications only as preserved protocol-design artifacts
+  until their exact-byte pCIDs are verified and the running product conforms
+  to them. Treat `makerspace-record-v1` as an explicitly Ex7-scoped record
+  profile, not a PromiseGrid-wide envelope rule. The first implementation
+  claim may be made only after live exact-byte record storage/replay,
+  per-family validation and projection, semantic author-evidence checks, and
+  adversarial conformance tests exist.
+- Intent: Repair the gap between Ex7's frozen protocol prose and its actual
+  JSONL local-demo runtime, so that every future PromiseGrid claim names an
+  exact contract and evidence rather than a design aspiration.
+- Constraints: The present `events.jsonl` app remains a local-demo baseline,
+  not an implementation of any makerspace pCID. Browser/account interaction
+  is an embodiment convenience, never author evidence. Relay carriage, key
+  continuity/recovery, delegated devices, blob retrieval, and portable
+  governance remain separate work until each has its own source-grounded
+  contract and evidence. Do not call the current Grid tag value an official
+  universal allocation. Preserve unknown well-framed pCID bytes without
+  assigning known semantics once the live record path exists.
+- Affects: `docs/thought-experiments/TE-biban-source-grounded-ex7-recreation.md`,
+  `TODO/TODO-bubuz-canonical-makerspace-records.md`,
+  `TODO/TODO-giman-decentralized-redesign-roadmap.md`,
+  `docs/ex7-decentralized-redesign-roadmap.md`, `docs/protocols/`, `service/`,
+  `web/`, tests, implementation claims, and the repository handle ledger.
+- Supersedes: DI-basun
+
+### DI-piruf
+
+- ID: DI-piruf
+- Date: 2026-08-11 22:05:00
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Accept externally signed exact Ex7 records at the first live
+  ingress boundary. Retain valid records for unknown families or unrecognized
+  keys, and project only known-family records whose full public-key fingerprint
+  is recognized by an injected local policy for the stated participant/role
+  context.
+- Intent: Make signature validity and local makerspace assessment separate, so
+  the record path can become real without attributing process-made signatures
+  to people or treating a chosen display label as evidence of a steward role.
+- Constraints: The runtime creates and retains no participant private keys in
+  this slice. Browser and account routes may submit drafts or exact signed
+  bytes but never sign for a participant. No account credential, relay, or
+  carriage behavior is introduced. Recognition policy is local bootstrap data,
+  not portable membership, identity recovery, or a universal role registry.
+- Affects: `docs/thought-experiments/TE-gozov-signed-ingress-and-local-recognition.md`,
+  `service/`, `web/`, tests, runtime documentation, and the repository handle
+  ledger.
+- Supersedes: none
+
+### DI-likoh
+
+- ID: DI-likoh
+- Date: 2026-08-11 22:30:00
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Load the agent-local recognition policy from
+  `<runtime-root>/recognition.json`: a mode-`0600`, versioned JSON file of
+  label and Ed25519-public-key entries. The agent fails closed on malformed
+  content; an empty policy requires an explicit command-line bootstrap mode.
+- Intent: Give a real operator a durable, inspectable local policy input
+  without turning a browser, account, or private-key store into an authoring or
+  recognition authority.
+- Constraints: The file contains public keys only. It is never modified by the
+  HTTP/UI process. Duplicate labels/keys, empty labels, invalid base64, wrong
+  key size, unknown schema version, insecure permissions, and malformed JSON
+  fail startup. Key continuity, revocation, and portable membership remain
+  separate work.
+- Affects: `docs/thought-experiments/TE-bilad-local-recognition-policy-configuration.md`,
+  `<runtime-root>/recognition.json`, `service/`, `cmd/`, tests, and operator
+  documentation.
+- Supersedes: none
+
 ## Scope
 
-Implement the decision locked by TE-malap. First define Ex7's active
-makerspace family specifications and fixed pCID registry, then convert the
-record store and state projection, author-evidence admission, tests, and
-documentation as coherent slices.
-
-The implementation order is now the bounded participant-agent roadmap in
+Implement the source-grounded recreation locked by TE-biban / DI-tohak. The
+four family files and registry are preserved protocol-design artifacts, not
+implemented claims, until their exact pCID calculations and the live
+conformance boundary are proven. The implementation order is in
 [`TODO-giman-decentralized-redesign-roadmap.md`](TODO-giman-decentralized-redesign-roadmap.md).
-It operationalizes DI-lazim, DI-janup, DI-sinov, and DI-rifib; DI-simus
-remains superseded and must not be used as a shortcut for the conversion.
 
 ## Open slices
 
-- [x] Define and freeze the initial makerspace family-spec set and central pCID
-  registry. Family boundaries and paths are locked by DI-bosur; shared envelope
-  and local key-storage details are locked by DI-simus; payload fields and blob
-  references are locked by DI-pihav. The four fixed mappings are published in
-  `../docs/protocols/makerspace-family-pcid-registry.md`.
-- [ ] Re-create durable storage and replay over exact canonical Grid bytes.
+- [ ] Verify every frozen makerspace specification's exact-byte pCID and its
+  cited record-profile document identity; publish no implementation claim yet.
+- [ ] Re-create durable storage and replay over exact canonical Ex7 records,
+  with per-family validation and derived local projection.
 - [ ] Add semantic author-evidence admission and unknown-family byte
-  preservation.
-- [ ] Replace browser-facing legacy claims with aligned documentation and
-  verification evidence.
+  preservation through a separately locked participant embodiment.
+- [ ] Replace browser-facing local-demo language with implementation claims,
+  testing evidence, and explicit deferrals only after the live path passes.

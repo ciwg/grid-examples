@@ -1,14 +1,13 @@
 package service
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -32,12 +31,10 @@ type Event struct {
 
 const (
 	maxPhotoDataURLBytes = 2 * 1024 * 1024
-	maxEventBytes        = 8 * 1024 * 1024
 	maxFrameBytes        = 1 * 1024 * 1024
 )
 
 type Store struct {
-	path      string
 	framePath string
 }
 
@@ -48,13 +45,21 @@ func NewStore(root string) (*Store, error) {
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, err
 	}
-	return &Store{path: filepath.Join(root, "events.jsonl"), framePath: filepath.Join(root, "records.frames")}, nil
+	return &Store{framePath: filepath.Join(root, "records.frames")}, nil
 }
 
 // AppendRecords durably appends exact canonical record bytes as one projection
 // transaction. Intent: preserve participant evidence without re-encoding it.
 // Source: DI-rifib; DI-sinov.
 func (s *Store) AppendRecords(records [][]byte) (err error) {
+	if len(records) == 0 {
+		return errors.New("record frame is empty")
+	}
+	for _, record := range records {
+		if _, err := ParseRecord(record); err != nil {
+			return fmt.Errorf("validate record: %w", err)
+		}
+	}
 	payload, err := cbor.CanonicalEncOptions().EncMode()
 	if err != nil {
 		return err
@@ -93,31 +98,11 @@ func (s *Store) AppendRecords(records [][]byte) (err error) {
 	return file.Sync()
 }
 
-func (s *Store) Append(event Event) error {
-	file, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	closeWithError := func(operationErr error) error {
-		if closeErr := file.Close(); closeErr != nil {
-			return errors.Join(operationErr, closeErr)
-		}
-		return operationErr
-	}
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(event); err != nil {
-		return closeWithError(err)
-	}
-	// Intent: Do not acknowledge evidence until its bytes reach stable storage.
-	// Source: DI-dapod.
-	if err := file.Sync(); err != nil {
-		return closeWithError(err)
-	}
-	return closeWithError(nil)
-}
-
-func (s *Store) ReadAll() (events []Event, returnErr error) {
-	file, err := os.Open(s.path)
+// ReadRecordFrames replays only complete canonical frames containing exact
+// valid record bytes. Intent: preserve durable evidence without assigning
+// family semantics at the storage boundary. Source: DI-tohak.
+func (s *Store) ReadRecordFrames() (frames [][][]byte, returnErr error) {
+	file, err := os.Open(s.framePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -125,25 +110,58 @@ func (s *Store) ReadAll() (events []Event, returnErr error) {
 		return nil, err
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			returnErr = errors.Join(returnErr, err)
+		if closeErr := file.Close(); closeErr != nil {
+			returnErr = errors.Join(returnErr, closeErr)
 		}
 	}()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), maxEventBytes)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var event Event
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			return nil, err
-		}
-		events = append(events, event)
+
+	header := make([]byte, len("MSR1\n"))
+	if _, err := io.ReadFull(file, header); err != nil {
+		return nil, fmt.Errorf("read record-store header: %w", err)
 	}
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+	if string(header) != "MSR1\n" {
+		return nil, errors.New("invalid record-store header")
+	}
+	encoder, err := cbor.CanonicalEncOptions().EncMode()
+	if err != nil {
 		return nil, err
 	}
-	return events, nil
+	for {
+		var size [8]byte
+		read, err := io.ReadFull(file, size[:])
+		if errors.Is(err, io.EOF) && read == 0 {
+			return frames, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read record-frame length: %w", err)
+		}
+		length := binary.BigEndian.Uint64(size[:])
+		if length == 0 || length > maxFrameBytes {
+			return nil, errors.New("invalid record-frame length")
+		}
+		body := make([]byte, int(length))
+		if _, err := io.ReadFull(file, body); err != nil {
+			return nil, fmt.Errorf("read record-frame body: %w", err)
+		}
+		var records [][]byte
+		if err := cbor.Unmarshal(body, &records); err != nil {
+			return nil, fmt.Errorf("decode record frame: %w", err)
+		}
+		canonical, err := encoder.Marshal(records)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(body, canonical) {
+			return nil, errors.New("record frame is not canonical")
+		}
+		if len(records) == 0 {
+			return nil, errors.New("record frame is empty")
+		}
+		for _, record := range records {
+			if _, err := ParseRecord(record); err != nil {
+				return nil, fmt.Errorf("validate stored record: %w", err)
+			}
+		}
+		frames = append(frames, records)
+	}
 }
