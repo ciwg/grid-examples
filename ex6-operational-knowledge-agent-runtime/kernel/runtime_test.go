@@ -538,25 +538,23 @@ func TestBatchMetadataValidation(t *testing.T) {
 
 func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
-	runtime := newRuntime(t)
-	batch := grid.Batch{
-		Format:         grid.RelayBatchFormat,
-		Implementation: "peer-a",
-		ExportedAt:     "2026-07-28T00:00:00Z",
-		ImplementationClaims: []grid.ImplementationClaim{
-			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
-		},
-		Records:      [][]byte{raw},
-		RecordProofs: grid.ProofsForRecords([][]byte{raw}),
+	source := newRuntime(t)
+	if _, err := source.AppendRecord(context.Background(), raw); err != nil {
+		t.Fatalf("author source record: %v", err)
 	}
-	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
+	batch, err := source.ExportBatch()
+	if err != nil {
+		t.Fatalf("export authored record: %v", err)
+	}
+	importer := newRuntime(t)
+	if err := importer.ImportBatch(context.Background(), batch); err != nil {
 		t.Fatalf("first import: %v", err)
 	}
-	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
+	if err := importer.ImportBatch(context.Background(), batch); err != nil {
 		t.Fatalf("second import: %v", err)
 	}
-	if len(runtime.History()) != 1 {
-		t.Fatalf("expected exact-byte dedupe after repeated import, got %d", len(runtime.History()))
+	if len(importer.History()) != 1 {
+		t.Fatalf("expected exact-byte dedupe after repeated import, got %d", len(importer.History()))
 	}
 }
 
@@ -2054,7 +2052,7 @@ func TestImportBatchRejectsSingleFederationSpread(t *testing.T) {
 	}
 }
 
-func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
+func TestImportBatchRejectsUnsignedAuthorRecord(t *testing.T) {
 	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "author-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
@@ -2064,11 +2062,11 @@ func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
 		Records:        [][]byte{raw},
 		RecordProofs:   grid.ProofsForRecords([][]byte{raw}),
 	}
-	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
-		t.Fatalf("import legacy unsigned author record: %v", err)
+	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "semantic author signature is required") {
+		t.Fatalf("expected unsigned author rejection, got %v", err)
 	}
-	if len(runtime.History()) != 1 {
-		t.Fatalf("expected imported history, got %d", len(runtime.History()))
+	if len(runtime.History()) != 0 {
+		t.Fatalf("expected no imported history, got %d", len(runtime.History()))
 	}
 }
 

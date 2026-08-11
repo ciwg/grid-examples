@@ -121,6 +121,7 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - per-record relay-carriage signatures by the exporting peer
 - claim-level proofs for advertised implementation claims
 - semantic author-level signatures on durable records
+- strict local admission of canonical package records only with valid semantic author evidence
 - third-party attestation support for implementation claims
 - runtime-owned attestation policy and quorum for implementation claims
 - weighted attestation trust and attester classes

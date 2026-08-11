@@ -19,7 +19,7 @@ errcheck ./...
 | `records` | `TestPackageFamilyRegistryMatchesFrozenSpecifications` | Every built-in pCID literal equals the CIDv1 of its exact immutable family-spec bytes; every mapping is published in the human registry. |
 | `records` | canonical Grid envelope tests | Durable package records use canonical CBOR Grid carriage, canonical JSON payload bytes, RFC3339 timestamps, and correctly shaped author evidence slots. |
 | `packages` | external runner tests | Installed packages describe claims, validate canonical records, and return base64 `[][]byte` records; external families must name an explicit frozen pCID. |
-| `kernel` | runtime, history, import, and workflow tests | Known families use local validators; unknown-family bytes are retained without inferred semantics; local author evidence is distinct from relay carriage; route promises and workflow operations remain local-policy decisions. |
+| `kernel` | runtime, history, import, and workflow tests | Known families use local validators; unknown-family bytes are retained without inferred semantics; Ex6 rejects unsigned semantic records at append/import; relay carriage remains separate; route promises and workflow operations remain local-policy decisions. |
 | `grid` | batch and peer tests | Relay batches carry exact record bytes and relay signatures independently of semantic author evidence. |
 | `cmd/moks` | CLI tests | Package install, routes, relay export/import, workflow actions, and the checked-in writer example expose the same runtime contract to operators. |
 | `go vet` | static analysis | Go code passes standard vet checks. |
@@ -37,4 +37,4 @@ The runtime root selected by the CLI contains local operational evidence, includ
 
 ## Scope and non-claims
 
-Passing these commands does not claim a global identity system, universal authority, automatic workflow execution, global consensus, or automatic trust in a received package or workflow. Author signatures are durable evidence under local policy; relay signatures prove carriage separately. Source: DI-sidoh, DI-jusij, DI-solan.
+Passing these commands does not claim a global identity system, universal authority, automatic workflow execution, global consensus, or automatic trust in a received package or workflow. Ex6 requires semantic author evidence for local package-record admission, but signatures remain evidence rather than authority; relay signatures prove carriage separately. Source: DI-sidoh, DI-jusij, DI-solan, DI-damab.

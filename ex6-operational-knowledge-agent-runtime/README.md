@@ -35,6 +35,12 @@ questions. Ex6 does not claim global identity, universal authority, consensus,
 or automatic trust from package installation or a signature. Source:
 `DI-sidoh`; `DI-jusij`; `DI-solan`.
 
+Ex6's current local admission policy requires a valid semantic author signature
+before a canonical package record enters append-only history through append or
+import. This does not make a signature an authority grant or alter a family
+pCID. See [Author-Signature Admission Policy](./docs/author-signature-admission-policy.md).
+Source: `DI-damab`.
+
 ## What Exists Today
 
 - standalone Go module

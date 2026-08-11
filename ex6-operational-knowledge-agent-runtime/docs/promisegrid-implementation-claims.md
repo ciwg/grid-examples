@@ -6,7 +6,7 @@ Ex6 is an unreleased local operational-knowledge runtime that demonstrates Promi
 
 ## Implemented evidence boundary
 
-Package-defined durable records are canonical Grid CBOR bytes using the shared [package-record carriage](protocols/package-record-v1.md). The envelope carries family name, record ID, signer label, RFC3339 timestamp, canonical JSON payload bytes, and optional semantic author evidence. A complete author signature signs the same canonical envelope with author slots empty. It is evidence interpreted under local policy, not an automatic authorization grant.
+Package-defined durable records are canonical Grid CBOR bytes using the shared [package-record carriage](protocols/package-record-v1.md). The envelope carries family name, record ID, signer label, RFC3339 timestamp, canonical JSON payload bytes, and semantic author-evidence slots. Under Ex6's current [local admission policy](author-signature-admission-policy.md), append and import reject a missing, incomplete, malformed, or invalid author signature. A complete author signature signs the same canonical envelope with author slots empty. It is evidence interpreted under local policy, not an automatic authorization grant.
 
 The runtime keeps semantic author evidence separate from relay-carriage signatures. Relay batches carry exact record bytes and can be signed by the carrying peer without changing who authored a semantic statement. Unknown family records are preserved as exact bytes; the runtime does not invent a validator or semantics for them.
 
@@ -31,7 +31,7 @@ A new interoperable durable-record meaning requires a new versioned immutable sp
 
 ## Explicit non-claims and deferrals
 
-Ex6 does not claim global agent identity, a universal trust root, automatic authority from a signature, automatic authority from package installation, automatic workflow activation/execution, consensus, distributed transaction semantics, or support for arbitrary unknown records beyond exact-byte retention. Workflow role effects, approvals, route selection, signature acceptance, and adapter execution remain explicit local-policy decisions. A semantic or carriage change requires a new versioned protocol specification and pCID.
+Ex6 does not claim global agent identity, a universal trust root, automatic authority from a signature, automatic authority from package installation, automatic workflow activation/execution, consensus, distributed transaction semantics, or support for arbitrary unknown records beyond exact-byte retention. Valid semantic author evidence is required for package-record admission, but its operational authority remains an explicit local-policy decision. Workflow role effects, approvals, route selection, and adapter execution remain local-policy decisions. A semantic or carriage change requires a new versioned protocol specification and pCID.
 
 ## Verification
 

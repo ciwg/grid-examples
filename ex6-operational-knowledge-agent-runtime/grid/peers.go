@@ -422,9 +422,9 @@ func (store *PeerStore) VerifyAuthorEnvelope(envelope records.Envelope) error {
 	// Intent: Verify semantic author signatures on durable records so receivers
 	// can trust that the named record content was signed at authoring time, not
 	// only during later relay carriage.
-	// Source: DI-sovem
+	// Source: DI-damab
 	if !envelope.HasAuthorSignature() {
-		return nil
+		return errors.New("semantic author signature is required")
 	}
 	if peerIDFromPublicKey(envelope.AuthorPublicKey) != envelope.AuthorKeyID {
 		return errors.New("author key id does not match author public key")

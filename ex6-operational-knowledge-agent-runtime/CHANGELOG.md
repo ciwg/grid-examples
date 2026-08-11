@@ -4,7 +4,8 @@
 
 ### PromiseGrid alignment
 
-- Re-created package-defined durable records as canonical Grid CBOR envelopes with canonical JSON payload bytes and optional semantic author evidence. The unreleased symbolic JSON package-record compatibility path is not retained. Source: DI-sidoh.
+- Require a valid semantic author signature before Ex6 appends or imports a canonical package record. This is a local admission policy and does not change frozen family pCIDs or make signatures authority grants. Source: DI-damab.
+- Re-created package-defined durable records as canonical Grid CBOR envelopes with canonical JSON payload bytes and semantic author-evidence slots. The unreleased symbolic JSON package-record compatibility path is not retained. Source: DI-sidoh.
 - Froze 27 built-in package-family specifications and their fixed CIDv1 pCIDs. The compiled registry is verified against the immutable specification bytes and the published human registry. Source: DI-jusij, DI-solan.
 - Defined the extension boundary: workflows compose existing family pCIDs; new shared durable semantics require a new frozen specification and pCID; third-party packages provide their own explicit pCIDs without requiring an Ex6 rebuild. Source: DI-jusij, DI-solan.
 - Changed relay batches and external worker/package results to carry exact canonical record bytes, with JSON base64 `[][]byte` only as an outer process-transport wrapper. Source: DI-sidoh.

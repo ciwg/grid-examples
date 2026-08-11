@@ -89,7 +89,7 @@ This keeps ex6 closer to protocol work than to app-local RPC work. Source:
 | Evidence or state | Representation | Boundary |
 | --- | --- | --- |
 | Durable package record | canonical Grid CBOR bytes; canonical JSON payload slot | semantic family pCID and local validator/policy |
-| Semantic author evidence | optional author key ID, public key, and signature slots | evidence of authorship, not automatic authority |
+| Semantic author evidence | author key ID, public key, and signature slots | required by Ex6 local append/import policy; evidence of authorship, not automatic authority |
 | Append-only history | base64 line framing of exact canonical record bytes | local durable storage |
 | CAS and blobs | content-addressed local objects | local runtime storage |
 | Relay batch | exact record bytes, batch metadata, relay signatures and digest proofs | carriage evidence, separate from author evidence |
@@ -99,7 +99,9 @@ This keeps ex6 closer to protocol work than to app-local RPC work. Source:
 Unknown pCID records remain exact bytes in history, CAS, and relay carriage
 without being treated as known semantics. Role effects, approvals, and route
 selection are local-policy interpretations, not protocol-granted authority.
-Source: `DI-sidoh`; `DI-jusij`; `DI-solan`.
+Ex6 also applies its [strict semantic author-signature admission policy](author-signature-admission-policy.md)
+without changing the frozen family pCIDs. Source: `DI-sidoh`; `DI-jusij`;
+`DI-solan`; `DI-damab`.
 
 ## Current Limits
 

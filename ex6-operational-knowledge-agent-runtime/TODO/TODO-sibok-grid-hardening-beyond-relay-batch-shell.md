@@ -2,6 +2,16 @@
 
 ## Decision Intent Log
 
+ID: DI-damab
+Date: 2026-08-11 09:59:21 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Require a complete, valid semantic author signature for every canonical Ex6 package record at append and import. Relay-carriage signatures remain separate evidence and local policy still decides the operational meaning of a valid author signature.
+Intent: Complete the unreleased canonical record boundary with durable attributable semantic evidence, rather than retaining an unsigned compatibility admission path.
+Constraints: Reject missing, incomplete, malformed, and invalid author evidence; do not treat a valid signature as universal authority; do not change separately specified route-promise or workflow-lifecycle protocols; a richer identity/delegation scheme requires a separately frozen protocol or local-policy decision.
+Affects: `docs/thought-experiments/TE-juram-semantic-author-signature-policy.md`, `records/`, `grid/`, `kernel/`, package fixtures, tests, `docs/`, `README.md`, `CHANGELOG.md`, and TODO `sibok`.
+Supersedes: DI-sovem
+
 ID: DI-novuk
 Date: 2026-07-29 18:30:00
 Status: active
