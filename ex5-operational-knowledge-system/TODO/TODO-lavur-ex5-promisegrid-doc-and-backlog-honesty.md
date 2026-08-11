@@ -2,6 +2,15 @@
 
 ## Decision Intent Log
 
+ID: DI-hohaz
+Date: 2026-08-10 22:10:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: State that all eight shipped durable ex5 families are frozen and PromiseGrid-native, while application-local mechanics outside those families are not additional durable families.
+Intent: Remove the stale non-claim that contradicted the runtime-selected pCID implementation and preserve the boundary around projections, presence, and local policy.
+Constraints: Do not expand the claimed family set beyond the eight shipped specs or imply Chromium support.
+Affects: `ex5-operational-knowledge-system/docs/promisegrid-implementation-claims.md`
+
 ID: DI-tivor
 Date: 2026-07-22 10:47:03 -0700
 Author: jj@thesalleys.com (JJ)

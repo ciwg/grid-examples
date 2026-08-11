@@ -198,18 +198,19 @@ the socket as generic HTTP route requests. Source: `DI-monuv`.
 `knowledge-link`, `knowledge-responsibility`, `operational-run`,
 `operational-place`, and `operational-resource` now select runtime behavior
 through their computed `pCID`s, and the runtime signs and verifies durable
-artifacts for all eight families. The other named ex5 families remain
-documented framing and staged migration targets for now. Search metadata
-remains derived projection state instead of a separate durable family. Source:
+artifacts for all eight families. Application-local mechanics outside those
+eight remain projections, local policy, or embodiment behavior rather than
+additional durable families. Search metadata remains derived projection state
+instead of a separate durable family. Source:
 `DI-mibor`; `DI-vosul`; `DI-kavup`; `DI-ribof`; `DI-votek`; `DI-sarib`;
-`DI-vamok`; `DI-fusok`; `DI-pivul`.
+`DI-vamok`; `DI-fusok`; `DI-pivul`; `DI-hohaz`.
 
 ## What the shipped implementation does not yet promise
 
 The current shipped ex5 runtime does not yet promise:
 
-- that all ex5 durable families are already frozen and PromiseGrid-native at
-  runtime
+- that every application-local behavior is a frozen PromiseGrid family beyond
+  the eight shipped durable families
 - that the local HTTP route names are the PromiseGrid peer contract
 - that ephemeral presence or derived projections are durable PromiseGrid
   families
