@@ -12,6 +12,22 @@ go vet ./...
 errcheck ./...
 ```
 
+The two integration proofs are opt-in because they need the local Docker
+daemon or a second runtime process. They run from the same current checkout:
+
+```sh
+MOKS_DOCKER_INTEGRATION=1 go test ./cmd/moks -run '^TestProcedureExecutionAdapterDockerEndToEnd$' -count=1
+MOKS_DEPLOYED_RELAY_INTEGRATION=1 go test ./cmd/moks -run '^TestDeployedTwoNodeWorkflowRelay$' -count=1
+```
+
+The Docker proof builds the procedure-execution worker from the checkout,
+creates a temporary package descriptor pinned to that build's immutable image
+ID, and removes that exact test image at cleanup. It therefore does not use
+the checked-in development image ID as test input and cannot silently pass
+against a stale local image. The deployed-relay proof starts two temporary
+local runtime nodes and exercises their signed relay exchange. Source:
+DI-fofuh; DI-bidam.
+
 ## What each layer proves
 
 | Layer | Evidence | What it proves |
@@ -22,6 +38,8 @@ errcheck ./...
 | `kernel` | runtime, history, import, and workflow tests | Known families use local validators; unknown-family bytes are retained without inferred semantics; Ex6 rejects unsigned semantic records at append/import; relay carriage remains separate; route promises and workflow operations remain local-policy decisions. |
 | `grid` | batch and peer tests | Relay batches carry exact record bytes and relay signatures independently of semantic author evidence. |
 | `cmd/moks` | CLI tests | Package install, routes, relay export/import, workflow actions, and the checked-in writer example expose the same runtime contract to operators. |
+| opt-in Docker E2E | `TestProcedureExecutionAdapterDockerEndToEnd` | A freshly built, Docker-confined worker receives exact CBOR, satisfies explicit local route evidence, completes a workflow, and yields runtime-signed durable run and procedure-use records. |
+| opt-in two-node relay E2E | `TestDeployedTwoNodeWorkflowRelay` | Two separate runtime roots exchange signed relay carriage and preserve the verified workflow evidence without granting automatic execution authority. |
 | `go vet` | static analysis | Go code passes standard vet checks. |
 | `errcheck` | error-path analysis | Go error returns are not silently dropped. |
 

@@ -457,14 +457,26 @@ func TestRegistryCommandsPersistExactHostPolicy(t *testing.T) {
 
 func TestProcedureExecutionAdapterDockerEndToEnd(t *testing.T) {
 	if os.Getenv("MOKS_DOCKER_INTEGRATION") != "1" {
-		t.Skip("set MOKS_DOCKER_INTEGRATION=1 after building the pinned procedure-execution adapter image")
+		t.Skip("set MOKS_DOCKER_INTEGRATION=1 to build and run the procedure-execution adapter image")
 	}
 	workdir := t.TempDir()
 	root := repoRoot(t)
-	packageDir := filepath.Join(root, "examples", "procedure-execution-adapter")
+	packageDir := buildDockerAdapterPackage(t, root)
 	workflowDir := filepath.Join(root, "workflows", "procedure-execution")
 	if _, err := runCLI(t, workdir, "package", "install", packageDir); err != nil {
 		t.Fatalf("install procedure adapter package: %v", err)
+	}
+	// Intent: Exercise Docker dispatch only after the adapter package has made
+	// the same explicit local receive and delivery promises required in runtime.
+	// Source: DI-bidam.
+	for _, command := range [][]string{
+		{"route", "bind", "procedure-execution-adapter-app", "procedure-execution-adapter", "true"},
+		{"route", "promise", "receive", "procedure-execution-adapter-app", "bafkreiawxq2i7q57tks6f5viofxkko2jf2txmlurbp3i33svynytyjswfq", "true"},
+		{"route", "promise", "deliver", "local-router", "procedure-execution-adapter-app", "bafkreiawxq2i7q57tks6f5viofxkko2jf2txmlurbp3i33svynytyjswfq", "true"},
+	} {
+		if _, err := runCLI(t, workdir, command...); err != nil {
+			t.Fatalf("publish adapter route evidence %q: %v", command, err)
+		}
 	}
 	if _, err := runCLI(t, workdir, "procedures", "create", "proc-1", "DockCheck", "dock-intake"); err != nil {
 		t.Fatalf("seed procedure: %v", err)
@@ -475,8 +487,12 @@ func TestProcedureExecutionAdapterDockerEndToEnd(t *testing.T) {
 	if _, err := runCLI(t, workdir, "workflow", "activate", "procedure-execution"); err != nil {
 		t.Fatalf("activate workflow: %v", err)
 	}
-	if _, err := runCLI(t, workdir, "workflow", "run", "start", "procedure-execution", "procedure_id", "proc-1", "run_id", "run-1", "actor", "alice", "outcome", "completed", "notes", "followed"); err != nil {
+	workflowRun, err := runCLI(t, workdir, "workflow", "run", "start", "procedure-execution", "procedure_id", "proc-1", "run_id", "run-1", "actor", "alice", "outcome", "completed", "notes", "followed")
+	if err != nil {
 		t.Fatalf("run Docker adapter: %v", err)
+	}
+	if !strings.Contains(workflowRun, `"state": "completed"`) {
+		t.Fatalf("Docker adapter workflow did not complete: %s", workflowRun)
 	}
 	procedure, err := runCLI(t, workdir, "procedures", "inspect", "proc-1")
 	if err != nil {
@@ -494,6 +510,53 @@ func TestProcedureExecutionAdapterDockerEndToEnd(t *testing.T) {
 			t.Fatalf("run inspect output missing %q: %s", expected, runOutput)
 		}
 	}
+}
+
+// buildDockerAdapterPackage creates an isolated package descriptor that pins
+// this test run to the image built from the current checkout. Intent: The
+// opt-in proof must not silently exercise a stale image whose immutable ID is
+// still present locally. Source: DI-fofuh; DI-bidam.
+func buildDockerAdapterPackage(t *testing.T, root string) string {
+	t.Helper()
+	sourceDir := filepath.Join(root, "examples", "procedure-execution-adapter")
+	imageIDPath := filepath.Join(t.TempDir(), "image-id")
+	build := exec.Command("docker", "build", "--iidfile", imageIDPath, "-f", filepath.Join(sourceDir, "Dockerfile"), root)
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build current procedure adapter image: %v\n%s", err, output)
+	}
+	imageID, err := os.ReadFile(imageIDPath)
+	if err != nil {
+		t.Fatalf("read current procedure adapter image ID: %v", err)
+	}
+	image := strings.TrimSpace(string(imageID))
+	if !strings.HasPrefix(image, "sha256:") {
+		t.Fatalf("Docker build returned non-immutable image ID %q", image)
+	}
+	t.Cleanup(func() {
+		remove := exec.Command("docker", "image", "rm", image)
+		if output, err := remove.CombinedOutput(); err != nil {
+			t.Errorf("remove opt-in Docker image %s: %v\n%s", image, err, output)
+		}
+	})
+	packageDir := t.TempDir()
+	for _, name := range []string{"moks-package.json", "package.sh"} {
+		body, err := os.ReadFile(filepath.Join(sourceDir, name))
+		if err != nil {
+			t.Fatalf("read adapter %s: %v", name, err)
+		}
+		updated := strings.ReplaceAll(string(body), "sha256:e02dfedf0daa5770bb785d11b4c4c8f51e377ad8144d73bf0846d5e64fb9410d", image)
+		if string(body) == updated {
+			t.Fatalf("adapter %s did not contain its checked-in image ID", name)
+		}
+		mode := os.FileMode(0o644)
+		if name == "package.sh" {
+			mode = 0o755
+		}
+		if err := os.WriteFile(filepath.Join(packageDir, name), []byte(updated), mode); err != nil {
+			t.Fatalf("write current adapter %s: %v", name, err)
+		}
+	}
+	return packageDir
 }
 
 func TestWorkflowVerifyReportsMissingDependencyReadiness(t *testing.T) {
