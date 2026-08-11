@@ -2,6 +2,15 @@
 
 ## Decision Intent Log
 
+ID: DI-pudob
+Date: 2026-08-10 22:00:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Complete the browser-first demo pack with `scripts/run-demo-proof.sh`, which runs setup, launch, and verification for the disposable Chrome demo, then prints one `oks-cli pending-review` command against that same runtime socket.
+Intent: Keep the browser as the primary story while making the CLI proof repeatable and demonstrably connected to the exact runtime the browser session uses.
+Constraints: The helper must not record video, create another demo story, or run the CLI mutation itself; it only prints the copyable read-only proof command.
+Affects: `ex5-operational-knowledge-system/scripts/run-demo-proof.sh`, `ex5-operational-knowledge-system/docs/user-guide.md`, `ex5-operational-knowledge-system/TODO/TODO-mivor-ex5-browser-first-demo-prep.md`
+
 ID: DI-ravot
 Date: 2026-07-23 07:46:39 -0700
 Author: jj@thesalleys.com (JJ)
@@ -28,11 +37,12 @@ and thin repeatability helpers for live use and short recordings.
 ## Tasks
 
 - [x] mivor.1 Define the browser-first demo-prep boundary. See `../docs/thought-experiments/TE-lurak-ex5-browser-first-demo-prep-boundary.md`.
-- [ ] mivor.2 Lock the exact demo story arc, CLI proof slice, and helper boundary.
-- [ ] mivor.3 Implement the demo TODO, script, and any approved recording helpers.
+- [x] mivor.2 Lock the exact demo story arc, CLI proof slice, and helper boundary.
+- [x] mivor.3 Implement the demo TODO, script, and any approved recording helpers.
 
 ## Status
 
-- open
+- closed
 - created from the need to prepare a browser-first ex5 demo today, with CLI proof and optional short-video support
 - TE complete: `TE-lurak` recommends one browser-first demo pack anchored to the checked-in newcomer corpus, with a short CLI proof slice and only thin recording helpers
+- resolved by the verified Chrome browser path plus `scripts/run-demo-proof.sh`. Source: `DI-pudob`.

@@ -2,9 +2,10 @@
 
 ## Open / Planned
 - [ ] 153 - Troubleshoot the deferred ex5 Chromium browser embodiment failure - `TODO/TODO-lavem-ex5-chromium-embodiment-bug.md`
-- [ ] 149 - Prepare a browser-first ex5 demo path, a CLI proof slice, and thin repeatability helpers for short recordings - `TODO/TODO-mivor-ex5-browser-first-demo-prep.md`
 
 ## Completed
+
+- [x] 149 - Prepare a browser-first ex5 demo path, a CLI proof slice, and thin repeatability helpers for short recordings - `TODO/TODO-mivor-ex5-browser-first-demo-prep.md`
 
 - [x] 155 - Stabilize attach-only external browser checks for the ex5 browser demo path - `TODO/TODO-temur-ex5-attach-only-browser-check-workflow.md`
 

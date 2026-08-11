@@ -331,8 +331,12 @@ Browser flow:
 CLI proof:
 
 ```bash
-go run ./cmd/oks-cli -socket /tmp/ex5-newcomer-runtime/embodiment.sock pending-review
+go run ./cmd/oks-cli -socket /tmp/ex5-demo-browser/runtime/embodiment.sock pending-review
 ```
+
+For a repeatable rehearsal, run `./scripts/run-demo-proof.sh`. It performs the
+verified browser setup, launch, and handshake, then prints this same read-only
+CLI command without starting a recording workflow. Source: `DI-pudob`.
 
 Close with:
 
