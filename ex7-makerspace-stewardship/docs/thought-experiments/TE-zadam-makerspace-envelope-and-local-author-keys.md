@@ -4,7 +4,7 @@ TE ID: TE-zadam
 
 ## Status
 
-decided
+superseded by TE-mumut / DI-lazim
 
 ## Decision under test
 
@@ -182,9 +182,8 @@ runtime code.
 
 ## Decision status
 
-locked: Alternative A, per-demo-author local Ed25519 keyring and the listed
-seven-slot envelope, by DI-simus in
-`../../TODO/TODO-bubuz-canonical-makerspace-records.md`.
+superseded by TE-mumut / DI-lazim. The single-runtime key ownership premise is
+not valid for Ex7's decentralized product architecture.
 
 ## Implications and future work
 

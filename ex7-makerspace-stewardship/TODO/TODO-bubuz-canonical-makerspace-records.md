@@ -106,12 +106,135 @@
   `docs/protocols/makerspace-families/`, `service/`, `web/`, tests, docs, and
   the repository handle ledger.
 
+### DI-zumat
+
+- ID: DI-zumat
+- Date: 2026-08-11 10:41:36
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Persist canonical makerspace evidence under `<runtime-root>` using
+  `records.frames` with fixed `MSR1\n` header and fsynced length-prefixed
+  canonical-CBOR transaction frames; store photos as fsynced CID-addressed
+  blobs and apply projections only after the complete frame is durable.
+- Intent: Retain exact signed record bytes, make linked observation/hold
+  actions atomic to the projection, ensure every referenced photo exists before
+  evidence names it, and expose interrupted writes as fail-closed evidence
+  corruption rather than silently selecting a history prefix.
+- Constraints: Approved paths are `<runtime-root>/authors.json`,
+  `<runtime-root>/records.frames`, `<runtime-root>/blobs/<cidv1-base32>`, and
+  `<runtime-root>/tmp/<opaque-temporary-name>`. Write decoded blobs to temp,
+  fsync/close, rename, and fsync blob directory before appending/fsyncing the
+  complete frame. Frame payload is canonical CBOR array of exact Grid record
+  byte strings, with unsigned 64-bit big-endian length. Unknown or untrusted
+  well-framed records remain exact bytes but do not project. Missing referenced
+  blobs or malformed/partial frames fail startup closed. Orphan blobs are not
+  automatically deleted; cleanup is deferred. No legacy JSONL import.
+- Affects: `docs/thought-experiments/TE-tafug-makerspace-record-and-blob-store.md`,
+  `<runtime-root>/records.frames`, `<runtime-root>/blobs/`,
+  `<runtime-root>/tmp/`, `service/`, tests, docs, and the repository handle
+  ledger.
+
+### DI-sazir
+
+- ID: DI-sazir
+- Date: 2026-08-11 10:42:38
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Limit each decoded photo blob to 2 MiB and each canonical-CBOR
+  transaction-frame payload to 1 MiB.
+- Intent: Bound local parser and storage allocation while preserving the
+  browser demonstration's existing photo scale; photo bytes are blobs, so
+  record frames carry only small CID references and signed evidence.
+- Constraints: Reject an oversized upload or frame before durable projection.
+  Preserve existing fail-closed behavior for malformed/partial evidence. A
+  larger blob or frame requires a superseding decision and explicit tests.
+- Affects: `<runtime-root>/blobs/`, `<runtime-root>/records.frames`,
+  `service/`, tests, docs, and the repository handle ledger.
+
+### DI-lazim
+
+- ID: DI-lazim
+- Date: 2026-08-11 11:19:29
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Ex7 is a decentralized product of independently signing
+  participant agents. Each participant holds their own private key and their
+  agent retains and locally projects exact signed records; relay/feed services
+  provide non-authoritative byte carriage only.
+- Intent: Ensure durable makerspace promises are authored by their real
+  participant agents, not impersonated by a shared HTTP process, while keeping
+  trust and projection explicitly local to each participating agent.
+- Constraints: No central server, keyholder, durable-history authority, or
+  global state authority. A relay cannot sign for, authorize, revoke, or
+  reinterpret a participant record. DI-simus's single-runtime author-keyring
+  approach is superseded; do not implement it. Browser-to-local-agent signing,
+  key continuity, and revocation require separate decisions before runtime
+  code.
+- Affects: `docs/thought-experiments/TE-mumut-decentralized-participant-agents.md`,
+  `docs/thought-experiments/TE-zadam-makerspace-envelope-and-local-author-keys.md`,
+  `service/`, `web/`, relay/feed design, tests, docs, and the repository handle
+  ledger.
+- Supersedes: DI-simus
+
+### DI-janup
+
+- ID: DI-janup
+- Date: 2026-08-11 11:41:11
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Make participant-owned agents with participant signing identities Ex7's core identity boundary. Treat existing makerspace accounts only as UI login, discovery/bootstrap, and local policy inputs.
+- Intent: Keep familiar account UX without confusing a website session with evidence that a participant made an exact PromiseGrid promise.
+- Constraints: A kiosk/account session cannot sign for a participant. It may request a signature from the participant's reachable agent or retain an unsigned draft. Relay/feed carriage is non-authoritative. Browser/device identity and device authorization are deferred.
+- Affects: `docs/thought-experiments/TE-folok-participant-agent-and-account-bootstrap.md`, `service/`, `web/`, account/bootstrap docs, tests, and handle ledger.
+- Supersedes: DI-simus
+
+### DI-sinov
+
+- ID: DI-sinov
+- Date: 2026-08-11 11:42:28
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Implement Ex7 as independent local participant agents with signed exact-record ingress, per-agent durable storage and projection, account-only UI bootstrap, and relay/feed carriage that transports exact bytes without semantic authority.
+- Intent: Remove the single shared runtime as an authority while letting each participant retain, verify, assess, and exchange PromiseGrid evidence independently.
+- Constraints: Relay does not sign for participants, validate makerspace semantics, compute current state, or decide trust. Ingress preserves unknown/untrusted well-framed bytes and projects only locally recognized evidence. Existing accounts are not author credentials. No central server or required relay.
+- Affects: `docs/thought-experiments/TE-zajop-participant-agent-runtime-and-relay.md`, `service/`, `cmd/`, `web/`, relay implementation, tests, docs, and handle ledger.
+
+### DI-rifib
+
+- ID: DI-rifib
+- Date: 2026-08-11 12:03:08
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Retain DI-zumat's MSR1 framing, blob-first atomic durability, and
+  fail-closed replay mechanics, but scope every runtime path to one
+  participant agent and remove `authors.json` from the durable-store boundary.
+- Intent: Preserve exact-byte evidence mechanics without reviving the
+  superseded single-runtime author-keyring model. A participant agent owns its
+  private key under its own identity boundary; its record/blob store is not a
+  shared makerspace authority.
+- Constraints: The approved per-agent patterns are
+  `<agent-runtime-root>/records.frames`,
+  `<agent-runtime-root>/blobs/<cidv1-base32>`, and
+  `<agent-runtime-root>/tmp/<opaque-temporary-name>`. Key storage is defined
+  by the participant-identity slice, not by the framed-store implementation.
+  Preserve unknown or locally untrusted well-framed record bytes without
+  projection. No legacy JSONL import.
+- Affects: `docs/thought-experiments/TE-tafug-makerspace-record-and-blob-store.md`,
+  `docs/ex7-decentralized-redesign-roadmap.md`, `service/`, tests, docs, and
+  the repository handle ledger.
+- Supersedes: DI-zumat
+
 ## Scope
 
 Implement the decision locked by TE-malap. First define Ex7's active
 makerspace family specifications and fixed pCID registry, then convert the
 record store and state projection, author-evidence admission, tests, and
 documentation as coherent slices.
+
+The implementation order is now the bounded participant-agent roadmap in
+[`TODO-giman-decentralized-redesign-roadmap.md`](TODO-giman-decentralized-redesign-roadmap.md).
+It operationalizes DI-lazim, DI-janup, DI-sinov, and DI-rifib; DI-simus
+remains superseded and must not be used as a shortcut for the conversion.
 
 ## Open slices
 
