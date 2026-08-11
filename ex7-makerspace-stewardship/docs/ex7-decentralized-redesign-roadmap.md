@@ -4,13 +4,23 @@
 
 Planning guide for DI-tohak. This is not an implementation claim.
 
-## Starting point
+## Historical starting point
 
-Ex7 currently demonstrates local makerspace workflow behavior through a JSON
-HTTP process and JSONL replay. It does not yet implement its four frozen
-makerspace family specifications. The recreation begins with those named
-contracts and their exact byte identities, not with a generic runtime,
-account, relay, browser, or identity product. Source: DI-tohak.
+At filing, Ex7 demonstrated local makerspace workflow behavior through a JSON
+HTTP process and JSONL replay. The recreation began with named contracts and
+their exact byte identities, not with a generic runtime, account, relay,
+browser, or identity product. Source: DI-tohak.
+
+## Current implementation status
+
+The live embodiment now uses canonical signed records in `records.frames`,
+projects the four makerspace families only after participant-history and local
+policy assessment, validates 2-of-3 recovery and peer-card-linked exact-byte
+carriage, and supports terminal-to-agent local approval. The Chrome proof is
+`scripts/run-two-agent-browser-proof.sh`; it creates a disposable two-agent
+session and records its evidence root. The current implementation claim and
+explicit non-claims are maintained in `docs/promisegrid-implementation-claims.md`.
+Source: DI-tohak; DI-piruf; DI-likoh; DI-kasaz; DI-sisad; DI-hibok; DI-fuzar.
 
 ## Ordered slices
 
@@ -58,7 +68,8 @@ deferrals.
 
 ## Explicit deferrals
 
-No current Ex7 claim covers portable identity recovery, device delegation,
-account-backed authoring, relay carriage, blob availability, portable
-membership/governance, global trust, or a PromiseGrid-wide envelope/runtime
-standard. Each requires its own contract and evidence if Ex7 later needs it.
+No current Ex7 claim covers browser signing, account-backed authoring, a
+running relay/discovery service, blob availability, portable
+membership/governance, a global trust registry, or a PromiseGrid-wide
+envelope/runtime standard. Each requires its own contract and evidence if Ex7
+later needs it.

@@ -13,6 +13,12 @@ retention without projection, and rejection of a recognized non-steward
 clearance. The fixture generator is test-only and never supplies browser or
 account authoring. Source: DI-tohak; DI-piruf; DI-likoh; DI-kasaz; DI-sisad.
 
+Run `go vet ./...` for static Go correctness checks and `errcheck ./...` to
+ensure the Go implementation does not discard errors. Run
+`git diff --check` before committing documentation or code changes. The frozen
+pCID tests hash every active specification and confirm that its checked-in
+registry declares the same CIDv1 value. Source: DI-tohak; DI-sisad.
+
 Run `scripts/run-two-agent-browser-proof.sh` for the browser-level proof. It
 starts disposable Alice and Bob agents in one process session with Chrome
 DevTools, has Bob submit an unsigned request to Alice's explicit loopback

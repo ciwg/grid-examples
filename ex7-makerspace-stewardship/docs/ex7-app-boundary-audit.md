@@ -2,8 +2,11 @@
 
 ## Status
 
-Audit baseline; not an implementation-promise claim and not a protocol freeze.
-This records the condition of Ex7 before its source-grounded redesign.
+Historical audit baseline; not an implementation-promise claim and not a
+protocol freeze. This records the condition of Ex7 before its source-grounded
+redesign. Its table is intentionally preserved as baseline evidence; evaluate
+the current runtime through `docs/promisegrid-implementation-claims.md` and
+`docs/testing.md`. Source: DI-tohak.
 
 ## Governing interpretation
 
@@ -17,7 +20,7 @@ and `TE-liviv` in the guide's cited upstream sources.
 
 ## Classification
 
-| Surface | Current evidence | Classification | Audit result |
+| Surface | Baseline evidence | Classification | Audit result at time of audit |
 | --- | --- | --- | --- |
 | Equipment observation, safety disposition, off-site loan, and off-site return documents | `docs/protocols/makerspace-families/` and the makerspace pCID registry | Ex7 protocol-design artifacts | They describe plausible app-specific durable meanings, but the running application does not emit or consume their Grid records. They are not currently implemented protocol claims. |
 | `makerspace-record-v1` | `docs/protocols/makerspace-record-v1.md` | Ex7 protocol-design artifact | It defines an Ex7 record profile. It must not be described as a final universal Grid envelope; upstream envelope/signature details remain provisional. |
