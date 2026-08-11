@@ -18,12 +18,12 @@ interaction flow, not just as underlying data correctness.
 
 ## Tasks
 
-- [ ] sabek.1 Add coverage for visible review-lane switching between `Draft queue`, `Problem hotspots`, and `Known record search`.
-- [ ] sabek.2 Add coverage for hotspot drilldowns that proves the user can see the landing state without guessing or scrolling blindly.
-- [ ] sabek.3 Add coverage for detail-pane updates that proves `Current Record` changes visibly when the user clicks `Inspect` on a search result or hotspot-related record.
-- [ ] sabek.4 Re-sweep the browser demo sheet against the tested on-screen strings after the interaction coverage lands.
+- [x] sabek.1 Add coverage for visible review-lane switching between `Draft queue`, `Problem hotspots`, and `Known record search`.
+- [x] sabek.2 Add coverage for hotspot drilldowns that proves the user can see the landing state without guessing or scrolling blindly.
+- [x] sabek.3 Add coverage for detail-pane updates that proves `Current Record` changes visibly when the user clicks `Inspect` on a search result or hotspot-related record.
+- [x] sabek.4 Re-sweep the browser demo sheet against the tested on-screen strings after the interaction coverage lands.
 
 ## Status
 
-- open
-- created from live demo prep failures where the browser path worked internally but was not obvious enough to trust as a presenter flow
+- closed
+- resolved by the documented Google Chrome attach-only interaction suite. Source: `DI-ruhas`.

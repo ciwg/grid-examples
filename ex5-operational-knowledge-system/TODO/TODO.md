@@ -1,13 +1,16 @@
 # TODO
 
 ## Open / Planned
-- [ ] 155 - Stabilize attach-only external browser checks for the ex5 browser demo path - `TODO/TODO-temur-ex5-attach-only-browser-check-workflow.md`
-- [ ] 154 - Troubleshoot the Chrome remote-debug attach environment for external ex5 browser checks - `TODO/TODO-bulaf-ex5-chrome-remote-debug-attach-environment.md`
 - [ ] 153 - Troubleshoot the deferred ex5 Chromium browser embodiment failure - `TODO/TODO-lavem-ex5-chromium-embodiment-bug.md`
-- [ ] 151 - Add more extensive browser interaction coverage for the ex5 live demo path - `TODO/TODO-sabek-ex5-browser-demo-interaction-coverage.md`
 - [ ] 149 - Prepare a browser-first ex5 demo path, a CLI proof slice, and thin repeatability helpers for short recordings - `TODO/TODO-mivor-ex5-browser-first-demo-prep.md`
 
 ## Completed
+
+- [x] 155 - Stabilize attach-only external browser checks for the ex5 browser demo path - `TODO/TODO-temur-ex5-attach-only-browser-check-workflow.md`
+
+- [x] 154 - Troubleshoot the Chrome remote-debug attach environment for external ex5 browser checks - `TODO/TODO-bulaf-ex5-chrome-remote-debug-attach-environment.md`
+
+- [x] 151 - Add more extensive browser interaction coverage for the ex5 live demo path - `TODO/TODO-sabek-ex5-browser-demo-interaction-coverage.md`
 
 - [x] 152 - Define an external browser-check repo for `grid-examples`, starting with `ex5` - `TODO/TODO-vuram-ex5-external-browser-check-repo.md`
 

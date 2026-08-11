@@ -258,7 +258,7 @@ For the attach-only browser evidence harness, use the stable DevTools port
 ./scripts/setup-demo-browser.sh
 EX5_CHROME_DEBUG_PORT=9222 ./scripts/launch-demo-browser.sh
 ./scripts/verify-demo-browser.sh
-cd ../grid-examples-browser-checks/ex5
+cd ../../grid-examples-browser-checks/ex5
 EX5_CHROME_DEBUG_PORT=9222 npm run test:demo
 ```
 

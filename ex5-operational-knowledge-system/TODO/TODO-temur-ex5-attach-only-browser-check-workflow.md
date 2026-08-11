@@ -2,6 +2,24 @@
 
 ## Decision Intent Log
 
+ID: DI-ruhas
+Date: 2026-08-10 21:50:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Close TODOs 151, 154, and 155 on verified Google Chrome evidence; retain TODO 153 as the separately deferred Chromium path and TODO 149 as broader demo-package work.
+Intent: Mark only the browser evidence actually proven by the documented setup → launch → verify → attach-only interaction sequence.
+Constraints: Evidence requires the real Chrome/native-host page handshake at `9222` and the external visible interaction suite; no Chromium result is implied.
+Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `TODO/TODO-sabek-ex5-browser-demo-interaction-coverage.md`, `TODO/TODO-bulaf-ex5-chrome-remote-debug-attach-environment.md`, `TODO/TODO-temur-ex5-attach-only-browser-check-workflow.md`
+
+ID: DI-tidor
+Date: 2026-08-10 21:45:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: From `ex5-operational-knowledge-system/`, the external browser-check repository path is `../../grid-examples-browser-checks/ex5`.
+Intent: Make the documented attach-only proof copyable from the stated working directory.
+Constraints: Do not move repositories or alter the attach-only suite; correct only the documented relative path.
+Affects: `ex5-operational-knowledge-system/docs/user-guide.md`, `ex5-operational-knowledge-system/docs/testing.md`
+
 ID: DI-sofol
 Date: 2026-08-10 21:35:00 -0700
 Author: jj@thesalleys.com (JJ)
@@ -85,11 +103,11 @@ browser-launch instability.
 
 ## Tasks
 
-- [ ] temur.1 Keep the external `ex5` Playwright harness attach-only and document the required prelaunched browser contract clearly.
-- [ ] temur.2 Once Chrome attach is stable, re-run the first hotspot demo-path check and capture the first real UI assertion failure instead of an attach failure.
-- [ ] temur.3 Expand the attach-only checks across the draft, hotspot, and `Current Record` demo path so real browser regressions are identified outside the main repo.
+- [x] temur.1 Keep the external `ex5` Playwright harness attach-only and document the required prelaunched browser contract clearly.
+- [x] temur.2 Once Chrome attach is stable, re-run the first hotspot demo-path check and capture the first real UI assertion failure instead of an attach failure.
+- [x] temur.3 Expand the attach-only checks across the draft, hotspot, and `Current Record` demo path so real browser regressions are identified outside the main repo.
 
 ## Status
 
-- open
-- blocked by `TODO/TODO-bulaf-ex5-chrome-remote-debug-attach-environment.md`
+- closed
+- resolved by the documented Google Chrome `9222` attach-only proof and external visible interaction suite. Source: `DI-ruhas`.

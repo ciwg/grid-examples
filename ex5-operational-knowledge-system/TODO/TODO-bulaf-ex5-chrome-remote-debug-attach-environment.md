@@ -19,14 +19,14 @@ browser page can be working at the same time.
 
 ## Tasks
 
-- [ ] bulaf.1 Record one clean reproduction of the Chrome launch command, observed browser state, `ps` output, and `ss`/`curl` results for `9222`.
-- [ ] bulaf.2 Determine whether the failure is launch-environment specific (Wayland, profile chooser, crash/restart behavior, or Chrome session replacement) rather than an ex5 extension/runtime problem.
-- [ ] bulaf.3 Prove one attachable Chrome launch recipe that keeps `9222` alive long enough for Playwright to connect.
+- [x] bulaf.1 Record one clean reproduction of the Chrome launch command, observed browser state, `ps` output, and `ss`/`curl` results for `9222`.
+- [x] bulaf.2 Determine whether the failure is launch-environment specific (Wayland, profile chooser, crash/restart behavior, or Chrome session replacement) rather than an ex5 extension/runtime problem.
+- [x] bulaf.3 Prove one attachable Chrome launch recipe that keeps `9222` alive long enough for Playwright to connect.
 
 ## Status
 
-- open
-- created after repeated local runs showed that manual ex5 browser behavior can work while attach-mode automation still cannot reach a stable Chrome DevTools endpoint
+- closed
+- resolved by the session-owned DevTools-pipe launcher and the documented `9222` attach-only proof. Source: `DI-ruhas`.
 - 2026-07-23 progress:
   - proved that attach-mode can work when Chrome is launched against the copied profile under `/tmp/ex5-demo-browser/chrome-profile-real` and `curl -s http://127.0.0.1:9222/json/version` returns a live DevTools endpoint
   - proved that the remaining failure after attach is no longer Playwright itself: the page handshake in that attached session returns `{"__oks_bridge":true,"direction":"bridge->page","kind":"handshake","ok":false}`

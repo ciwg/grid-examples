@@ -17,7 +17,7 @@ extension/native-host path.
 ## Real Chrome/native-host evidence
 
 The external browser harness lives in
-`../grid-examples-browser-checks/ex5/`. It attaches to the prelaunched,
+`../../grid-examples-browser-checks/ex5/`. It attaches to the prelaunched,
 verified Google Chrome session at `http://127.0.0.1:9222`; it must not launch a
 synthetic browser session. The demo launcher retains the Chrome DevTools-pipe
 owner that loads the unpacked Ex5 extension for that live session, because
@@ -33,7 +33,7 @@ Before running the harness, prepare and launch the checked-in demo path:
 ./scripts/setup-demo-browser.sh
 ./scripts/launch-demo-browser.sh
 ./scripts/verify-demo-browser.sh
-cd ../grid-examples-browser-checks/ex5
+cd ../../grid-examples-browser-checks/ex5
 npm run test:demo
 ```
 
