@@ -104,6 +104,14 @@ func validateKnownRecord(record Record) error {
 	return nil
 }
 
+func isParticipantProtocol(protocol string) bool {
+	return protocol == rootHistoryPCID || protocol == deviceAuthPCID || protocol == revocationPCID || protocol == recoveryPCID || protocol == peerCardPCID
+}
+
+func isMakerspaceProtocol(protocol string) bool {
+	return protocol == observationPCID || protocol == safetyPCID || protocol == loanPCID || protocol == returnPCID
+}
+
 func validatePhotoReferences(photos []photoReference) error {
 	for _, photo := range photos {
 		if photo.BlobCID == "" || photo.MediaType == "" || photo.Name == "" {

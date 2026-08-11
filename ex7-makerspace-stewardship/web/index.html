@@ -10,6 +10,8 @@
     <section class="governance"><h2>Current area rules</h2><div id="policies" class="tool-grid"></div></section>
     <section class="governance"><h2>Recognized area authority</h2><div id="authorities" class="tool-grid"></div></section>
     <section class="record"><h2>Submit signed record bytes</h2><p>Paste one base64-encoded, externally signed Ex7 record per line. Valid records are retained; only locally recognized keys for known families change this agent's displayed view.</p><form id="record-ingress-form"><label>Signed records<textarea id="signed-records" required placeholder="base64 canonical signed record"></textarea></label><button>Submit exact records</button></form></section>
+    <section class="record"><h2>Request participant approval</h2><p>This creates an unsigned terminal draft. It is not evidence and cannot sign as the selected account. A reachable participant agent must approve the exact payload.</p><form id="approval-request-form"><label>Participant agent URL <input id="approval-target" value="http://127.0.0.1:7037" required></label><label>Tool <input id="approval-tool" value="table-saw" required></label><label>Observation <input id="approval-observation" required></label><button>Create unsigned request</button></form><p id="approval-status"></p><button id="approval-approve" hidden>Approve locally on this participant agent</button></section>
+    <section class="record"><h2>Incoming local approvals</h2><p>Only this participant agent's loopback page can approve these unsigned requests.</p><div id="incoming-approvals"></div></section>
     <section><h2>Shared evidence</h2><div id="timeline" class="timeline"></div></section>
     <p id="message" aria-live="polite"></p>
   </main>

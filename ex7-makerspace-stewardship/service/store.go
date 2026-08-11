@@ -35,6 +35,7 @@ const (
 )
 
 type Store struct {
+	root      string
 	framePath string
 }
 
@@ -45,7 +46,7 @@ func NewStore(root string) (*Store, error) {
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, err
 	}
-	return &Store{framePath: filepath.Join(root, "records.frames")}, nil
+	return &Store{root: root, framePath: filepath.Join(root, "records.frames")}, nil
 }
 
 // AppendRecords durably appends exact canonical record bytes as one projection

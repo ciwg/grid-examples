@@ -2,9 +2,11 @@
 
 `ex7-makerspace-stewardship` is an Ex7 makerspace record-agent example. It
 retains externally signed, pCID-selected makerspace records and derives a
-local view only from known-family records whose public keys its local policy
-recognizes. It is not a browser-signing, account-identity, relay, or portable
-governance implementation. Source: DI-tohak; DI-piruf.
+local view only from known-family records signed by a root-authorized
+participant device (or active root) and recognized by its local role policy.
+It validates participant recovery, peer-card, and exact-byte-carriage records,
+but does not yet provide browser signing, account identity, a running relay,
+or portable governance. Source: DI-tohak; DI-piruf; DI-kasaz; DI-sisad.
 
 The browser displays local state and submits already signed record bytes. A
 selected name, browser session, or account does not author a promise. Unknown
@@ -24,10 +26,12 @@ The server writes append-only exact record frames to
 choose another location. Existing browser workflow controls are intentionally
 replaced by signed-record ingress until a separate signing embodiment exists.
 The stock command starts with no recognized public keys, so it retains valid
-records without projecting them; configuring a local recognition policy is the
-next embodiment slice. Create `.makerspace-stewardship/recognition.json` with
-mode `0600`, or use `-allow-empty-recognition` only for retention-only
-bootstrap. Source: DI-piruf; DI-likoh.
+participant-history and makerspace records without projecting makerspace
+effects. A makerspace record must first be linked to signed root/device history;
+`recognition.json` then controls only local role assessment. Create
+`.makerspace-stewardship/recognition.json` with mode `0600`, or use
+`-allow-empty-recognition` only for retention-only bootstrap. Source: DI-piruf;
+DI-likoh; DI-kasaz.
 
 Read the [operator guide](docs/operator-guide.md),
 [workflow and evidence guide](docs/workflow-and-evidence-guide.md), and

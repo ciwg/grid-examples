@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ipfs/go-cid"
@@ -72,6 +73,49 @@ func TestMakerspaceRecordProfileDocumentCID(t *testing.T) {
 	const want = "bafkreid4ebb6ywvwvumetn6pddhyh2pw5uvbvrt6j7wdwv7v7eovb5wdce"
 	if got := rawCIDv1(bytes); got != want {
 		t.Fatalf("record-profile document CID = %s, want %s", got, want)
+	}
+}
+
+// TestFrozenParticipantAgentPCIDs binds every finished-product protocol family
+// and its human-readable registry entry to immutable specification bytes.
+// Source: DI-sisad.
+func TestFrozenParticipantAgentPCIDs(t *testing.T) {
+	t.Parallel()
+
+	families := []struct {
+		name     string
+		specPath string
+		registry string
+		pcid     string
+	}{
+		{"root history", filepath.Join("..", "docs", "protocols", "participant", "participant-root-history-v1.md"), filepath.Join("..", "docs", "protocols", "participant-pcid-registry.md"), "bafkreia7cn4srmmkxbwxk2hoezedjvuyokhypcsddjd4evx56lhtmsq3nm"},
+		{"device authorization", filepath.Join("..", "docs", "protocols", "participant", "participant-device-authorization-v1.md"), filepath.Join("..", "docs", "protocols", "participant-pcid-registry.md"), "bafkreifmbhgjwfmwbemkf4ogsg3gvuavjhttkitzf3muie3dhv5tdn4hq4"},
+		{"key revocation", filepath.Join("..", "docs", "protocols", "participant", "participant-key-revocation-v1.md"), filepath.Join("..", "docs", "protocols", "participant-pcid-registry.md"), "bafkreify46v4jp3dvz3szem6vrukscplr3kshku7fhrzn4mc26scnnvqoi"},
+		{"threshold recovery", filepath.Join("..", "docs", "protocols", "participant", "participant-threshold-recovery-v1.md"), filepath.Join("..", "docs", "protocols", "participant-pcid-registry.md"), "bafkreicjdzlriq3nfasza5nmnflpycche63wn2n5kauq66jivlwhhomesy"},
+		{"terminal approval", filepath.Join("..", "docs", "protocols", "participant", "participant-terminal-approval-v1.md"), filepath.Join("..", "docs", "protocols", "participant-pcid-registry.md"), "bafkreidztcisyvexrlia4eos7wko27e4rqt7ivbmikjbkr5tzbbts3rcd4"},
+		{"peer card", filepath.Join("..", "docs", "protocols", "peer", "participant-peer-card-v1.md"), filepath.Join("..", "docs", "protocols", "peer-pcid-registry.md"), "bafkreicstci6idwm6d6dbt52ppqyjcapibskz27qmnfuyntg6zck72fa24"},
+		{"exact record carriage", filepath.Join("..", "docs", "protocols", "carriage", "exact-record-carriage-v1.md"), filepath.Join("..", "docs", "protocols", "carriage-pcid-registry.md"), "bafkreihrlojt47erjc6uawkm47s7evppp23tk3ljlkl347ten4v3kb624i"},
+	}
+
+	for _, family := range families {
+		family := family
+		t.Run(family.name, func(t *testing.T) {
+			t.Parallel()
+			bytes, err := os.ReadFile(family.specPath)
+			if err != nil {
+				t.Fatalf("read frozen specification: %v", err)
+			}
+			if got := rawCIDv1(bytes); got != family.pcid {
+				t.Fatalf("pCID = %s, want %s", got, family.pcid)
+			}
+			registry, err := os.ReadFile(family.registry)
+			if err != nil {
+				t.Fatalf("read pCID registry: %v", err)
+			}
+			if !strings.Contains(string(registry), family.pcid) {
+				t.Fatalf("registry %s does not declare %s", family.registry, family.pcid)
+			}
+		})
 	}
 }
 

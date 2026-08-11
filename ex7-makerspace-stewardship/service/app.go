@@ -16,6 +16,23 @@ type App struct {
 	state       State
 	store       *Store
 	recognition RecognitionPolicy
+	history     *ParticipantHistory
+	signer      *ParticipantSigner
+}
+
+// NewPersistentParticipantApp attaches participant-owned local signing to a
+// verified record history. Source: DI-hibok.
+func NewPersistentParticipantApp(root string, recognition RecognitionPolicy, identity *ParticipantIdentity) (*App, error) {
+	app, err := newPersistentApp(root, recognition)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := NewParticipantSigner(identity.Private, identity.Label, app.history)
+	if err != nil {
+		return nil, err
+	}
+	app.signer = signer
+	return app, nil
 }
 
 func NewPersistentDemoApp(root string) (*App, error) {
@@ -31,6 +48,7 @@ func NewPersistentRecordApp(root string, recognition RecognitionPolicy) (*App, e
 func newPersistentApp(root string, recognition RecognitionPolicy) (*App, error) {
 	app := NewDemoApp()
 	app.recognition = recognition
+	app.history = NewParticipantHistory()
 	store, err := NewStore(root)
 	if err != nil {
 		return nil, err
@@ -51,7 +69,7 @@ func newPersistentApp(root string, recognition RecognitionPolicy) (*App, error) 
 }
 
 func NewDemoApp() *App {
-	return &App{state: State{
+	return &App{history: NewParticipantHistory(), state: State{
 		Members: []Member{{ID: "alice", Name: "Alice Nguyen", Initials: "A.N."}, {ID: "carol", Name: "Carol Davis", Initials: "C.D."}, {ID: "dave", Name: "Dave Patel", Initials: "D.P."}},
 		Areas: []Area{
 			{ID: "woodworking", Name: "Woodworking", PolicyVersion: "v1", Policy: "Qualified members may use tools in the space. Portable tools may be loaned when their own terms allow it. A safety hold prevents self-service use until cleared after inspection.", DelegatedBy: "Makerspace governance"},
@@ -93,7 +111,10 @@ func (a *App) IngestRecords(records [][]byte) error {
 	if a.store == nil {
 		return errors.New("record ingress requires persistent storage")
 	}
-	for _, raw := range records {
+	candidate := a.history.Clone()
+	expanded := append([][]byte(nil), records...)
+	for index := 0; index < len(expanded); index++ {
+		raw := expanded[index]
 		record, err := ParseRecord(raw)
 		if err != nil {
 			return err
@@ -101,11 +122,28 @@ func (a *App) IngestRecords(records [][]byte) error {
 		if err := validateKnownRecord(record); err != nil {
 			return err
 		}
+		if record.Protocol == carriagePCID {
+			enclosed, err := candidate.ValidateCarriage(record)
+			if err != nil {
+				return err
+			}
+			expanded = append(expanded, enclosed...)
+			continue
+		}
+		if isParticipantProtocol(record.Protocol) {
+			if err := candidate.Apply(record); err != nil {
+				return err
+			}
+			continue
+		}
+		if isMakerspaceProtocol(record.Protocol) && !candidate.Authorizes(record) {
+			return errors.New("record signer is not authorized by participant history")
+		}
 	}
-	if err := a.store.AppendRecords(records); err != nil {
+	if err := a.store.AppendRecords(expanded); err != nil {
 		return err
 	}
-	for _, raw := range records {
+	for _, raw := range expanded {
 		if err := a.applyRecord(raw); err != nil {
 			return err
 		}
@@ -120,6 +158,12 @@ func (a *App) applyRecord(raw []byte) error {
 	}
 	if err := validateKnownRecord(record); err != nil {
 		return err
+	}
+	if isParticipantProtocol(record.Protocol) {
+		return a.history.Apply(record)
+	}
+	if isMakerspaceProtocol(record.Protocol) && !a.history.Authorizes(record) {
+		return errors.New("record signer is not authorized by participant history")
 	}
 	if !a.recognition.recognizes(record) {
 		return nil

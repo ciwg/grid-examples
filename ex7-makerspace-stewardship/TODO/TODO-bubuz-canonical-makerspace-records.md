@@ -2,6 +2,138 @@
 
 ## Decision Intent Log
 
+### DI-fuzar
+
+- ID: DI-fuzar
+- Date: 2026-08-11 16:01:24
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Lock TE-jusur Alternative A: terminal cross-origin transport uses
+  an explicit user-supplied `https` or loopback `http` participant-agent URL,
+  narrow configured-origin CORS for request creation/token polling, and
+  loopback-only approval.
+- Intent: Let a terminal reach a participant agent without making URL, CORS,
+  account, or browser origin author evidence.
+- Constraints: Reject non-HTTPS/non-loopback HTTP targets, credentials,
+  fragments, and private key material. CORS permits only an explicit terminal
+  origin, never `*`; approval remains loopback only. The token remains polling
+  capability, never approval capability. Browser proof uses Bob at 7038 and
+  Alice at 7037.
+- Affects: terminal UI, `service/server.go`, Chrome E2E harness, evidence
+  artifacts, documentation, and tests.
+
+### DI-hibok
+
+- ID: DI-hibok
+- Date: 2026-08-11 15:46:53
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Lock TE-bovin Alternative A. A participant-owned agent stores one
+  encrypted authorized-device private key at
+  `<agent-root>/identity/device-key.json`; a shared-terminal request uses the
+  frozen `participant-terminal-approval-v1` pCID and is stored at
+  `<agent-root>/requests/<request-id>.json` with mode 0600 until expiry or
+  successful approval.
+- Intent: Let a participant approve exact proposed promise bytes from a
+  personal agent while ensuring a terminal, account, relay, request token, and
+  request file can never become author evidence.
+- Constraints: The identity file is versioned JSON containing an Argon2id
+  salt, AES-256-GCM nonce, and ciphertext; it has no public-key trust claim and
+  must be mode 0600. Requests contain `request_id`, target pCID,
+  base64 canonical payload bytes, created/expires timestamps, 32-byte random
+  approval token, and `pending|approved|expired` state. Maximum lifetime is
+  ten minutes; each token is consumed once; approved state contains only exact
+  signed public record bytes. The local APIs are `POST /api/approval-requests`,
+  `GET /api/approval-requests/{id}`, and
+  `POST /api/approval-requests/{id}/approve`. A caller supplies the passphrase
+  to its own process; no browser, account, carrier, or request transport is a
+  key custodian or approval authority.
+- Affects: `docs/thought-experiments/TE-bovin-participant-identity-and-terminal-approval-embodiment.md`,
+  `docs/protocols/participant/participant-terminal-approval-v1.md`,
+  participant pCID registry, `<agent-root>/identity/device-key.json`,
+  `<agent-root>/requests/<request-id>.json`, `service/`, `cmd/`, tests, and
+  operator documentation.
+
+### DI-kasaz
+
+- ID: DI-kasaz
+- Date: 2026-08-11 15:35:15
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Replace recognition-only author admission with a `ParticipantHistory`
+  record-order validator and a `ParticipantSigner` for active root or
+  root-authorized device keys. Keep `RecognitionPolicy` solely for local
+  makerspace role assessment after participant author evidence is valid.
+- Intent: Ensure a valid signature contributes author evidence only when the
+  signer is linked through signed participant history, while retaining local
+  control over which valid authors affect a makerspace projection.
+- Constraints: New runtime code lives in `service/participant.go` and its
+  deterministic coverage in `service/participant_test.go`. The history accepts
+  self-signed root establishment, root-signed continuation and device
+  authorization, and root-signed revocation; it rejects missing predecessors,
+  unauthorized device signers, and revoked signers. `App` validates and applies
+  each frame in record order before durable append. Unknown pCIDs remain exact
+  retained bytes and do not require participant semantics. No account, browser,
+  relay, or recognition entry is identity or author evidence.
+- Affects: `service/participant.go`, `service/participant_test.go`,
+  `service/app.go`, `service/projection.go`, runtime tests, and operator docs.
+
+### DI-sisad
+
+- ID: DI-sisad
+- Date: 2026-08-11 15:32:56
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Freeze the completed participant-agent contract set as six
+  pCID-selected specifications: participant root/history, device
+  authorization, key revocation, 2-of-3 recovery, signed peer card, and
+  exact-byte carriage. Their canonical JSON payloads are specified in those
+  documents and their CIDv1 values are verified in checked-in registries.
+- Intent: Make Ex7's participant identity, authoring delegation, recovery,
+  discovery, and transport semantics independently inspectable before runtime
+  code relies on them.
+- Constraints: Root-history payload is `root_key`, optional
+  `previous_root_record_id`, and `history_note`; device authorization payload
+  is `root_record_id`, `device_key`, `device_label`, `not_before`, and optional
+  `not_after`; revocation payload is `subject_key_id`, `subject_kind`,
+  `effective_at`, and `reason`; recovery payload is `root_record_id`,
+  `recovery_id`, `replacement_root_key`, and `recovery_set`; peer-card payload
+  is `root_record_id`, `active_device_record_ids`, and optional
+  `contact_hints`; carriage payload is `sender_card_record_id`, `cursor`, and
+  `records` as base64 exact bytes. Root history is signed by the announced root
+  for establishment or the previous root for continuation. Device and
+  revocation records are signed by an active root. Recovery activates only
+  after two distinct declared recovery-key promises agree on every payload
+  field. Peer cards are signed by an active root or device. Carriage records
+  are signed by the carrier, retain unknown bytes unchanged, and do not confer
+  makerspace semantic authority. No browser, account, carrier, or registry is
+  author evidence or a governance source.
+- Affects: `docs/protocols/participant/`, `docs/protocols/peer/`,
+  `docs/protocols/carriage/`, their pCID registries, `service/`, E2E vectors,
+  documentation, and the repository handle ledger.
+
+### DI-fuful
+
+- ID: DI-fuful
+- Date: 2026-08-11 15:34:10
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Anchor every participant-selected 2-of-3 recovery set in the
+  signed participant root/history payload and require each recovery witness to
+  match that anchored ordered set exactly.
+- Intent: Prevent a pair of witnesses from introducing an unannounced recovery
+  quorum and make the recovery authorization independently verifiable from
+  exact signed history.
+- Constraints: Root history adds required `recovery_set`, exactly three
+  distinct Ed25519 public keys. Continuations may replace the set only as an
+  active-root promise. Threshold-recovery records must equal the referenced
+  root history's ordered set. This corrects the recovery linkage in DI-sisad;
+  the six-family contract set and its other payload rules remain unchanged.
+- Affects: `docs/protocols/participant/participant-root-history-v1.md`,
+  `docs/protocols/participant/participant-threshold-recovery-v1.md`,
+  participant pCID registry, `service/`, E2E vectors, and tests.
+- Supersedes: DI-sisad (recovery-set anchoring only)
+
 ### DI-nohos
 
 - ID: DI-nohos
@@ -331,6 +463,48 @@
 - Affects: `docs/thought-experiments/TE-bilad-local-recognition-policy-configuration.md`,
   `<runtime-root>/recognition.json`, `service/`, `cmd/`, tests, and operator
   documentation.
+- Supersedes: none
+
+### DI-zodah
+
+- ID: DI-zodah
+- Date: 2026-08-11 23:00:00
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Complete Ex7 as the TE-bijad Alternative A product: participant
+  root identity, authorized device keys, threshold recovery, shared-terminal
+  request/signing flow, account-only bootstrap, signed peer discovery, and
+  exact-byte direct/relay carriage with local assessment.
+- Intent: Make Ex7 a finished decentralized participant-agent product rather
+  than a collection of local record features or deferred identity assumptions.
+- Constraints: No account, browser, relay, or registry authors a participant
+  promise. All durable meanings require frozen pCID-selected specs, exact
+  evidence, end-to-end tests, and matching claims. Exact thresholds, payloads,
+  paths, and embodiment flows require coordinated DF before code.
+- Affects: `docs/thought-experiments/TE-bijad-finished-participant-agent-product.md`,
+  Ex7 protocol specs, service, UI, carriage, tests, docs, and the handle ledger.
+- Supersedes: none
+
+### DI-girup
+
+- ID: DI-girup
+- Date: 2026-08-11 23:15:00
+- Author: jj@thesalleys.com (JJ)
+- Status: active
+- Decision: Lock TE-zizum Alternative A as one finished Ex7 contract set: a
+  participant root/history; authorized device keys; 2-of-3 recovery; signed
+  peer cards; direct/relay exact-byte carriage; terminal unsigned requests;
+  and per-agent exact records, blobs, local projection, and recognition.
+- Intent: Ensure the delivered product covers real identity, cross-device,
+  recovery, discovery, carriage, and adversarial behavior rather than leaving
+  them as future assumptions.
+- Constraints: Specs live under `docs/protocols/participant/`, `peer/`, and
+  `carriage/`; per-agent paths are `<agent-root>/identity/`,
+  `recognition.json`, `records.frames`, `blobs/`, and `requests/`. No browser,
+  account, relay, or registry signs or governs a participant. The final E2E
+  vectors listed in TE-zizum are mandatory completion evidence.
+- Affects: `docs/thought-experiments/TE-zizum-coordinated-finished-contract-set.md`,
+  Ex7 specs, runtime, UI, carriage, tests, docs, and handle ledger.
 - Supersedes: none
 
 ## Scope
