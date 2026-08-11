@@ -73,7 +73,7 @@ func procedureExecutionResult(input kernel.WorkflowHandoff) ([]byte, error) {
 	}
 	return kernel.EncodeWorkflowAdapterResult(kernel.WorkflowAdapterResult{
 		Output: kernel.WorkflowHandoff{PCID: procedureExecutionOutputPCID, Values: outputValues},
-		Records: []json.RawMessage{
+		Records: [][]byte{
 			records.MustMarshal(records.Envelope{Family: runspkg.RunFamily, ProtocolPCID: runspkg.RunProtocol, RecordID: input.Values["run_id"], Signer: "procedure-execution-adapter", Timestamp: timestamp, Payload: runPayload}),
 			records.MustMarshal(records.Envelope{Family: procedurespkg.UseFamily, ProtocolPCID: procedurespkg.UseProtocol, RecordID: input.Values["run_id"], Signer: "procedure-execution-adapter", Timestamp: timestamp, Payload: usePayload}),
 		},

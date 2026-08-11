@@ -7,8 +7,8 @@
 
 ## Intended Claims
 
-- `pcid:moks.procedures.item.v1` / `domain-behavior`
-- `pcid:moks.procedures.use.v1` / `domain-behavior`
+- `moks.procedures.item.v1` / `domain-behavior` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.procedures.use.v1` / `domain-behavior` (fixed pCID in the registry)
 
 ## Intended Commands
 

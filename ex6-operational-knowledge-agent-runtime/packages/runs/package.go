@@ -13,17 +13,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "runs"
 
 	RunFamily   = "moks.runs.run.v1"
-	RunProtocol = "pcid:moks.runs.run.v1"
+	RunProtocol = records.PackageProtocolPCID(RunFamily)
 
 	EvidenceFamily   = "moks.runs.evidence.v1"
-	EvidenceProtocol = "pcid:moks.runs.evidence.v1"
+	EvidenceProtocol = records.PackageProtocolPCID(EvidenceFamily)
 
 	ApprovalFamily   = "moks.runs.approval.v1"
-	ApprovalProtocol = "pcid:moks.runs.approval.v1"
+	ApprovalProtocol = records.PackageProtocolPCID(ApprovalFamily)
 )
 
 type runPayload struct {

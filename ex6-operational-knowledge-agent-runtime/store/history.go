@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,24 +26,35 @@ func OpenHistory(root string) (*History, error) {
 	if err := osMkdirAll(root, 0o755); err != nil {
 		return nil, err
 	}
-	file, err := openAppendOnlyLog(filepath.Join(root, "history.jsonl"))
+	file, err := openAppendOnlyLog(filepath.Join(root, "history.base64l"))
 	if err != nil {
 		return nil, err
 	}
 	lines, err := readLines(file)
 	if err != nil {
-		_ = file.Close()
+		if closeErr := file.Close(); closeErr != nil {
+			return nil, fmt.Errorf("read history: %w; close history: %v", err, closeErr)
+		}
 		return nil, err
 	}
 	history := &History{file: file, seenRaw: map[string]struct{}{}}
 	for _, line := range lines {
-		envelope, err := records.Parse(line)
+		raw, err := base64.RawStdEncoding.DecodeString(string(line))
 		if err != nil {
-			_ = file.Close()
+			if closeErr := file.Close(); closeErr != nil {
+				return nil, fmt.Errorf("decode history record: %w; close history: %v", err, closeErr)
+			}
+			return nil, fmt.Errorf("decode history record: %w", err)
+		}
+		envelope, err := records.Parse(raw)
+		if err != nil {
+			if closeErr := file.Close(); closeErr != nil {
+				return nil, fmt.Errorf("parse history: %w; close history: %v", err, closeErr)
+			}
 			return nil, fmt.Errorf("parse history: %w", err)
 		}
-		history.entries = append(history.entries, StoredEnvelope{Envelope: envelope, Raw: line})
-		history.seenRaw[string(line)] = struct{}{}
+		history.entries = append(history.entries, StoredEnvelope{Envelope: envelope, Raw: raw})
+		history.seenRaw[string(raw)] = struct{}{}
 	}
 	return history, nil
 }
@@ -60,7 +72,7 @@ func (history *History) AppendRaw(raw []byte) (records.Envelope, bool, error) {
 	if _, exists := history.seenRaw[string(raw)]; exists {
 		return envelope, false, nil
 	}
-	if err := appendLine(history.file, raw); err != nil {
+	if err := appendLine(history.file, []byte(base64.RawStdEncoding.EncodeToString(raw))); err != nil {
 		return records.Envelope{}, false, err
 	}
 	copied := append([]byte{}, raw...)

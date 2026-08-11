@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.receiving.item.v1` / `domain-behavior`
-- `pcid:moks.receiving.receipt.v1` / `domain-behavior`
-- `pcid:moks.receiving.disposition.v1` / `domain-behavior`
+- `moks.receiving.item.v1` / `domain-behavior` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.receiving.receipt.v1` / `domain-behavior` (fixed pCID in the registry)
+- `moks.receiving.disposition.v1` / `domain-behavior` (fixed pCID in the registry)
 
 ## Intended Commands
 

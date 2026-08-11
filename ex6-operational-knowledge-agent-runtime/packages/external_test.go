@@ -2,14 +2,20 @@ package packages
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
 func TestRunnerDescribeValidateAndRun(t *testing.T) {
 	executable := filepath.Join(t.TempDir(), "helper-agent.sh")
+	fixtureGenerator, err := filepath.Abs(filepath.Join("..", "tools", "record-fixture"))
+	if err != nil {
+		t.Fatalf("resolve fixture generator: %v", err)
+	}
 	script := `#!/bin/sh
 set -eu
 case "$1" in
@@ -19,11 +25,11 @@ case "$1" in
 EOF
     ;;
   validate)
-    body="$(cat)"
-    case "$body" in
-      *'"family":"helper.echo.v1"'*) exit 0 ;;
-      *) echo "wrong family" >&2; exit 1 ;;
-    esac
+    family="$(go run "$FIXTURE_GENERATOR" inspect)"
+    if [ "$family" != "helper.echo.v1" ]; then
+      echo "wrong family" >&2
+      exit 1
+    fi
     ;;
   run)
     if [ "$2" != "helper echo" ]; then
@@ -38,6 +44,8 @@ EOF
     ;;
 esac
 `
+	script = strings.Replace(script, "set -eu\n", "set -eu\nFIXTURE_GENERATOR='"+fixtureGenerator+"'\n", 1)
+	script = strings.ReplaceAll(script, "pcid:helper.echo.v1", "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a")
 	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatalf("write helper script: %v", err)
 	}
@@ -50,7 +58,11 @@ esac
 	if manifest.ID != "helper-agent" {
 		t.Fatalf("unexpected id: %s", manifest.ID)
 	}
-	raw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"one","signer":"helper","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	payload, err := records.CanonicalJSON([]byte(`{"message":"hello"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := records.MustMarshal(records.Envelope{Family: "helper.echo.v1", ProtocolPCID: "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a", RecordID: "one", Signer: "helper", Timestamp: "2026-07-28T00:00:00Z", Payload: payload})
 	if err := runner.ValidateEnvelope(ctx, raw); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -65,6 +77,10 @@ esac
 
 func TestRunnerRunCommandStructuredResult(t *testing.T) {
 	executable := filepath.Join(t.TempDir(), "helper-agent.sh")
+	fixtureGenerator, err := filepath.Abs(filepath.Join("..", "tools", "record-fixture"))
+	if err != nil {
+		t.Fatalf("resolve fixture generator: %v", err)
+	}
 	script := `#!/bin/sh
 set -eu
 case "$1" in
@@ -75,15 +91,15 @@ case "$1" in
     exit 0
     ;;
   run)
-    cat <<'EOF'
-{"output":"created","cas":[{"alias":"body1","body":"hello body"}],"records":[{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"one","signer":"helper","timestamp":"2026-07-28T00:00:00Z","payload":{"body_ref":"$cas:body1"}}]}
-EOF
+    record="$(go run "$FIXTURE_GENERATOR" --pcid bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a helper.echo.v1 one helper 2026-07-28T00:00:00Z '{"body_ref":"$cas:body1"}')"
+    printf '{"output":"created","cas":[{"alias":"body1","body":"hello body"}],"records":["%s"]}\n' "$record"
     ;;
   *)
     exit 1
     ;;
 esac
 `
+	script = strings.Replace(script, "set -eu\n", "set -eu\nFIXTURE_GENERATOR='"+fixtureGenerator+"'\n", 1)
 	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatalf("write helper script: %v", err)
 	}
@@ -95,9 +111,12 @@ esac
 	if result.Output != "created" || len(result.CAS) != 1 || len(result.Records) != 1 {
 		t.Fatalf("unexpected structured result: %#v", result)
 	}
-	var record map[string]any
-	if err := json.Unmarshal(result.Records[0], &record); err != nil {
-		t.Fatalf("unmarshal record: %v", err)
+	record, err := records.Parse(result.Records[0])
+	if err != nil {
+		t.Fatalf("parse canonical record: %v", err)
+	}
+	if record.Family != "helper.echo.v1" {
+		t.Fatalf("record family = %s", record.Family)
 	}
 }
 

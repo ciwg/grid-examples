@@ -4,12 +4,13 @@ This document is intentionally blunt.
 
 `OKAR` is **not done**.
 
-It currently contains the runtime foundation, one small built-in example
-package, and the first nine real first-party built-in packages. It does not
-yet contain the full operational knowledge product as a set of OKAR packages.
+It currently contains the runtime foundation, built-in and installed package
+support, canonical package-record carriage, and 27 frozen first-party
+package-family pCIDs. It does not yet contain the full operational knowledge
+product as a set of OKAR packages.
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 `DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`;
-`DI-zafek`; `DI-okar`.
+`DI-zafek`; `DI-okar`; `DI-jusij`; `DI-solan`.
 
 ## Implemented
 
@@ -86,6 +87,10 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - focused trace filters for one candidate path or one downstream protocol
 - trace summary counts showing total, shown, and hidden steps
 - append-only durable history
+- canonical Grid CBOR package records with canonical JSON payload bytes
+- 27 immutable built-in family specifications and fixed CIDv1 pCIDs
+- checked-in built-in pCID registry verified against exact specification bytes
+- explicit external-package pCIDs; no runtime pCID synthesis for external families
 - CAS object storage
 - pCID-selected CAS-backed workflow lifecycle events with artifact-scoped parent links
 - disposable workflow lifecycle cache rebuilds that reject missing artifacts and retain accepted event CIDs
@@ -121,6 +126,17 @@ Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
 - weighted attestation trust and attester classes
 - federated trust semantics with distinct federation spread
 
+Protocol-identity rule:
+
+- a pCID identifies one immutable shared record contract, not a workflow,
+  executable, package installation, or individual record
+- a workflow normally composes existing family pCIDs and needs neither a new
+  pCID nor an Ex6 rebuild
+- a new interoperable record meaning requires a new immutable specification and
+  pCID; third-party packages own those specifications outside the built-in set
+- unknown pCID records remain exact bytes until a local package and policy
+  choose to interpret them
+
 Discovery rule:
 - discovery is not trust
 - plain discovery fetches metadata and prints next commands only
@@ -138,6 +154,8 @@ Source: `DI-moksu`; `DI-lupok`; `DI-rovum`; `DI-nupad`; `DI-sibok`; `DI-nasek`; 
 - automatic peer discovery with implicit trust and stronger trust beyond explicit allow rules
 - scaffold command for new packages
 - later domain packages beyond the current first-pass ex5 set
+- global identity, universal authority, consensus, or automatic authority from
+  package installation, a signature, workflow import, or workflow activation
 
 Source: `DI-moksu`; `DI-lupok`; `DI-zotem`; `DI-vemut`; `DI-kasud`; `DI-lutep`; `DI-zumep`; `DI-ravud`; `DI-luzef`; `DI-sovem`; `DI-fogem`; `DI-movek`; `DI-ravok`; `DI-rumek`.
 

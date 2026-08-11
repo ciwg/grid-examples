@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.context.responsibility.v1` / `family-validator`
-- `pcid:moks.context.place.v1` / `family-validator`
-- `pcid:moks.context.resource.v1` / `family-validator`
+- `moks.context.responsibility.v1` / `family-validator` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.context.place.v1` / `family-validator` (fixed pCID in the registry)
+- `moks.context.resource.v1` / `family-validator` (fixed pCID in the registry)
 
 ## Intended Commands
 

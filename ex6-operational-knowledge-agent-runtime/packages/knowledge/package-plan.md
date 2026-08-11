@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.knowledge.item.v1` / `family-validator`
-- `pcid:moks.knowledge.revision.v1` / `family-validator`
-- `pcid:moks.knowledge.lifecycle.v1` / `family-validator`
+- `moks.knowledge.item.v1` / `family-validator` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.knowledge.revision.v1` / `family-validator` (fixed pCID in the registry)
+- `moks.knowledge.lifecycle.v1` / `family-validator` (fixed pCID in the registry)
 
 ## Intended Commands
 

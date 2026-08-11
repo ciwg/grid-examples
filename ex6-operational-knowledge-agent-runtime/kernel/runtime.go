@@ -969,9 +969,9 @@ func (runtime *Runtime) History() []store.StoredEnvelope {
 
 func (runtime *Runtime) ExportBatch() (grid.Batch, error) {
 	entries := runtime.history.Entries()
-	rawRecords := make([]json.RawMessage, 0, len(entries))
+	rawRecords := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
-		rawRecords = append(rawRecords, append(json.RawMessage{}, entry.Raw...))
+		rawRecords = append(rawRecords, append([]byte{}, entry.Raw...))
 	}
 	claims := runtime.ImplementationClaims()
 	claimProofs, err := runtime.peers.SignClaims(claims)
@@ -1222,12 +1222,24 @@ func replaceCASAliases(raw []byte, replacements map[string]string) ([]byte, erro
 	if len(replacements) == 0 {
 		return raw, nil
 	}
+	envelope, err := records.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
 	var value any
-	if err := json.Unmarshal(raw, &value); err != nil {
+	if err := json.Unmarshal(envelope.Payload, &value); err != nil {
 		return nil, err
 	}
 	value = replaceAliasesRecursive(value, replacements)
-	return json.Marshal(value)
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	envelope.Payload, err = records.CanonicalJSON(payload)
+	if err != nil {
+		return nil, err
+	}
+	return records.MustMarshal(envelope), nil
 }
 
 func replaceAliasesRecursive(value any, replacements map[string]string) any {
@@ -1298,13 +1310,17 @@ func NewEnvelope(family string, protocolPCID string, recordID string, signer str
 	if err != nil {
 		return records.Envelope{}, err
 	}
+	canonicalBody, err := records.CanonicalJSON(body)
+	if err != nil {
+		return records.Envelope{}, err
+	}
 	envelope := records.Envelope{
 		Family:       family,
 		ProtocolPCID: protocolPCID,
 		RecordID:     recordID,
 		Signer:       signer,
 		Timestamp:    time.Now().UTC().Format(time.RFC3339),
-		Payload:      body,
+		Payload:      canonicalBody,
 	}
 	return envelope, envelope.Validate()
 }

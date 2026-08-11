@@ -6,7 +6,7 @@
 
 ## Intended Claims
 
-- `pcid:moks.links.typed.v1` / `family-validator`
+- `moks.links.typed.v1` / `family-validator` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
 
 ## Intended Commands
 

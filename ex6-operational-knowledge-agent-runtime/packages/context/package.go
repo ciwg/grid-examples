@@ -12,17 +12,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "context"
 
 	ResponsibilityFamily   = "moks.context.responsibility.v1"
-	ResponsibilityProtocol = "pcid:moks.context.responsibility.v1"
+	ResponsibilityProtocol = records.PackageProtocolPCID(ResponsibilityFamily)
 
 	PlaceFamily   = "moks.context.place.v1"
-	PlaceProtocol = "pcid:moks.context.place.v1"
+	PlaceProtocol = records.PackageProtocolPCID(PlaceFamily)
 
 	ResourceFamily   = "moks.context.resource.v1"
-	ResourceProtocol = "pcid:moks.context.resource.v1"
+	ResourceProtocol = records.PackageProtocolPCID(ResourceFamily)
 )
 
 type responsibilityPayload struct {

@@ -43,6 +43,38 @@ func TestBuiltinPackageCommandAndCAS(t *testing.T) {
 	}
 }
 
+const helperEchoFixturePCID = "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a"
+
+// canonicalRecord builds exact Grid carriage for relay and history tests.
+// The helper fixture pCID is a frozen test specification, not a derived label.
+// Source: DI-sidoh, DI-solan.
+func canonicalRecord(t *testing.T, family, recordID, signer string, payload any) []byte {
+	protocolPCID := records.PackageProtocolPCID(family)
+	if family == "helper.echo.v1" {
+		protocolPCID = helperEchoFixturePCID
+	}
+	return canonicalRecordWithPCID(t, protocolPCID, family, recordID, signer, payload)
+}
+
+// canonicalRecordWithPCID keeps external-family fixtures explicit so tests do
+// not recreate the removed runtime pCID synthesis path. Source: DI-solan.
+func canonicalRecordWithPCID(t *testing.T, protocolPCID, family, recordID, signer string, payload any) []byte {
+	t.Helper()
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := records.CanonicalJSON(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := records.Envelope{Family: family, ProtocolPCID: protocolPCID, RecordID: recordID, Signer: signer, Timestamp: "2026-07-28T00:00:00Z", Payload: canonical}
+	if err := envelope.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	return records.MustMarshal(envelope)
+}
+
 func TestContextPackageCommands(t *testing.T) {
 	runtime := newRuntime(t)
 	if _, err := runtime.RunCommand(context.Background(), []string{"context", "place", "create", "place-1", "Receiving", "Inbound-area"}); err != nil {
@@ -365,7 +397,7 @@ func TestInstalledPackageFamilyRequiresValidatorRoute(t *testing.T) {
 		t.Fatalf("decode manifest: %v", err)
 	}
 	manifest["claims"] = []map[string]any{
-		{"protocol_pcid": "pcid:helper.echo.v1", "role": "reader", "summary": "Validates helper echo envelopes."},
+		{"protocol_pcid": "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a", "role": "reader", "summary": "Validates helper echo envelopes."},
 	}
 	updated, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -389,7 +421,7 @@ func TestInstalledPackageFamilyRequiresValidatorRoute(t *testing.T) {
 }
 
 func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
-	unknownRaw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	unknownRaw := canonicalRecordWithPCID(t, "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a", "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtimeA := newRuntime(t)
 	if _, err := runtimeA.AppendRecord(context.Background(), unknownRaw); err != nil {
 		t.Fatalf("append unknown raw: %v", err)
@@ -429,7 +461,7 @@ func TestUnknownFamilyStoredAndLaterInterpreted(t *testing.T) {
 
 func TestAppendRecordAddsSemanticAuthorSignature(t *testing.T) {
 	runtime := newRuntime(t)
-	raw := []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "author-a", map[string]string{"message": "hello"})
 	envelope, err := runtime.AppendRecord(context.Background(), raw)
 	if err != nil {
 		t.Fatalf("append record: %v", err)
@@ -497,7 +529,7 @@ func TestBatchMetadataValidation(t *testing.T) {
 		Format:         grid.RelayBatchFormat,
 		Implementation: "",
 		ExportedAt:     "2026-07-28T00:00:00Z",
-		Records:        []json.RawMessage{json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)},
+		Records:        [][]byte{canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})},
 	})
 	if err == nil {
 		t.Fatal("expected missing implementation error")
@@ -505,7 +537,7 @@ func TestBatchMetadataValidation(t *testing.T) {
 }
 
 func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
@@ -514,8 +546,8 @@ func TestImportBatchIsIdempotentForExactBytes(t *testing.T) {
 		ImplementationClaims: []grid.ImplementationClaim{
 			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "family-validator"},
 		},
-		Records:      []json.RawMessage{raw},
-		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:      [][]byte{raw},
+		RecordProofs: grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
 		t.Fatalf("first import: %v", err)
@@ -1587,13 +1619,13 @@ func TestProtocolRoutePlanPolicyCanOverrideByRoleWithinOneProtocol(t *testing.T)
 }
 
 func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
-		Records:        []json.RawMessage{raw},
+		Records:        [][]byte{raw},
 		RecordProofs:   []grid.RecordProof{{Digest: "sha256:deadbeef"}},
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
@@ -1605,14 +1637,14 @@ func TestImportBatchRejectsRecordProofMismatch(t *testing.T) {
 }
 
 func TestImportBatchRejectsRecordSignatureMismatch(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
-		Records:        []json.RawMessage{raw},
-		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:        [][]byte{raw},
+		RecordProofs:   grid.ProofsForRecords([][]byte{raw}),
 		RecordSignatures: []grid.RecordSignature{{
 			SignerPeerID: "peer-deadbeef",
 			PublicKey:    "deadbeef",
@@ -1628,7 +1660,7 @@ func TestImportBatchRejectsRecordSignatureMismatch(t *testing.T) {
 }
 
 func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
@@ -1642,8 +1674,8 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 			PublicKey:    "deadbeef",
 			Signature:    "deadbeef",
 		}},
-		Records:      []json.RawMessage{raw},
-		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:      [][]byte{raw},
+		RecordProofs: grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
 		t.Fatal("expected claim proof mismatch rejection")
@@ -1654,7 +1686,7 @@ func TestImportBatchRejectsClaimProofMismatch(t *testing.T) {
 }
 
 func TestImportBatchRejectsRouteClaimMismatch(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
@@ -1666,8 +1698,8 @@ func TestImportBatchRejectsRouteClaimMismatch(t *testing.T) {
 		Routes: []grid.RouteRegistration{
 			{PackageID: "helper-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "reader", Families: []string{"helper.echo.v1"}},
 		},
-		Records:      []json.RawMessage{raw},
-		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:      [][]byte{raw},
+		RecordProofs: grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "route registration missing matching claim") {
 		t.Fatalf("expected route claim mismatch rejection, got %v", err)
@@ -1675,7 +1707,7 @@ func TestImportBatchRejectsRouteClaimMismatch(t *testing.T) {
 }
 
 func TestImportBatchRejectsRouteParserMetadataMismatch(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"peer-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "peer-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
@@ -1687,8 +1719,8 @@ func TestImportBatchRejectsRouteParserMetadataMismatch(t *testing.T) {
 		Routes: []grid.RouteRegistration{
 			{PackageID: "parser-agent", PackageVersion: "0.1.0", ProtocolPCID: "pcid:helper.echo.v1", Role: "parser", RouteType: "transform", EmitsProtocols: []string{"pcid:helper.parsed.v1"}},
 		},
-		Records:      []json.RawMessage{raw},
-		RecordProofs: grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:      [][]byte{raw},
+		RecordProofs: grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "route registration route_type mismatch") {
 		t.Fatalf("expected route parser metadata mismatch rejection, got %v", err)
@@ -1698,7 +1730,7 @@ func TestImportBatchRejectsRouteParserMetadataMismatch(t *testing.T) {
 func TestAttestBatchClaimsAddsThirdPartyAttestations(t *testing.T) {
 	exporter := newRuntime(t)
 	attester := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-1", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1719,7 +1751,7 @@ func TestAttestBatchClaimsAddsThirdPartyAttestations(t *testing.T) {
 
 func TestImportBatchRejectsBadThirdPartyClaimAttestation(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-1", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1740,7 +1772,7 @@ func TestImportBatchRejectsBadThirdPartyClaimAttestation(t *testing.T) {
 
 func TestImportBatchAcceptsClaimAttestationQuorum(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-2","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-2", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1776,7 +1808,7 @@ func TestImportBatchAcceptsClaimAttestationQuorum(t *testing.T) {
 
 func TestImportBatchRejectsMissingClaimAttestationQuorum(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-3","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-3", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1812,7 +1844,7 @@ func TestImportBatchRejectsMissingClaimAttestationQuorum(t *testing.T) {
 
 func TestImportBatchAcceptsWeightedClaimTrust(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-4","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-4", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1867,7 +1899,7 @@ func TestImportBatchAcceptsWeightedClaimTrust(t *testing.T) {
 
 func TestImportBatchRejectsWrongAttesterClass(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-5","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-5", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1907,7 +1939,7 @@ func TestImportBatchRejectsWrongAttesterClass(t *testing.T) {
 
 func TestImportBatchAcceptsFederatedClaimTrust(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-6","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-6", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -1966,7 +1998,7 @@ func TestImportBatchAcceptsFederatedClaimTrust(t *testing.T) {
 
 func TestImportBatchRejectsSingleFederationSpread(t *testing.T) {
 	exporter := newRuntime(t)
-	if _, err := exporter.AppendRecord(context.Background(), []byte(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-7","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)); err != nil {
+	if _, err := exporter.AppendRecord(context.Background(), canonicalRecord(t, "helper.echo.v1", "u-7", "author-a", map[string]string{"message": "hello"})); err != nil {
 		t.Fatalf("append exporter record: %v", err)
 	}
 	batch, err := exporter.ExportBatch()
@@ -2023,14 +2055,14 @@ func TestImportBatchRejectsSingleFederationSpread(t *testing.T) {
 }
 
 func TestImportBatchAcceptsLegacyUnsignedAuthorRecord(t *testing.T) {
-	raw := json.RawMessage(`{"family":"helper.echo.v1","protocol_pcid":"pcid:helper.echo.v1","record_id":"u-1","signer":"author-a","timestamp":"2026-07-28T00:00:00Z","payload":{"message":"hello"}}`)
+	raw := canonicalRecord(t, "helper.echo.v1", "u-1", "author-a", map[string]string{"message": "hello"})
 	runtime := newRuntime(t)
 	batch := grid.Batch{
 		Format:         grid.RelayBatchFormat,
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
-		Records:        []json.RawMessage{raw},
-		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:        [][]byte{raw},
+		RecordProofs:   grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err != nil {
 		t.Fatalf("import legacy unsigned author record: %v", err)
@@ -2047,8 +2079,8 @@ func TestImportBatchRejectsBadSemanticAuthorSignature(t *testing.T) {
 		Format:         grid.RelayBatchFormat,
 		Implementation: "peer-a",
 		ExportedAt:     "2026-07-28T00:00:00Z",
-		Records:        []json.RawMessage{raw},
-		RecordProofs:   grid.ProofsForRecords([]json.RawMessage{raw}),
+		Records:        [][]byte{raw},
+		RecordProofs:   grid.ProofsForRecords([][]byte{raw}),
 	}
 	if err := runtime.ImportBatch(context.Background(), batch); err == nil {
 		t.Fatal("expected semantic author signature rejection")
@@ -2115,6 +2147,10 @@ func helperPackageDir(t *testing.T, mismatch bool) string {
 	t.Helper()
 	dir := t.TempDir()
 	executable := filepath.Join(dir, "helper-agent.sh")
+	fixtureGenerator, err := filepath.Abs(filepath.Join("..", "tools", "record-fixture"))
+	if err != nil {
+		t.Fatalf("resolve fixture generator: %v", err)
+	}
 	script := `#!/bin/sh
 set -eu
 case "$1" in
@@ -2124,11 +2160,11 @@ case "$1" in
 EOF
     ;;
   validate)
-    body="$(cat)"
-    case "$body" in
-      *'"family":"helper.echo.v1"'*) exit 0 ;;
-      *) echo "wrong family" >&2; exit 1 ;;
-    esac
+    family="$(go run "$FIXTURE_GENERATOR" inspect)"
+    if [ "$family" != "helper.echo.v1" ]; then
+      echo "wrong family" >&2
+      exit 1
+    fi
     ;;
   run)
     if [ "$2" != "helper echo" ]; then
@@ -2147,6 +2183,8 @@ EOF
     ;;
 esac
 `
+	script = strings.Replace(script, "set -eu\n", "set -eu\nFIXTURE_GENERATOR='"+fixtureGenerator+"'\n", 1)
+	script = strings.ReplaceAll(script, "pcid:helper.echo.v1", "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a")
 	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatalf("write helper script: %v", err)
 	}
@@ -2159,10 +2197,10 @@ esac
 			{"path": []string{"helper", "echo"}, "summary": "Echo a string"},
 		},
 		"families": []map[string]any{
-			{"name": "helper.echo.v1", "protocol_pcid": "pcid:helper.echo.v1"},
+			{"name": "helper.echo.v1", "protocol_pcid": "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a"},
 		},
 		"claims": []map[string]any{
-			{"protocol_pcid": "pcid:helper.echo.v1", "role": "family-validator", "summary": "Validates helper echo envelopes."},
+			{"protocol_pcid": "bafkreihnjma5aoxdsxf2bj45q2hgtnsufyfb2gzguma2jaof6infm3ma6a", "role": "family-validator", "summary": "Validates helper echo envelopes."},
 		},
 	}
 	if mismatch {
@@ -2184,6 +2222,10 @@ func helperWriterPackageDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	executable := filepath.Join(dir, "writer-agent.sh")
+	fixtureGenerator, err := filepath.Abs(filepath.Join("..", "tools", "record-fixture"))
+	if err != nil {
+		t.Fatalf("resolve fixture generator: %v", err)
+	}
 	script := `#!/bin/sh
 set -eu
 case "$1" in
@@ -2193,20 +2235,19 @@ case "$1" in
 EOF
     ;;
   validate)
-    body="$(cat)"
-    case "$body" in
-      *'"family":"writer.note.v1"'*) exit 0 ;;
-      *) echo "wrong family" >&2; exit 1 ;;
-    esac
+    family="$(go run "$FIXTURE_GENERATOR" inspect)"
+    if [ "$family" != "writer.note.v1" ]; then
+      echo "wrong family" >&2
+      exit 1
+    fi
     ;;
   run)
     if [ "$2" != "writer create" ]; then
       echo "unknown helper command" >&2
       exit 1
     fi
-    cat <<EOF
-{"output":"created $3","cas":[{"alias":"body1","body":"payload for $3"}],"records":[{"family":"writer.note.v1","protocol_pcid":"pcid:writer.note.v1","record_id":"$3","signer":"writer-agent","timestamp":"2026-07-28T00:00:00Z","payload":{"title":"Writer","body_ref":"\$cas:body1"}}]}
-EOF
+    record="$(go run "$FIXTURE_GENERATOR" --pcid bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca writer.note.v1 "$3" writer-agent 2026-07-28T00:00:00Z '{"title":"Writer","body_ref":"$cas:body1"}')"
+    printf '{"output":"created %s","cas":[{"alias":"body1","body":"payload for %s"}],"records":["%s"]}\n' "$3" "$3" "$record"
     ;;
   *)
     echo "unknown helper verb" >&2
@@ -2214,6 +2255,8 @@ EOF
     ;;
 esac
 `
+	script = strings.Replace(script, "set -eu\n", "set -eu\nFIXTURE_GENERATOR='"+fixtureGenerator+"'\n", 1)
+	script = strings.ReplaceAll(script, "pcid:writer.note.v1", "bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca")
 	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatalf("write writer script: %v", err)
 	}
@@ -2226,10 +2269,10 @@ esac
 			{"path": []string{"writer", "create"}, "summary": "Create a writer record"},
 		},
 		"families": []map[string]any{
-			{"name": "writer.note.v1", "protocol_pcid": "pcid:writer.note.v1"},
+			{"name": "writer.note.v1", "protocol_pcid": "bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca"},
 		},
 		"claims": []map[string]any{
-			{"protocol_pcid": "pcid:writer.note.v1", "role": "family-validator", "summary": "Validates writer note envelopes."},
+			{"protocol_pcid": "bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca", "role": "family-validator", "summary": "Validates writer note envelopes."},
 		},
 	}
 	body, err := json.MarshalIndent(manifest, "", "  ")

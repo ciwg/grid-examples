@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.training.item.v1` / `domain-behavior`
-- `pcid:moks.training.session.v1` / `domain-behavior`
-- `pcid:moks.training.completion.v1` / `domain-behavior`
+- `moks.training.item.v1` / `domain-behavior` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.training.session.v1` / `domain-behavior` (fixed pCID in the registry)
+- `moks.training.completion.v1` / `domain-behavior` (fixed pCID in the registry)
 
 ## Intended Commands
 

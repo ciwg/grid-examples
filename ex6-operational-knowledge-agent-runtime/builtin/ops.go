@@ -12,10 +12,10 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	OpsPackageID      = "ops-note"
 	OpsFamily         = "moks.ops.note.v1"
-	OpsFamilyProtocol = "pcid:moks.ops.note.v1"
+	OpsFamilyProtocol = records.PackageProtocolPCID(OpsFamily)
 )
 
 type notePayload struct {

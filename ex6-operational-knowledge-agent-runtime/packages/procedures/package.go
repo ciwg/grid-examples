@@ -15,14 +15,14 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "procedures"
 
 	ItemFamily   = "moks.procedures.item.v1"
-	ItemProtocol = "pcid:moks.procedures.item.v1"
+	ItemProtocol = records.PackageProtocolPCID(ItemFamily)
 
 	UseFamily   = "moks.procedures.use.v1"
-	UseProtocol = "pcid:moks.procedures.use.v1"
+	UseProtocol = records.PackageProtocolPCID(UseFamily)
 )
 
 type procedureItemPayload struct {

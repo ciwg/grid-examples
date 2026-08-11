@@ -19,7 +19,12 @@ import (
 
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/grid"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/kernel"
+	contextpkg "github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/packages/context"
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/store"
+)
+
+var (
+	contextPlaceProtocol = contextpkg.PlaceProtocol
 )
 
 func TestBuiltinQuickstartFlow(t *testing.T) {
@@ -998,6 +1003,14 @@ func runDeployedMoksResult(binary string, workdir string, args ...string) (strin
 }
 
 func TestInstalledWriterAgentExample(t *testing.T) {
+	fixtureGenerator := filepath.Join(t.TempDir(), "record-fixture")
+	buildFixture := exec.Command("go", "build", "-o", fixtureGenerator, filepath.Join(repoRoot(t), "tools", "record-fixture"))
+	buildFixture.Dir = repoRoot(t)
+	if output, err := buildFixture.CombinedOutput(); err != nil {
+		t.Fatalf("build record fixture: %v: %s", err, output)
+	}
+	t.Setenv("MOKS_RECORD_FIXTURE", fixtureGenerator)
+
 	workdir := t.TempDir()
 	exampleDir := filepath.Join(repoRoot(t), "examples", "writer-agent")
 	if output, err := runCLI(t, workdir, "package", "install", exampleDir); err != nil {
@@ -1031,21 +1044,21 @@ func TestRouteListShowsProtocolRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("route list: %v", err)
 	}
-	if !strings.Contains(output, "pcid:moks.context.place.v1\tfamily-validator\tdirect\tcontext\t0.1.0\tmoks.context.place.v1\t") {
+	if !strings.Contains(output, contextPlaceProtocol) || !strings.Contains(output, "family-validator\tdirect\tcontext\t0.1.0\tmoks.context.place.v1") {
 		t.Fatalf("route list missing context place validator: %s", output)
 	}
-	if !strings.Contains(output, "pcid:moks.ops.note.v1\tfamily-validator\tdirect\tops-note\t0.1.0\tmoks.ops.note.v1\t") {
+	if !strings.Contains(output, "family-validator\tdirect\tops-note\t0.1.0\tmoks.ops.note.v1") {
 		t.Fatalf("route list missing ops note validator: %s", output)
 	}
 }
 
 func TestRouteInspectShowsProtocolRoutesForPCID(t *testing.T) {
 	workdir := t.TempDir()
-	output, err := runCLI(t, workdir, "route", "inspect", "pcid:moks.context.place.v1")
+	output, err := runCLI(t, workdir, "route", "inspect", contextPlaceProtocol)
 	if err != nil {
 		t.Fatalf("route inspect: %v", err)
 	}
-	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if !strings.Contains(output, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route inspect missing protocol: %s", output)
 	}
 	if !strings.Contains(output, `"role": "family-validator"`) {
@@ -1059,11 +1072,11 @@ func TestRouteInspectShowsProtocolRoutesForPCID(t *testing.T) {
 func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 	workdir := t.TempDir()
 	publishContextRoutePromises(t, workdir)
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol)
 	if err != nil {
 		t.Fatalf("route plan: %v", err)
 	}
-	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if !strings.Contains(output, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route plan missing protocol: %s", output)
 	}
 	if !strings.Contains(output, `"preferred"`) {
@@ -1083,7 +1096,7 @@ func TestRoutePlanShowsPreferredRouteForPCID(t *testing.T) {
 func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	workdir := t.TempDir()
 	publishContextRoutePromises(t, workdir)
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace")
 	if err != nil {
 		t.Fatalf("route plan trace: %v", err)
 	}
@@ -1096,7 +1109,7 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 	if !strings.Contains(output, `"trace_summary"`) || !strings.Contains(output, `"total_steps"`) {
 		t.Fatalf("route plan trace missing trace summary: %s", output)
 	}
-	if !strings.Contains(output, `"scope": "root"`) || !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if !strings.Contains(output, `"scope": "root"`) || !strings.Contains(output, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route plan trace missing scope metadata: %s", output)
 	}
 	if !strings.Contains(output, `"hop_path": "root"`) {
@@ -1112,7 +1125,7 @@ func TestRoutePlanTraceShowsPlannerSteps(t *testing.T) {
 
 func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
 	workdir := t.TempDir()
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "candidate", "context:family-validator:direct")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace", "candidate", "context:family-validator:direct")
 	if err != nil {
 		t.Fatalf("route plan trace candidate focus: %v", err)
 	}
@@ -1126,7 +1139,7 @@ func TestRoutePlanTraceCanFocusOnCandidate(t *testing.T) {
 
 func TestRoutePlanTraceCanFocusOnDepth(t *testing.T) {
 	workdir := t.TempDir()
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "depth", "0")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace", "depth", "0")
 	if err != nil {
 		t.Fatalf("route plan trace depth focus: %v", err)
 	}
@@ -1137,7 +1150,7 @@ func TestRoutePlanTraceCanFocusOnDepth(t *testing.T) {
 
 func TestRoutePlanTraceCanCombineFilters(t *testing.T) {
 	workdir := t.TempDir()
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "depth", "0", "candidate", "context:family-validator:direct")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace", "depth", "0", "candidate", "context:family-validator:direct")
 	if err != nil {
 		t.Fatalf("route plan trace combined filters: %v", err)
 	}
@@ -1148,7 +1161,7 @@ func TestRoutePlanTraceCanCombineFilters(t *testing.T) {
 
 func TestRoutePlanTraceCanUseNamedScope(t *testing.T) {
 	workdir := t.TempDir()
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "scope", "direct-hops")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace", "scope", "direct-hops")
 	if err != nil {
 		t.Fatalf("route plan trace named scope: %v", err)
 	}
@@ -1169,7 +1182,7 @@ func TestRoutePlanTraceCanUseLocalScopeAlias(t *testing.T) {
 	if !strings.Contains(listOutput, `"name": "root-only"`) {
 		t.Fatalf("route scope list missing local alias: %s", listOutput)
 	}
-	output, err := runCLI(t, workdir, "route", "plan", "pcid:moks.context.place.v1", "trace", "scope", "root-only")
+	output, err := runCLI(t, workdir, "route", "plan", contextPlaceProtocol, "trace", "scope", "root-only")
 	if err != nil {
 		t.Fatalf("route plan trace local scope alias: %v", err)
 	}
@@ -1186,7 +1199,7 @@ func TestRouteScopeInspectShowsExpandedAliasClauses(t *testing.T) {
 	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-base", "scope", "direct-hops", "candidate", "context:family-validator:direct"); err != nil {
 		t.Fatalf("route scope set branch-base: %v", err)
 	}
-	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", "pcid:moks.context.place.v1"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", contextPlaceProtocol); err != nil {
 		t.Fatalf("route scope set branch-expanded: %v", err)
 	}
 	output, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded")
@@ -1254,7 +1267,7 @@ func TestRouteScopeInspectCanOrderAndFilterGroups(t *testing.T) {
 	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-base", "scope", "direct-hops", "candidate", "context:family-validator:direct"); err != nil {
 		t.Fatalf("route scope set branch-base: %v", err)
 	}
-	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", "pcid:moks.context.place.v1"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "scope", "set", "branch-expanded", "scope", "branch-base", "downstream", contextPlaceProtocol); err != nil {
 		t.Fatalf("route scope set branch-expanded: %v", err)
 	}
 	output, err := runCLI(t, workdir, "route", "scope", "inspect", "branch-expanded", "sort", "summary", "summary", "branch-base")
@@ -1341,21 +1354,21 @@ func TestRoutePolicySetForProtocolAndShowEffective(t *testing.T) {
 	if _, err := runCLI(t, workdir, "route", "policy", "set", "direct", "-", "-", "-"); err != nil {
 		t.Fatalf("route policy set: %v", err)
 	}
-	if _, err := runCLI(t, workdir, "route", "policy", "set-for", "pcid:moks.context.place.v1", "parser", "direct", "-", "-"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "policy", "set-for", contextPlaceProtocol, "parser", "direct", "-", "-"); err != nil {
 		t.Fatalf("route policy set-for: %v", err)
 	}
 	output, err := runCLI(t, workdir, "route", "policy", "show")
 	if err != nil {
 		t.Fatalf("route policy show: %v", err)
 	}
-	if !strings.Contains(output, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if !strings.Contains(output, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route policy show missing protocol override: %s", output)
 	}
-	effective, err := runCLI(t, workdir, "route", "policy", "show", "pcid:moks.context.place.v1")
+	effective, err := runCLI(t, workdir, "route", "policy", "show", contextPlaceProtocol)
 	if err != nil {
 		t.Fatalf("route policy show for protocol: %v", err)
 	}
-	if !strings.Contains(effective, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if !strings.Contains(effective, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route policy effective output missing protocol: %s", effective)
 	}
 	if !strings.Contains(effective, `"global"`) || !strings.Contains(effective, `"effective"`) {
@@ -1367,21 +1380,21 @@ func TestRoutePolicySetForProtocolAndShowEffective(t *testing.T) {
 	if !strings.Contains(effective, `"avoid_route_types": [`) || !strings.Contains(effective, `"direct"`) {
 		t.Fatalf("route policy effective output missing direct avoidance: %s", effective)
 	}
-	if _, err := runCLI(t, workdir, "route", "policy", "remove", "pcid:moks.context.place.v1"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "policy", "remove", contextPlaceProtocol); err != nil {
 		t.Fatalf("route policy remove: %v", err)
 	}
 	afterRemove, err := runCLI(t, workdir, "route", "policy", "show")
 	if err != nil {
 		t.Fatalf("route policy show after remove: %v", err)
 	}
-	if strings.Contains(afterRemove, `"protocol_pcid": "pcid:moks.context.place.v1"`) {
+	if strings.Contains(afterRemove, `"protocol_pcid": "`+contextPlaceProtocol+`"`) {
 		t.Fatalf("route policy override still present after remove: %s", afterRemove)
 	}
 }
 
 func TestRoutePolicySetForRoleAndShowEffective(t *testing.T) {
 	workdir := t.TempDir()
-	if _, err := runCLI(t, workdir, "route", "policy", "set-for-role", "pcid:moks.context.place.v1", "family-validator", "-", "-", "family-validator", "-"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "policy", "set-for-role", contextPlaceProtocol, "family-validator", "-", "-", "family-validator", "-"); err != nil {
 		t.Fatalf("route policy set-for-role: %v", err)
 	}
 	output, err := runCLI(t, workdir, "route", "policy", "show")
@@ -1391,7 +1404,7 @@ func TestRoutePolicySetForRoleAndShowEffective(t *testing.T) {
 	if !strings.Contains(output, `"protocol_roles": [`) || !strings.Contains(output, `"role": "family-validator"`) {
 		t.Fatalf("route policy show missing protocol role override: %s", output)
 	}
-	effective, err := runCLI(t, workdir, "route", "policy", "show", "pcid:moks.context.place.v1", "family-validator")
+	effective, err := runCLI(t, workdir, "route", "policy", "show", contextPlaceProtocol, "family-validator")
 	if err != nil {
 		t.Fatalf("route policy show for protocol role: %v", err)
 	}
@@ -1404,7 +1417,7 @@ func TestRoutePolicySetForRoleAndShowEffective(t *testing.T) {
 	if !strings.Contains(effective, `"prefer_roles": [`) || !strings.Contains(effective, `"family-validator"`) {
 		t.Fatalf("route policy effective output missing family-validator preference: %s", effective)
 	}
-	if _, err := runCLI(t, workdir, "route", "policy", "remove-role", "pcid:moks.context.place.v1", "family-validator"); err != nil {
+	if _, err := runCLI(t, workdir, "route", "policy", "remove-role", contextPlaceProtocol, "family-validator"); err != nil {
 		t.Fatalf("route policy remove-role: %v", err)
 	}
 	afterRemove, err := runCLI(t, workdir, "route", "policy", "show")
@@ -1848,8 +1861,8 @@ func publishContextRoutePromises(t *testing.T, workdir string) {
 	t.Helper()
 	commands := [][]string{
 		{"route", "bind", "context-app", "context", "true"},
-		{"route", "promise", "receive", "context-app", "pcid:moks.context.place.v1", "true"},
-		{"route", "promise", "deliver", "local-router", "context-app", "pcid:moks.context.place.v1", "true"},
+		{"route", "promise", "receive", "context-app", contextPlaceProtocol, "true"},
+		{"route", "promise", "deliver", "local-router", "context-app", contextPlaceProtocol, "true"},
 	}
 	for _, command := range commands {
 		if _, err := runCLI(t, workdir, command...); err != nil {

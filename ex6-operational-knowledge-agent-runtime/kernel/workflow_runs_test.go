@@ -1124,7 +1124,7 @@ func TestInstalledWorkflowAdapterExecutesValidatedWorkerProposal(t *testing.T) {
 		return EncodeWorkflowAdapterResult(WorkflowAdapterResult{
 			Output:  input,
 			CAS:     []packages.CASWrite{{Alias: "body", Body: "worker evidence"}},
-			Records: []json.RawMessage{json.RawMessage(`{"family":"worker.note.v1","protocol_pcid":"pcid:worker.note.v1","record_id":"worker-1","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{"body_ref":"$cas:body"}}`)},
+			Records: [][]byte{canonicalTestRecord(t, "bafkreic3ucc4tlmlup2favkh2gnwv7br3ke2afvsme3fougs33rnw5cdjq", "worker.note.v1", "worker-1", "worker", "2026-08-02T00:00:00Z", map[string]string{"body_ref": "$cas:body"})},
 		})
 	}
 	run, err := runtime.StartWorkflowRun(context.Background(), "worker", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}})
@@ -1167,7 +1167,7 @@ func TestInstalledWorkflowAdapterRejectsWrongOutputBeforeWrites(t *testing.T) {
 	runtime.workflowWorker = func(_ context.Context, _ packages.WorkflowAdapter, _ []byte) ([]byte, error) {
 		return EncodeWorkflowAdapterResult(WorkflowAdapterResult{
 			Output:  WorkflowHandoff{PCID: WorkflowRunProtocolPCID, Values: map[string]string{"subject": "wrong"}},
-			Records: []json.RawMessage{json.RawMessage(`{"family":"worker.note.v1","protocol_pcid":"pcid:worker.note.v1","record_id":"worker-1","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{}}`)},
+			Records: [][]byte{canonicalTestRecord(t, "bafkreic3ucc4tlmlup2favkh2gnwv7br3ke2afvsme3fougs33rnw5cdjq", "worker.note.v1", "worker-1", "worker", "2026-08-02T00:00:00Z", map[string]string{})},
 		})
 	}
 	run, err := runtime.StartWorkflowRun(context.Background(), "worker", WorkflowHandoff{PCID: WorkflowHandoffProtocolPCID, Values: map[string]string{"subject": "egg"}})
@@ -1220,7 +1220,7 @@ func TestWorkerProposalPreflightRejectsInvalidRecordWithoutCASWrite(t *testing.T
 	}()
 	result := packages.CommandResult{
 		CAS:     []packages.CASWrite{{Alias: "body", Body: "must not persist"}},
-		Records: []json.RawMessage{json.RawMessage(`{"invalid":`)},
+		Records: [][]byte{[]byte("invalid")},
 	}
 	if _, err := runtime.applyExternalCommandResult(context.Background(), result); err == nil {
 		t.Fatal("invalid worker proposal was accepted")
@@ -1242,9 +1242,9 @@ func TestWorkerProposalRejectsExternallyValidatedFamilyWithoutHostProcess(t *tes
 	}()
 	runtime.families["external.note.v1"] = registeredFamily{
 		owner:        &activePackage{external: packages.Runner{Executable: filepath.Join(t.TempDir(), "must-not-run")}},
-		protocolPCID: "pcid:external.note.v1",
+		protocolPCID: "bafkreigfysdxxgwcgbxoolec6rz7ht7ze3oj6ddbq5r3olj63gw26g3p7a",
 	}
-	_, err = runtime.applyWorkflowAdapterResult(context.Background(), packages.CommandResult{Records: []json.RawMessage{json.RawMessage(`{"family":"external.note.v1","protocol_pcid":"pcid:external.note.v1","record_id":"one","signer":"worker","timestamp":"2026-08-02T00:00:00Z","payload":{}}`)}})
+	_, err = runtime.applyWorkflowAdapterResult(context.Background(), packages.CommandResult{Records: [][]byte{canonicalTestRecord(t, "bafkreigfysdxxgwcgbxoolec6rz7ht7ze3oj6ddbq5r3olj63gw26g3p7a", "external.note.v1", "one", "worker", "2026-08-02T00:00:00Z", map[string]string{})}})
 	if err == nil || !strings.Contains(err.Error(), "cannot write externally validated family") {
 		t.Fatalf("external-family worker proposal error = %v", err)
 	}

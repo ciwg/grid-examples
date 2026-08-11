@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.maintenance.item.v1` / `domain-behavior`
-- `pcid:moks.maintenance.service.v1` / `domain-behavior`
-- `pcid:moks.maintenance.finding.v1` / `domain-behavior`
+- `moks.maintenance.item.v1` / `domain-behavior` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.maintenance.service.v1` / `domain-behavior` (fixed pCID in the registry)
+- `moks.maintenance.finding.v1` / `domain-behavior` (fixed pCID in the registry)
 
 ## Intended Commands
 

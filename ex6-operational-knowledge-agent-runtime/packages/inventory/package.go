@@ -16,17 +16,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "inventory"
 
 	ItemFamily   = "moks.inventory.item.v1"
-	ItemProtocol = "pcid:moks.inventory.item.v1"
+	ItemProtocol = records.PackageProtocolPCID(ItemFamily)
 
 	CountFamily   = "moks.inventory.count.v1"
-	CountProtocol = "pcid:moks.inventory.count.v1"
+	CountProtocol = records.PackageProtocolPCID(CountFamily)
 
 	ReconcileFamily   = "moks.inventory.reconcile.v1"
-	ReconcileProtocol = "pcid:moks.inventory.reconcile.v1"
+	ReconcileProtocol = records.PackageProtocolPCID(ReconcileFamily)
 )
 
 type inventoryItemPayload struct {

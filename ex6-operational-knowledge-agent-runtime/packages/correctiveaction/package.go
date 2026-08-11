@@ -13,10 +13,10 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID     = "correctiveaction"
 	EventFamily   = "moks.correctiveaction.event.v1"
-	EventProtocol = "pcid:moks.correctiveaction.event.v1"
+	EventProtocol = records.PackageProtocolPCID(EventFamily)
 )
 
 type event struct {

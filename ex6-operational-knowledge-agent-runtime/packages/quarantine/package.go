@@ -13,11 +13,11 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "quarantine"
 
 	EventFamily   = "moks.quarantine.event.v1"
-	EventProtocol = "pcid:moks.quarantine.event.v1"
+	EventProtocol = records.PackageProtocolPCID(EventFamily)
 )
 
 type eventPayload struct {

@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.runs.run.v1` / `family-validator`
-- `pcid:moks.runs.evidence.v1` / `family-validator`
-- `pcid:moks.runs.approval.v1` / `family-validator`
+- `moks.runs.run.v1` / `family-validator` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.runs.evidence.v1` / `family-validator` (fixed pCID in the registry)
+- `moks.runs.approval.v1` / `family-validator` (fixed pCID in the registry)
 
 ## Intended Commands
 

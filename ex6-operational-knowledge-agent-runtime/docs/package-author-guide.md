@@ -60,6 +60,26 @@ Current routing rule:
 
 Source: `DI-lupok`; `DI-rutom`; `DI-ruvot`; `DI-lafek`; `DI-fotav`; `DI-pabut`; `DI-matek`.
 
+## Family Specifications and pCIDs
+
+Do not create a pCID for an ordinary workflow. A workflow normally composes
+existing package families. Consult the built-in [family registry](protocols/package-family-pcid-registry.md)
+first; a workflow that uses those existing meanings needs no new protocol or
+Ex6 rebuild.
+
+When an external package introduces a new interoperable durable-record meaning,
+the package author must create one immutable versioned family specification in
+the package source tree, calculate its CIDv1 from the exact specification bytes,
+and use that exact pCID in the manifest, `describe` output, and every emitted
+canonical record. Keep the specification with the package, as the writer
+example does in [`examples/writer-agent/protocols/`](../examples/writer-agent/protocols/).
+
+Do not use a symbolic value such as `pcid:example.v1`, and do not derive a pCID
+from a family label at runtime. A changed record meaning requires a new
+versioned family specification and pCID. Retiring a workflow or family stops
+new use but does not rewrite or delete historical specifications or records.
+Source: `DI-jusij`; `DI-solan`.
+
 ## Workflow-Adapter Extension
 
 Portable adapters use registry-qualified immutable OCI digest references. An
@@ -173,12 +193,12 @@ it does not implement a host-process `run` fallback. Source: `DI-fofuh`;
   "families": [
     {
       "name": "helper.echo.v1",
-      "protocol_pcid": "pcid:helper.echo.v1"
+      "protocol_pcid": "<cidv1-of-your-frozen-helper-echo-spec>"
     }
   ],
   "claims": [
     {
-      "protocol_pcid": "pcid:helper.echo.v1",
+      "protocol_pcid": "<cidv1-of-your-frozen-helper-echo-spec>",
       "role": "family-validator",
       "summary": "Validates helper echo envelopes."
     }
@@ -207,6 +227,12 @@ Instead, `run` may print a JSON result with:
 - `cas`
 - `records`
 
+`records` is a JSON base64 `[][]byte` wrapper around exact canonical Grid
+record bytes. It is process transport only: each record's Grid selector is the
+family's explicit frozen pCID. An installed package must never emit a JSON
+record object or synthesize a pCID from its family name. Source: `DI-sidoh`;
+`DI-solan`.
+
 The runtime performs those CAS and append-only history writes itself. This
 keeps durable mutation runtime-mediated even for external packages. Source:
 `DI-rovum`.
@@ -217,6 +243,7 @@ The repo now includes one small installed-package example:
 
 - `examples/writer-agent/moks-package.json`
 - `examples/writer-agent/writer-agent.sh`
+- `examples/writer-agent/protocols/writer-note-v1.md`
 
 Try it from the ex6 repo root:
 

@@ -15,17 +15,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "training"
 
 	ItemFamily   = "moks.training.item.v1"
-	ItemProtocol = "pcid:moks.training.item.v1"
+	ItemProtocol = records.PackageProtocolPCID(ItemFamily)
 
 	SessionFamily   = "moks.training.session.v1"
-	SessionProtocol = "pcid:moks.training.session.v1"
+	SessionProtocol = records.PackageProtocolPCID(SessionFamily)
 
 	CompletionFamily   = "moks.training.completion.v1"
-	CompletionProtocol = "pcid:moks.training.completion.v1"
+	CompletionProtocol = records.PackageProtocolPCID(CompletionFamily)
 )
 
 type trainingItemPayload struct {

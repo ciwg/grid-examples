@@ -15,12 +15,12 @@
   "families": [
     {
       "name": "writer.note.v1",
-      "protocol_pcid": "pcid:writer.note.v1"
+      "protocol_pcid": "bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca"
     }
   ],
   "claims": [
     {
-      "protocol_pcid": "pcid:writer.note.v1",
+      "protocol_pcid": "bafkreigwh6qript7zma7gu6fgxixmno2eglo3v2bhwpqr3dg5utiyagmca",
       "role": "family-validator",
       "summary": "Validates writer note envelopes."
     }

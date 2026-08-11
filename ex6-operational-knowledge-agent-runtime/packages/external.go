@@ -15,9 +15,9 @@ type CASWrite struct {
 }
 
 type CommandResult struct {
-	Output  string            `json:"output,omitempty"`
-	CAS     []CASWrite        `json:"cas,omitempty"`
-	Records []json.RawMessage `json:"records,omitempty"`
+	Output  string     `json:"output,omitempty"`
+	CAS     []CASWrite `json:"cas,omitempty"`
+	Records [][]byte   `json:"records,omitempty"`
 }
 
 type Runner struct {

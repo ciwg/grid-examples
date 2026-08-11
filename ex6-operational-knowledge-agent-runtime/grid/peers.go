@@ -252,7 +252,7 @@ func (store *PeerStore) VerifyPeerBytes(peerID string, body []byte, signature st
 	return nil
 }
 
-func (store *PeerStore) SignRecords(records []json.RawMessage) ([]RecordSignature, error) {
+func (store *PeerStore) SignRecords(records [][]byte) ([]RecordSignature, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	privateKey, err := hex.DecodeString(store.config.LocalPrivateKey)

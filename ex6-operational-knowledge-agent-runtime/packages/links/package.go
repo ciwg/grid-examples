@@ -12,11 +12,11 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "links"
 
 	TypedFamily   = "moks.links.typed.v1"
-	TypedProtocol = "pcid:moks.links.typed.v1"
+	TypedProtocol = records.PackageProtocolPCID(TypedFamily)
 )
 
 type typedLinkPayload struct {

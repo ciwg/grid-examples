@@ -2,6 +2,24 @@
 
 ## Decision Intent Log
 
+ID: DI-solan
+Date: 2026-08-11 09:15:12 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Implement the built-in 27-family pCID set as checked-in Go literals in `records/family_registry.go`, verified by tests against the immutable specification files and append-only human-facing registry. The compiled registry covers only built-in first-party families; workflows and third-party package families remain independently extensible without recompiling Ex6.
+Intent: Give deployed binaries deterministic recognition of their own frozen contracts without treating every user workflow or package as a core release concern.
+Constraints: Production runtime must not depend on Markdown files; no runtime-derived pCID calculation; tests must detect missing, mismatched, or undocumented built-in family entries; third-party unknown records remain exact opaque bytes until locally interpreted.
+Affects: `records/family_registry.go`, `records/`, package manifests, routes, relay metadata, record fixtures, tests, and `docs/protocols/package-family-pcid-registry.md`.
+
+ID: DI-jusij
+Date: 2026-08-11 09:03:03 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Freeze one immutable specification file per active package-record family and maintain an append-only central registry mapping each family to the CIDv1 of its exact specification bytes. Workflows compose existing family pCIDs; a new pCID is added only for a new shared wire-level semantic contract. Retired workflows or families are deprecated rather than deleting or rewriting their specifications.
+Intent: Make Ex6 protocol identity stable and independently evolvable while allowing users to create and add workflows without manufacturing pCIDs for ordinary local composition.
+Constraints: A pCID is never a package, workflow, executable, or record identifier; registry entries are append-only; a meaning change requires a new versioned family specification and pCID; unknown pCID records remain exact opaque bytes until a local interpreter is available.
+Affects: `docs/thought-experiments/TE-zonal-frozen-family-pcid-registry.md`, frozen family specifications, central pCID registry, `records/`, package manifests, routes, relay metadata, fixtures, tests, README, architecture, implementation claims, testing guide, and CHANGELOG.
+
 ID: DI-puvok
 Date: 2026-07-28 23:35:00
 Status: active
@@ -9,6 +27,25 @@ Decision: Record the boss-note alignment that the ex6 runtime should eventually 
 Intent: Keep current ex6 work aligned with stronger architecture guidance without throwing away the runtime-centered direction that already fits PromiseGrid-oriented modular growth.
 Constraints: Treat current ex6 runtime/package embodiment as intermediate; preserve runtime-centered reasoning; do not yet force a full rewrite from manifests into pure startup-promise routing.
 Affects: `docs/agent-kernel-alignment.md`, README links, and future kernel/app boundary work inside ex6.
+
+ID: DI-salaf
+Date: 2026-08-11 07:10:54 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Migrate Ex6 package-defined durable records compatibility-first: freeze protocol specifications and use their real CIDv1 pCIDs plus canonical Grid carriage for all new package records; retain existing symbolic `pcid:<name>` JSON records only as explicitly legacy implementation-local evidence.
+Intent: Correct Ex6's false pCID claim without reinterpreting or discarding historical records, while allowing mixed-version operational migration.
+Constraints: Never infer a real pCID from a symbolic label; a changed protocol requires a new frozen specification and pCID; workflow and route-promise selectors retain their existing separately specified contracts; signatures remain evidence rather than universal authority.
+Affects: `docs/thought-experiments/TE-ralam-package-pcid-migration.md`, package protocol specifications, `records/`, `kernel/`, `packages/`, `grid/`, CLI, tests, README, architecture, implementation claims, testing guide, and CHANGELOG.
+
+ID: DI-sidoh
+Date: 2026-08-11 07:10:54 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Re-create Ex6's package-record model as one canonical Grid contract with real CIDv1 pCIDs, without retaining the unreleased symbolic JSON `records.Envelope` compatibility path.
+Intent: Correct protocol identity and carriage at the root instead of embedding an unnecessary pre-release migration layer into the shipped design.
+Constraints: Remove symbolic `pcid:<name>` package protocol claims and JSON package-record fixtures; freeze a specification before assigning each pCID; use canonical Grid bytes for package durable records; preserve unknown exact-byte retention only for bytes outside known canonical family contracts; signatures remain evidence, not authority.
+Affects: `docs/thought-experiments/TE-hofor-unreleased-canonical-package-recreation.md`, `records/`, `kernel/`, `grid/`, `packages/`, `builtin/`, `cmd/moks/`, package protocol specifications, tests, README, architecture, implementation claims, testing guide, CHANGELOG, and TODO `puvok`.
+Supersedes: DI-salaf
 
 ID: DI-rutom
 Date: 2026-07-28 10:15:43

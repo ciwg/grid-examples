@@ -16,14 +16,14 @@ private source-of-truth channels. Source: `DI-moksu`; `DI-lupok`.
 ## Topology
 
 ```text
-             package protocol claims / family declarations
+       frozen built-in pCID registry / external package pCIDs
                                │
                       package manifests + self-check
                                │
                     OKAR runtime kernel
           /                 /          \                 \
          /                 /            \                 \
-  command routing   append-only log      CAS       relay export/import
+  command routing  canonical history    CAS       relay export/import
          \                 \            /                 /
           \                 \          /                 /
                   built-in and installed packages
@@ -41,7 +41,8 @@ The runtime currently owns:
 - command routing
 - family registration
 - protocol claim publication
-- append-only durable history
+- fixed lookup for the 27 built-in family pCIDs
+- canonical Grid record encoding and append-only durable history
 - CAS storage
 - relay batch export/import
 
@@ -57,6 +58,12 @@ A package currently owns:
 - its command surface
 - validation for the families it owns
 
+An installed third-party package also owns the immutable specifications for its
+own external families. It provides explicit pCIDs; the runtime never computes a
+new pCID from a family label. Workflows compose package capabilities and family
+pCIDs, so they are not package protocols by default. Source: `DI-jusij`;
+`DI-solan`.
+
 Built-in and installed packages follow the same conceptual contract. Source:
 `DI-moksu`; `DI-lupok`.
 
@@ -64,14 +71,35 @@ Built-in and installed packages follow the same conceptual contract. Source:
 
 The current PromiseGrid alignment rule in ex6 is:
 
-- a family is registered with a declared `protocol_pcid`
+- each built-in family is registered with the fixed CIDv1 pCID of its immutable
+  specification; the [registry](protocols/package-family-pcid-registry.md)
+  publishes the mapping
+- an external family supplies its own explicit frozen pCID in its package
+  manifest and record bytes
 - a package must publish an explicit implementation claim for that protocol
 - a known-family record is rejected if its `protocol_pcid` does not match the
   registered family contract
 - an unknown-family record is still retained as exact bytes
 
 This keeps ex6 closer to protocol work than to app-local RPC work. Source:
-`DI-lupok`.
+`DI-lupok`; `DI-jusij`; `DI-solan`.
+
+## Evidence and storage map
+
+| Evidence or state | Representation | Boundary |
+| --- | --- | --- |
+| Durable package record | canonical Grid CBOR bytes; canonical JSON payload slot | semantic family pCID and local validator/policy |
+| Semantic author evidence | optional author key ID, public key, and signature slots | evidence of authorship, not automatic authority |
+| Append-only history | base64 line framing of exact canonical record bytes | local durable storage |
+| CAS and blobs | content-addressed local objects | local runtime storage |
+| Relay batch | exact record bytes, batch metadata, relay signatures and digest proofs | carriage evidence, separate from author evidence |
+| Route promises and bindings | local durable promise/binding records | local availability and route-selection policy |
+| Workflow artifacts and projections | immutable CAS artifacts plus local lifecycle/projection state | local import, activation, and execution decisions |
+
+Unknown pCID records remain exact bytes in history, CAS, and relay carriage
+without being treated as known semantics. Role effects, approvals, and route
+selection are local-policy interpretations, not protocol-granted authority.
+Source: `DI-sidoh`; `DI-jusij`; `DI-solan`.
 
 ## Current Limits
 

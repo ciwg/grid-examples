@@ -11,13 +11,29 @@ It is the start of a new standalone product where:
 - packages own business behavior
 - built-in and installed packages use the same runtime contract
 
-Current status: this repo contains the runtime foundation, the first nine
-first-party built-in packages (`context`, `knowledge`, `runs`, `links`,
-`procedures`, `training`, `maintenance`, `receiving`, `inventory`), and one
-small built-in example package. It does **not** yet contain the full ex5
-capability set as OKAR packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
-`DI-vakod`; `DI-pamuk`; `DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`;
-`DI-zibek`; `DI-lavom`; `DI-okar`.
+Current status: this repo contains the runtime foundation, first-party package
+families, installed-package support, relay carriage, and workflow artifacts.
+Its 27 built-in package-record families have immutable specifications and fixed
+CIDv1 pCIDs. It does **not** yet contain the full ex5 capability set as OKAR
+packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
+`DI-figar`; `DI-tusav`; `DI-sivuk`; `DI-ramek`; `DI-zibek`; `DI-lavom`;
+`DI-okar`; `DI-jusij`; `DI-solan`.
+
+## PromiseGrid scope
+
+Ex6 records durable package evidence as canonical Grid CBOR bytes. A pCID names
+one frozen shared record contract, not a package, workflow, executable, or
+individual record. Workflows normally compose existing family pCIDs, so adding
+or retiring a workflow does not require recompiling Ex6. A new interoperable
+record meaning requires a new immutable specification and pCID; third-party
+packages own those specifications outside the built-in registry.
+
+The runtime preserves unknown-family records as exact bytes and does not infer
+their semantics. Semantic author evidence, relay-carriage signatures, route
+availability, approvals, and workflow execution remain separate local-policy
+questions. Ex6 does not claim global identity, universal authority, consensus,
+or automatic trust from package installation or a signature. Source:
+`DI-sidoh`; `DI-jusij`; `DI-solan`.
 
 ## What Exists Today
 
@@ -49,8 +65,9 @@ capability set as OKAR packages. Source: `DI-moksu`; `DI-lupok`; `DI-lorup`;
 - explicit peer discovery and optional untrusted local seeding
 - peer-policy promotion shortcuts over stored metadata
 - unknown-family exact-byte retention
-- the first nine first-party built-in packages:
-  `context`, `knowledge`, `runs`, `links`, `procedures`, `training`, `maintenance`, `receiving`, and `inventory`
+- 27 frozen built-in package-record families across `context`, `knowledge`,
+  `runs`, `links`, `procedures`, `training`, `maintenance`, `receiving`,
+  `inventory`, `quarantine`, corrective action, and operational notes
 - runnable built-in and installed-package examples
 
 Source: `DI-moksu`; `DI-lupok`; `DI-lorup`; `DI-vakod`; `DI-pamuk`;
@@ -148,8 +165,12 @@ Source: `DI-moksu`.
 ## Start Here
 
 - [Architecture](./docs/architecture.md)
+- [PromiseGrid Implementation Claims](./docs/promisegrid-implementation-claims.md)
+- [Frozen Package Family pCID Registry](./docs/protocols/package-family-pcid-registry.md)
+- [Testing and Evidence Guide](./docs/testing.md)
 - [Agent/Kernel Alignment](./docs/agent-kernel-alignment.md)
 - [Current State](./docs/current-state.md)
 - [Runnable Examples](./docs/runnable-examples.md)
 - [Package Author Guide](./docs/package-author-guide.md)
 - [EX5 Capability Map](./docs/ex5-capability-map.md)
+- [Changelog](./CHANGELOG.md)

@@ -8,9 +8,9 @@
 
 ## Intended Claims
 
-- `pcid:moks.inventory.item.v1` / `domain-behavior`
-- `pcid:moks.inventory.count.v1` / `domain-behavior`
-- `pcid:moks.inventory.reconcile.v1` / `domain-behavior`
+- `moks.inventory.item.v1` / `domain-behavior` (fixed pCID in the [registry](../../docs/protocols/package-family-pcid-registry.md))
+- `moks.inventory.count.v1` / `domain-behavior` (fixed pCID in the registry)
+- `moks.inventory.reconcile.v1` / `domain-behavior` (fixed pCID in the registry)
 
 ## Intended Commands
 

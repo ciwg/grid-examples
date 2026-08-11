@@ -16,17 +16,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "maintenance"
 
 	ItemFamily   = "moks.maintenance.item.v1"
-	ItemProtocol = "pcid:moks.maintenance.item.v1"
+	ItemProtocol = records.PackageProtocolPCID(ItemFamily)
 
 	ServiceFamily   = "moks.maintenance.service.v1"
-	ServiceProtocol = "pcid:moks.maintenance.service.v1"
+	ServiceProtocol = records.PackageProtocolPCID(ServiceFamily)
 
 	FindingFamily   = "moks.maintenance.finding.v1"
-	FindingProtocol = "pcid:moks.maintenance.finding.v1"
+	FindingProtocol = records.PackageProtocolPCID(FindingFamily)
 )
 
 type maintenanceItemPayload struct {

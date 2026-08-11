@@ -104,7 +104,7 @@ func DecodeWorkflowHandoff(raw []byte) (WorkflowHandoff, error) {
 type WorkflowAdapterResult struct {
 	Output  WorkflowHandoff
 	CAS     []packages.CASWrite
-	Records []json.RawMessage
+	Records [][]byte
 }
 
 func EncodeWorkflowAdapterResult(result WorkflowAdapterResult) ([]byte, error) {
@@ -121,10 +121,10 @@ func EncodeWorkflowAdapterResult(result WorkflowAdapterResult) ([]byte, error) {
 	}
 	proposalRecords := make([]any, 0, len(result.Records))
 	for _, record := range result.Records {
-		if !json.Valid(record) {
-			return nil, errors.New("workflow adapter record must be JSON")
+		if _, err := records.Parse(record); err != nil {
+			return nil, fmt.Errorf("workflow adapter record: %w", err)
 		}
-		proposalRecords = append(proposalRecords, []byte(record))
+		proposalRecords = append(proposalRecords, append([]byte{}, record...))
 	}
 	return records.EncodeGrid(records.GridEnvelope{ProtocolPCID: workflowAdapterResultProtocolCID, Slots: []any{output, cas, proposalRecords}})
 }
@@ -166,13 +166,16 @@ func DecodeWorkflowAdapterResult(raw []byte) (WorkflowAdapterResult, error) {
 	if !ok {
 		return WorkflowAdapterResult{}, errors.New("workflow adapter records must be an array")
 	}
-	result := WorkflowAdapterResult{Output: output, CAS: cas, Records: make([]json.RawMessage, 0, len(recordValues))}
+	result := WorkflowAdapterResult{Output: output, CAS: cas, Records: make([][]byte, 0, len(recordValues))}
 	for _, value := range recordValues {
 		record, recordOK := value.([]byte)
-		if !recordOK || !json.Valid(record) {
-			return WorkflowAdapterResult{}, errors.New("workflow adapter record must be JSON bytes")
+		if !recordOK {
+			return WorkflowAdapterResult{}, errors.New("workflow adapter record must be bytes")
 		}
-		result.Records = append(result.Records, json.RawMessage(record))
+		if _, err := records.Parse(record); err != nil {
+			return WorkflowAdapterResult{}, fmt.Errorf("workflow adapter record: %w", err)
+		}
+		result.Records = append(result.Records, append([]byte{}, record...))
 	}
 	return result, nil
 }

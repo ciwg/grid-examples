@@ -16,17 +16,17 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex6-operational-knowledge-agent-runtime/records"
 )
 
-const (
+var (
 	PackageID = "receiving"
 
 	ItemFamily   = "moks.receiving.item.v1"
-	ItemProtocol = "pcid:moks.receiving.item.v1"
+	ItemProtocol = records.PackageProtocolPCID(ItemFamily)
 
 	ReceiptFamily   = "moks.receiving.receipt.v1"
-	ReceiptProtocol = "pcid:moks.receiving.receipt.v1"
+	ReceiptProtocol = records.PackageProtocolPCID(ReceiptFamily)
 
 	DispositionFamily   = "moks.receiving.disposition.v1"
-	DispositionProtocol = "pcid:moks.receiving.disposition.v1"
+	DispositionProtocol = records.PackageProtocolPCID(DispositionFamily)
 )
 
 type receivingItemPayload struct {

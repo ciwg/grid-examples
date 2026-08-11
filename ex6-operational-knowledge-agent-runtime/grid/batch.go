@@ -1,7 +1,6 @@
 package grid
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -66,7 +65,7 @@ type Batch struct {
 	Routes               []RouteRegistration   `json:"routes,omitempty"`
 	ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 	ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
-	Records              []json.RawMessage     `json:"records"`
+	Records              [][]byte              `json:"records"`
 	RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 	RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
 	Signature            string                `json:"signature,omitempty"`
@@ -244,7 +243,7 @@ func (batch Batch) SigningBytes() ([]byte, error) {
 		Routes               []RouteRegistration   `json:"routes,omitempty"`
 		ClaimProofs          []ClaimProof          `json:"claim_proofs,omitempty"`
 		ClaimAttestations    []ClaimAttestation    `json:"claim_attestations,omitempty"`
-		Records              []json.RawMessage     `json:"records"`
+		Records              [][]byte              `json:"records"`
 		RecordProofs         []RecordProof         `json:"record_proofs,omitempty"`
 		RecordSignatures     []RecordSignature     `json:"record_signatures,omitempty"`
 	}{
@@ -319,13 +318,12 @@ func slicesEqualStrings(left []string, right []string) bool {
 	return true
 }
 
-func ProofForRecord(raw json.RawMessage) RecordProof {
-	canonical := RecordSigningBytes(raw)
-	sum := sha256.Sum256(canonical)
+func ProofForRecord(raw []byte) RecordProof {
+	sum := sha256.Sum256(raw)
 	return RecordProof{Digest: "sha256:" + hex.EncodeToString(sum[:])}
 }
 
-func ProofsForRecords(records []json.RawMessage) []RecordProof {
+func ProofsForRecords(records [][]byte) []RecordProof {
 	proofs := make([]RecordProof, 0, len(records))
 	for _, record := range records {
 		proofs = append(proofs, ProofForRecord(record))
@@ -377,10 +375,6 @@ func (batch Batch) VerifyClaimAttestations() error {
 	return nil
 }
 
-func RecordSigningBytes(raw json.RawMessage) []byte {
-	var compact bytes.Buffer
-	if err := json.Compact(&compact, raw); err != nil {
-		return append([]byte{}, raw...)
-	}
-	return compact.Bytes()
+func RecordSigningBytes(raw []byte) []byte {
+	return append([]byte{}, raw...)
 }

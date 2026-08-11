@@ -1,24 +1,29 @@
 package records
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/ipfs/go-cid"
 )
 
-// Envelope is the ex6 durable carriage unit for package-defined record families.
+// Envelope is the canonical Grid carriage for a package-defined durable record.
+// Family payload semantics remain package-defined; this type owns only common
+// evidence and carriage slots. Source: DI-sidoh
 type Envelope struct {
-	Family          string          `json:"family"`
-	ProtocolPCID    string          `json:"protocol_pcid"`
-	RecordID        string          `json:"record_id"`
-	Signer          string          `json:"signer"`
-	Timestamp       string          `json:"timestamp"`
-	Payload         json.RawMessage `json:"payload"`
-	AuthorKeyID     string          `json:"author_key_id,omitempty"`
-	AuthorPublicKey string          `json:"author_public_key,omitempty"`
-	AuthorSignature string          `json:"author_signature,omitempty"`
+	Family          string
+	ProtocolPCID    string
+	RecordID        string
+	Signer          string
+	Timestamp       string
+	Payload         json.RawMessage
+	AuthorKeyID     string
+	AuthorPublicKey string
+	AuthorSignature string
 }
 
 func (envelope Envelope) Validate() error {
@@ -27,6 +32,12 @@ func (envelope Envelope) Validate() error {
 	}
 	if strings.TrimSpace(envelope.ProtocolPCID) == "" {
 		return errors.New("protocol_pcid is required")
+	}
+	if _, err := cid.Decode(envelope.ProtocolPCID); err != nil {
+		return fmt.Errorf("protocol_pcid must be a valid CID: %w", err)
+	}
+	if expected := PackageProtocolPCID(envelope.Family); expected != "" && envelope.ProtocolPCID != expected {
+		return fmt.Errorf("package record protocol_pcid does not match family %s", envelope.Family)
 	}
 	if strings.TrimSpace(envelope.RecordID) == "" {
 		return errors.New("record_id is required")
@@ -37,63 +48,120 @@ func (envelope Envelope) Validate() error {
 	if _, err := time.Parse(time.RFC3339, envelope.Timestamp); err != nil {
 		return fmt.Errorf("timestamp must be RFC3339: %w", err)
 	}
-	if len(envelope.Payload) == 0 {
-		return errors.New("payload is required")
+	if len(envelope.Payload) == 0 || !json.Valid(envelope.Payload) {
+		return errors.New("payload must be valid JSON")
 	}
-	if envelope.HasAuthorSignature() {
-		if strings.TrimSpace(envelope.AuthorKeyID) == "" {
-			return errors.New("author_key_id is required when author signature is present")
-		}
-		if strings.TrimSpace(envelope.AuthorPublicKey) == "" {
-			return errors.New("author_public_key is required when author signature is present")
-		}
-		if strings.TrimSpace(envelope.AuthorSignature) == "" {
-			return errors.New("author_signature is required when author signature is present")
-		}
+	canonical, err := CanonicalJSON(envelope.Payload)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(canonical, envelope.Payload) {
+		return errors.New("payload must be canonical JSON")
+	}
+	if envelope.HasAuthorSignature() && (strings.TrimSpace(envelope.AuthorKeyID) == "" || strings.TrimSpace(envelope.AuthorPublicKey) == "" || strings.TrimSpace(envelope.AuthorSignature) == "") {
+		return errors.New("complete author signature fields are required")
 	}
 	return nil
 }
 
 func Parse(raw []byte) (Envelope, error) {
-	var envelope Envelope
-	if err := json.Unmarshal(raw, &envelope); err != nil {
+	gridEnvelope, err := DecodeGrid(raw)
+	if err != nil {
 		return Envelope{}, err
 	}
-	if err := envelope.Validate(); err != nil {
-		return Envelope{}, err
+	if len(gridEnvelope.Slots) != 8 {
+		return Envelope{}, errors.New("grid envelope has invalid package record slots")
 	}
-	return envelope, nil
+	family, ok := gridEnvelope.Slots[0].(string)
+	if !ok {
+		return Envelope{}, errors.New("package record family must be text")
+	}
+	recordID, ok := gridEnvelope.Slots[1].(string)
+	if !ok {
+		return Envelope{}, errors.New("package record ID must be text")
+	}
+	signer, ok := gridEnvelope.Slots[2].(string)
+	if !ok {
+		return Envelope{}, errors.New("package record signer must be text")
+	}
+	timestamp, ok := gridEnvelope.Slots[3].(string)
+	if !ok {
+		return Envelope{}, errors.New("package record timestamp must be text")
+	}
+	payload, ok := gridEnvelope.Slots[4].([]byte)
+	if !ok {
+		return Envelope{}, errors.New("package record payload must be JSON bytes")
+	}
+	keyID, err := nullableText(gridEnvelope.Slots[5])
+	if err != nil {
+		return Envelope{}, fmt.Errorf("package record author key ID: %w", err)
+	}
+	publicKey, err := nullableText(gridEnvelope.Slots[6])
+	if err != nil {
+		return Envelope{}, fmt.Errorf("package record author public key: %w", err)
+	}
+	signature, err := nullableText(gridEnvelope.Slots[7])
+	if err != nil {
+		return Envelope{}, fmt.Errorf("package record author signature: %w", err)
+	}
+	envelope := Envelope{Family: family, ProtocolPCID: gridEnvelope.ProtocolPCID.String(), RecordID: recordID, Signer: signer, Timestamp: timestamp, Payload: append(json.RawMessage{}, payload...), AuthorKeyID: keyID, AuthorPublicKey: publicKey, AuthorSignature: signature}
+	return envelope, envelope.Validate()
 }
 
 func MustMarshal(envelope Envelope) []byte {
-	body, err := json.Marshal(envelope)
+	raw, err := marshal(envelope)
 	if err != nil {
 		panic(err)
 	}
-	return body
+	return raw
 }
 
 func (envelope Envelope) HasAuthorSignature() bool {
-	return strings.TrimSpace(envelope.AuthorKeyID) != "" ||
-		strings.TrimSpace(envelope.AuthorPublicKey) != "" ||
-		strings.TrimSpace(envelope.AuthorSignature) != ""
+	return strings.TrimSpace(envelope.AuthorKeyID) != "" || strings.TrimSpace(envelope.AuthorPublicKey) != "" || strings.TrimSpace(envelope.AuthorSignature) != ""
 }
 
 func (envelope Envelope) SigningBytes() ([]byte, error) {
-	signable := struct {
-		Family       string          `json:"family"`
-		ProtocolPCID string          `json:"protocol_pcid"`
-		RecordID     string          `json:"record_id"`
-		Signer       string          `json:"signer"`
-		Timestamp    string          `json:"timestamp"`
-		Payload      json.RawMessage `json:"payload"`
-	}{
-		Family:       envelope.Family,
-		ProtocolPCID: envelope.ProtocolPCID,
-		RecordID:     envelope.RecordID,
-		Signer:       envelope.Signer,
-		Timestamp:    envelope.Timestamp,
-		Payload:      envelope.Payload,
+	envelope.AuthorKeyID = ""
+	envelope.AuthorPublicKey = ""
+	envelope.AuthorSignature = ""
+	return marshal(envelope)
+}
+
+func marshal(envelope Envelope) ([]byte, error) {
+	if err := envelope.Validate(); err != nil {
+		return nil, err
 	}
-	return json.Marshal(signable)
+	protocolPCID, err := cid.Decode(envelope.ProtocolPCID)
+	if err != nil {
+		return nil, err
+	}
+	return EncodeGrid(GridEnvelope{ProtocolPCID: protocolPCID, Slots: []any{envelope.Family, envelope.RecordID, envelope.Signer, envelope.Timestamp, []byte(envelope.Payload), nullable(envelope.AuthorKeyID), nullable(envelope.AuthorPublicKey), nullable(envelope.AuthorSignature)}})
+}
+
+// CanonicalJSON returns the deterministic JSON representation embedded in the
+// canonical Grid package-record payload slot. Source: DI-sidoh
+func CanonicalJSON(raw []byte) ([]byte, error) {
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	return json.Marshal(value)
+}
+
+func nullable(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableText(value any) (string, error) {
+	if value == nil {
+		return "", nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return "", errors.New("must be text or null")
+	}
+	return text, nil
 }
