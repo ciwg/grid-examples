@@ -71,6 +71,8 @@ func TestHeadlessBrowserLateJoinRendersSharedText(t *testing.T) {
 	dom := string(output)
 	required := []string{
 		"browser sync: websocket",
+		`"sync_websocket_ready":true`,
+		`"recovery_sync_reads":0`,
 		"# Incognito Probe",
 		"Shared text should appear here.",
 		`id="startup-probe"`,
@@ -137,6 +139,8 @@ func TestHeadlessBrowserRecoversFromBlankSnapshotState(t *testing.T) {
 	dom := string(output)
 	required := []string{
 		"browser sync: websocket",
+		`"sync_websocket_ready":true`,
+		`"recovery_sync_reads":1`,
 		"# Incognito Probe",
 		"Shared text should appear here.",
 		`id="startup-probe"`,
@@ -160,26 +164,63 @@ func newBrowserProbeServer(t *testing.T, app *service.App, options ...browserPro
 	if err != nil {
 		t.Fatalf("read index html: %v", err)
 	}
+	probeOptions := browserProbeOptions{}
+	if len(options) > 0 {
+		probeOptions = options[0]
+	}
+	requireRecovery := "false"
+	if probeOptions.poisonBlankSnapshotState {
+		requireRecovery = "true"
+	}
 	probeHTML := bytes.Replace(indexHTML, []byte("</body>"), []byte(`<div id="startup-probe" hidden></div>
 <script>
+// Intent: Observe local browser carriage events separately from the rendered
+// transport label so this headless proof does not treat UI timing as protocol
+// evidence. Source: DI-gofut; DI-raron
+const transportEvidence = { sync_websocket_ready: false, recovery_sync_reads: 0 };
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const requestURL = new URL(input instanceof Request ? input.url : String(input), window.location.href);
+  const method = init?.method || (input instanceof Request ? input.method : "GET");
+  if (method === "GET" && requestURL.pathname.endsWith("/sync")) {
+    transportEvidence.recovery_sync_reads += 1;
+  }
+  return nativeFetch(input, init);
+};
+const NativeWebSocket = window.WebSocket;
+window.WebSocket = function (...args) {
+  const socket = new NativeWebSocket(...args);
+  const socketURL = new URL(args[0], window.location.href);
+  if (socketURL.pathname.endsWith("/sync-socket")) {
+    socket.addEventListener("message", (event) => {
+      try {
+        if (JSON.parse(event.data).type === "sync-ready") {
+          transportEvidence.sync_websocket_ready = true;
+        }
+      } catch (_error) {
+        // Ignore non-JSON websocket frames; Ex3's sync-ready evidence is JSON.
+      }
+    });
+  }
+  return socket;
+};
+window.WebSocket.prototype = NativeWebSocket.prototype;
+Object.setPrototypeOf(window.WebSocket, NativeWebSocket);
 const startupProbeTimer = setInterval(() => {
   const content = document.querySelector(".cm-content");
   const target = document.getElementById("startup-probe");
   if (!content || !target) {
     return;
   }
-  target.textContent = content.textContent || "";
-  if (target.textContent.includes("Shared text should appear here.")) {
+  const text = content.textContent || "";
+  target.textContent = JSON.stringify({ text, transport_evidence: transportEvidence });
+  if (text.includes("Shared text should appear here.") && transportEvidence.sync_websocket_ready && (!`+requireRecovery+` || transportEvidence.recovery_sync_reads > 0)) {
     clearInterval(startupProbeTimer);
   }
 }, 50);
 </script></body>`), 1)
 
 	handler := service.NewServer(app).Handler()
-	probeOptions := browserProbeOptions{}
-	if len(options) > 0 {
-		probeOptions = options[0]
-	}
 	server := &httptest.Server{
 		Listener: listenTCP4OrSkip(t),
 		Config: &http.Server{

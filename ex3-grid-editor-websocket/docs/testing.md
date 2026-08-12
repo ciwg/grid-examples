@@ -62,6 +62,14 @@ late join, live carriage, and private-session hardening. Browser JavaScript
 tests cover storage fallback and startup recovery; the sidecar build covers its
 embodiment-local helper.
 
+The headless browser startup proof records a sync WebSocket `sync-ready` event
+separately from the rendered transport label. In its normal late-join case it
+requires zero HTTP sync recovery reads. In its injected stale-blank-snapshot
+case it requires the ready event plus one bounded HTTP sync recovery read from
+the full relay history. These are observations from an isolated test browser
+and relay; they neither change pCID-selected payload meaning nor establish a
+network-wide transport guarantee. Source: `DI-gofut`; `DI-raron`.
+
 Together these tests cover Ex3's current decentralized collaboration paths.
 They do not define general key rotation, delegation, cross-relay role
 recognition, or person identity. Source: `DI-dilav`; `DI-hadil`.

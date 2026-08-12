@@ -30,6 +30,24 @@ Intent: Keep ex3 readers from confusing "PromiseGrid-aligned" with "already stan
 Constraints: Do not claim a frozen upstream websocket or editor-auth spec; keep the note tied to the existing ex3 split between websocket live transport and HTTP metadata/publish surfaces.
 Affects: `ex3-grid-editor-websocket/README.md`, `ex3-grid-editor-websocket/TODO/TODO-luzig-grid-editor-websocket-live-transport.md`
 
+ID: DI-gofut
+Date: 2026-08-11 00:00:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Strengthen Ex3's headless browser transport proof by recording sync-WebSocket readiness and the bounded HTTP recovery fetch as separate test observations; retain the visible transport label as secondary UI evidence.
+Intent: Prove observed local carriage and recovery behavior without elevating an asynchronous DOM label, a test probe, or HTTP carriage into protocol meaning.
+Constraints: Do not change pCID-selected payload semantics, add fallback polling, alter signed records, or present the test observation as a network-wide claim; the poisoned-snapshot case may use only the existing bounded recovery read. Source: TE-zolik.
+Affects: `ex3-grid-editor-websocket/service/browser_startup_test.go`, `ex3-grid-editor-websocket/docs/testing.md`, `ex3-grid-editor-websocket/TODO/TODO-luzig-grid-editor-websocket-live-transport.md`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-zolik-headless-transport-proof.md`
+
+ID: DI-raron
+Date: 2026-08-11 00:00:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Name the headless-test-only local observation object `transportEvidence`.
+Intent: Make clear that the object reports a browser test observation rather than a pCID payload, relay record, capability, or network-wide assertion.
+Constraints: The name is restricted to `service/browser_startup_test.go` test instrumentation and must not appear in any wire schema or production endpoint. Source: TE-zolik.
+Affects: `ex3-grid-editor-websocket/service/browser_startup_test.go`, `ex3-grid-editor-websocket/TODO/TODO-luzig-grid-editor-websocket-live-transport.md`, `ex3-grid-editor-websocket/docs/thought-experiments/TE-zolik-headless-transport-proof.md`
+
 ## Goal
 
 Enable the browser live editing path in `ex3-grid-editor-websocket` to use
