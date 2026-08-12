@@ -2,7 +2,7 @@ const proofRoot = process.env.EX7_PROOF_ROOT;
 if (!proofRoot) throw new Error('EX7_PROOF_ROOT is required');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const newTab = async url => await (await fetch(`http://127.0.0.1:9229/json/new?${encodeURIComponent(url)}`, {method: 'PUT'})).json();
-function cdp(url) { const ws = new WebSocket(url); let next = 0; const pending = new Map(); ws.onmessage = event => { const message = JSON.parse(event.data); if (message.id) { const request = pending.get(message.id); pending.delete(message.id); message.error ? request.reject(message.error) : request.resolve(message.result); } }; return new Promise(resolve => ws.onopen = () => resolve({call: (method, params = {}) => new Promise((resolve, reject) => { const id = ++next; pending.set(id, {resolve, reject}); ws.send(JSON.stringify({id, method, params})); })})); }
+function cdp(url) { const ws = new WebSocket(url); let next = 0; const pending = new Map(); ws.onmessage = event => { const message = JSON.parse(event.data); if (message.id) { const request = pending.get(message.id); pending.delete(message.id); message.error ? request.reject(message.error) : request.resolve(message.result); } }; return new Promise(resolve => ws.onopen = () => resolve({call: (method, params = {}) => new Promise((resolve, reject) => { const id = ++next; pending.set(id, {resolve, reject}); ws.send(JSON.stringify({id, method, params})); }), close: () => ws.close()})); }
 const bobTab = await newTab('about:blank'); const aliceTab = await newTab('about:blank');
 const bob = await cdp(bobTab.webSocketDebuggerUrl); const alice = await cdp(aliceTab.webSocketDebuggerUrl);
 const consoleEntries = [];
@@ -19,3 +19,6 @@ const approval = await evaluate(alice, `fetch('/api/approval-requests/' + docume
 await (await import('node:fs/promises')).writeFile(`${proofRoot}/alice-approval-response.json`, JSON.stringify(approval.result.value || approval));
 for (let index = 0; index < 20; index++) { await pause(750); const status = await evaluate(bob, `document.querySelector('#approval-status').textContent`); if (status.result.value.includes('independently retained')) break; if (index === 19) throw new Error(status.result.value); }
 const screenshot = await bob.call('Page.captureScreenshot', {format: 'png'}); await (await import('node:fs/promises')).writeFile(`${proofRoot}/bob-final.png`, Buffer.from(screenshot.data, 'base64'));
+// Intent: Release the harness-owned DevTools connections after evidence capture so
+// the parent runner can clean up its own local agents and Chrome session. Source: DI-fuzar.
+bob.close(); alice.close();
