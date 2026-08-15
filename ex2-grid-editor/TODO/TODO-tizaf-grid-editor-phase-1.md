@@ -26,6 +26,7 @@ Goal: Finish the first collaborative-editor UX milestone so browser and Neovim b
 - [x] tizaf.2 Add presence aging, peer lifecycle feedback, and clearer collaboration visibility.
 - [x] tizaf.3 Add Neovim core parity improvements for selections, status, and help.
 - [x] tizaf.4 Add tests and docs for the new Phase 1 behavior.
-- [ ] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
-  Current gaps from the manual pass:
-  - Chrome still needs confirmation that remote cursor line color renders correctly instead of a tiny black line.
+- [x] tizaf.5 Run a manual demo pass and capture any remaining Phase 1 polish gaps before closing TODO 006.
+  Completed 2026-08-14: the isolated Chrome review accepted the visible
+  peer-color treatment. `web/src/ui-contract.test.mjs` now guards the received
+  peer-color hook; no Phase 1 polish gap remains.

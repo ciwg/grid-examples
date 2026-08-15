@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] mituf - Repair missing TE editing-policy sources - `TODO/TODO-mituf-te-editing-policy-source-recovery.md`
+- [x] mituf - Repair missing TE editing-policy sources - `TODO/TODO-mituf-te-editing-policy-source-recovery.md`
 - [x] folip - Consolidate duplicate ex6 TODO records - `TODO/TODO-folip-consolidate-ex6-todo-records.md`
 - [x] rugum - Preserve historical handle labels - `TODO/TODO-rugum-preserve-historical-handle-labels.md`
 - [x] kuzan - Document root handle-minting workflow - `TODO/TODO-kuzan-document-root-handle-minting.md`
@@ -11,4 +11,4 @@
 - [x] 004 - Build ex5 operational knowledge system example - `TODO/TODO-mepuk-operational-knowledge-system.md`
 - [x] 003 - Build ex4 bug tracker example - `TODO/TODO-tuhus-ex4-bug-tracker.md`
 - [x] 002 - Copy ex2 grid editor into ex3 websocket example - `TODO/TODO-fadat-ex3-grid-editor-websocket-copy.md`
-- [ ] 001 - Order flow protocol consolidation and crypto MVP - `TODO/TODO-lubav-order-flow-protocol-consolidation.md`
+- [x] 001 - Order flow protocol consolidation and crypto MVP - `TODO/TODO-lubav-order-flow-protocol-consolidation.md`

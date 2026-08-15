@@ -68,6 +68,17 @@ or asking a relay to declare membership. This proves only local rendering of
 the latest accepted awareness observation; it does not prove that a peer left,
 revoked a promise, or is unreachable. Source: `DI-dizut`; `DI-dazin`.
 
+### Browser UI regression contracts
+
+`web/src/ui-contract.test.mjs` checks the source-level contracts that can be
+verified without depending on an operating system's native color-picker popup:
+the visible native color target, WebKit swatch styling, in-page color preview,
+received peer-color rendering hook, and the documented Phase 2 control labels
+and handler wiring. A human visual check remains the authority for subjective
+native-popup usability; the automated checks prevent the accepted surrounding
+UI from silently regressing. Source: `DI-pafob`; `DI-zafuk`; `DI-favok`;
+`DI-dovoz`; `DI-vafuk`.
+
 ## Test data and topology
 
 Go tests use `t.TempDir()` for relay roots, identities, CAS directories, and

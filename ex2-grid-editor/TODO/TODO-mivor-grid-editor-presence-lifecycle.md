@@ -39,7 +39,7 @@ Goal: Implement the chosen live presence aging policy and keep historical collab
 - [x] mivor.2 Update the browser UI to render `live`, `stale`, and `offline` peer states distinctly before removal.
 - [x] mivor.3 Update the Neovim UI to render `live`, `stale`, and `offline` peer states distinctly before removal.
 - [x] mivor.4 Add tests covering awareness expiration thresholds and peer removal timing.
-- [ ] mivor.5 Design separate follow-up surfaces for durable collaboration signals:
+- [x] mivor.5 Design separate follow-up surfaces for durable collaboration signals:
   document activity
   comments
   version history

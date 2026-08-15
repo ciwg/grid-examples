@@ -34,9 +34,12 @@ Goal: Make the user’s current color obvious in the browser UI without opening 
 - [x] furav.1 Add a pure helper for visible color display state.
 - [x] furav.2 Add a persistent swatch and hex value next to the browser color input.
 - [x] furav.3 Add regression tests and rebuild the browser bundle.
-- [ ] furav.4 Resolve the actual Chrome native color-chooser visibility problem to user satisfaction.
+- [x] furav.4 Resolve the actual Chrome native color-chooser visibility problem to user satisfaction.
 
 Current status:
 - The extra swatch/hex display was added as a workaround.
-- The user does not accept that as a full fix.
-- TODO 012 remains open.
+- The native target, persistent in-page preview, and self badge were accepted
+  after the 2026-08-14 isolated Chrome review. `web/src/ui-contract.test.mjs`
+  protects the visible native target, WebKit swatch styling, and fallback
+  preview from regression.
+- TODO 012 is complete.

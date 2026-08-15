@@ -44,9 +44,8 @@ Goal: Make documents easier to create, preview, navigate, export, and demo witho
 - [x] lusab.2 Add markdown preview, split views, search/replace, go-to-line, and document navigation tools.
 - [x] lusab.3 Add export, share, snapshot, bookmark, and audit-report surfaces.
 - [x] lusab.4 Add tests and docs for the Phase 2 workflow behavior.
-- [ ] lusab.5 Run a manual browser workflow pass for confusing labels and flow polish before closing TODO 007.
-  Current gaps from the manual pass:
-  - `Search` still needs a simpler explanation or flow.
-  - `New Shared Doc` still needs clearer wording or feedback after click.
-  - `Publish Exchange` was hard to discover when it lived under `Export`, so the workflow needs another manual check after the label changes.
-  - `Preview` versus `Split View` needed clearer behavior; `Preview` now means preview-only and `Split View` means side-by-side, but this still needs a fresh manual check.
+- [x] lusab.5 Run a manual browser workflow pass for confusing labels and flow polish before closing TODO 007.
+  Completed 2026-08-14: the isolated Chrome review accepted the current
+  workflow labels and controls. `web/src/ui-contract.test.mjs` now guards
+  `New Shared Doc`, `Search`, `Preview`, `Split View`, and `Export / Exchange`
+  labels plus their handler wiring.
