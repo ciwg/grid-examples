@@ -517,11 +517,21 @@ conformance boundary are proven. The implementation order is in
 
 ## Open slices
 
-- [ ] Verify every frozen makerspace specification's exact-byte pCID and its
+- [x] Verify every frozen makerspace specification's exact-byte pCID and its
   cited record-profile document identity; publish no implementation claim yet.
-- [ ] Re-create durable storage and replay over exact canonical Ex7 records,
+- [x] Re-create durable storage and replay over exact canonical Ex7 records,
   with per-family validation and derived local projection.
-- [ ] Add semantic author-evidence admission and unknown-family byte
+- [x] Add semantic author-evidence admission and unknown-family byte
   preservation through a separately locked participant embodiment.
-- [ ] Replace browser-facing local-demo language with implementation claims,
+- [x] Replace browser-facing local-demo language with implementation claims,
   testing evidence, and explicit deferrals only after the live path passes.
+
+## Status
+
+- closed
+- Completion is evidenced by the completed six-slice Giman roadmap:
+  `service/protocol_registry_test.go`, `service/store_test.go`,
+  `service/app_test.go`, `service/participant_test.go`,
+  `service/server_test.go`, `scripts/run-two-agent-browser-proof.sh`, and the
+  implementation/testing documentation. Source: DI-tohak; DI-piruf; DI-likoh;
+  DI-kasaz; DI-sisad; DI-fuzar.
