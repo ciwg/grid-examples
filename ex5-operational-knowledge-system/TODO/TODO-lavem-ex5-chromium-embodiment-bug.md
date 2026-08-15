@@ -27,11 +27,21 @@ troubleshot later without derailing today’s working Chrome demo path.
 
 ## Tasks
 
-- [ ] lavem.1 Reproduce the Chromium failure cleanly and record the exact browser/build/runtime conditions.
-- [ ] lavem.2 Determine whether the failure is Chromium native-messaging lookup, Snap confinement, or extension launch behavior.
+- [x] lavem.1 Reproduce the Chromium failure cleanly and record the exact browser/build/runtime conditions.
+- [x] lavem.2 Determine whether the failure is Chromium native-messaging lookup, Snap confinement, or extension launch behavior.
 - [ ] lavem.3 Decide whether Chromium support needs a separate setup/verification path from Chrome.
 
 ## Status
 
 - open
 - deferred for later troubleshooting because Chrome is working and demo-prep should stay on the known-good path today
+- 2026-08-14 reproduction: Chromium `151.0.7922.108 snap` loaded the shipped
+  Ex5 extension (`miagfmaampfgjkojhccdilogehbjijpe`) in a fresh temporary
+  profile, but the page handshake failed with `Specified native messaging host
+  not found.` against an isolated Ex5 runtime.
+- 2026-08-14 classification: registering the generated host manifest in the
+  disposable profile, in Chromium Snap's apparent common registry, and beside
+  a temporary Snap-local host binary did not change that lookup failure. The
+  installed Chromium Snap exposes no native-messaging connector interface.
+  The remaining work is therefore a separate Snap-native registration and
+  confinement design decision, not an Ex5 extension-load or runtime bug.
