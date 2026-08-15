@@ -20,6 +20,15 @@ Intent: Preserve the evidence that ex5 currently works in Chrome but not in the 
 Constraints: Do not conflate this with the working Chrome path; treat it as a separate browser-embodiment bug around extension/native-host behavior in Chromium.
 Affects: `ex5-operational-knowledge-system/TODO/TODO.md`
 
+ID: DI-vamid
+Date: 2026-08-14 18:57:11 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Retain verified Google Chrome as Ex5's only supported browser embodiment and defer Chromium Snap support.
+Intent: Keep Ex5's browser claim evidence-backed while avoiding a fragile Snap-specific native-host installer without a verified registration and confinement contract.
+Constraints: Do not advertise Chromium support, alter the verified Chrome path, or add an HTTP fallback. Chromium-capable extension code remains unclaimed until a future separately approved support design and passing verification exist.
+Affects: `ex5-operational-knowledge-system/TODO/TODO.md`, `TODO/TODO-lavem-ex5-chromium-embodiment-bug.md`, `docs/thought-experiments/TE-tilun-ex5-chromium-snap-support.md`, browser support documentation
+
 ## Goal
 
 Capture the current Chromium-specific browser embodiment failure so it can be
@@ -29,12 +38,12 @@ troubleshot later without derailing today’s working Chrome demo path.
 
 - [x] lavem.1 Reproduce the Chromium failure cleanly and record the exact browser/build/runtime conditions.
 - [x] lavem.2 Determine whether the failure is Chromium native-messaging lookup, Snap confinement, or extension launch behavior.
-- [ ] lavem.3 Decide whether Chromium support needs a separate setup/verification path from Chrome.
+- [x] lavem.3 Decide whether Chromium support needs a separate setup/verification path from Chrome.
 
 ## Status
 
-- open
-- deferred for later troubleshooting because Chrome is working and demo-prep should stay on the known-good path today
+- closed
+- resolved by retaining verified Google Chrome as the supported browser embodiment; Chromium Snap support requires a future separately approved design. Source: `DI-vamid`.
 - 2026-08-14 reproduction: Chromium `151.0.7922.108 snap` loaded the shipped
   Ex5 extension (`miagfmaampfgjkojhccdilogehbjijpe`) in a fresh temporary
   profile, but the page handshake failed with `Specified native messaging host
