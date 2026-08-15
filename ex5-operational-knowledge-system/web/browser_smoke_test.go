@@ -1283,7 +1283,10 @@ func TestHeadlessBrowserSearchesByRecordID(t *testing.T) {
 		[]byte(`<script>
 const searchByIDTimer = setInterval(() => {
   const form = document.getElementById("search-form");
-  if (!form) {
+  const stats = document.getElementById("stats");
+  // The HTML form exists before app.js, which is a module, attaches its
+  // submit handler. The first dashboard render is the page-ready boundary.
+  if (!form || !stats || !stats.children.length) {
     return;
   }
   form.q.value = "ITEM-0001";
