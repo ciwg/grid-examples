@@ -183,12 +183,12 @@
   pCID-selected meaning, accepted/rejected artifacts, and adapter projection.
 - [x] kakon.3 Implement the locked issue-promise layer with local durable
   records, bounded rejection handling, and regression coverage.
-- [ ] kakon.4 Add `docs/testing.md`, link it from README, and document local
+- [x] kakon.4 Add `docs/testing.md`, link it from README, and document local
   workflow checks separately from promise/evidence and interoperability checks.
-- [ ] kakon.5 Complete the final README and architecture alignment pass.
+- [x] kakon.5 Complete the final README and architecture alignment pass.
 
-Status: active. `kakon.3` implements the bounded local-draft promise layer;
-the remaining documentation and final alignment checks are tracked below.
+Status: complete. The bounded local-draft promise layer, its verification
+guide, and the final README/architecture alignment checks are complete.
 
 `kakon.1` completed with `CHANGELOG.md`, `docs/architecture.md`, and README
 scope/navigation updates. Source: `DI-nibuh`.

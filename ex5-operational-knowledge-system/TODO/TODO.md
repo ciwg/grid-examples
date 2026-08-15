@@ -190,7 +190,7 @@
 
 ## Not Implemented / Deferred
 
-- [ ] 016 - Plan ex5 Neovim embodiment follow-on beyond phase 1 - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
+- [x] 016 - Plan ex5 Neovim embodiment follow-on beyond phase 1 - `TODO/TODO-nuvok-ex5-neovim-embodiment-followup.md`
   Deferred by `DI-tabiv`, `DI-nuvok`, and `DI-fudok`: a thin Neovim live-draft phase now exists, but richer Neovim workflow work remains a separate follow-on project rather than part of inventory TODO `007`.
 
 ## Locked decisions affecting implementation
