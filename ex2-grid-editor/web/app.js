@@ -32527,6 +32527,59 @@ function describePaneMode(state2) {
   };
 }
 
+// src/presence.js
+function presenceState(lastSeenAt, profile, now = Date.now()) {
+  if (!lastSeenAt) {
+    return "live";
+  }
+  const ageMs = now - new Date(lastSeenAt).getTime();
+  const thresholds = profile === "normal" ? { live: 6e4, stale: 5 * 6e4, offline: 15 * 6e4 } : { live: 5 * 6e4, stale: 15 * 6e4, offline: 30 * 6e4 };
+  if (ageMs <= thresholds.live) {
+    return "live";
+  }
+  if (ageMs <= thresholds.stale) {
+    return "stale";
+  }
+  if (ageMs <= thresholds.offline) {
+    return "offline";
+  }
+  return "gone";
+}
+function schedulePresenceRefresh(peers, profile, onRefresh, scheduler = {
+  now: () => Date.now(),
+  setTimeout: window.setTimeout.bind(window),
+  clearTimeout: window.clearTimeout.bind(window)
+}) {
+  const now = scheduler.now();
+  const thresholds = profile === "normal" ? [6e4, 5 * 6e4, 15 * 6e4] : [5 * 6e4, 15 * 6e4, 30 * 6e4];
+  let nextRefreshAt = Infinity;
+  for (const peer of peers) {
+    const observedAt = new Date(peer.lastSeenAt).getTime();
+    if (!Number.isFinite(observedAt)) {
+      continue;
+    }
+    for (const threshold of thresholds) {
+      const boundary = observedAt + threshold + 1;
+      if (boundary > now && boundary < nextRefreshAt) {
+        nextRefreshAt = boundary;
+      }
+    }
+  }
+  if (!Number.isFinite(nextRefreshAt)) {
+    return null;
+  }
+  return scheduler.setTimeout(onRefresh, Math.max(1, nextRefreshAt - now));
+}
+function cancelPresenceRefresh(presenceRefreshTimer, scheduler = {
+  now: () => Date.now(),
+  setTimeout: window.setTimeout.bind(window),
+  clearTimeout: window.clearTimeout.bind(window)
+}) {
+  if (presenceRefreshTimer !== null) {
+    scheduler.clearTimeout(presenceRefreshTimer);
+  }
+}
+
 // src/main.js
 var metaEls = {
   localID: document.getElementById("local-id"),
@@ -32635,6 +32688,7 @@ var state = {
   relay: null,
   prefs: preferences.get(),
   visiblePeers: /* @__PURE__ */ new Map(),
+  presenceRefreshTimer: null,
   previewEnabled: false,
   splitEnabled: false,
   focusMode: false,
@@ -32707,6 +32761,8 @@ async function bootDocument(documentID) {
   renderRegistry();
   renderDocumentMeta(documentMeta);
   renderReview();
+  cancelPresenceRefresh(state.presenceRefreshTimer);
+  state.presenceRefreshTimer = null;
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
@@ -32849,6 +32905,11 @@ function renderPeers(states) {
     peerListEl.appendChild(li);
   }
   presenceLegendEl.textContent = `Live ${counts.live} \xB7 Stale ${counts.stale} \xB7 Offline ${counts.offline}`;
+  cancelPresenceRefresh(state.presenceRefreshTimer);
+  state.presenceRefreshTimer = schedulePresenceRefresh(remotePeers, state.prefs.profile, () => {
+    state.presenceRefreshTimer = null;
+    renderPeers(state.awareness?.getStates() || /* @__PURE__ */ new Map());
+  });
 }
 function emitPeerNotifications(peers) {
   const next = new Map(peers.map((peer) => [peer.participantID, peer]));
@@ -33666,23 +33727,6 @@ function scheduleTypingStop(awareness) {
   scheduleTypingStop.timer = window.setTimeout(() => {
     awareness.setTyping(false);
   }, 900);
-}
-function presenceState(lastSeenAt, profile) {
-  if (!lastSeenAt) {
-    return "live";
-  }
-  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
-  const thresholds = profile === "normal" ? { live: 6e4, stale: 5 * 6e4, offline: 15 * 6e4 } : { live: 5 * 6e4, stale: 15 * 6e4, offline: 30 * 6e4 };
-  if (ageMs <= thresholds.live) {
-    return "live";
-  }
-  if (ageMs <= thresholds.stale) {
-    return "stale";
-  }
-  if (ageMs <= thresholds.offline) {
-    return "offline";
-  }
-  return "gone";
 }
 function showToast(message) {
   const toast = document.createElement("div");

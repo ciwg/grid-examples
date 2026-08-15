@@ -9,6 +9,7 @@ import { formatMetadataList, metadataDisplayTitle, normalizeMetadataRecord, pars
 import { extractMentions, inferVersionName, summarizeDocument } from "./review.js";
 import { buildExportArtifact, buildPublishSource, parsePublishedURL } from "./exchange.js";
 import { describePaneMode, nextPaneState } from "./panes.js";
+import { cancelPresenceRefresh, presenceState, schedulePresenceRefresh } from "./presence.js";
 
 const metaEls = {
   localID: document.getElementById("local-id"),
@@ -122,6 +123,7 @@ const state = {
   relay: null,
   prefs: preferences.get(),
   visiblePeers: new Map(),
+  presenceRefreshTimer: null,
   previewEnabled: false,
   splitEnabled: false,
   focusMode: false,
@@ -206,6 +208,8 @@ async function bootDocument(documentID) {
   renderDocumentMeta(documentMeta);
   renderReview();
 
+  cancelPresenceRefresh(state.presenceRefreshTimer);
+  state.presenceRefreshTimer = null;
   state.relay?.disconnect();
   state.awareness?.disconnect();
   state.editor?.destroy();
@@ -369,6 +373,11 @@ function renderPeers(states) {
   }
 
   presenceLegendEl.textContent = `Live ${counts.live} · Stale ${counts.stale} · Offline ${counts.offline}`;
+  cancelPresenceRefresh(state.presenceRefreshTimer);
+  state.presenceRefreshTimer = schedulePresenceRefresh(remotePeers, state.prefs.profile, () => {
+    state.presenceRefreshTimer = null;
+    renderPeers(state.awareness?.getStates() || new Map());
+  });
 }
 
 function emitPeerNotifications(peers) {
@@ -1276,30 +1285,6 @@ function scheduleTypingStop(awareness) {
   scheduleTypingStop.timer = window.setTimeout(() => {
     awareness.setTyping(false);
   }, 900);
-}
-
-function presenceState(lastSeenAt, profile) {
-  if (!lastSeenAt) {
-    return "live";
-  }
-  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
-  // Intent: Render awareness using the approved demo/normal lifecycle windows
-  // so the main peer list answers "who is here now?" while still giving
-  // demos enough time before a peer is dimmed or removed. Source: DI-mivor;
-  // DI-vasul
-  const thresholds = profile === "normal"
-    ? { live: 60_000, stale: 5 * 60_000, offline: 15 * 60_000 }
-    : { live: 5 * 60_000, stale: 15 * 60_000, offline: 30 * 60_000 };
-  if (ageMs <= thresholds.live) {
-    return "live";
-  }
-  if (ageMs <= thresholds.stale) {
-    return "stale";
-  }
-  if (ageMs <= thresholds.offline) {
-    return "offline";
-  }
-  return "gone";
 }
 
 function showToast(message) {

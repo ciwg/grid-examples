@@ -37,6 +37,7 @@ M.state = {
   participant_id = 'nvim-' .. tostring(vim.fn.getpid()),
   peers = {},
   peer_index = {},
+  presenceRefreshTimer = nil,
   relay_connected = false,
   info_bufnr = nil,
   info_winid = nil,
@@ -106,6 +107,17 @@ local function peer_selection_highlight(color)
 end
 
 local peer_presence_state
+
+-- Intent: Ensure this embodiment does not retain a refresh timer after it
+-- stops presenting the document or receives a newer awareness projection.
+-- Source: DI-dizut; DI-dazin.
+local function cancelPresenceRefresh()
+  if M.state.presenceRefreshTimer then
+    M.state.presenceRefreshTimer:stop()
+    M.state.presenceRefreshTimer:close()
+    M.state.presenceRefreshTimer = nil
+  end
+end
 
 local function draw_peers(peers)
   if not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
@@ -178,6 +190,46 @@ peer_presence_state = function(peer)
     return 'offline'
   end
   return 'gone'
+end
+
+-- Intent: Recompute only when the local presence interpretation can change,
+-- without sending traffic or treating a relay as a membership authority.
+-- Source: DI-dizut; DI-dazin.
+local function schedulePresenceRefresh()
+  cancelPresenceRefresh()
+  local profile = M.config.presence_profile == 'normal'
+    and { 60, 5 * 60, 15 * 60 }
+    or { 5 * 60, 15 * 60, 30 * 60 }
+  local now = os.time(os.date('!*t'))
+  local next_refresh_at = nil
+  for _, peer in ipairs(M.state.peers or {}) do
+    if type(peer.last_seen_at) == 'string' and peer.last_seen_at ~= '' then
+      local observed = vim.fn.strptime('%Y-%m-%dT%H:%M:%SZ', peer.last_seen_at)
+      if observed > 0 then
+        for _, threshold in ipairs(profile) do
+          local boundary = observed + threshold + 1
+          if boundary > now and (not next_refresh_at or boundary < next_refresh_at) then
+            next_refresh_at = boundary
+          end
+        end
+      end
+    end
+  end
+  if not next_refresh_at then
+    return
+  end
+  local timer = vim.loop.new_timer()
+  M.state.presenceRefreshTimer = timer
+  timer:start(math.max(1, (next_refresh_at - now) * 1000), 0, vim.schedule_wrap(function()
+    if M.state.presenceRefreshTimer ~= timer then
+      return
+    end
+    M.state.presenceRefreshTimer = nil
+    timer:close()
+    draw_peers(M.state.peers)
+    refresh_info_window()
+    schedulePresenceRefresh()
+  end))
 end
 
 local function sidecar_argv()
@@ -363,6 +415,7 @@ local function handle_sidecar_message(message)
     M.state.peers = message.peers or {}
     M.state.peer_index = next_index
     draw_peers(M.state.peers)
+    schedulePresenceRefresh()
     refresh_info_window()
   elseif message.type == 'relay_status' then
     M.state.relay_connected = message.connected and true or false
@@ -496,6 +549,7 @@ function M.open(doc_id)
 end
 
 function M.close()
+  cancelPresenceRefresh()
   if M.state.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M.state.augroup)
     M.state.augroup = nil

@@ -196,7 +196,7 @@ Every task that changes wire semantics, capability semantics, durable evidence,
 or names must first complete its own TE and Decision Framing; this plan does
 not lock those later decisions.
 
-- [ ] lubav.1 Publish an Ex1 protocol inventory that lists every local profile,
+- [x] lubav.1 Publish an Ex1 protocol inventory that lists every local profile,
   its derived pCID, its owning spec document, its handler roles, and its status
   as a local draft/example profile rather than a claimed frozen upstream spec.
   Update the README to link that inventory and to identify the retained raw-CBOR

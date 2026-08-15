@@ -13,12 +13,17 @@ From `ex2-grid-editor/`, run:
 go vet ./...
 go test ./...
 errcheck ./...
+cd web && npm test && npm run build
 ```
 
 `go vet` checks likely Go-code mistakes, `go test` runs the deterministic unit
 and integration coverage, and `errcheck` verifies that Go errors are handled.
 Run all three after a behavior or documentation-supported contract change.
 Source: `DI-bubab`.
+
+The `web` command runs deterministic browser-source tests, then rebuilds the
+checked-in `web/app.js` bundle from those sources. It does not contact a relay
+or create presence evidence.
 
 ## Test layers and their claims
 
@@ -52,6 +57,16 @@ exercises browser and Neovim embodiments through the relay-facing contract.
 Together, these tests cover the current decentralized collaboration paths; they
 do not define key rotation, delegation, or cross-relay trust policy. Source:
 `DI-guros`; `DI-nilas`.
+
+### Local presence lifecycle
+
+`web/src/presence.test.mjs` injects a clock and scheduler to prove the normal
+profile's `live` → `stale` → `offline` → removed boundaries, nearest-boundary
+timer selection, and timer cancellation. The browser and Neovim use that same
+observer-local policy to refresh presentation without emitting expiry traffic
+or asking a relay to declare membership. This proves only local rendering of
+the latest accepted awareness observation; it does not prove that a peer left,
+revoked a promise, or is unreachable. Source: `DI-dizut`; `DI-dazin`.
 
 ## Test data and topology
 
