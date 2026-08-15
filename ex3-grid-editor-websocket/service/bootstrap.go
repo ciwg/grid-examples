@@ -36,9 +36,9 @@ func (app *App) IssueRemoteSession(documentID string, participantID string) (Rem
 	if err := validateParticipantID(participantID); err != nil {
 		return RemoteSession{}, err
 	}
-	// Intent: Keep remote bootstrap local and provisional while moving the live
-	// mutation path itself onto short-lived per-protocol capabilities that match
-	// ex3's existing protocol split. Source: DI-povip
+	// Intent: Keep remote bootstrap local and provisional while issuing
+	// short-lived capabilities with exact profile audiences, including the
+	// dedicated restore promise. Source: DI-povip; DI-nihiz
 	syncToken, claims, err := issueMutationCapability(app.identity, participantID, documentID, app.documentPCID.String(), "mutate", mutationCapabilityTTL)
 	if err != nil {
 		return RemoteSession{}, err
@@ -55,6 +55,10 @@ func (app *App) IssueRemoteSession(documentID string, participantID string) (Rem
 	if err != nil {
 		return RemoteSession{}, err
 	}
+	restoreToken, _, err := issueMutationCapability(app.identity, participantID, documentID, app.restorePCID.String(), "mutate", mutationCapabilityTTL)
+	if err != nil {
+		return RemoteSession{}, err
+	}
 	return RemoteSession{
 		DocumentID:    documentID,
 		ParticipantID: participantID,
@@ -64,6 +68,7 @@ func (app *App) IssueRemoteSession(documentID string, participantID string) (Rem
 			"awareness": awarenessToken,
 			"metadata":  metadataToken,
 			"publish":   publishToken,
+			"restore":   restoreToken,
 		},
 	}, nil
 }

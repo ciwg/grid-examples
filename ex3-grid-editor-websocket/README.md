@@ -139,6 +139,15 @@ That means a publish manifest can point at a chosen current state or saved
 version without pretending it is the same thing as joining the live sync
 stream. Source: `DI-tavul`; `DI-gosaf`.
 
+### 7. Restore continues; it does not roll back
+
+`restore-published-version` lets an admitted participant select one immutable
+publish manifest and create one new, provenance-bearing CRDT change in the
+existing document. It does not rewrite live history or make the old publication
+authoritative. Concurrent edits can merge with the restored content. Import
+remains separate: it creates a new local document from a publish artifact.
+Source: `DI-hihok`; `DI-tibum`; `DI-nihiz`.
+
 ## Where Data Lives
 
 Grid Editor intentionally splits data by role.

@@ -23,6 +23,7 @@ import (
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/protocol"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/protocols"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/publish"
+	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/restore"
 	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/store"
 )
 
@@ -32,6 +33,7 @@ type Meta struct {
 	AwarenessPCID string `json:"awareness_pcid"`
 	MetadataPCID  string `json:"metadata_pcid"`
 	PublishPCID   string `json:"publish_pcid"`
+	RestorePCID   string `json:"restore_pcid"`
 	DataRoot      string `json:"data_root"`
 }
 
@@ -75,6 +77,7 @@ type App struct {
 	awarenessPCID        cid.Cid
 	metadataPCID         cid.Cid
 	publishPCID          cid.Cid
+	restorePCID          cid.Cid
 
 	mu                 sync.Mutex
 	maxLamport         uint64
@@ -110,6 +113,10 @@ func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("publish pCID: %w", err)
 	}
+	restorePCID, err := protocol.CIDForBytes(protocols.MustRead(protocols.RestorePublishedVersionSpec))
+	if err != nil {
+		return nil, fmt.Errorf("restore pCID: %w", err)
+	}
 	identityPath := filepath.Join(dataRoot, "identity_ed25519_seed")
 	identityValue, err := identity.LoadOrCreate(identityPath)
 	if err != nil {
@@ -143,6 +150,7 @@ func NewApp(dataRoot string, options ...AppOptions) (*App, error) {
 		awarenessPCID:        awarenessPCID,
 		metadataPCID:         metadataPCID,
 		publishPCID:          publishPCID,
+		restorePCID:          restorePCID,
 		seen:                 map[string]struct{}{},
 		presence:             map[string]awareness.Index{},
 		syncFeeds:            map[string][]crdt.SyncRecord{},
@@ -166,6 +174,7 @@ func (app *App) Meta() Meta {
 		AwarenessPCID: app.awarenessPCID.String(),
 		MetadataPCID:  app.metadataPCID.String(),
 		PublishPCID:   app.publishPCID.String(),
+		RestorePCID:   app.restorePCID.String(),
 		DataRoot:      app.dataRoot,
 	}
 }
@@ -423,6 +432,64 @@ func (app *App) PublishDocument(documentID string, participantID string, sourceK
 		return publish.Record{}, err
 	}
 	return record, nil
+}
+
+// Intent: Preserve a user-directed published-version restoration as one
+// append-only, provenance-bearing promise whose replay also supplies the exact
+// live CRDT change. Source: DI-hihok; DI-tibum.
+func (app *App) RestorePublishedVersion(documentID string, participantID string, sourceManifestCID string, liveChangeBase64 string, embodiment string) (restore.Record, error) {
+	if err := validateDocumentID(documentID); err != nil {
+		return restore.Record{}, err
+	}
+	if err := validateParticipantID(participantID); err != nil {
+		return restore.Record{}, err
+	}
+	if err := validateEmbodiment(embodiment); err != nil {
+		return restore.Record{}, err
+	}
+	liveChangeBytes, err := base64.StdEncoding.DecodeString(liveChangeBase64)
+	if err != nil {
+		return restore.Record{}, fmt.Errorf("decode restore change bytes: %w", err)
+	}
+	if err := validateChangeBytes(liveChangeBytes); err != nil {
+		return restore.Record{}, err
+	}
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if record, ok := app.publishByCID[sourceManifestCID]; !ok || record.DocumentID != documentID {
+		return restore.Record{}, fmt.Errorf("restore source manifest not found for document")
+	}
+	app.maxLamport++
+	message := restore.Message{
+		Kind:              "restore",
+		DocumentID:        documentID,
+		Author:            app.identity.KeyID(),
+		ParticipantID:     participantID,
+		SourceManifestCID: sourceManifestCID,
+		LiveChangeBytes:   liveChangeBytes,
+		RestoredAt:        time.Now().Format(time.RFC3339Nano),
+		Lamport:           app.maxLamport,
+		Embodiment:        embodiment,
+	}
+	envelopeBytes, err := app.makeSignedEnvelope(app.restorePCID, message)
+	if err != nil {
+		return restore.Record{}, fmt.Errorf("sign restore promise: %w", err)
+	}
+	syncRecord, err := app.ingestEnvelopeLocked(envelopeBytes, nil)
+	if err != nil {
+		return restore.Record{}, err
+	}
+	return restore.Record{
+		Offset:            syncRecord.Offset,
+		EnvelopeCID:       syncRecord.EnvelopeCID,
+		DocumentID:        documentID,
+		ParticipantID:     participantID,
+		Author:            app.identity.KeyID(),
+		SourceManifestCID: sourceManifestCID,
+		MessageBase64:     syncRecord.MessageBase64,
+		Embodiment:        embodiment,
+		ReceivedAt:        syncRecord.ReceivedAt,
+	}, nil
 }
 
 func (app *App) SyncFeed(documentID string, since uint64, limit int) SyncFeed {
@@ -807,6 +874,25 @@ func (app *App) ingestEnvelopeLocked(envelopeBytes []byte, existing *store.Entry
 			return crdt.SyncRecord{}, err
 		}
 		return crdt.SyncRecord{}, nil
+	case app.restorePCID.String():
+		var message restore.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return crdt.SyncRecord{}, fmt.Errorf("decode restore payload: %w", err)
+		}
+		record = crdt.SyncRecord{
+			Offset:        entry.Offset,
+			EnvelopeCID:   envelopeCIDString,
+			ParticipantID: message.ParticipantID,
+			Author:        message.Author,
+			MessageBase64: base64.StdEncoding.EncodeToString(message.LiveChangeBytes),
+			Embodiment:    message.Embodiment,
+			ReceivedAt:    entry.ReceivedAt,
+		}
+		app.syncFeeds[message.DocumentID] = append(app.syncFeeds[message.DocumentID], record)
+		syncDocumentID = message.DocumentID
+		if message.Lamport > app.maxLamport {
+			app.maxLamport = message.Lamport
+		}
 	case app.metadataPCID.String():
 		_, err = app.ingestMetadataEnvelopeLocked(envelopeBytes, &entry)
 		if err != nil {
@@ -864,6 +950,29 @@ func (app *App) validateEnvelopeLocked(envelope protocol.Envelope) error {
 		}
 		if message.Author != envelope.Proof.KeyID {
 			return fmt.Errorf("publish author %q does not match proof key", message.Author)
+		}
+	case app.restorePCID.String():
+		var message restore.Message
+		if err := protocol.Unmarshal(envelope.PayloadBytes, &message); err != nil {
+			return fmt.Errorf("decode restore payload: %w", err)
+		}
+		if message.Kind != "restore" {
+			return fmt.Errorf("restore kind must be restore")
+		}
+		if message.Author != envelope.Proof.KeyID {
+			return fmt.Errorf("restore author %q does not match proof key", message.Author)
+		}
+		if err := validateDocumentID(message.DocumentID); err != nil {
+			return err
+		}
+		if err := validateParticipantID(message.ParticipantID); err != nil {
+			return err
+		}
+		if err := validateChangeBytes(message.LiveChangeBytes); err != nil {
+			return err
+		}
+		if record, ok := app.publishByCID[message.SourceManifestCID]; !ok || record.DocumentID != message.DocumentID {
+			return fmt.Errorf("restore source manifest not found for document")
 		}
 	case app.metadataPCID.String():
 		var message metadata.Message

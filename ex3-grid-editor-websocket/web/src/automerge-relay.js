@@ -286,6 +286,25 @@ export class AutomergeRelayClient {
     });
   }
 
+  // Intent: Construct the exact local Automerge change carried by one atomic
+  // restore promise without mutating this replica before relay acceptance.
+  // Source: DI-tibum; DI-nogat
+  buildReplacementChange(text) {
+    const previous = this.getText();
+    const prefix = commonPrefix(previous, text);
+    const suffix = commonSuffix(previous, text, prefix);
+    const deleteCount = previous.length - prefix - suffix;
+    const insertText = text.slice(prefix, text.length - suffix);
+    const nextDoc = Automerge.change(Automerge.clone(this.doc), (draft) => {
+      AutomergeNext.splice(draft, ["content"], prefix, deleteCount, insertText);
+    });
+    const change = Automerge.getLastLocalChange(nextDoc);
+    if (!change) {
+      throw new Error("restore did not produce a CRDT change");
+    }
+    return bytesToBase64(change);
+  }
+
   async publishSnapshot() {
     const response = await fetch(`${this.basePath}/snapshot`, {
       method: "POST",

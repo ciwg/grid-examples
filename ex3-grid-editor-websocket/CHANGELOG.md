@@ -14,6 +14,7 @@ specification doc-CID. Source: `DI-hadil`.
 | `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | Relay-signed latest-state presence feed, browser/Neovim presentation, and WebSocket carriage. |
 | `document-metadata` | `bafkreih7sut3exri37qperlyvohk74vmreppzmcoxenjzozj6zkblanday` | Relay-signed latest-state document metadata and relay-backed catalog search. |
 | `publish-document` | `bafkreibhvpjr5uddw5z5qmkkowfucawuvzr7hafvsc5djetkax3s6amt3a` | Relay-signed publish manifests, CAS-backed text/replica objects, and local import/exchange resolution. |
+| `restore-published-version` | `bafkreicugmkq4edygey752uexzxrte3rcvhldepptc7fzwf44qpfxijlgm` | Capability-gated, relay-signed current-time restore promises that name a published manifest and carry one exact continuing Automerge change. |
 
 The scope covers Ex3's pCID-selected signed envelopes, relay CAS and
 append-only log, relay-to-relay ingestion, browser and Neovim local replicas,
@@ -51,6 +52,11 @@ Ex3 does not claim:
   transport, Docker topology, or local filesystem layout is a portable
   protocol contract; or
 - a human-driven usability review of private/incognito browser operation.
+
+The restore profile is a repo-local-draft, append-only provenance claim. It
+does not establish owner/admin authority, destructive rollback, byte-identical
+results under concurrent editing, or frozen-spec interoperability. Source:
+`DI-hihok`; `DI-tibum`; `DI-nihiz`.
   Browser-level verification has passed with isolated normal and incognito
   Chrome sessions connected to one isolated relay and converging document text
   in both directions; it used local DevTools and native browser input. Source:

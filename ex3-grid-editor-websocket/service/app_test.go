@@ -322,6 +322,36 @@ func TestPublishDocumentResolvesLocallyAndStaysOutOfPeerFeed(t *testing.T) {
 	}
 }
 
+func TestRestorePublishedVersionAppendsOneReplayableSyncRecord(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "relay")
+	app, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	published, err := app.PublishDocument("demo", "browser-a", "current", "", "", "Before restore", "", []byte("before"), []byte{1}, "browser")
+	if err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	restored, err := app.RestorePublishedVersion("demo", "browser-a", published.EnvelopeCID, base64.StdEncoding.EncodeToString([]byte{7, 8, 9}), "browser")
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.SourceManifestCID != published.EnvelopeCID {
+		t.Fatalf("source manifest mismatch: got %s want %s", restored.SourceManifestCID, published.EnvelopeCID)
+	}
+	feed := app.SyncFeed("demo", 0, 8)
+	if len(feed.Messages) != 1 || feed.Messages[0].EnvelopeCID != restored.EnvelopeCID {
+		t.Fatalf("restore sync feed = %+v", feed.Messages)
+	}
+	restarted, err := service.NewApp(root)
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if got := restarted.SyncFeed("demo", 0, 8); len(got.Messages) != 1 || got.Messages[0].MessageBase64 != restored.MessageBase64 {
+		t.Fatalf("replayed restore feed = %+v", got.Messages)
+	}
+}
+
 func TestResolvePublishedMissingManifestFails(t *testing.T) {
 	t.Parallel()
 	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))

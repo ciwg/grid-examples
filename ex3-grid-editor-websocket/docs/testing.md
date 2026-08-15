@@ -37,7 +37,7 @@ verifies the Neovim helper bundle can be rebuilt. Source: `DI-hosit`.
 ### Source-derived protocol publication
 
 `protocol.TestProfileInventoryMatchesPublishedDocuments` derives every pCID
-from the exact four `protocols/*.md` source files and checks both
+from the exact five `protocols/*.md` source files and checks both
 `docs/architecture.md` and `CHANGELOG.md`. It proves those documents match the
 current local drafts; it does not claim frozen upstream specifications or
 automatic independent-peer interoperability. Source: `DI-dilav`; `DI-hadil`.
@@ -53,6 +53,16 @@ bearer/bootstrap retention.
 
 These are relay-local facts. They do not prove another participant's intent or
 globally invalidate a pCID. Source: `DI-pazis`; `DI-darif`; `DI-lozut`.
+
+### Published-version restore
+
+Restore tests require an exact published manifest for the same document and
+one accepted `restore-published-version` envelope carrying the exact Automerge
+change projected into the sync feed. They cover malformed input, capability
+denial, restart replay, and the fact that concurrent changes can merge with a
+restore-derived state. They do not claim owner/admin authority, destructive
+rollback, byte-identical output under concurrency, or frozen-spec
+interoperability. Source: `DI-hihok`; `DI-tibum`; `DI-nihiz`.
 
 ### Decentralized collaboration and embodiments
 

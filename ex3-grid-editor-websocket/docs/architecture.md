@@ -17,6 +17,7 @@ complete implemented scope and non-claims are recorded in the
 | `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | [`protocols/live-awareness.md`](../protocols/live-awareness.md) | Relay-signed latest-state presence carriage and local presentation. |
 | `document-metadata` | `bafkreih7sut3exri37qperlyvohk74vmreppzmcoxenjzozj6zkblanday` | [`protocols/document-metadata.md`](../protocols/document-metadata.md) | Relay-signed current metadata and catalog search. |
 | `publish-document` | `bafkreibhvpjr5uddw5z5qmkkowfucawuvzr7hafvsc5djetkax3s6amt3a` | [`protocols/publish-document.md`](../protocols/publish-document.md) | Relay-signed publish manifests and CAS-backed local import/exchange resolution. |
+| `restore-published-version` | `bafkreicugmkq4edygey752uexzxrte3rcvhldepptc7fzwf44qpfxijlgm` | [`protocols/restore-published-version.md`](../protocols/restore-published-version.md) | One relay-signed restore promise that names immutable publish provenance and carries its exact continuing CRDT change. |
 
 ## Topology
 
@@ -64,6 +65,7 @@ Public, PromiseGrid-facing:
 - `protocols/live-awareness.md`
 - `protocols/document-metadata.md`
 - `protocols/publish-document.md`
+- `protocols/restore-published-version.md`
 - signed `grid([42(pCID), payload, proof])` envelopes
 
 Internal-only:
@@ -110,6 +112,13 @@ capability audience fields are scoped local inputs. Source: `DI-hadil`;
 - supports current-state or saved-version handoff
 - is separate from restore semantics and separate from live sync
 
+### `restore-published-version`
+
+- names one exact published manifest and one exact continuing Automerge change
+- projects that one accepted artifact into the normal live sync feed on replay
+- remains capability-gated, append-only, and non-authoritative; import still
+  creates a new document and concurrent edits can merge with the result
+
 ### `document-metadata`
 
 - carries relay-signed latest-state document metadata
@@ -135,6 +144,8 @@ The relay data root stores:
 - CAS-backed signed metadata envelopes
 - CAS-backed published text bytes
 - CAS-backed published replica bytes
+- CAS-backed restore envelopes, whose payloads carry the source manifest CID
+  and exact continuing CRDT change
 
 These are the durable artifacts the relay can verify and serve back later.
 

@@ -45,6 +45,21 @@ test("primeFromRelayState hydrates browser replica from relay snapshot", async (
   assert.equal(target.offset, 42);
 });
 
+test("buildReplacementChange produces a replayable restore change without mutating the source", async () => {
+  const { AutomergeRelayClient } = await import("./automerge-relay.js");
+  const source = new AutomergeRelayClient({ basePath: "/api/local/documents/demo", participantID: "a", documentID: "demo", awareness: { on() {} }, capabilities: {} });
+  source.postChange = async () => {};
+  source.initialSyncReady = true;
+  source.replaceText("before");
+  await Promise.resolve();
+  const changeBase64 = source.buildReplacementChange("after");
+  assert.equal(source.getText(), "before");
+  const target = new AutomergeRelayClient({ basePath: "/api/local/documents/demo", participantID: "b", documentID: "demo", awareness: { on() {} }, capabilities: {} });
+  await target.receive({ message_base64: Buffer.from(Automerge.getLastLocalChange(source.doc)).toString("base64") });
+  await target.receive({ message_base64: changeBase64 });
+  assert.equal(target.getText(), "after");
+});
+
 test("recoverFromRelayHistory replays sync feed when startup stayed empty", async () => {
   const { AutomergeRelayClient } = await import("./automerge-relay.js");
   const source = new AutomergeRelayClient({

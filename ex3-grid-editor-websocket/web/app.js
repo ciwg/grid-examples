@@ -31958,6 +31958,24 @@ var AutomergeRelayClient = class {
       }
     });
   }
+  // Intent: Construct the exact local Automerge change carried by one atomic
+  // restore promise without mutating this replica before relay acceptance.
+  // Source: DI-tibum; DI-nogat
+  buildReplacementChange(text) {
+    const previous = this.getText();
+    const prefix = commonPrefix(previous, text);
+    const suffix = commonSuffix(previous, text, prefix);
+    const deleteCount = previous.length - prefix - suffix;
+    const insertText = text.slice(prefix, text.length - suffix);
+    const nextDoc = change(clone(this.doc), (draft) => {
+      AutomergeNext.splice(draft, ["content"], prefix, deleteCount, insertText);
+    });
+    const change2 = getLastLocalChange(nextDoc);
+    if (!change2) {
+      throw new Error("restore did not produce a CRDT change");
+    }
+    return bytesToBase64(change2);
+  }
   async publishSnapshot() {
     const response = await fetch(`${this.basePath}/snapshot`, {
       method: "POST",
@@ -33726,6 +33744,13 @@ function renderPublished(records) {
       await copyText(`${window.location.origin}/api/published/${record.envelope_cid}`, "Exchange link copied");
     });
     li.appendChild(button);
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "button";
+    restoreButton.textContent = "Restore into current document";
+    restoreButton.addEventListener("click", () => {
+      restorePublishedVersion(record).catch((error) => showToast(`Restore failed: ${error.message}`));
+    });
+    li.appendChild(restoreButton);
     const meta2 = document.createElement("div");
     meta2.className = "tiny muted";
     meta2.textContent = formatTime(record.published_at);
@@ -33735,6 +33760,36 @@ function renderPublished(records) {
   if (records.length === 0) {
     appendEmptyState(publishedListEl, "No published exchanges yet");
   }
+}
+async function restorePublishedVersion(record) {
+  if (!state.relay || !state.editor || !window.confirm(`Continue this document from published version \u201C${record.title}\u201D? Concurrent edits may merge with the restored content.`)) {
+    return;
+  }
+  const sourceResponse = await fetch(`/api/published/${encodeURIComponent(record.envelope_cid)}`);
+  if (!sourceResponse.ok) {
+    throw new Error(`source manifest fetch failed: ${sourceResponse.status}`);
+  }
+  const source = await sourceResponse.json();
+  const liveChangeBase64 = state.relay.buildReplacementChange(base64ToText(source.text_base64));
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/restore-published-version`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...bearerHeaders(state.remoteSession?.capabilities?.restore)
+    },
+    body: JSON.stringify({
+      participant_id: state.participantID,
+      source_manifest_cid: record.envelope_cid,
+      live_change_base64: liveChangeBase64,
+      embodiment: "browser"
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`restore failed: ${response.status}`);
+  }
+  const payload = await response.json();
+  await state.relay.receive(payload.record);
+  showToast(`Restored from ${record.title}; concurrent edits may be merged.`);
 }
 function renderMetadataResults(records) {
   metadataResultsEl.innerHTML = "";

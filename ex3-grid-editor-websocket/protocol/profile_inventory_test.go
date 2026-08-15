@@ -23,6 +23,7 @@ func TestProfileInventoryMatchesPublishedDocuments(t *testing.T) {
 		"live-awareness.md",
 		"document-metadata.md",
 		"publish-document.md",
+		"restore-published-version.md",
 	}
 	for _, profile := range profiles {
 		profile := profile

@@ -174,6 +174,8 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		server.handlePublishedList(writer, request, documentID)
 	case "publish":
 		server.handlePublish(writer, request, documentID)
+	case "restore-published-version":
+		server.handleRestorePublishedVersion(writer, request, documentID)
 	case "metadata":
 		server.handleMetadata(writer, request, documentID)
 	default:
@@ -339,6 +341,37 @@ func (server *Server) handlePublishedList(writer http.ResponseWriter, request *h
 		"document_id": documentID,
 		"published":   server.app.Published(documentID),
 	})
+}
+
+func (server *Server) handleRestorePublishedVersion(writer http.ResponseWriter, request *http.Request, documentID string) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxChangeBytesLen*4)
+	var payload struct {
+		ParticipantID     string `json:"participant_id"`
+		SourceManifestCID string `json:"source_manifest_cid"`
+		LiveChangeBase64  string `json:"live_change_base64"`
+		Embodiment        string `json:"embodiment"`
+	}
+	if err := decodeJSONBody(writer, request, &payload); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := server.requireMutationAccess(request, payload.ParticipantID, documentID, server.app.restorePCID.String()); err != nil {
+		http.Error(writer, err.Error(), http.StatusForbidden)
+		return
+	}
+	// Intent: Admit only a pCID-scoped, atomic restore promise so a selected
+	// publication and its exact continuing CRDT change cannot be split into
+	// unrelated mutable operations. Source: DI-tibum; DI-lihud.
+	record, err := server.app.RestorePublishedVersion(documentID, payload.ParticipantID, payload.SourceManifestCID, payload.LiveChangeBase64, payload.Embodiment)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(writer, http.StatusOK, map[string]any{"record": record})
 }
 
 func (server *Server) handleSession(writer http.ResponseWriter, request *http.Request, documentID string) {

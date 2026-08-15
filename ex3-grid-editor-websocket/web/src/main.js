@@ -797,6 +797,13 @@ function renderPublished(records) {
       await copyText(`${window.location.origin}/api/published/${record.envelope_cid}`, "Exchange link copied");
     });
     li.appendChild(button);
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "button";
+    restoreButton.textContent = "Restore into current document";
+    restoreButton.addEventListener("click", () => {
+      restorePublishedVersion(record).catch((error) => showToast(`Restore failed: ${error.message}`));
+    });
+    li.appendChild(restoreButton);
     const meta = document.createElement("div");
     meta.className = "tiny muted";
     meta.textContent = formatTime(record.published_at);
@@ -806,6 +813,40 @@ function renderPublished(records) {
   if (records.length === 0) {
     appendEmptyState(publishedListEl, "No published exchanges yet");
   }
+}
+
+// Intent: Keep restore visibly user-directed and tied to one immutable publish
+// manifest while letting the accepted atomic artifact continue this document.
+// Source: DI-hihok; DI-pazad
+async function restorePublishedVersion(record) {
+  if (!state.relay || !state.editor || !window.confirm(`Continue this document from published version “${record.title}”? Concurrent edits may merge with the restored content.`)) {
+    return;
+  }
+  const sourceResponse = await fetch(`/api/published/${encodeURIComponent(record.envelope_cid)}`);
+  if (!sourceResponse.ok) {
+    throw new Error(`source manifest fetch failed: ${sourceResponse.status}`);
+  }
+  const source = await sourceResponse.json();
+  const liveChangeBase64 = state.relay.buildReplacementChange(base64ToText(source.text_base64));
+  const response = await fetch(`/api/local/documents/${encodeURIComponent(state.documentID)}/restore-published-version`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...bearerHeaders(state.remoteSession?.capabilities?.restore),
+    },
+    body: JSON.stringify({
+      participant_id: state.participantID,
+      source_manifest_cid: record.envelope_cid,
+      live_change_base64: liveChangeBase64,
+      embodiment: "browser",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`restore failed: ${response.status}`);
+  }
+  const payload = await response.json();
+  await state.relay.receive(payload.record);
+  showToast(`Restored from ${record.title}; concurrent edits may be merged.`);
 }
 
 function renderMetadataResults(records) {
