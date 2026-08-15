@@ -16,6 +16,29 @@ extension/native-host path.
 
 ## Real Chrome/native-host evidence
 
+### Self-contained interaction regression
+
+Run this from `ex5-operational-knowledge-system/` when you need a repeatable
+local proof of the shipped Chrome extension, native host, and browser review
+flow together:
+
+```bash
+node scripts/verify-browser-demo-interactions.mjs
+```
+
+The harness prepares the native-host artifacts, loads the checked-in sample
+corpus into its own disposable runtime at `127.0.0.1:7046`, uses an isolated
+Chrome profile, and loads the unpacked Ex5 extension through Chrome's
+`Extensions.loadUnpacked` path. It verifies the direct-contract-backed Draft
+queue, Problem hotspots, Known record search, and a visible Current Record
+update. It removes `/tmp/ex5-browser-interaction/` when it exits, including on
+failure; it does not stop or modify a separately running demo on port 7045.
+
+This is a local regression harness, not a replacement for the attach-only
+external evidence below. Source: `DI-sabek`; `DI-bulaf`; `DI-temur`.
+
+### Attach-only external evidence
+
 The external browser harness lives in
 `../../grid-examples-browser-checks/ex5/`. It attaches to the prelaunched,
 verified Google Chrome session at `http://127.0.0.1:9222`; it must not launch a
