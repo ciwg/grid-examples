@@ -1,5 +1,6 @@
 # TODO
 
+- [x] haruv - Add tailored exercise Makefiles - `TODO/TODO-haruv-tailored-exercise-makefiles.md`
 - [x] mituf - Repair missing TE editing-policy sources - `TODO/TODO-mituf-te-editing-policy-source-recovery.md`
 - [x] folip - Consolidate duplicate ex6 TODO records - `TODO/TODO-folip-consolidate-ex6-todo-records.md`
 - [x] rugum - Preserve historical handle labels - `TODO/TODO-rugum-preserve-historical-handle-labels.md`
