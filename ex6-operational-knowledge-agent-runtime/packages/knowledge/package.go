@@ -121,7 +121,7 @@ func listItems(_ stdctx.Context, runtime *kernel.Runtime, _ []string) (string, e
 	if err != nil {
 		return "", err
 	}
-	lines := []string{}
+	lines := make([]string, 0, len(state))
 	for _, item := range state {
 		lines = append(lines, fmt.Sprintf("%s\t%s\t%s\t%s\trev=%d", item.ItemID, item.Kind, item.Title, item.Status, item.Revision))
 	}

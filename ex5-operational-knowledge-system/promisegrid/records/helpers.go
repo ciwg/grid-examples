@@ -53,7 +53,7 @@ func RecordOriginKey(peerID string, originSequence uint64, sequence uint64) stri
 
 func NormalizeKnowledgeItemRecordOrigins(records []SignedKnowledgeItemRecord, events []Event) []SignedKnowledgeItemRecord {
 	out := make([]SignedKnowledgeItemRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -73,7 +73,7 @@ func NormalizeKnowledgeItemRecordOrigins(records []SignedKnowledgeItemRecord, ev
 
 func NormalizeKnowledgeApprovalRecordOrigins(records []SignedKnowledgeApprovalRecord, events []Event) []SignedKnowledgeApprovalRecord {
 	out := make([]SignedKnowledgeApprovalRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -93,7 +93,7 @@ func NormalizeKnowledgeApprovalRecordOrigins(records []SignedKnowledgeApprovalRe
 
 func NormalizeKnowledgeEvidenceRecordOrigins(records []SignedKnowledgeEvidenceRecord, events []Event) []SignedKnowledgeEvidenceRecord {
 	out := make([]SignedKnowledgeEvidenceRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -113,7 +113,7 @@ func NormalizeKnowledgeEvidenceRecordOrigins(records []SignedKnowledgeEvidenceRe
 
 func NormalizeOperationalRunRecordOrigins(records []SignedOperationalRunRecord, events []Event) []SignedOperationalRunRecord {
 	out := make([]SignedOperationalRunRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -133,7 +133,7 @@ func NormalizeOperationalRunRecordOrigins(records []SignedOperationalRunRecord, 
 
 func NormalizeOperationalPlaceRecordOrigins(records []SignedOperationalPlaceRecord, events []Event) []SignedOperationalPlaceRecord {
 	out := make([]SignedOperationalPlaceRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -153,7 +153,7 @@ func NormalizeOperationalPlaceRecordOrigins(records []SignedOperationalPlaceReco
 
 func NormalizeOperationalResourceRecordOrigins(records []SignedOperationalResourceRecord, events []Event) []SignedOperationalResourceRecord {
 	out := make([]SignedOperationalResourceRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -173,7 +173,7 @@ func NormalizeOperationalResourceRecordOrigins(records []SignedOperationalResour
 
 func NormalizeKnowledgeLinkRecordOrigins(records []SignedKnowledgeLinkRecord, events []Event) []SignedKnowledgeLinkRecord {
 	out := make([]SignedKnowledgeLinkRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -193,7 +193,7 @@ func NormalizeKnowledgeLinkRecordOrigins(records []SignedKnowledgeLinkRecord, ev
 
 func NormalizeKnowledgeResponsibilityRecordOrigins(records []SignedKnowledgeResponsibilityRecord, events []Event) []SignedKnowledgeResponsibilityRecord {
 	out := make([]SignedKnowledgeResponsibilityRecord, 0, len(records))
-	eventsBySequence := map[uint64]Event{}
+	eventsBySequence := make(map[uint64]Event, len(events))
 	for _, event := range events {
 		eventsBySequence[event.Sequence] = event
 	}
@@ -232,31 +232,31 @@ func DecoratePeerVisibleEventCanonicalIDs(
 		}
 		itemCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	approvalCreateCIDs := map[string]string{}
+	approvalCreateCIDs := make(map[string]string, len(approvalRecords))
 	for _, record := range approvalRecords {
 		approvalCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	evidenceCreateCIDs := map[string]string{}
+	evidenceCreateCIDs := make(map[string]string, len(evidenceRecords))
 	for _, record := range evidenceRecords {
 		evidenceCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	runCreateCIDs := map[string]string{}
+	runCreateCIDs := make(map[string]string, len(runRecords))
 	for _, record := range runRecords {
 		runCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	placeCreateCIDs := map[string]string{}
+	placeCreateCIDs := make(map[string]string, len(placeRecords))
 	for _, record := range placeRecords {
 		placeCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	resourceCreateCIDs := map[string]string{}
+	resourceCreateCIDs := make(map[string]string, len(resourceRecords))
 	for _, record := range resourceRecords {
 		resourceCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	linkCreateCIDs := map[string]string{}
+	linkCreateCIDs := make(map[string]string, len(linkRecords))
 	for _, record := range linkRecords {
 		linkCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}
-	responsibilityCreateCIDs := map[string]string{}
+	responsibilityCreateCIDs := make(map[string]string, len(responsibilityRecords))
 	for _, record := range responsibilityRecords {
 		responsibilityCreateCIDs[RecordOriginKey(record.OriginPeerID, record.OriginSequence, record.Sequence)] = record.EnvelopeCID
 	}

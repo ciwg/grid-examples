@@ -190,7 +190,7 @@ func websocketAccept(key string) string {
 
 func headerContainsToken(header http.Header, name string, want string) bool {
 	for _, value := range header.Values(name) {
-		for _, token := range strings.Split(value, ",") {
+		for token := range strings.SplitSeq(value, ",") {
 			if strings.EqualFold(strings.TrimSpace(token), want) {
 				return true
 			}

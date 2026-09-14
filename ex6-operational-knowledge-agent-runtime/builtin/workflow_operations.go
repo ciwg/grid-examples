@@ -12,7 +12,7 @@ import (
 // artifact. Intent: Keep v1 orchestration explicit and pCID-typed while Docker
 // workers remain a separately constrained future backend. Source: DI-lumek
 func WorkflowOperations() map[string]kernel.WorkflowOperation {
-	operations := map[string]kernel.WorkflowOperation{}
+	operations := make(map[string]kernel.WorkflowOperation, len(workflowOperationSpecifications))
 	for name, specification := range workflowOperationSpecifications {
 		operations[name] = commandWorkflowOperation(specification)
 	}

@@ -488,7 +488,7 @@ func relayCursorMapsEqual(left map[string]uint64, right map[string]uint64) bool 
 }
 
 func cloneKnownOrigins(in map[string]uint64) map[string]uint64 {
-	out := map[string]uint64{}
+	out := make(map[string]uint64, len(in))
 	for key, value := range in {
 		out[key] = value
 	}
