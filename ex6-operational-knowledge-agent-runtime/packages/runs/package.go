@@ -244,7 +244,7 @@ func ensureRun(runs map[string]*runState, runID string) *runState {
 
 func parseFacts(raw string) map[string]string {
 	facts := map[string]string{}
-	for entry := range strings.SplitSeq(raw, ",") {
+	for _, entry := range strings.Split(raw, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue

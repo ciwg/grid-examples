@@ -82,7 +82,7 @@ func TestCASListCIDsNormalizesLegacyObjects(t *testing.T) {
 	if len(objectCIDs) != 2 {
 		t.Fatalf("CID count = %d, want 2", len(objectCIDs))
 	}
-	seen := make(map[string]bool, len(objectCIDs))
+	seen := map[string]bool{}
 	for _, objectCID := range objectCIDs {
 		seen[objectCID.String()] = true
 	}

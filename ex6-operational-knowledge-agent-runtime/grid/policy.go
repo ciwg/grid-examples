@@ -124,7 +124,7 @@ func canonicalRegistryHost(host string) (string, error) {
 	} else if strings.Contains(host, ":") {
 		return "", errors.New("registry host must be canonical host[:port]")
 	}
-	for label := range strings.SplitSeq(name, ".") {
+	for _, label := range strings.Split(name, ".") {
 		if label == "" || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
 			return "", errors.New("registry host has invalid label")
 		}

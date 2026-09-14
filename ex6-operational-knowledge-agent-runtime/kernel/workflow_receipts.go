@@ -245,7 +245,7 @@ func (receipt WorkflowReceipt) validate() error {
 }
 
 func (receipt *WorkflowReceipt) addPeers(peerIDs []string) bool {
-	known := make(map[string]bool, len(receipt.PeerIDs))
+	known := map[string]bool{}
 	for _, peerID := range receipt.PeerIDs {
 		known[peerID] = true
 	}
@@ -290,7 +290,7 @@ func (runtime *Runtime) ScanWorkflowInbox() ([]WorkflowInboxEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	known := make(map[string]bool, len(receipts))
+	known := map[string]bool{}
 	for _, receipt := range receipts {
 		known[receipt.EvidenceCID] = true
 	}

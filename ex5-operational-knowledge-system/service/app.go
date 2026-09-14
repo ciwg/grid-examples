@@ -2123,7 +2123,7 @@ func normalizeFacts(facts map[string]string) map[string]string {
 }
 
 func cloneFacts(in map[string]string) map[string]string {
-	out := make(map[string]string, len(in))
+	out := map[string]string{}
 	for key, value := range in {
 		out[key] = value
 	}

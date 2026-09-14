@@ -143,7 +143,7 @@ func (manifest Manifest) Validate() error {
 		}
 		claimedProtocols[key] = struct{}{}
 	}
-	claimedProtocolSet := make(map[string]struct{}, len(manifest.Claims))
+	claimedProtocolSet := map[string]struct{}{}
 	for _, claim := range manifest.Claims {
 		claimedProtocolSet[claim.ProtocolPCID] = struct{}{}
 	}
