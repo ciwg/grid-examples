@@ -429,6 +429,126 @@ end, 1400)
 	}
 }
 
+func TestNeovimLauncherEquivalentSessionsObserveEachOther(t *testing.T) {
+	if _, err := exec.LookPath("nvim"); err != nil {
+		t.Skip("nvim not installed")
+	}
+
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	listener := listenTCP4OrSkip(t)
+	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	// Intent: Exercise two independent launcher-equivalent Neovim embodiments
+	// through one relay before relying on an interactive demonstration. Source:
+	// DI-loril
+	first := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "First Neovim", "#d66f1d")
+	time.Sleep(500 * time.Millisecond)
+	second := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "Second Neovim", "#1d6fd6")
+
+	firstObserved := first.Wait(t)
+	secondObserved := second.Wait(t)
+	checks := []struct {
+		name     string
+		observed nvimDashboardObservation
+		peerName string
+	}{
+		{name: "first", observed: firstObserved, peerName: "Second Neovim"},
+		{name: "second", observed: secondObserved, peerName: "First Neovim"},
+	}
+	for _, check := range checks {
+		if !check.observed.Connected {
+			t.Fatalf("%s Neovim session did not connect to the relay: %+v", check.name, check.observed)
+		}
+		if check.observed.SwapfileEnabled {
+			t.Fatalf("%s Neovim session enabled a swap file for the live document", check.name)
+		}
+		if !strings.Contains(check.observed.Dashboard, check.peerName) {
+			t.Fatalf("%s dashboard did not show peer %q: %+v", check.name, check.peerName, check.observed)
+		}
+	}
+}
+
+type nvimDashboardObservation struct {
+	Connected       bool   `json:"connected"`
+	Dashboard       string `json:"dashboard"`
+	SwapfileEnabled bool   `json:"swapfile_enabled"`
+}
+
+type nvimDashboardProbe struct {
+	command    *exec.Cmd
+	outputPath string
+	stdout     bytes.Buffer
+	stderr     bytes.Buffer
+}
+
+func startNeovimDashboardProbe(t *testing.T, repoRoot string, relayURL string, displayName string, color string) *nvimDashboardProbe {
+	t.Helper()
+	outputPath := filepath.Join(t.TempDir(), "nvim-dashboard.json")
+	scriptPath := filepath.Join(t.TempDir(), "nvim-dashboard.lua")
+	script := fmt.Sprintf(`
+vim.opt.swapfile = false
+vim.opt.runtimepath:append(%q)
+vim.cmd("runtime plugin/grid_editor.vim")
+require("grid_editor").setup({
+  relay_url = %q,
+  display_name = %q,
+  color = %q,
+})
+vim.cmd("GridEditorOpen demo")
+vim.defer_fn(function()
+  local state = require("grid_editor").state
+  vim.cmd("GridEditorDashboard")
+  local dashboard = ""
+  if state.dashboard_bufnr and vim.api.nvim_buf_is_valid(state.dashboard_bufnr) then
+    dashboard = table.concat(vim.api.nvim_buf_get_lines(state.dashboard_bufnr, 0, -1, false), "\n")
+  end
+  vim.fn.writefile({ vim.json.encode({
+    connected = state.relay_connected,
+    dashboard = dashboard,
+    swapfile_enabled = not state.bufnr or vim.bo[state.bufnr].swapfile,
+  }) }, %q)
+  vim.cmd("qall!")
+end, 4000)
+`, filepath.Join(repoRoot, "nvim"), relayURL, displayName, color, outputPath)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
+		t.Fatalf("write Neovim probe script: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-S", scriptPath)
+	command.Dir = repoRoot
+	probe := &nvimDashboardProbe{command: command, outputPath: outputPath}
+	command.Stdout = &probe.stdout
+	command.Stderr = &probe.stderr
+	if err := command.Start(); err != nil {
+		t.Fatalf("start %s Neovim probe: %v", displayName, err)
+	}
+	return probe
+}
+
+func (probe *nvimDashboardProbe) Wait(t *testing.T) nvimDashboardObservation {
+	t.Helper()
+	if err := probe.command.Wait(); err != nil {
+		t.Fatalf("Neovim probe failed: %v\nstdout:\n%s\nstderr:\n%s", err, probe.stdout.String(), probe.stderr.String())
+	}
+	raw, err := os.ReadFile(probe.outputPath)
+	if err != nil {
+		t.Fatalf("read Neovim probe observation: %v", err)
+	}
+	var observed nvimDashboardObservation
+	if err := json.Unmarshal(raw, &observed); err != nil {
+		t.Fatalf("decode Neovim probe observation: %v", err)
+	}
+	return observed
+}
+
 type jsonProcess struct {
 	t        *testing.T
 	cmd      *exec.Cmd
