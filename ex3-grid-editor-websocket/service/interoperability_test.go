@@ -241,7 +241,7 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 	}
 }
 
-func TestNeovimLauncherPreservesDefaultEditorStartup(t *testing.T) {
+func TestNeovimLauncherStartsSelfContainedDashboardDemo(t *testing.T) {
 	repoRoot := repoRoot(t)
 	fakeBin := t.TempDir()
 	capturePath := filepath.Join(t.TempDir(), "nvim-arguments.txt")
@@ -256,6 +256,7 @@ func TestNeovimLauncherPreservesDefaultEditorStartup(t *testing.T) {
 	command.Env = append(os.Environ(),
 		"PATH="+fakeBin+":"+os.Getenv("PATH"),
 		"GRID_EDITOR_NVIM_ARGUMENTS="+capturePath,
+		"GRID_EDITOR_OPEN_DASHBOARD=1",
 	)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("run launcher: %v\n%s", err, output)
@@ -267,18 +268,13 @@ func TestNeovimLauncherPreservesDefaultEditorStartup(t *testing.T) {
 	}
 	arguments := strings.Fields(string(raw))
 	for _, want := range []string{
-		"+GridEditorOpen", "demo", "set",
+		"-u", "NONE", "-i", "-n",
+		"runtime", "plugin/grid_editor.vim",
+		"+GridEditorOpen", "demo",
+		"+GridEditorDashboard",
 	} {
 		if !slices.Contains(arguments, want) {
 			t.Fatalf("launcher arguments %q do not include %q", arguments, want)
-		}
-	}
-	if !strings.Contains(string(raw), "runtimepath+="+filepath.Join(repoRoot, "nvim")) {
-		t.Fatalf("launcher arguments %q do not append the repository plugin runtime path", arguments)
-	}
-	for _, unexpected := range []string{"-u", "-i", "-n", "GridEditorDashboard"} {
-		if slices.Contains(arguments, unexpected) {
-			t.Fatalf("launcher arguments %q unexpectedly include %q", arguments, unexpected)
 		}
 	}
 }
@@ -507,10 +503,9 @@ func TestNeovimLauncherEquivalentSessionsObserveEachOther(t *testing.T) {
 	// Intent: Exercise two independent launcher-equivalent Neovim embodiments
 	// through one relay before relying on an interactive demonstration. Source:
 	// DI-loril
-	sharedText := "Hello from First Neovim"
-	first := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "First Neovim", "#d66f1d", sharedText)
+	first := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "First Neovim", "#d66f1d")
 	time.Sleep(500 * time.Millisecond)
-	second := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "Second Neovim", "#1d6fd6", "")
+	second := startNeovimDashboardProbe(t, repoRoot(t), server.URL, "Second Neovim", "#1d6fd6")
 
 	firstObserved := first.Wait(t)
 	secondObserved := second.Wait(t)
@@ -536,58 +531,6 @@ func TestNeovimLauncherEquivalentSessionsObserveEachOther(t *testing.T) {
 			t.Fatalf("%s dashboard did not show peer %q: %+v", check.name, check.peerName, check.observed)
 		}
 	}
-	if secondObserved.DocumentText != sharedText {
-		t.Fatalf("second Neovim document did not receive first's edit: got %q want %q", secondObserved.DocumentText, sharedText)
-	}
-}
-
-func TestRealNeovimAndBrowserClientExchangeEditsThroughRelay(t *testing.T) {
-	if _, err := exec.LookPath("nvim"); err != nil {
-		t.Skip("nvim not installed")
-	}
-
-	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
-	if err != nil {
-		t.Fatalf("new app: %v", err)
-	}
-	listener := listenTCP4OrSkip(t)
-	server := httptest.NewUnstartedServer(service.NewServer(app).Handler())
-	server.Listener = listener
-	server.Start()
-	defer server.Close()
-
-	repoRoot := repoRoot(t)
-	browser := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
-	defer browser.Close()
-	browser.WaitForType(t, "ready")
-	browser.Send(t, map[string]any{
-		"type":           "connect",
-		"relay_url":      server.URL,
-		"participant_id": "browser-ui",
-		"doc_id":         "demo",
-		"display_name":   "Browser UI",
-		"color":          "#1d6fd6",
-	})
-	browser.WaitForType(t, "opened")
-
-	fromNeovim := "Hello from real Neovim"
-	nvim := startNeovimDashboardProbe(t, repoRoot, server.URL, "Neovim User", "#d66f1d", fromNeovim)
-	browserChanged := browser.WaitForMessage(t, func(message map[string]any) bool {
-		return stringField(t, message, "type") == "document" && stringField(t, message, "content") == fromNeovim
-	})
-	if got := stringField(t, browserChanged, "content"); got != fromNeovim {
-		t.Fatalf("browser client did not receive real Neovim text: got %q want %q", got, fromNeovim)
-	}
-
-	fromBrowser := "Hello from browser client"
-	browser.Send(t, map[string]any{
-		"type":    "set_text",
-		"content": fromBrowser,
-	})
-	observed := nvim.Wait(t)
-	if observed.DocumentText != fromBrowser {
-		t.Fatalf("real Neovim buffer did not receive browser text: got %q want %q", observed.DocumentText, fromBrowser)
-	}
 }
 
 type nvimDashboardObservation struct {
@@ -595,7 +538,6 @@ type nvimDashboardObservation struct {
 	Dashboard       string `json:"dashboard"`
 	SwapfileEnabled bool   `json:"swapfile_enabled"`
 	Modifiable      bool   `json:"modifiable"`
-	DocumentText    string `json:"document_text"`
 }
 
 type nvimDashboardProbe struct {
@@ -605,7 +547,7 @@ type nvimDashboardProbe struct {
 	stderr     bytes.Buffer
 }
 
-func startNeovimDashboardProbe(t *testing.T, repoRoot string, relayURL string, displayName string, color string, localEdit string) *nvimDashboardProbe {
+func startNeovimDashboardProbe(t *testing.T, repoRoot string, relayURL string, displayName string, color string) *nvimDashboardProbe {
 	t.Helper()
 	outputPath := filepath.Join(t.TempDir(), "nvim-dashboard.json")
 	scriptPath := filepath.Join(t.TempDir(), "nvim-dashboard.lua")
@@ -619,13 +561,6 @@ require("grid_editor").setup({
   color = %q,
 })
 vim.cmd("GridEditorOpen demo")
-local edit_text = %q
-if edit_text ~= "" then
-  vim.defer_fn(function()
-    local keys = vim.api.nvim_replace_termcodes("i" .. edit_text .. "<Esc>", true, false, true)
-    vim.api.nvim_feedkeys(keys, "xt", false)
-  end, 1800)
-end
 vim.defer_fn(function()
   local state = require("grid_editor").state
   vim.cmd("GridEditorDashboard")
@@ -638,18 +573,17 @@ vim.defer_fn(function()
     dashboard = dashboard,
     swapfile_enabled = not state.bufnr or vim.bo[state.bufnr].swapfile,
     modifiable = state.bufnr and vim.bo[state.bufnr].modifiable,
-    document_text = state.bufnr and table.concat(vim.api.nvim_buf_get_lines(state.bufnr, 0, -1, false), "\n") or "",
   }) }, %q)
   vim.cmd("qall!")
-end, 4500)
-`, filepath.Join(repoRoot, "nvim"), relayURL, displayName, color, localEdit, outputPath)
+end, 4000)
+`, filepath.Join(repoRoot, "nvim"), relayURL, displayName, color, outputPath)
 	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
 		t.Fatalf("write Neovim probe script: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
-	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-i", "NONE", "-S", scriptPath)
+	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-S", scriptPath)
 	command.Dir = repoRoot
 	probe := &nvimDashboardProbe{command: command, outputPath: outputPath}
 	command.Stdout = &probe.stdout

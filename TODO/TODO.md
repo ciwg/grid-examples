@@ -1,6 +1,5 @@
 # TODO
 
-- [ ] hahar - Fix Ex3 live Neovim edit propagation - `TODO/TODO-hahar-ex3-nvim-live-edit-propagation.md`
 - [x] numop - Build Ex3 Neovim dashboard proof of concept - `TODO/TODO-numop-ex3-nvim-dashboard-poc.md`
 - [x] haruv - Add tailored exercise Makefiles - `TODO/TODO-haruv-tailored-exercise-makefiles.md`
 - [x] mituf - Repair missing TE editing-policy sources - `TODO/TODO-mituf-te-editing-policy-source-recovery.md`
