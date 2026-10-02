@@ -77,12 +77,6 @@ and verifies that it renders the active session and locally observed peer
 state. This is a presentation check only: the dashboard does not add a
 protocol message, durable evidence, or authority claim. Source: `DI-loril`.
 
-The suite also starts two independent launcher-equivalent Neovim sessions
-against one temporary relay and requires each dashboard to report a connected
-relay, the other presentation name, and a swap-file-free live buffer. This
-proves the intended two-editor demonstration topology; it does not make peer
-awareness a trust or authority claim. Source: `DI-loril`.
-
 The headless browser startup proof records a sync WebSocket `sync-ready` event
 separately from the rendered transport label. In its normal late-join case it
 requires zero HTTP sync recovery reads. In its injected stale-blank-snapshot

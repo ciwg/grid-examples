@@ -34,7 +34,6 @@ or the existing sidecar boundary.
 
 - TE-gozug records the alternatives and current recommendation.
 - `go test ./service -run 'TestNeovimPluginRegistersPhaseOneCommands|TestNeovimPluginRendersRemoteDocumentAndPeerMarkers' -count=1` passes.
-- `go test ./service -run TestNeovimLauncherEquivalentSessionsObserveEachOther -count=1` passes and proves two launcher-equivalent sessions observe each other.
 - `errcheck ./...` passes from `ex3-grid-editor-websocket/`.
 - The full `go test ./...` suite is currently blocked by the pre-existing
   `TestHeadlessBrowserRecoversFromBlankSnapshotState` expectation that the
