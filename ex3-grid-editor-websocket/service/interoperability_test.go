@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -236,6 +237,44 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 	for _, line := range lines[len(lines)-5:] {
 		if line != "2" {
 			t.Fatalf("expected all phase 1 commands to exist, got output %q", string(output))
+		}
+	}
+}
+
+func TestNeovimLauncherStartsSelfContainedDashboardDemo(t *testing.T) {
+	repoRoot := repoRoot(t)
+	fakeBin := t.TempDir()
+	capturePath := filepath.Join(t.TempDir(), "nvim-arguments.txt")
+	fakeNvimPath := filepath.Join(fakeBin, "nvim")
+	fakeNvim := "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > \"$GRID_EDITOR_NVIM_ARGUMENTS\"\n"
+	if err := os.WriteFile(fakeNvimPath, []byte(fakeNvim), 0o700); err != nil {
+		t.Fatalf("write fake nvim: %v", err)
+	}
+
+	command := exec.Command("bash", filepath.Join(repoRoot, "scripts", "grid-editor-nvim"), "demo")
+	command.Dir = repoRoot
+	command.Env = append(os.Environ(),
+		"PATH="+fakeBin+":"+os.Getenv("PATH"),
+		"GRID_EDITOR_NVIM_ARGUMENTS="+capturePath,
+		"GRID_EDITOR_OPEN_DASHBOARD=1",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run launcher: %v\n%s", err, output)
+	}
+
+	raw, err := os.ReadFile(capturePath)
+	if err != nil {
+		t.Fatalf("read fake nvim arguments: %v", err)
+	}
+	arguments := strings.Fields(string(raw))
+	for _, want := range []string{
+		"-u", "NONE", "-i", "-n",
+		"runtime", "plugin/grid_editor.vim",
+		"+GridEditorOpen", "demo",
+		"+GridEditorDashboard",
+	} {
+		if !slices.Contains(arguments, want) {
+			t.Fatalf("launcher arguments %q do not include %q", arguments, want)
 		}
 	}
 }

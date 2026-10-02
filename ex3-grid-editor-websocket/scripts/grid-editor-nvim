@@ -3,6 +3,7 @@ set -eu
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 doc_id="${1:-${GRID_EDITOR_DOC_ID:-demo}}"
+dashboard_command=()
 
 # Intent: Point the copied launcher at ex3's relay defaults so it can run next
 # to ex2 without an environment override. Source: DI-vatub
@@ -11,10 +12,15 @@ export GRID_EDITOR_ACCESS_TOKEN="${GRID_EDITOR_ACCESS_TOKEN:-}"
 export GRID_EDITOR_DISPLAY_NAME="${GRID_EDITOR_DISPLAY_NAME:-Neovim User}"
 export GRID_EDITOR_COLOR="${GRID_EDITOR_COLOR:-#d66f1d}"
 
+if [ "${GRID_EDITOR_OPEN_DASHBOARD:-0}" = "1" ]; then
+  dashboard_command=("+GridEditorDashboard")
+fi
+
 # Intent: Provide a one-command, self-contained Neovim entry path. Disabling
 # user configuration, ShaDa, and swap files keeps the live demo independent of
 # machine-local plugin managers and stale editor state. Source: DI-samuv; DI-loril
 exec nvim -u NONE -i NONE -n \
   --cmd "set runtimepath+=${repo_root}/nvim" \
   --cmd "runtime plugin/grid_editor.vim" \
-  "+GridEditorOpen ${doc_id}"
+  "+GridEditorOpen ${doc_id}" \
+  "${dashboard_command[@]}"
