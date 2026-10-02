@@ -13,8 +13,7 @@ export GRID_EDITOR_COLOR="${GRID_EDITOR_COLOR:-#d66f1d}"
 
 # Intent: Provide a one-command Neovim entry path that loads the local plugin
 # and opens a document without requiring manual `setup()` calls. Source:
-# DI-samuv; DI-loril
+# DI-samuv
 exec nvim \
   --cmd "set runtimepath+=${repo_root}/nvim" \
-  --cmd "runtime plugin/grid_editor.vim" \
   "+GridEditorOpen ${doc_id}"

@@ -215,7 +215,7 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 		"--headless",
 		"-i", "NONE",
 		"--cmd", fmt.Sprintf("set runtimepath+=%s/nvim", repoRoot),
-		"--cmd", "runtime plugin/grid_editor.vim",
+		"--cmd", "lua require('grid_editor').setup({})",
 		"+lua print(vim.fn.exists(':GridEditorOpen'))",
 		"+lua print(vim.fn.exists(':GridEditorDashboard'))",
 		"+lua print(vim.fn.exists(':GridEditorInfo'))",
