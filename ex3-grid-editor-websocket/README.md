@@ -250,6 +250,20 @@ Then pick an embodiment:
 
 - browser: open `http://127.0.0.1:7025/?doc=demo`
 - Neovim: run `./scripts/grid-editor-nvim demo`
+- Charm terminal inspector: run `make charm`
+
+### Grid Charm terminal inspector
+
+`make charm` runs an actual [Charm Bubble Tea](https://github.com/charmbracelet/bubbletea)
+application using Bubbles and Lip Gloss. It reads the relay's existing
+relay-observed trace; it does not create an alternate collaboration protocol,
+edit document state, or interpret presentation labels as identity proof.
+
+Use `d` to select a document, `f` to filter by protocol family, `k` to filter
+by message kind, `/` to search observed envelopes, and arrow keys to inspect
+the selected decoded payload, pCID, and envelope CID. It refreshes once per
+second. Use `make charm-topology` for the actual Charm Gum chooser that starts
+either the one-relay or two-relay demo topology. Source: DI-holoz.
 
 Local loopback clients still work with no extra setup. For multi-machine
 browser or Neovim collaboration, start the relay with a bootstrap token and

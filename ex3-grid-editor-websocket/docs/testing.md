@@ -27,6 +27,10 @@ Run the Neovim sidecar build from `cmd/grid-nvim-sidecar/`:
 npm run build
 ```
 
+The Charm terminal inspector is covered by the Go suite. Its tests exercise
+the Bubble Tea model's deterministic relay-entry filters; `go test ./cmd/grid-charm`
+is the focused command. It does not require a terminal, live relay, or Gum.
+
 The Go checks cover static diagnostics, deterministic Go tests, and handled Go
 errors. Browser tests cover embodiment-local JavaScript behavior; the browser
 build verifies the checked-in browser bundle can be rebuilt. The sidecar build
