@@ -567,17 +567,6 @@ a short in-memory activity list. It is an embodiment-local aid: names and
 colors are not signing-key continuity, and the activity list is not durable
 relay evidence. Source: `DI-loril`.
 
-For the two-window dashboard demonstration, run this one command from the
-exercise directory and leave its terminal open. It starts a temporary local
-relay and opens two readable Neovim sessions with the dashboard already shown:
-
-```bash
-./scripts/demo-nvim-dashboard.sh
-```
-
-Press `Ctrl-C` in that terminal when the demonstration is finished; the
-temporary relay data is removed automatically.
-
 If you want the manual path, load the repo-local plugin yourself:
 
 ```vim
