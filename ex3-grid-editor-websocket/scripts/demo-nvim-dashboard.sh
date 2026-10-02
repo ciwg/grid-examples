@@ -50,21 +50,19 @@ if [ "${relay_ready}" -ne 1 ]; then
   exit 1
 fi
 
-# Intent: Give a presenter two immediately legible, independent Neovim
-# embodiments without requiring any manual editor setup. Source: DI-loril
+# Intent: Give a presenter two immediately legible, independent, editable
+# Neovim embodiments without requiring any manual editor setup. Source: DI-loril
 xterm -T 'Ex3 Neovim First' -fa Monospace -fs 18 -e env \
   GRID_EDITOR_RELAY_URL="${relay_url}" \
   GRID_EDITOR_DISPLAY_NAME='First Neovim' \
   GRID_EDITOR_COLOR='#d66f1d' \
-  GRID_EDITOR_OPEN_DASHBOARD=1 \
   "${repo_root}/scripts/grid-editor-nvim" demo &
 
 xterm -T 'Ex3 Neovim Second' -fa Monospace -fs 18 -e env \
   GRID_EDITOR_RELAY_URL="${relay_url}" \
   GRID_EDITOR_DISPLAY_NAME='Second Neovim' \
   GRID_EDITOR_COLOR='#1d6fd6' \
-  GRID_EDITOR_OPEN_DASHBOARD=1 \
   "${repo_root}/scripts/grid-editor-nvim" demo &
 
-printf 'Opened two Ex3 Neovim dashboard windows. Press Ctrl-C here when finished.\n'
+printf 'Opened two editable Ex3 Neovim windows. Run :GridEditorDashboard in either one when needed. Press Ctrl-C here when finished.\n'
 wait "${relay_pid}"
