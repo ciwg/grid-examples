@@ -279,6 +279,21 @@ func TestNeovimLauncherStartsSelfContainedDashboardDemo(t *testing.T) {
 	}
 }
 
+func TestNeovimDashboardQuickStartLeavesDocumentsEditable(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "demo-nvim-dashboard.sh")
+	raw, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("read dashboard quick-start script: %v", err)
+	}
+	script := string(raw)
+	if strings.Contains(script, "GRID_EDITOR_OPEN_DASHBOARD=1") {
+		t.Fatalf("quick-start must not open the non-editable dashboard overlay by default")
+	}
+	if !strings.Contains(script, "Run :GridEditorDashboard in either one") {
+		t.Fatalf("quick-start must tell the presenter how to open the dashboard on demand")
+	}
+}
+
 func TestNeovimPluginRendersRemoteDocumentAndPeerMarkers(t *testing.T) {
 	t.Parallel()
 
@@ -509,6 +524,9 @@ func TestNeovimLauncherEquivalentSessionsObserveEachOther(t *testing.T) {
 		if check.observed.SwapfileEnabled {
 			t.Fatalf("%s Neovim session enabled a swap file for the live document", check.name)
 		}
+		if !check.observed.Modifiable {
+			t.Fatalf("%s Neovim session opened a non-editable live document", check.name)
+		}
 		if !strings.Contains(check.observed.Dashboard, check.peerName) {
 			t.Fatalf("%s dashboard did not show peer %q: %+v", check.name, check.peerName, check.observed)
 		}
@@ -519,6 +537,7 @@ type nvimDashboardObservation struct {
 	Connected       bool   `json:"connected"`
 	Dashboard       string `json:"dashboard"`
 	SwapfileEnabled bool   `json:"swapfile_enabled"`
+	Modifiable      bool   `json:"modifiable"`
 }
 
 type nvimDashboardProbe struct {
@@ -553,6 +572,7 @@ vim.defer_fn(function()
     connected = state.relay_connected,
     dashboard = dashboard,
     swapfile_enabled = not state.bufnr or vim.bo[state.bufnr].swapfile,
+    modifiable = state.bufnr and vim.bo[state.bufnr].modifiable,
   }) }, %q)
   vim.cmd("qall!")
 end, 4000)
