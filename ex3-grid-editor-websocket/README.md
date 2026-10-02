@@ -569,7 +569,7 @@ relay evidence. Source: `DI-loril`.
 
 For the two-window dashboard demonstration, run this one command from the
 exercise directory and leave its terminal open. It starts a temporary local
-relay and opens two readable, editable Neovim sessions:
+relay and opens two readable Neovim sessions with the dashboard already shown:
 
 ```bash
 ./scripts/demo-nvim-dashboard.sh
@@ -577,9 +577,6 @@ relay and opens two readable, editable Neovim sessions:
 
 Press `Ctrl-C` in that terminal when the demonstration is finished; the
 temporary relay data is removed automatically.
-
-In either editor, run `:GridEditorDashboard` when you want to show the session
-view, then `:q` to close that overlay and resume editing.
 
 If you want the manual path, load the repo-local plugin yourself:
 
