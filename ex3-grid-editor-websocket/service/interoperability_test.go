@@ -311,6 +311,7 @@ vim.defer_fn(function()
   end
   local payload = {
     content = table.concat(lines, "\n"),
+    swapfile_enabled = vim.bo[bufnr].swapfile,
     peer_count = #(state.peers or {}),
     cursor_marks = cursor_marks,
     selection_marks = selection_marks,
@@ -371,24 +372,28 @@ end, 1400)
 		t.Fatalf("read nvim observed output: %v", err)
 	}
 	var observed struct {
-		Content        string `json:"content"`
-		PeerCount      int    `json:"peer_count"`
-		CursorMarks    int    `json:"cursor_marks"`
-		SelectionMarks int    `json:"selection_marks"`
-		PeerName       string `json:"peer_name"`
-		PeerTyping     bool   `json:"peer_typing"`
-		PeerLastSeenAt string `json:"peer_last_seen_at"`
-		PeerAnchor     int    `json:"peer_anchor"`
-		PeerLabelText  string `json:"peer_label_text"`
-		PeerLabelPos   string `json:"peer_label_pos"`
-		PeerSignText   string `json:"peer_sign_text"`
-		Dashboard      string `json:"dashboard"`
+		Content         string `json:"content"`
+		SwapfileEnabled bool   `json:"swapfile_enabled"`
+		PeerCount       int    `json:"peer_count"`
+		CursorMarks     int    `json:"cursor_marks"`
+		SelectionMarks  int    `json:"selection_marks"`
+		PeerName        string `json:"peer_name"`
+		PeerTyping      bool   `json:"peer_typing"`
+		PeerLastSeenAt  string `json:"peer_last_seen_at"`
+		PeerAnchor      int    `json:"peer_anchor"`
+		PeerLabelText   string `json:"peer_label_text"`
+		PeerLabelPos    string `json:"peer_label_pos"`
+		PeerSignText    string `json:"peer_sign_text"`
+		Dashboard       string `json:"dashboard"`
 	}
 	if err := json.Unmarshal(raw, &observed); err != nil {
 		t.Fatalf("decode nvim observed output: %v", err)
 	}
 	if observed.Content != "hello from browser" {
 		t.Fatalf("unexpected nvim content %q", observed.Content)
+	}
+	if observed.SwapfileEnabled {
+		t.Fatalf("expected live grid-editor buffer to disable swap files")
 	}
 	if observed.PeerCount < 1 {
 		t.Fatalf("expected at least one remote peer, got %d with observed=%+v", observed.PeerCount, observed)
