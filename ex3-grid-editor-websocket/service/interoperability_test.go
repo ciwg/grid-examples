@@ -411,8 +411,16 @@ end, 1400)
 	if !strings.Contains(observed.PeerSignText, "▎") {
 		t.Fatalf("expected peer sign text, got %+v", observed)
 	}
-	if !strings.Contains(observed.Dashboard, "grid-editor session dashboard") || !strings.Contains(observed.Dashboard, "Browser A") {
-		t.Fatalf("expected dashboard to show session and peer state, got %+v", observed)
+	for _, want := range []string{
+		"grid-editor session dashboard",
+		"Browser A",
+		"presentation hint",
+		"activity (local, in-memory; newest first)",
+		"opened document demo",
+	} {
+		if !strings.Contains(observed.Dashboard, want) {
+			t.Fatalf("expected dashboard to contain %q, got %+v", want, observed)
+		}
 	}
 }
 
