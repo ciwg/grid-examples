@@ -11,10 +11,10 @@ export GRID_EDITOR_ACCESS_TOKEN="${GRID_EDITOR_ACCESS_TOKEN:-}"
 export GRID_EDITOR_DISPLAY_NAME="${GRID_EDITOR_DISPLAY_NAME:-Neovim User}"
 export GRID_EDITOR_COLOR="${GRID_EDITOR_COLOR:-#d66f1d}"
 
-# Intent: Provide a one-command, self-contained Neovim entry path. Disabling
-# user configuration, ShaDa, and swap files keeps the live demo independent of
-# machine-local plugin managers and stale editor state. Source: DI-samuv; DI-loril
-exec nvim -u NONE -i NONE -n \
+# Intent: Provide a one-command Neovim entry path that loads the local plugin
+# and opens a document without requiring manual `setup()` calls. Source:
+# DI-samuv; DI-loril
+exec nvim \
   --cmd "set runtimepath+=${repo_root}/nvim" \
   --cmd "runtime plugin/grid_editor.vim" \
   "+GridEditorOpen ${doc_id}"

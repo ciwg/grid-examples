@@ -213,9 +213,7 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 	output, err := exec.Command(
 		"nvim",
 		"--headless",
-		"-u", "NONE",
 		"-i", "NONE",
-		"-n",
 		"--cmd", fmt.Sprintf("set runtimepath+=%s/nvim", repoRoot),
 		"--cmd", "runtime plugin/grid_editor.vim",
 		"+lua print(vim.fn.exists(':GridEditorOpen'))",
@@ -342,7 +340,7 @@ end, 1400)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-i", "NONE", "-S", scriptPath)
+	command := exec.CommandContext(ctx, "nvim", "--headless", "-n", "-u", "NONE", "-S", scriptPath)
 	command.Dir = repoRoot
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
