@@ -217,6 +217,7 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 		"--cmd", fmt.Sprintf("set runtimepath+=%s/nvim", repoRoot),
 		"--cmd", "lua require('grid_editor').setup({})",
 		"+lua print(vim.fn.exists(':GridEditorOpen'))",
+		"+lua print(vim.fn.exists(':GridEditorDashboard'))",
 		"+lua print(vim.fn.exists(':GridEditorInfo'))",
 		"+lua print(vim.fn.exists(':GridEditorPeers'))",
 		"+lua print(vim.fn.exists(':GridEditorHelp'))",
@@ -227,10 +228,10 @@ func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
 	}
 
 	lines := strings.Fields(string(output))
-	if len(lines) < 4 {
+	if len(lines) < 5 {
 		t.Fatalf("unexpected nvim output: %q", string(output))
 	}
-	for _, line := range lines[len(lines)-4:] {
+	for _, line := range lines[len(lines)-5:] {
 		if line != "2" {
 			t.Fatalf("expected all phase 1 commands to exist, got output %q", string(output))
 		}
@@ -321,6 +322,12 @@ vim.defer_fn(function()
     peer_label_pos = peer_label_pos,
     peer_sign_text = peer_sign_text,
   }
+  vim.cmd("GridEditorDashboard")
+  local dashboard_lines = {}
+  if state.dashboard_bufnr and vim.api.nvim_buf_is_valid(state.dashboard_bufnr) then
+    dashboard_lines = vim.api.nvim_buf_get_lines(state.dashboard_bufnr, 0, -1, false)
+  end
+  payload.dashboard = table.concat(dashboard_lines, "\n")
   local encoded = vim.json.encode(payload)
   vim.fn.writefile({ encoded }, %q)
   vim.cmd("qall!")
@@ -375,6 +382,7 @@ end, 1400)
 		PeerLabelText  string `json:"peer_label_text"`
 		PeerLabelPos   string `json:"peer_label_pos"`
 		PeerSignText   string `json:"peer_sign_text"`
+		Dashboard      string `json:"dashboard"`
 	}
 	if err := json.Unmarshal(raw, &observed); err != nil {
 		t.Fatalf("decode nvim observed output: %v", err)
@@ -402,6 +410,9 @@ end, 1400)
 	}
 	if !strings.Contains(observed.PeerSignText, "▎") {
 		t.Fatalf("expected peer sign text, got %+v", observed)
+	}
+	if !strings.Contains(observed.Dashboard, "grid-editor session dashboard") || !strings.Contains(observed.Dashboard, "Browser A") {
+		t.Fatalf("expected dashboard to show session and peer state, got %+v", observed)
 	}
 }
 

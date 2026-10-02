@@ -72,6 +72,11 @@ late join, live carriage, and private-session hardening. Browser JavaScript
 tests cover storage fallback and startup recovery; the sidecar build covers its
 embodiment-local helper.
 
+The same Go interoperability suite opens the native Neovim session dashboard
+and verifies that it renders the active session and locally observed peer
+state. This is a presentation check only: the dashboard does not add a
+protocol message, durable evidence, or authority claim. Source: `DI-loril`.
+
 The headless browser startup proof records a sync WebSocket `sync-ready` event
 separately from the rendered transport label. In its normal late-join case it
 requires zero HTTP sync recovery reads. In its injected stale-blank-snapshot

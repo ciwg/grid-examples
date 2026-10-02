@@ -549,6 +549,7 @@ Inside Neovim, the main commands are:
 ```vim
 :GridEditorInfo
 :GridEditorPeers
+:GridEditorDashboard
 :GridEditorClose
 ```
 
@@ -559,6 +560,12 @@ Current remote-peer rendering in Neovim:
   position
 - the peer name label renders at the **end of that line** instead of on top of
   the document text, to keep the file readable during live demos
+
+`:GridEditorDashboard` opens a native Neovim session view for the current
+document, relay state, presentation hints, locally observed peer awareness, and
+a short in-memory activity list. It is an embodiment-local aid: names and
+colors are not signing-key continuity, and the activity list is not durable
+relay evidence. Source: `DI-loril`.
 
 If you want the manual path, load the repo-local plugin yourself:
 

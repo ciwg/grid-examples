@@ -58,9 +58,14 @@ M.state = {
   info_winid = nil,
   help_bufnr = nil,
   help_winid = nil,
+  dashboard_bufnr = nil,
+  dashboard_winid = nil,
+  activity = {},
   remote_cursors = {},
   remote_selections = {},
 }
+
+local activity_limit = 12
 
 local function join_lines()
   if not M.state.bufnr or not vim.api.nvim_buf_is_valid(M.state.bufnr) then
@@ -327,12 +332,101 @@ local function session_lines()
   return lines
 end
 
+local refresh_dashboard_window
+
+local function record_activity(message)
+  -- Intent: Keep a short, explicitly local session history so the Neovim
+  -- dashboard can explain what this embodiment observed without inventing a
+  -- durable audit record or a new relay protocol. Source: DI-loril
+  table.insert(M.state.activity, 1, message)
+  while #M.state.activity > activity_limit do
+    table.remove(M.state.activity)
+  end
+  refresh_dashboard_window()
+end
+
+local function dashboard_lines()
+  local lines = {
+    'grid-editor session dashboard',
+    '',
+    'document',
+    '  id: ' .. (M.state.doc_id or 'none'),
+    '  relay: ' .. M.config.relay_url,
+    '  relay status: ' .. (M.state.relay_connected and 'connected' or 'disconnected'),
+    '',
+    'this embodiment',
+    '  participant: ' .. M.state.participant_id,
+    '  display name: ' .. M.config.display_name .. ' (presentation hint)',
+    '  color: ' .. M.config.color .. ' (presentation hint)',
+    '',
+    'peers (local awareness)',
+  }
+  if #(M.state.peers or {}) == 0 then
+    table.insert(lines, '  (none observed)')
+  else
+    for _, peer in ipairs(M.state.peers) do
+      table.insert(lines, string.format('  - %s  %s  typing=%s', peer.name or peer.participant_id or 'peer', peer_presence_state(peer), tostring(peer.typing or false)))
+    end
+  end
+  table.insert(lines, '')
+  table.insert(lines, 'activity (local, in-memory; newest first)')
+  if #(M.state.activity or {}) == 0 then
+    table.insert(lines, '  (none)')
+  else
+    for _, activity in ipairs(M.state.activity) do
+      table.insert(lines, '  - ' .. activity)
+    end
+  end
+  table.insert(lines, '')
+  table.insert(lines, 'commands: :GridEditorDashboard  :GridEditorPeers  :GridEditorHelp')
+  return lines
+end
+
+refresh_dashboard_window = function()
+  if not M.state.dashboard_bufnr or not vim.api.nvim_buf_is_valid(M.state.dashboard_bufnr) then
+    return
+  end
+  vim.bo[M.state.dashboard_bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(M.state.dashboard_bufnr, 0, -1, false, dashboard_lines())
+  vim.bo[M.state.dashboard_bufnr].modifiable = false
+end
+
+local function open_dashboard_window()
+  if M.state.dashboard_winid and vim.api.nvim_win_is_valid(M.state.dashboard_winid) then
+    refresh_dashboard_window()
+    vim.api.nvim_set_current_win(M.state.dashboard_winid)
+    return
+  end
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  M.state.dashboard_bufnr = bufnr
+  vim.bo[bufnr].bufhidden = 'wipe'
+  vim.bo[bufnr].filetype = 'grid-editor-dashboard'
+  vim.bo[bufnr].modifiable = false
+  local width = math.max(64, math.floor(vim.o.columns * 0.58))
+  local height = math.max(20, math.min(#dashboard_lines() + 2, vim.o.lines - 4))
+  local row = math.max(1, math.floor((vim.o.lines - height) / 2) - 1)
+  local col = math.max(1, math.floor((vim.o.columns - width) / 2))
+  M.state.dashboard_winid = vim.api.nvim_open_win(bufnr, true, {
+    relative = 'editor',
+    row = row,
+    col = col,
+    width = math.min(width, vim.o.columns - 4),
+    height = height,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' grid-editor dashboard ',
+    title_pos = 'center',
+  })
+  refresh_dashboard_window()
+end
+
 local function help_lines()
   return {
     'grid-editor help',
     '',
     ':GridEditorOpen <doc>',
     ':GridEditorClose',
+    ':GridEditorDashboard',
     ':GridEditorInfo',
     ':GridEditorPeers',
     ':GridEditorHelp',
@@ -453,6 +547,7 @@ local function handle_sidecar_message(message)
     M.state.session_ready = true
     set_buffer_content(message.content or '')
     update_cursor(false)
+    record_activity('opened document ' .. (M.state.doc_id or 'unknown'))
   elseif message.type == 'changed' then
     set_buffer_content(message.content or '')
   elseif message.type == 'awareness' then
@@ -462,6 +557,7 @@ local function handle_sidecar_message(message)
     end
     for participant_id, peer in pairs(next_index) do
       if not M.state.peer_index[participant_id] then
+        record_activity('peer joined: ' .. (peer.name or participant_id))
         vim.schedule(function()
           vim.notify('grid-editor peer joined: ' .. (peer.name or participant_id))
         end)
@@ -469,6 +565,7 @@ local function handle_sidecar_message(message)
     end
     for participant_id, peer in pairs(M.state.peer_index or {}) do
       if not next_index[participant_id] then
+        record_activity('peer left: ' .. (peer.name or participant_id))
         vim.schedule(function()
           vim.notify('grid-editor peer left: ' .. (peer.name or participant_id))
         end)
@@ -478,14 +575,17 @@ local function handle_sidecar_message(message)
     M.state.peer_index = next_index
     draw_peers(M.state.peers)
     refresh_info_window()
+    refresh_dashboard_window()
   elseif message.type == 'relay_status' then
     M.state.relay_connected = message.connected and true or false
+    record_activity(message.connected and 'relay connected' or 'relay disconnected')
     refresh_info_window()
     local status = message.connected and 'relay up' or 'relay down'
     vim.schedule(function()
       vim.notify('grid-editor ' .. status)
     end)
   elseif message.type == 'error' then
+    record_activity('sidecar error: ' .. (message.message or 'unknown'))
     vim.schedule(function()
       vim.notify('grid-editor sidecar error: ' .. (message.message or 'unknown'), vim.log.levels.ERROR)
     end)
@@ -588,6 +688,7 @@ function M.open(doc_id)
   end
 
   M.state.doc_id = doc_id
+  M.state.activity = {}
   M.state.session_ready = false
   M.state.bufnr = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(M.state.bufnr, 'grid-editor://' .. doc_id)
@@ -660,6 +761,7 @@ function M.close()
   M.state.peers = {}
   M.state.peer_index = {}
   M.state.relay_connected = false
+  M.state.activity = {}
   if M.state.info_winid and vim.api.nvim_win_is_valid(M.state.info_winid) then
     vim.api.nvim_win_close(M.state.info_winid, true)
   end
@@ -670,6 +772,11 @@ function M.close()
   end
   M.state.help_winid = nil
   M.state.help_bufnr = nil
+  if M.state.dashboard_winid and vim.api.nvim_win_is_valid(M.state.dashboard_winid) then
+    vim.api.nvim_win_close(M.state.dashboard_winid, true)
+  end
+  M.state.dashboard_winid = nil
+  M.state.dashboard_bufnr = nil
 end
 
 function M.info()
@@ -678,6 +785,10 @@ end
 
 function M.peers()
   open_info_window()
+end
+
+function M.dashboard()
+  open_dashboard_window()
 end
 
 function M.help()
@@ -696,6 +807,9 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('GridEditorClose', function()
     M.close()
   end, { nargs = 0, desc = 'Close the current grid-editor session' })
+  vim.api.nvim_create_user_command('GridEditorDashboard', function()
+    M.dashboard()
+  end, { nargs = 0, desc = 'Show the grid-editor session dashboard' })
   vim.api.nvim_create_user_command('GridEditorInfo', function()
     M.info()
   end, { nargs = 0, desc = 'Show grid-editor connection info' })
