@@ -251,6 +251,7 @@ Then pick an embodiment:
 - browser: open `http://127.0.0.1:7025/?doc=demo`
 - Neovim: run `./scripts/grid-editor-nvim demo`
 - Charm terminal inspector: run `make charm`
+- Charm collaborative terminal workspace: run `make tui`
 
 ### Grid Charm terminal inspector
 
@@ -264,6 +265,15 @@ by message kind, `/` to search observed envelopes, and arrow keys to inspect
 the selected decoded payload, pCID, and envelope CID. It refreshes once per
 second. Use `make charm-topology` for the actual Charm Gum chooser that starts
 either the one-relay or two-relay demo topology. Source: DI-holoz.
+
+### Grid TUI collaboration workspace
+
+`make tui` starts the Charm terminal embodiment. It asks for a session-only
+display name and color, then edits the selected document through the same
+Automerge/WebSocket sidecar used by the Neovim embodiment. The editor renders
+remote cursors and selections in peer color while the right sidebar keeps a
+separate name/color/position legend; participant names are never embedded in
+the shared document text. Source: DI-holoz.
 
 Local loopback clients still work with no extra setup. For multi-machine
 browser or Neovim collaboration, start the relay with a bootstrap token and

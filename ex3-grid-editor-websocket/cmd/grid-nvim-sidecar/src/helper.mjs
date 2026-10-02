@@ -13,6 +13,7 @@ const state = {
   participantId: "",
   displayName: "Neovim User",
   color: "#d66f1d",
+  embodiment: "nvim",
   documentId: "",
   doc: ensureDocument(null),
   offset: 0,
@@ -75,6 +76,7 @@ async function handleMessage(message) {
       state.participantId = message.participant_id;
       state.displayName = message.display_name || state.displayName;
       state.color = message.color || state.color;
+      state.embodiment = message.embodiment || state.embodiment;
       send({ type: "connected", participant_id: state.participantId });
       break;
     case "open":
@@ -294,7 +296,7 @@ async function postAwareness(typing) {
       typing,
       display_name: state.displayName,
       color: state.color,
-      embodiment: "nvim",
+      embodiment: state.embodiment,
     }));
     return;
   }
@@ -308,7 +310,7 @@ async function postAwareness(typing) {
     typing,
     display_name: state.displayName,
     color: state.color,
-    embodiment: "nvim",
+    embodiment: state.embodiment,
   });
 }
 
@@ -341,7 +343,7 @@ async function postChange(changeBytes) {
       message_base64: bytesToBase64(changeBytes),
       text_base64: textBase64,
       replica_base64: replicaBase64,
-      embodiment: "nvim",
+      embodiment: state.embodiment,
     }));
     return;
   }
@@ -351,7 +353,7 @@ async function postChange(changeBytes) {
     message_base64: bytesToBase64(changeBytes),
     text_base64: textBase64,
     replica_base64: replicaBase64,
-    embodiment: "nvim",
+    embodiment: state.embodiment,
   });
 }
 

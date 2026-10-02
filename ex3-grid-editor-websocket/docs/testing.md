@@ -31,6 +31,10 @@ The Charm terminal inspector is covered by the Go suite. Its tests exercise
 the Bubble Tea model's deterministic relay-entry filters; `go test ./cmd/grid-charm`
 is the focused command. It does not require a terminal, live relay, or Gum.
 
+`go test ./cmd/grid-tui` covers the terminal workspace's UTF-16 cursor mapping
+and remote cursor rendering. Those assertions keep terminal awareness offsets
+compatible with the Automerge sidecar's JavaScript string offsets.
+
 The Go checks cover static diagnostics, deterministic Go tests, and handled Go
 errors. Browser tests cover embodiment-local JavaScript behavior; the browser
 build verifies the checked-in browser bundle can be rebuilt. The sidecar build
