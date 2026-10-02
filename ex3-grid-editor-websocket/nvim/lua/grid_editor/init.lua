@@ -692,11 +692,6 @@ function M.open(doc_id)
   M.state.session_ready = false
   M.state.bufnr = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(M.state.bufnr, 'grid-editor://' .. doc_id)
-  -- Intent: A grid-editor URI represents a live sidecar-backed replica, not a
-  -- local file. Disable Neovim swap files so two legitimate embodiments can
-  -- open the same document without a false conflicting-editor warning.
-  -- Source: DI-loril
-  vim.bo[M.state.bufnr].swapfile = false
   vim.api.nvim_set_current_buf(M.state.bufnr)
   vim.wo.number = M.config.show_line_numbers
   vim.wo.relativenumber = false
