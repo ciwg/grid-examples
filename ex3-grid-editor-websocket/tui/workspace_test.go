@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +13,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type testWriteCloser struct{ bytes.Buffer }
+
+func (writer *testWriteCloser) Close() error { return nil }
+
 func TestSidecarConnectMessageIncludesRemoteAccessToken(t *testing.T) {
 	message := sidecarConnectMessage("http://relay.example", "bootstrap-token", "charm-a", "Charm A", "#8b5cf6")
 
@@ -19,6 +25,32 @@ func TestSidecarConnectMessageIncludesRemoteAccessToken(t *testing.T) {
 	}
 	if got, want := message["embodiment"], any("charm"); got != want {
 		t.Fatalf("embodiment mismatch: got %q want %q", got, want)
+	}
+}
+
+func TestEditorAcceptsTextAndSendsSharedDocumentUpdate(t *testing.T) {
+	input := &testWriteCloser{}
+	client := &sidecar{stdin: input, events: make(chan sidecarEvent)}
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, client)
+
+	updated, _ := state.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	edited := updated.(model)
+	if got := edited.editor.Value(); got != "a" {
+		t.Fatalf("editor value = %q, want typed text", got)
+	}
+	lines := bytes.Split(bytes.TrimSpace(input.Bytes()), []byte("\n"))
+	if len(lines) < 1 {
+		t.Fatal("editor did not send a sidecar message")
+	}
+	var message map[string]any
+	if err := json.Unmarshal(lines[0], &message); err != nil {
+		t.Fatalf("decode sidecar message: %v", err)
+	}
+	if got, want := message["type"], any("set_text"); got != want {
+		t.Fatalf("sidecar message type = %q, want %q", got, want)
+	}
+	if got, want := message["content"], any("a"); got != want {
+		t.Fatalf("sidecar content = %q, want %q", got, want)
 	}
 }
 
