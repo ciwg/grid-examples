@@ -1,5 +1,10 @@
 # TODO
 
+- [ ] gahin - Grid TUI menus - `TODO/TODO-gahin-grid-tui-menus.md`
+- [ ] molim - Grid TUI Harmonica presence motion - `TODO/TODO-molim-grid-tui-harmonica-presence.md`
+- [ ] mubig - Grid TUI VHS collaboration proof - `TODO/TODO-mubig-grid-tui-vhs-proof.md`
+- [ ] budad - Grid Glow help reader - `TODO/TODO-budad-grid-glow-help.md`
+
 - [x] pisul - grid-editor restore published version - `TODO/TODO-pisul-grid-editor-restore-published-version.md`
 - [x] fozoz - Ex3 PromiseGrid alignment - `TODO/TODO-fozoz-promisegrid-alignment.md`
 - [x] 015 - grid-editor conference demo fixes and PromiseGrid trace surface - `TODO/TODO-pukur-grid-editor-demo-fixes.md`

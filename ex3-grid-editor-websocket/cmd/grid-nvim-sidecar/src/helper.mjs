@@ -104,6 +104,12 @@ async function handleMessage(message) {
       }
       await postAwareness(false);
       break;
+    case "get_state":
+      // Intent: Let the terminal embodiment publish the exact local Automerge
+      // replica through Ex3's existing publish endpoint without manufacturing
+      // a second document representation. Source: DI-mutoh.
+      send({ type: "state", content: getText(), replica_base64: Buffer.from(Automerge.save(state.doc)).toString("base64") });
+      break;
     case "close":
       closeDocument();
       send({ type: "closed" });

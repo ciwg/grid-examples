@@ -31,9 +31,23 @@ The Charm terminal inspector is covered by the Go suite. Its tests exercise
 the Bubble Tea model's deterministic relay-entry filters; `go test ./cmd/grid-charm`
 is the focused command. It does not require a terminal, live relay, or Gum.
 
-`go test ./cmd/grid-tui` covers the terminal workspace's UTF-16 cursor mapping
-and remote cursor rendering. Those assertions keep terminal awareness offsets
-compatible with the Automerge sidecar's JavaScript string offsets.
+`go test ./tui` covers the terminal workspace's UTF-16 cursor mapping, remote
+cursor rendering, menu navigation, relay HTTP dispatch, export confirmation,
+Glow dependency guidance, and Harmonica typing pulse. Those assertions keep
+terminal awareness offsets compatible with the Automerge sidecar's JavaScript
+string offsets. Source: `DI-mutoh`.
+
+The checked-in VHS tape can be validated from the exercise root with:
+
+```bash
+"$(go env GOPATH)/bin/vhs" validate demos/grid-tui-collaboration.tape
+```
+
+Run `scripts/record-grid-tui-vhs.sh` to start an isolated relay, record the
+Grid TUI menu flow, and generate `demos/grid-tui-collaboration.gif`. VHS needs
+its `ttyd` runtime dependency; the launcher reports a missing recorder before
+it starts the relay. The GIF is visual demonstration evidence, not protocol
+conformance proof. Source: `DI-mutoh`.
 
 The Go checks cover static diagnostics, deterministic Go tests, and handled Go
 errors. Browser tests cover embodiment-local JavaScript behavior; the browser
