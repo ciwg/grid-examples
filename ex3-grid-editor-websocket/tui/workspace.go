@@ -245,6 +245,24 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.MouseMsg:
+		if msg.Type == tea.MouseWheelUp || msg.Type == tea.MouseWheelDown {
+			// Intent: Bubble Tea's textarea does not own wheel scrolling, so
+			// translate the wheel into editor navigation and keep the document
+			// viewport reachable without leaving the terminal workspace.
+			// Source: DI-mutoh.
+			keyType := tea.KeyUp
+			if msg.Type == tea.MouseWheelDown {
+				keyType = tea.KeyDown
+			}
+			commands := make([]tea.Cmd, 0, 3)
+			for range 3 {
+				var command tea.Cmd
+				m.editor, command = m.editor.Update(tea.KeyMsg{Type: keyType})
+				commands = append(commands, command)
+			}
+			m.publishCursor(false)
+			return m, tea.Batch(commands...)
+		}
 		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 			if msg.Y == menuRow {
 				m.activeMenu = m.menuAt(msg.X)

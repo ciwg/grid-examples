@@ -67,6 +67,20 @@ func TestOpenedDocumentStartsAtBeginningForEditing(t *testing.T) {
 	}
 }
 
+func TestMouseWheelNavigatesSharedDocument(t *testing.T) {
+	input := &testWriteCloser{}
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, &sidecar{stdin: input, events: make(chan sidecarEvent)})
+	state.editor.SetValue("first line\nsecond line\nthird line\nfourth line")
+	if got := state.editor.Line(); got != 3 {
+		t.Fatalf("initial editor line = %d, want 3", got)
+	}
+
+	updated, _ := state.Update(tea.MouseMsg{Type: tea.MouseWheelUp, Button: tea.MouseButtonWheelUp, Action: tea.MouseActionPress})
+	if got := updated.(model).editor.Line(); got != 0 {
+		t.Fatalf("wheel up editor line = %d, want 0", got)
+	}
+}
+
 func TestUTF16LengthAndLineColumn(t *testing.T) {
 	text := "A😀\nBeta"
 	if got := utf16Length("A😀"); got != 3 {
