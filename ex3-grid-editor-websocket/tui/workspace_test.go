@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestUTF16LengthAndLineColumn(t *testing.T) {
@@ -33,6 +34,16 @@ func TestMenuKeyboardNavigationOpensDocumentMenu(t *testing.T) {
 	updated, _ = menu.Update(tea.KeyMsg{Type: tea.KeyDown})
 	if got := updated.(model).activeItem; got != 1 {
 		t.Fatalf("down menu item = %d, want 1", got)
+	}
+}
+
+func TestMouseClickUsesRenderedMenuRowAndWidths(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	viewMenu := state.menuAt(lipgloss.Width(menuStyle.Render("Document")) + 2)
+	updated, _ := state.Update(tea.MouseMsg{X: lipgloss.Width(menuStyle.Render("Document")) + 2, Y: menuRow, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	clicked := updated.(model)
+	if !clicked.menuOpen || clicked.activeMenu != viewMenu || clicked.activeMenu != 1 {
+		t.Fatalf("mouse menu click = open:%t menu:%d, want Edit", clicked.menuOpen, clicked.activeMenu)
 	}
 }
 

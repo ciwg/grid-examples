@@ -169,6 +169,8 @@ type model struct {
 	presenceSpring                                harmonica.Spring
 }
 
+const menuRow = 2
+
 var menus = []struct {
 	name  string
 	items []string
@@ -232,8 +234,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
-			if msg.Y == 0 {
-				m.activeMenu = min(len(menus)-1, max(0, msg.X/14))
+			if msg.Y == menuRow {
+				m.activeMenu = m.menuAt(msg.X)
 				m.menuOpen = true
 				return m, nil
 			}
@@ -327,6 +329,25 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.publishCursor(false)
 	return m, command
+}
+
+// menuAt maps an actual terminal column to the rendered menu label. The
+// header occupies two rows, so click handling must not assume the menu begins
+// at row zero or that all labels have the same width. Source: DI-mutoh.
+func (m model) menuAt(column int) int {
+	start := 0
+	for index, menu := range menus {
+		style := menuStyle
+		if m.menuOpen && index == m.activeMenu {
+			style = activeMenuStyle
+		}
+		width := lipgloss.Width(style.Render(menu.name))
+		if column >= start && column < start+width {
+			return index
+		}
+		start += width + 1
+	}
+	return min(len(menus)-1, max(0, column))
 }
 
 func (m *model) activate() tea.Cmd {
