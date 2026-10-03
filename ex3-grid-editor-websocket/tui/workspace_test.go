@@ -3,6 +3,7 @@ package tui
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -79,6 +80,25 @@ func TestMouseWheelNavigatesSharedDocument(t *testing.T) {
 	updated, _ := state.Update(tea.MouseMsg{Type: tea.MouseWheelUp, Button: tea.MouseButtonWheelUp, Action: tea.MouseActionPress})
 	if got := updated.(model).editor.Line(); got != 0 {
 		t.Fatalf("wheel up editor line = %d, want 0", got)
+	}
+}
+
+func TestSidebarDoesNotPushEditorBelowTerminal(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width = 120
+	state.height = 24
+	for index := range 67 {
+		state.peers = append(state.peers, peer{ID: fmt.Sprintf("peer-%d", index), Name: fmt.Sprintf("Peer %d", index), Color: "#8b5cf6", Embodiment: "browser"})
+	}
+
+	if got, limit := lipgloss.Height(state.sidebar()), max(5, state.height-10); got > limit {
+		t.Fatalf("sidebar height = %d, want no more than %d", got, limit)
+	}
+	if !strings.Contains(state.sidebar(), "… 65 more peers") {
+		t.Fatalf("sidebar did not summarize hidden peers: %q", state.sidebar())
+	}
+	if got := lipgloss.Height(state.View()); got > state.height {
+		t.Fatalf("full workspace height = %d, want no more than terminal height %d", got, state.height)
 	}
 }
 

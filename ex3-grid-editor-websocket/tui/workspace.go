@@ -925,7 +925,12 @@ func (m model) sidebar() string {
 	if len(m.peers) == 0 {
 		lines = append(lines, mutedStyle.Render("No remote peers observed"))
 	}
-	for _, peer := range m.peers {
+	// Intent: A relay can report many historical peers. Keep the collaboration
+	// legend inside the terminal height so it cannot push the editor below the
+	// visible screen. Source: DI-mutoh.
+	peerLimit := max(1, (max(2, m.height-15)-5)/2)
+	visiblePeers := min(len(m.peers), peerLimit)
+	for _, peer := range m.peers[:visiblePeers] {
 		state := "idle"
 		if peer.Typing {
 			state = "typing"
@@ -936,8 +941,11 @@ func (m model) sidebar() string {
 		}
 		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color(peer.Color)).Render(marker)+" "+peer.Name+"\n  "+peer.Embodiment+" · "+state+" · "+lineColumn(m.editor.Value(), peer.Anchor))
 	}
+	if hiddenPeers := len(m.peers) - visiblePeers; hiddenPeers > 0 {
+		lines = append(lines, mutedStyle.Render(fmt.Sprintf("… %d more peers", hiddenPeers)))
+	}
 	lines = append(lines, "", titleStyle.Render("Relay activity"))
-	for _, entry := range last(m.activity, 4) {
+	for _, entry := range last(m.activity, 2) {
 		lines = append(lines, "• "+entry)
 	}
 	return strings.Join(lines, "\n")
