@@ -528,10 +528,7 @@ func (m *model) applySidecar(event sidecarEvent) {
 				// Intent: A shared document must open at its beginning so the
 				// terminal user can immediately inspect and edit its content.
 				// Source: DI-mutoh.
-				for m.editor.Line() > 0 {
-					m.editor.CursorUp()
-				}
-				m.editor.CursorStart()
+				m.editor, _ = m.editor.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
 			}
 		}
 		if event.DocID != "" {
