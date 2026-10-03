@@ -44,7 +44,8 @@ The checked-in VHS tape can be validated from the exercise root with:
 ```
 
 Run `scripts/record-grid-tui-vhs.sh` to start an isolated relay, record the
-Grid TUI menu flow, and generate `demos/grid-tui-collaboration.gif`. VHS needs
+Grid TUI menu flow, and generate `demos/grid-tui-collaboration.gif` and
+`demos/grid-tui-collaboration.mp4`. VHS needs
 its `ttyd` runtime dependency; the launcher reports a missing recorder before
 it starts the relay. The GIF is visual demonstration evidence, not protocol
 conformance proof. Source: `DI-mutoh`.

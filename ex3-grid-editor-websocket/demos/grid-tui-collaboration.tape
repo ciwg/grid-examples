@@ -1,5 +1,6 @@
 # Grid TUI's reproducible Charm VHS proof.
 Output demos/grid-tui-collaboration.gif
+Output demos/grid-tui-collaboration.mp4
 Set Shell "bash"
 Set FontSize 18
 Set Width 1200
