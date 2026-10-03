@@ -57,12 +57,13 @@ func TestEditorAcceptsTextAndSendsSharedDocumentUpdate(t *testing.T) {
 func TestOpenedDocumentStartsAtBeginningForEditing(t *testing.T) {
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
 	state.applySidecar(sidecarEvent{Type: "opened", DocID: "demo", Content: "first line\nsecond line\nthird line"})
+	state.applySidecar(sidecarEvent{Type: "changed", DocID: "demo", Content: "first line\nsecond line\nthird line\nremote update"})
 
 	if got := state.editor.Line(); got != 0 {
-		t.Fatalf("opened document cursor line = %d, want 0", got)
+		t.Fatalf("remote document update cursor line = %d, want 0", got)
 	}
 	state.editor, _ = state.editor.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("X")})
-	if got := state.editor.Value(); got != "Xfirst line\nsecond line\nthird line" {
+	if got := state.editor.Value(); got != "Xfirst line\nsecond line\nthird line\nremote update" {
 		t.Fatalf("opened document edit = %q, want insertion at beginning", got)
 	}
 }

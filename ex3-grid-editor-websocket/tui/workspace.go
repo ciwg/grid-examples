@@ -523,13 +523,16 @@ func (m *model) applySidecar(event sidecarEvent) {
 	switch event.Type {
 	case "opened", "changed":
 		if event.Content != m.editor.Value() {
+			previousLine := m.editor.Line()
 			m.editor.SetValue(event.Content)
-			if event.Type == "opened" {
-				// Intent: A shared document must open at its beginning so the
-				// terminal user can immediately inspect and edit its content.
-				// Source: DI-mutoh.
-				m.editor, _ = m.editor.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
+			// Intent: Sidecar changes replace the textarea value, whose default
+			// insertion behavior places the cursor at the document end. Restore
+			// the local line so remote collaboration never strands a user there.
+			// Source: DI-mutoh.
+			for m.editor.Line() > previousLine {
+				m.editor.CursorUp()
 			}
+			m.editor.CursorStart()
 		}
 		if event.DocID != "" {
 			m.documentID = event.DocID
