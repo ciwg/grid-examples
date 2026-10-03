@@ -47,7 +47,7 @@ var (
 )
 
 // Config is the public launcher contract for the terminal embodiment.
-type Config struct{ Relay, DocumentID, Name, Color string }
+type Config struct{ Relay, DocumentID, Name, Color, AccessToken string }
 
 type peer struct {
 	ID         string `json:"participant_id"`
@@ -81,7 +81,19 @@ type sidecar struct {
 	logger  *charmLog.Logger
 }
 
-func startSidecar(relay, participantID, name, color string, logger *charmLog.Logger) (*sidecar, error) {
+func sidecarConnectMessage(relay, accessToken, participantID, name, color string) map[string]any {
+	return map[string]any{
+		"type":           "connect",
+		"relay_url":      relay,
+		"access_token":   accessToken,
+		"participant_id": participantID,
+		"display_name":   name,
+		"color":          color,
+		"embodiment":     "charm",
+	}
+}
+
+func startSidecar(relay, accessToken, participantID, name, color string, logger *charmLog.Logger) (*sidecar, error) {
 	command := exec.Command("go", "run", "./cmd/grid-nvim-sidecar", "--relay", relay)
 	stdin, err := command.StdinPipe()
 	if err != nil {
@@ -97,7 +109,7 @@ func startSidecar(relay, participantID, name, color string, logger *charmLog.Log
 	}
 	client := &sidecar{command: command, stdin: stdin, events: make(chan sidecarEvent, 32), logger: logger}
 	go client.read(stdout)
-	if err := client.send(map[string]any{"type": "connect", "relay_url": relay, "participant_id": participantID, "display_name": name, "color": color, "embodiment": "charm"}); err != nil {
+	if err := client.send(sidecarConnectMessage(relay, accessToken, participantID, name, color)); err != nil {
 		return nil, err
 	}
 	return client, nil
@@ -1049,7 +1061,7 @@ func Run(config Config) error {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	logger := charmLog.New(os.Stderr)
 	participantID := fmt.Sprintf("charm-%d", time.Now().UnixNano())
-	client, err := startSidecar(config.Relay, participantID, config.Name, config.Color, logger)
+	client, err := startSidecar(config.Relay, config.AccessToken, participantID, config.Name, config.Color, logger)
 	if err != nil {
 		return err
 	}

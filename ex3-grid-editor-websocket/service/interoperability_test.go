@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -142,6 +143,100 @@ func TestBrowserAndNvimInteroperateThroughRelay(t *testing.T) {
 	if !peerHasLastSeen(browserAwareness, "nvim-a") {
 		t.Fatalf("nvim peer last_seen_at missing in browser awareness: %#v", browserAwareness)
 	}
+}
+
+func TestSidecarRemoteCapabilityFallsBackAndCollaborates(t *testing.T) {
+	t.Parallel()
+
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"), service.AppOptions{RemoteAccessToken: "ex3-demo-access"})
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	// Intent: Exercise the sidecar as a remote participant: socket upgrades are
+	// rejected, then its bootstrap token must obtain HTTP mutation capabilities.
+	// Source: DI-mutoh.
+	handler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasSuffix(request.URL.Path, "-socket") {
+			http.Error(writer, "socket transport unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		request.RemoteAddr = "198.51.100.20:4123"
+		service.NewServer(app).Handler().ServeHTTP(writer, request)
+	})
+	listener := listenTCP4OrSkip(t)
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	repoRoot := repoRoot(t)
+	sidecar := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "cmd", "grid-nvim-sidecar", "helper.bundle.cjs"), "--relay", server.URL)
+	defer sidecar.Close()
+	sidecar.WaitForType(t, "info")
+	sidecar.Send(t, map[string]any{
+		"type":           "connect",
+		"relay_url":      server.URL,
+		"access_token":   "ex3-demo-access",
+		"participant_id": "nvim-remote",
+		"display_name":   "Nvim Remote",
+		"color":          "#d66f1d",
+	})
+	sidecar.WaitForType(t, "connected")
+	sidecar.Send(t, map[string]any{"type": "open", "doc_id": "demo"})
+	opened := sidecar.WaitForType(t, "opened")
+	if got := stringField(t, opened, "relay_transport"); got != "polling" {
+		t.Fatalf("relay transport mismatch: got %q want polling", got)
+	}
+	if got := stringField(t, opened, "awareness_transport"); got != "polling" {
+		t.Fatalf("awareness transport mismatch: got %q want polling", got)
+	}
+
+	sidecar.Send(t, map[string]any{"type": "set_text", "content": "remote sidecar change"})
+
+	awarenessResponse, err := http.Get(server.URL + "/api/local/documents/demo/awareness")
+	if err != nil {
+		t.Fatalf("get awareness: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := awarenessResponse.Body.Close(); closeErr != nil {
+			t.Errorf("close awareness response: %v", closeErr)
+		}
+	})
+	awarenessBody, err := io.ReadAll(awarenessResponse.Body)
+	if err != nil {
+		t.Fatalf("read awareness: %v", err)
+	}
+	if awarenessResponse.StatusCode != http.StatusOK || !bytes.Contains(awarenessBody, []byte(`"participant_id":"nvim-remote"`)) {
+		t.Fatalf("sidecar awareness was not published: status=%d body=%s", awarenessResponse.StatusCode, awarenessBody)
+	}
+
+	waitForHTTPBodyContains(t, server.URL+"/api/local/documents/demo/sync?since=0&limit=10", []byte(`"message_base64"`))
+}
+
+func waitForHTTPBodyContains(t *testing.T, rawURL string, needle []byte) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	var lastStatus int
+	var lastBody []byte
+	for time.Now().Before(deadline) {
+		response, err := http.Get(rawURL)
+		if err == nil {
+			body, readErr := io.ReadAll(response.Body)
+			closeErr := response.Body.Close()
+			if readErr != nil {
+				t.Fatalf("read %s: %v", rawURL, readErr)
+			}
+			if closeErr != nil {
+				t.Fatalf("close %s: %v", rawURL, closeErr)
+			}
+			lastStatus, lastBody = response.StatusCode, body
+			if response.StatusCode == http.StatusOK && bytes.Contains(body, needle) {
+				return
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %q at %s: status=%d body=%s", needle, rawURL, lastStatus, lastBody)
 }
 
 func TestFreshBrowserLateJoinReceivesSharedDocument(t *testing.T) {

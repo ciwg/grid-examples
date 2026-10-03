@@ -11,6 +11,17 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+func TestSidecarConnectMessageIncludesRemoteAccessToken(t *testing.T) {
+	message := sidecarConnectMessage("http://relay.example", "bootstrap-token", "charm-a", "Charm A", "#8b5cf6")
+
+	if got, want := message["access_token"], any("bootstrap-token"); got != want {
+		t.Fatalf("access token mismatch: got %q want %q", got, want)
+	}
+	if got, want := message["embodiment"], any("charm"); got != want {
+		t.Fatalf("embodiment mismatch: got %q want %q", got, want)
+	}
+}
+
 func TestUTF16LengthAndLineColumn(t *testing.T) {
 	text := "A😀\nBeta"
 	if got := utf16Length("A😀"); got != 3 {

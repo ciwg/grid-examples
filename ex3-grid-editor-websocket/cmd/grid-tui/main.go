@@ -14,10 +14,11 @@ func main() {
 	documentID := flag.String("doc", "demo", "document ID to open")
 	name := flag.String("name", "Charm User", "collaboration display name")
 	color := flag.String("color", "#8b5cf6", "collaboration color (#RRGGBB)")
+	accessToken := flag.String("access-token", "", "optional relay bootstrap token for remote collaboration")
 	flag.Parse()
 	// Intent: Keep the public command stable while the richer terminal
 	// workspace remains a reusable local presentation package. Source: DI-mutoh.
-	if err := tui.Run(tui.Config{Relay: *relay, DocumentID: *documentID, Name: *name, Color: *color}); err != nil {
+	if err := tui.Run(tui.Config{Relay: *relay, DocumentID: *documentID, Name: *name, Color: *color, AccessToken: *accessToken}); err != nil {
 		fmt.Fprintln(os.Stderr, "Grid TUI:", err)
 	}
 }

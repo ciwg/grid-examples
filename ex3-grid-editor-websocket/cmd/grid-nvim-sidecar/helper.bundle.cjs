@@ -6132,6 +6132,7 @@ UseApi(api);
 // src/helper.mjs
 var AutomergeNext = next_slim_exports;
 var EMPTY_DOCUMENT_BYTES = Uint8Array.from(Buffer.from("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==", "base64"));
+var WEBSOCKET_READY_TIMEOUT_MS = 3e3;
 var state = {
   relayUrl: "",
   accessToken: "",
@@ -6252,26 +6253,55 @@ async function openDocument(documentId) {
   }
   await hydrateFromSnapshot();
   if (websocketCapable()) {
-    await connectSyncSocket();
-    await connectAwarenessSocket();
-    state.startupTransportsReady = true;
+    try {
+      await withTimeout(connectSyncSocket(), "sync websocket readiness");
+      await withTimeout(connectAwarenessSocket(), "awareness websocket readiness");
+      state.startupTransportsReady = true;
+    } catch (error) {
+      closeStartupSockets();
+      sendInfo(`websocket startup unavailable; using polling: ${error.message}`);
+      await startPollingTransport();
+    }
   } else {
-    state.relayTransport = "polling";
-    state.awarenessTransport = "polling";
-    await pollSync();
-    await pollAwareness();
-    state.syncTimer = setInterval(() => {
-      pollSync().catch((error) => send({ type: "error", message: error.stack || error.message }));
-    }, 250);
-    state.awarenessTimer = setInterval(() => {
-      pollAwareness().catch((error) => send({ type: "error", message: error.stack || error.message }));
-    }, 350);
-    await postAwareness(false);
-    state.initialSyncReady = true;
-    state.startupTransportsReady = true;
+    await startPollingTransport();
   }
   startAwarenessHeartbeat();
   completeInitialOpen();
+}
+function withTimeout(promise, operation) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${operation} timed out`)), WEBSOCKET_READY_TIMEOUT_MS))
+  ]);
+}
+function closeStartupSockets() {
+  if (state.syncSocket) {
+    state.syncSocket.close();
+    state.syncSocket = null;
+  }
+  if (state.awarenessSocket) {
+    state.awarenessSocket.close();
+    state.awarenessSocket = null;
+  }
+}
+async function startPollingTransport() {
+  state.relayTransport = "polling";
+  state.awarenessTransport = "polling";
+  await pollSync();
+  await pollAwareness();
+  state.syncTimer = setInterval(() => {
+    pollSync().catch((error) => send({ type: "error", message: error.stack || error.message }));
+  }, 250);
+  state.awarenessTimer = setInterval(() => {
+    pollAwareness().catch((error) => send({ type: "error", message: error.stack || error.message }));
+  }, 350);
+  try {
+    await postAwareness(false);
+  } catch (error) {
+    sendInfo(`initial awareness publish unavailable: ${error.message}`);
+  }
+  state.initialSyncReady = true;
+  state.startupTransportsReady = true;
 }
 function closeDocument() {
   if (state.syncTimer) {
@@ -6601,6 +6631,9 @@ async function connectSyncSocket() {
         reject(error);
         return;
       }
+      if (!state.openedSent) {
+        return;
+      }
       send({ type: "error", message: error.message });
     });
     socket.addEventListener("close", () => {
@@ -6656,6 +6689,9 @@ async function connectAwarenessSocket() {
       if (!settled) {
         settled = true;
         reject(error);
+        return;
+      }
+      if (!state.openedSent) {
         return;
       }
       send({ type: "error", message: error.message });
