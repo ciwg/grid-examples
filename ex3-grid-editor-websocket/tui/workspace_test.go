@@ -54,6 +54,19 @@ func TestEditorAcceptsTextAndSendsSharedDocumentUpdate(t *testing.T) {
 	}
 }
 
+func TestOpenedDocumentStartsAtBeginningForEditing(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.applySidecar(sidecarEvent{Type: "opened", DocID: "demo", Content: "first line\nsecond line\nthird line"})
+
+	if got := state.editor.Line(); got != 0 {
+		t.Fatalf("opened document cursor line = %d, want 0", got)
+	}
+	state.editor, _ = state.editor.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("X")})
+	if got := state.editor.Value(); got != "Xfirst line\nsecond line\nthird line" {
+		t.Fatalf("opened document edit = %q, want insertion at beginning", got)
+	}
+}
+
 func TestUTF16LengthAndLineColumn(t *testing.T) {
 	text := "A😀\nBeta"
 	if got := utf16Length("A😀"); got != 3 {

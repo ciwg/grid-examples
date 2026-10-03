@@ -506,6 +506,15 @@ func (m *model) applySidecar(event sidecarEvent) {
 	case "opened", "changed":
 		if event.Content != m.editor.Value() {
 			m.editor.SetValue(event.Content)
+			if event.Type == "opened" {
+				// Intent: A shared document must open at its beginning so the
+				// terminal user can immediately inspect and edit its content.
+				// Source: DI-mutoh.
+				for m.editor.Line() > 0 {
+					m.editor.CursorUp()
+				}
+				m.editor.CursorStart()
+			}
 		}
 		if event.DocID != "" {
 			m.documentID = event.DocID
