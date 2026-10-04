@@ -1106,10 +1106,10 @@ func Run(config Config) error {
 	}
 	m := newModel(config, client)
 	m.participantID = participantID
-	// Intent: Request full terminal mouse reporting so wheel events reach the
-	// shared-document viewport instead of being lost to the alternate screen.
-	// Source: DI-mutoh.
-	_, err = tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion()).Run()
+	// Intent: Leave terminal mouse reporting disabled because some terminals
+	// deliver mouse escape bytes as editable input, which must never enter a
+	// shared document. Source: DI-mutoh.
+	_, err = tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
 }
 
