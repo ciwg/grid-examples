@@ -85,7 +85,7 @@ func TestMouseWheelNavigatesSharedDocument(t *testing.T) {
 
 func TestSidebarDoesNotPushEditorBelowTerminal(t *testing.T) {
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
-	state.width = 120
+	state.width = 80
 	state.height = 24
 	for index := range 67 {
 		state.peers = append(state.peers, peer{ID: fmt.Sprintf("peer-%d", index), Name: fmt.Sprintf("Peer %d", index), Color: "#8b5cf6", Embodiment: "browser"})
