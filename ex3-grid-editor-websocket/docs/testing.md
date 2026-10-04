@@ -107,10 +107,25 @@ The fresh-document regression opens a previously unknown, empty document ID in
 an isolated real browser and requires the document-sync WebSocket plus a ready,
 editable CodeMirror surface. A separate unit test proves the awareness client
 does not wait for a first remote-awareness snapshot before it reports its
-socket connection established. This coverage proves browser-to-relay startup
-only. It does **not** yet prove a newly created document converges end-to-end
-between Grid TUI and browser, or between two Grid TUI sessions; those are
-separate integration tests still required.
+socket connection established.
+
+`tui/integration_test.go` extends that proof through the actual Grid TUI
+sidecar process. `TestBrowserAndGridTUIConvergeOnFreshDocument` requires a
+browser-written document update plus browser name, color, typing state, and
+cursor to reach the Grid TUI model and rendered terminal surface.
+`TestGridTUIClientsConvergeOnFreshDocument` requires the same document and
+awareness convergence between two independent Grid TUI sidecars. Both tests
+use an isolated relay root and only loopback test processes. Run the focused
+proof with:
+
+```bash
+go test ./tui -run 'Test(BrowserAndGridTUI|GridTUIClients)ConvergeOnFreshDocument' -count=1
+```
+
+These tests prove Ex3's current browser and terminal embodiments honor the
+same local-draft relay path in the isolated test topology. They do not claim
+frozen-spec interoperability, a network-wide transport guarantee, or identity
+authority beyond the tested presentation fields. Source: `DI-gufuj`.
 
 Together these tests cover Ex3's current decentralized collaboration paths.
 They do not define general key rotation, delegation, cross-relay role

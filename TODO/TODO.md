@@ -1,5 +1,6 @@
 # TODO
 
+- [x] pokoz - Add Grid TUI integration tests - `ex3-grid-editor-websocket/TODO/TODO-pokoz-grid-tui-integration-tests.md`
 - [x] gahin - Build Grid TUI menus - `ex3-grid-editor-websocket/TODO/TODO-gahin-grid-tui-menus.md`
 - [x] molim - Add Grid TUI Harmonica presence motion - `ex3-grid-editor-websocket/TODO/TODO-molim-grid-tui-harmonica-presence.md`
 - [x] budad - Complete Grid Glow help reader - `ex3-grid-editor-websocket/TODO/TODO-budad-grid-glow-help.md`
