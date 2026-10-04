@@ -1106,10 +1106,10 @@ func Run(config Config) error {
 	}
 	m := newModel(config, client)
 	m.participantID = participantID
-	// Intent: Leave terminal mouse reporting disabled because some terminals
-	// deliver mouse escape bytes as editable input, which must never enter a
-	// shared document. Source: DI-mutoh.
-	_, err = tea.NewProgram(m, tea.WithAltScreen()).Run()
+	// Intent: Enable click-only mouse reporting for menus while avoiding full
+	// motion tracking, whose raw terminal escape bytes can enter shared text.
+	// Source: DI-mutoh.
+	_, err = tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
 
