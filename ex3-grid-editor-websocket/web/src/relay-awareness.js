@@ -93,7 +93,15 @@ export class RelayAwarenessClient {
             capability: this.capabilities.awareness,
           }));
         }
-        Promise.resolve(this.broadcast()).catch((error) => {
+        // Intent: A freshly created document has no prior awareness state, so
+        // opening its editor must not wait for a remote snapshot before the
+        // document-sync connection can start. Source: DI-gafit.
+        Promise.resolve(this.broadcast()).then(() => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        }).catch((error) => {
           if (!settled) {
             settled = true;
             reject(error);

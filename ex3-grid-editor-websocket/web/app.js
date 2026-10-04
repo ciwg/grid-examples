@@ -27377,7 +27377,12 @@ var RelayAwarenessClient = class {
             capability: this.capabilities.awareness
           }));
         }
-        Promise.resolve(this.broadcast()).catch((error) => {
+        Promise.resolve(this.broadcast()).then(() => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        }).catch((error) => {
           if (!settled) {
             settled = true;
             reject(error);
@@ -33324,8 +33329,10 @@ async function bootDocument(documentID) {
     const peers = Array.from(states.keys()).filter((id2) => id2 !== state.participantID);
     relay.observePeers(peers.map((participantID) => ({ participant_id: participantID })));
   });
-  await awareness.connect();
   await relay.connect();
+  awareness.connect().catch((error) => {
+    showToast(`awareness unavailable: ${error.message}`);
+  });
   if (shouldRecoverRelayHistory(relay.getText(), relayState)) {
     await relay.recoverFromRelayHistory(relayState);
     editor.setText(relay.getText());

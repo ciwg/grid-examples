@@ -315,8 +315,13 @@ async function bootDocument(documentID) {
     relay.observePeers(peers.map((participantID) => ({ participant_id: participantID })));
   });
 
-  await awareness.connect();
   await relay.connect();
+  // Intent: Let the shared document establish its durable relay connection
+  // before opening the optional awareness channel. This keeps a brand-new
+  // document editable even if presence is delayed. Source: DI-gafit.
+  awareness.connect().catch((error) => {
+    showToast(`awareness unavailable: ${error.message}`);
+  });
   if (shouldRecoverRelayHistory(relay.getText(), relayState)) {
     // Intent: Recover shared text over the relay's HTTP sync feed when a
     // browser still opens blank even though the relay reports real history, so

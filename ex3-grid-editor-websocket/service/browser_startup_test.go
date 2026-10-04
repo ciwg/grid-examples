@@ -16,6 +16,47 @@ import (
 
 const emptyReplicaBase64 = "hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA=="
 
+func TestHeadlessBrowserFreshDocumentCompletesStartup(t *testing.T) {
+	chromePath, err := exec.LookPath("google-chrome")
+	if err != nil {
+		t.Skip("google-chrome not available")
+	}
+
+	app, err := service.NewApp(filepath.Join(t.TempDir(), "relay"))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	server := newBrowserProbeServer(t, app)
+	defer server.Close()
+
+	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
+	command := exec.Command(
+		chromePath,
+		"--headless",
+		"--disable-gpu",
+		"--no-sandbox",
+		"--incognito",
+		"--virtual-time-budget=6000",
+		"--user-data-dir="+userDataDir,
+		"--dump-dom",
+		server.URL+"/?doc=fresh-empty-document",
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
+	}
+	dom := string(output)
+	for _, marker := range []string{
+		"browser sync: websocket",
+		`id="status" class="status-pill status-ready"`,
+		`data-language="markdown"`,
+	} {
+		if !strings.Contains(dom, marker) {
+			t.Fatalf("fresh document startup missing %q\n%s", marker, dom)
+		}
+	}
+}
+
 func TestHeadlessBrowserLateJoinRendersSharedText(t *testing.T) {
 	chromePath, err := exec.LookPath("google-chrome")
 	if err != nil {
@@ -189,8 +230,8 @@ window.fetch = async (input, init) => {
 };
 const NativeWebSocket = window.WebSocket;
 window.WebSocket = function (...args) {
-  const socket = new NativeWebSocket(...args);
   const socketURL = new URL(args[0], window.location.href);
+  const socket = new NativeWebSocket(...args);
   if (socketURL.pathname.endsWith("/sync-socket")) {
     socket.addEventListener("message", (event) => {
       try {
