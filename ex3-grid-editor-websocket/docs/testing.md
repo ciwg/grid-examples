@@ -103,6 +103,15 @@ the full relay history. These are observations from an isolated test browser
 and relay; they neither change pCID-selected payload meaning nor establish a
 network-wide transport guarantee. Source: `DI-gofut`; `DI-raron`.
 
+The fresh-document regression opens a previously unknown, empty document ID in
+an isolated real browser and requires the document-sync WebSocket plus a ready,
+editable CodeMirror surface. A separate unit test proves the awareness client
+does not wait for a first remote-awareness snapshot before it reports its
+socket connection established. This coverage proves browser-to-relay startup
+only. It does **not** yet prove a newly created document converges end-to-end
+between Grid TUI and browser, or between two Grid TUI sessions; those are
+separate integration tests still required.
+
 Together these tests cover Ex3's current decentralized collaboration paths.
 They do not define general key rotation, delegation, cross-relay role
 recognition, or person identity. Source: `DI-dilav`; `DI-hadil`.
