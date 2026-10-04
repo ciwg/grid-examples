@@ -29,6 +29,45 @@ func TestSidecarConnectMessageIncludesRemoteAccessToken(t *testing.T) {
 	}
 }
 
+func TestLaunchFormSuppliesInteractiveDefaults(t *testing.T) {
+	form := NewLaunchForm(Config{})
+
+	if got, want := form.config, (Config{Relay: "http://127.0.0.1:7025", DocumentID: "demo", Name: "Charm User", Color: defaultColor}); got != want {
+		t.Fatalf("launch form defaults = %#v, want %#v", got, want)
+	}
+	if form.form == nil {
+		t.Fatal("launch form did not create a Huh form")
+	}
+}
+
+func TestLaunchFormRetainsProvidedValues(t *testing.T) {
+	config := Config{Relay: "http://relay.test", DocumentID: "shared", Name: "Alice", Color: "#22c55e", AccessToken: "secret"}
+	form := NewLaunchForm(config)
+
+	if got := form.config; got != config {
+		t.Fatalf("launch form config = %#v, want %#v", got, config)
+	}
+}
+
+func TestLaunchNeedsFormOnlyWhenInteractiveValuesAreMissing(t *testing.T) {
+	complete := Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Alice", Color: "#22c55e"}
+	if launchNeedsForm(complete) {
+		t.Fatal("complete flag configuration unexpectedly opens launch form")
+	}
+	if !launchNeedsForm(Config{Relay: complete.Relay, DocumentID: complete.DocumentID, Name: complete.Name}) {
+		t.Fatal("missing color did not open launch form")
+	}
+}
+
+func TestRequiredLaunchValue(t *testing.T) {
+	if err := requiredLaunchValue("  "); err == nil {
+		t.Fatal("blank launch value was accepted")
+	}
+	if err := requiredLaunchValue("demo"); err != nil {
+		t.Fatalf("non-blank launch value rejected: %v", err)
+	}
+}
+
 func TestEditorAcceptsTextAndSendsSharedDocumentUpdate(t *testing.T) {
 	input := &testWriteCloser{}
 	client := &sidecar{stdin: input, events: make(chan sidecarEvent)}

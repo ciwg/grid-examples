@@ -10,10 +10,10 @@ import (
 )
 
 func main() {
-	relay := flag.String("relay", "http://127.0.0.1:7025", "grid relay base URL")
-	documentID := flag.String("doc", "demo", "document ID to open")
-	name := flag.String("name", "Charm User", "collaboration display name")
-	color := flag.String("color", "#8b5cf6", "collaboration color (#RRGGBB)")
+	relay := flag.String("relay", "", "grid relay base URL (opens the launch form when omitted)")
+	documentID := flag.String("doc", "", "document ID to open (opens the launch form when omitted)")
+	name := flag.String("name", "", "collaboration display name (opens the launch form when omitted)")
+	color := flag.String("color", "", "collaboration color (#RRGGBB; opens the launch form when omitted)")
 	accessToken := flag.String("access-token", "", "optional relay bootstrap token for remote collaboration")
 	flag.Parse()
 	// Intent: Keep the public command stable while the richer terminal

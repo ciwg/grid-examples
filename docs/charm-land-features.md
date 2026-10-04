@@ -9,7 +9,7 @@ Ex3 uses the following Charm.land tools:
 | [Bubble Tea](https://github.com/charmbracelet/bubbletea) | The `grid-charm` relay inspector and `grid-tui` collaborative terminal workspace, including mouse- and keyboard-driven Document, Edit, View, Collaborate, Relay, Publish, and Help menus. |
 | [Bubbles](https://github.com/charmbracelet/bubbles) | Terminal text inputs, modal action dialogs, and collaborative textarea behavior. |
 | [Lip Gloss](https://github.com/charmbracelet/lipgloss) | Terminal layout, panels, colors, peer/cursor styling, and awareness legend. |
-| [Huh](https://github.com/charmbracelet/huh) | `grid-tui` launch-time display-name and color form. |
+| [Huh](https://github.com/charmbracelet/huh) | The interactive `grid-tui` launch form: display name, accessible color palette, relay URL, and document ID. The form runs before the sidecar connects; supplying all four flags bypasses it for scripts. |
 | [Glamour](https://github.com/charmbracelet/glamour) | Markdown preview in `grid-tui`. |
 | [Gum](https://github.com/charmbracelet/gum) | `make charm-topology` local or two-relay topology chooser. |
 | [Charm Log](https://github.com/charmbracelet/log) | Local `grid-tui` diagnostics for sidecar and relay problems. |

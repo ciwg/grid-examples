@@ -3,6 +3,7 @@ module github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket
 go 1.24.13
 
 require (
+	github.com/charmbracelet/huh v1.0.0
 	github.com/fxamacker/cbor/v2 v2.8.0
 	github.com/ipfs/go-cid v0.5.0
 	github.com/multiformats/go-multihash v0.2.3
@@ -19,7 +20,6 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/glamour v1.0.0 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
-	github.com/charmbracelet/huh v1.0.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
 	github.com/charmbracelet/log v1.0.0 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect

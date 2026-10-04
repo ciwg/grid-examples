@@ -25,6 +25,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/harmonica"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	charmLog "github.com/charmbracelet/log"
 	"github.com/muesli/termenv"
@@ -48,6 +49,91 @@ var (
 
 // Config is the public launcher contract for the terminal embodiment.
 type Config struct{ Relay, DocumentID, Name, Color, AccessToken string }
+
+// LaunchForm gathers a human operator's local presentation choices before the
+// terminal embodiment joins a shared Ex3 document.
+type LaunchForm struct {
+	config Config
+	form   *huh.Form
+}
+
+// NewLaunchForm creates the interactive launch step. Explicit CLI values are
+// retained so a partially specified command only asks for what remains.
+//
+// Intent: Make interactive Grid TUI startup discoverable without changing the
+// existing Automerge, WebSocket, or relay contracts. Source: DI-sidob.
+func NewLaunchForm(config Config) *LaunchForm {
+	config = launchDefaults(config)
+	launch := &LaunchForm{config: config}
+	launch.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Display name").
+				Description("The name collaborators see in the peer legend.").
+				Value(&launch.config.Name).
+				Validate(requiredLaunchValue),
+			huh.NewSelect[string]().
+				Title("Peer color").
+				Description("The color used for your cursor and presence.").
+				Options(
+					huh.NewOption("Purple", defaultColor),
+					huh.NewOption("Blue", "#3b82f6"),
+					huh.NewOption("Green", "#22c55e"),
+					huh.NewOption("Orange", "#f97316"),
+					huh.NewOption("Pink", "#ec4899"),
+				).
+				Value(&launch.config.Color),
+			huh.NewInput().
+				Title("Relay URL").
+				Description("The Ex3 relay that carries collaboration updates.").
+				Value(&launch.config.Relay).
+				Validate(requiredLaunchValue),
+			huh.NewInput().
+				Title("Document ID").
+				Description("The collaborative document to open.").
+				Value(&launch.config.DocumentID).
+				Validate(requiredLaunchValue),
+		).
+			Title("Grid TUI — Join collaboration session").
+			Description("Choose your local identity, then join the shared document."),
+	)
+	return launch
+}
+
+// Run displays the form and returns the submitted launch configuration.
+func (launch *LaunchForm) Run() (Config, error) {
+	if err := launch.form.Run(); err != nil {
+		return Config{}, err
+	}
+	return launch.config, nil
+}
+
+func launchDefaults(config Config) Config {
+	if config.Relay == "" {
+		config.Relay = "http://127.0.0.1:7025"
+	}
+	if config.DocumentID == "" {
+		config.DocumentID = "demo"
+	}
+	if config.Name == "" {
+		config.Name = "Charm User"
+	}
+	if config.Color == "" {
+		config.Color = defaultColor
+	}
+	return config
+}
+
+func launchNeedsForm(config Config) bool {
+	return config.Relay == "" || config.DocumentID == "" || config.Name == "" || config.Color == ""
+}
+
+func requiredLaunchValue(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return errors.New("required")
+	}
+	return nil
+}
 
 type peer struct {
 	ID         string `json:"participant_id"`
@@ -1081,18 +1167,14 @@ func validColor(value string) bool {
 
 // Run starts the Charm terminal embodiment using the existing Ex3 sidecar.
 func Run(config Config) error {
-	if config.Relay == "" {
-		config.Relay = "http://127.0.0.1:7025"
+	if launchNeedsForm(config) {
+		selected, err := NewLaunchForm(config).Run()
+		if err != nil {
+			return fmt.Errorf("Grid TUI launch form: %w", err)
+		}
+		config = selected
 	}
-	if config.DocumentID == "" {
-		config.DocumentID = "demo"
-	}
-	if config.Name == "" {
-		config.Name = "Charm User"
-	}
-	if config.Color == "" {
-		config.Color = defaultColor
-	}
+	config = launchDefaults(config)
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	logger := charmLog.New(os.Stderr)
 	participantID := fmt.Sprintf("charm-%d", time.Now().UnixNano())
