@@ -24,7 +24,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/harmonica"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	charmLog "github.com/charmbracelet/log"
@@ -244,7 +243,6 @@ type actionResultMsg struct {
 	status  string
 	content string
 }
-type presenceTickMsg struct{}
 type dialog struct {
 	title, prompt, action string
 	input                 textinput.Model
@@ -263,8 +261,6 @@ type model struct {
 	mode                                          string
 	dialog                                        *dialog
 	replica                                       string
-	presencePulse, presenceVelocity               float64
-	presenceSpring                                harmonica.Spring
 }
 
 const menuRow = 2
@@ -288,12 +284,9 @@ func newModel(config Config, client *sidecar) model {
 	editor.ShowLineNumbers = true
 	editor.Prompt = ""
 	editor.Focus()
-	return model{relay: config.Relay, documentID: config.DocumentID, participantID: fmt.Sprintf("charm-%d", time.Now().UnixNano()), name: config.Name, color: config.Color, editor: editor, client: client, status: "connecting to relay", mode: "editor", presenceSpring: harmonica.NewSpring(harmonica.FPS(15), 8, 0.45)}
+	return model{relay: config.Relay, documentID: config.DocumentID, participantID: fmt.Sprintf("charm-%d", time.Now().UnixNano()), name: config.Name, color: config.Color, editor: editor, client: client, status: "connecting to relay", mode: "editor"}
 }
-func (m model) Init() tea.Cmd { return tea.Batch(waitForSidecar(m.client.events), presenceTick()) }
-func presenceTick() tea.Cmd {
-	return tea.Tick(time.Second/15, func(time.Time) tea.Msg { return presenceTickMsg{} })
-}
+func (m model) Init() tea.Cmd { return waitForSidecar(m.client.events) }
 func waitForSidecar(events <-chan sidecarEvent) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-events
@@ -314,16 +307,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case sidecarMsg:
 		m.applySidecar(msg.event)
 		return m, waitForSidecar(m.client.events)
-	case presenceTickMsg:
-		target := 0.0
-		for _, peer := range m.peers {
-			if peer.Typing {
-				target = 1
-				break
-			}
-		}
-		m.presencePulse, m.presenceVelocity = m.presenceSpring.Update(m.presencePulse, m.presenceVelocity, target)
-		return m, presenceTick()
 	case actionResultMsg:
 		m.status = msg.status
 		if msg.content != "" {
@@ -1021,8 +1004,11 @@ func (m model) sidebar() string {
 		if peer.Typing {
 			state = "typing"
 		}
+		// Intent: Render remote typing as a stable marker. A 15-FPS terminal-wide
+		// Harmonica redraw made the workspace visibly throb even while idle.
+		// Source: DI-tubol. TODO-jufip.
 		marker := "■"
-		if peer.Typing && m.presencePulse > 0.5 {
+		if peer.Typing {
 			marker = "●"
 		}
 		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color(peer.Color)).Render(marker)+" "+peer.Name+"\n  "+peer.Embodiment+" · "+state+" · "+lineColumn(m.editor.Value(), peer.Anchor))

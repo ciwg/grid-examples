@@ -33,9 +33,10 @@ is the focused command. It does not require a terminal, live relay, or Gum.
 
 `go test ./tui` covers the terminal workspace's UTF-16 cursor mapping, remote
 cursor rendering, menu navigation, relay HTTP dispatch, export confirmation,
-Glow dependency guidance, and Harmonica typing pulse. Those assertions keep
+Glow dependency guidance, stable typing-presence rendering, and the absence of
+an idle animation tick. Those assertions keep
 terminal awareness offsets compatible with the Automerge sidecar's JavaScript
-string offsets. Source: `DI-mutoh`.
+string offsets. Source: `DI-mutoh`; `DI-tubol`.
 
 The checked-in VHS tape can be validated from the exercise root with:
 

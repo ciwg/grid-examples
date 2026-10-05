@@ -254,17 +254,21 @@ func TestGlowMissingReportsInstallLocation(t *testing.T) {
 	}
 }
 
-func TestHarmonicaPresencePulseChangesTypingMarker(t *testing.T) {
+func TestTypingPresenceUsesStableMarker(t *testing.T) {
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
 	state.peers = []peer{{Name: "Alice", Color: "#ff0000", Typing: true}}
-	for range 20 {
-		updated, _ := state.Update(presenceTickMsg{})
-		state = updated.(model)
-	}
-	if state.presencePulse <= 0.5 {
-		t.Fatalf("Harmonica pulse = %f, want visible typing pulse", state.presencePulse)
-	}
 	if !strings.Contains(state.sidebar(), "● Alice") {
-		t.Fatalf("typing sidebar did not render pulse: %q", state.sidebar())
+		t.Fatalf("typing sidebar did not render stable marker: %q", state.sidebar())
+	}
+}
+
+func TestWorkspaceInitWaitsForSidecarWithoutAnimation(t *testing.T) {
+	events := make(chan sidecarEvent)
+	close(events)
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, &sidecar{events: events})
+
+	message := state.Init()()
+	if _, ok := message.(sidecarMsg); !ok {
+		t.Fatalf("workspace startup message = %T, want sidecarMsg without animation batch", message)
 	}
 }

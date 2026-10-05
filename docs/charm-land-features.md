@@ -14,7 +14,6 @@ Ex3 uses the following Charm.land tools:
 | [Gum](https://github.com/charmbracelet/gum) | `make charm-topology` local or two-relay topology chooser. |
 | [Charm Log](https://github.com/charmbracelet/log) | Local `grid-tui` diagnostics for sidecar and relay problems. |
 | [Glow](https://github.com/charmbracelet/glow) | Help-menu reader for the Ex3 README, testing guide, and protocol documentation. |
-| [Harmonica](https://github.com/charmbracelet/harmonica) | A subtle physics-based pulse in `grid-tui`’s peer legend while a remote collaborator is typing. |
 | [VHS](https://github.com/charmbracelet/vhs) | Validated `grid-tui` collaboration tape plus an isolated-relay launcher that generates the terminal demonstration GIF where VHS and `ttyd` are installed. |
 
 Ex3 does not currently use Wish, Pop, Skate, Soft Serve, or the
