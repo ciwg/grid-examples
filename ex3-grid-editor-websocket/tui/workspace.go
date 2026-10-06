@@ -20,6 +20,7 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -240,8 +241,7 @@ func (client *sidecar) stop() {
 
 type sidecarMsg struct{ event sidecarEvent }
 type actionResultMsg struct {
-	status  string
-	content string
+	status, content, panelKind, panelAction string
 }
 type dialog struct {
 	title, prompt, action string
@@ -260,6 +260,9 @@ type model struct {
 	menuOpen                                      bool
 	mode                                          string
 	dialog                                        *dialog
+	panel                                         *workspacePanel
+	spinner                                       spinner.Model
+	busy                                          bool
 	replica                                       string
 }
 
@@ -284,7 +287,9 @@ func newModel(config Config, client *sidecar) model {
 	editor.ShowLineNumbers = true
 	editor.Prompt = ""
 	editor.Focus()
-	return model{relay: config.Relay, documentID: config.DocumentID, participantID: fmt.Sprintf("charm-%d", time.Now().UnixNano()), name: config.Name, color: config.Color, editor: editor, client: client, status: "connecting to relay", mode: "editor"}
+	spin := spinner.New()
+	spin.Style = menuStyle
+	return model{relay: config.Relay, documentID: config.DocumentID, participantID: fmt.Sprintf("charm-%d", time.Now().UnixNano()), name: config.Name, color: config.Color, editor: editor, client: client, status: "connecting to relay", mode: "editor", spinner: spin}
 }
 func (m model) Init() tea.Cmd { return waitForSidecar(m.client.events) }
 func waitForSidecar(events <-chan sidecarEvent) tea.Cmd {
@@ -308,11 +313,23 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.applySidecar(msg.event)
 		return m, waitForSidecar(m.client.events)
 	case actionResultMsg:
+		m.busy = false
 		m.status = msg.status
 		if msg.content != "" {
 			m.activity = append(m.activity, msg.content)
 		}
+		if msg.panelKind == panelResults {
+			m.panel = newResultsPanel(msg.status, msg.panelAction, msg.content, m.width, m.height)
+			m.editor.Blur()
+		}
 		return m, nil
+	case spinner.TickMsg:
+		if !m.busy {
+			return m, nil
+		}
+		var command tea.Cmd
+		m.spinner, command = m.spinner.Update(msg)
+		return m, command
 	case tea.MouseMsg:
 		if msg.Type == tea.MouseWheelUp || msg.Type == tea.MouseWheelDown {
 			// Intent: Bubble Tea's textarea does not own wheel scrolling, so
@@ -345,6 +362,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.KeyMsg:
+		if m.panel != nil {
+			return m.updatePanel(msg)
+		}
 		if m.dialog != nil {
 			return m.updateDialog(msg)
 		}
@@ -430,6 +450,42 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	return m, command
 }
 
+// updatePanel gives a focused Bubbles surface first access to input, then
+// returns focus to the shared editor on close or selection. This keeps local
+// navigation independent of Ex3's shared document protocol. Source: DI-vujub.
+func (m model) updatePanel(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.String() == "esc" {
+		m.panel = nil
+		m.editor.Focus()
+		return m, nil
+	}
+	if m.panel.hasPicker {
+		if selected, path := m.panel.picker.DidSelectFile(key); selected {
+			m.panel = nil
+			m.editor.Focus()
+			return m, m.busyCmd(m.importCmd(path))
+		}
+	}
+	if m.panel.hasList && key.String() == "enter" {
+		value := m.panel.selectedValue()
+		action := m.panel.action
+		if value != "" && action == "open" {
+			m.panel = nil
+			m.editor.Focus()
+			return m, m.busyCmd(m.openCmd(value, false))
+		}
+	}
+	return m, m.panel.update(key)
+}
+
+func (m *model) busyCmd(command tea.Cmd) tea.Cmd {
+	if command == nil {
+		return nil
+	}
+	m.busy = true
+	return tea.Batch(m.spinner.Tick, command)
+}
+
 // menuAt maps an actual terminal column to the rendered menu label. The
 // header occupies two rows, so click handling must not assume the menu begins
 // at row zero or that all labels have the same width. Source: DI-mutoh.
@@ -470,25 +526,30 @@ func (m *model) activate() tea.Cmd {
 	case "Peer legend":
 		m.status = fmt.Sprintf("%d remote peer(s) in legend", len(m.peers))
 	case "Activity":
-		m.status = "Relay activity is shown in the right panel"
+		m.panel = newActivityPanel(m.activity, m.width, m.height)
+		m.editor.Blur()
 	case "Keyboard shortcuts":
-		m.status = "Alt+D/E/V/C/R/P/H menus · arrows/Enter choose · Esc closes · Ctrl+P preview"
+		m.panel = newHelpPanel(m.width)
+		m.editor.Blur()
 	case "Refresh relay trace":
-		return m.traceCmd()
+		return m.busyCmd(m.traceCmd())
 	case "Save relay snapshot":
-		return m.snapshotCmd()
+		return m.busyCmd(m.snapshotCmd())
 	case "Published versions":
-		return m.publishedCmd()
+		return m.busyCmd(m.publishedCmd())
 	case "Catalog search":
 		m.openDialog("Catalog search", "Search relay metadata", "catalog", false)
 	case "Open shared document":
-		m.openDialog("Open shared document", "Document ID", "open", false)
+		return m.busyCmd(m.catalogCmd("", "open"))
 	case "New blank document":
 		m.openDialog("New blank document", "New document ID", "new", false)
 	case "Duplicate document":
 		m.openDialog("Duplicate document", "New document ID", "duplicate", false)
 	case "Import file":
-		m.openDialog("Import file", "Absolute source path", "import", false)
+		var command tea.Cmd
+		m.panel, command = newFilePickerPanel(m.width, m.height)
+		m.editor.Blur()
+		return command
 	case "Find":
 		m.openDialog("Find", "Text to find", "find", false)
 	case "Replace":
@@ -557,9 +618,9 @@ func (m *model) runDialog(d *dialog) tea.Cmd {
 	}
 	switch d.action {
 	case "open", "new":
-		return m.openCmd(value, d.action == "new")
+		return m.busyCmd(m.openCmd(value, d.action == "new"))
 	case "duplicate":
-		return m.duplicateCmd(value)
+		return m.busyCmd(m.duplicateCmd(value))
 	case "find":
 		m.find(value)
 		return nil
@@ -573,16 +634,16 @@ func (m *model) runDialog(d *dialog) tea.Cmd {
 		m.setProfile(value)
 		return nil
 	case "import":
-		return m.importCmd(value)
+		return m.busyCmd(m.importCmd(value))
 	case "catalog":
-		return m.catalogCmd(value)
+		return m.busyCmd(m.catalogCmd(value, ""))
 	case "publish":
-		return m.publishCmd(value)
+		return m.busyCmd(m.publishCmd(value))
 	case "exchange":
-		return m.exchangeCmd(value)
+		return m.busyCmd(m.exchangeCmd(value))
 	default:
 		if strings.HasPrefix(d.action, "export:") {
-			return m.exportCmd(strings.TrimPrefix(d.action, "export:"), value)
+			return m.busyCmd(m.exportCmd(strings.TrimPrefix(d.action, "export:"), value))
 		}
 	}
 	return nil
@@ -774,12 +835,12 @@ func (m *model) traceCmd() tea.Cmd {
 }
 func (m *model) publishedCmd() tea.Cmd {
 	return m.getJSON("/api/local/documents/"+url.PathEscape(m.documentID)+"/published", func(body []byte) actionResultMsg {
-		return actionResultMsg{status: "Published versions refreshed", content: string(body)}
+		return actionResultMsg{status: "Published versions", content: string(body), panelKind: panelResults}
 	})
 }
-func (m *model) catalogCmd(query string) tea.Cmd {
+func (m *model) catalogCmd(query, action string) tea.Cmd {
 	return m.getJSON("/api/local/documents?q="+url.QueryEscape(query), func(body []byte) actionResultMsg {
-		return actionResultMsg{status: "Catalog search: " + query, content: string(body)}
+		return actionResultMsg{status: "Relay document catalog", content: string(body), panelKind: panelResults, panelAction: action}
 	})
 }
 func (m *model) getJSON(path string, done func([]byte) actionResultMsg) tea.Cmd {
@@ -955,7 +1016,14 @@ func (m model) View() string {
 	bar := strings.Join(labels, " ")
 	main := m.mainView()
 	sidebar := panelStyle.Width(max(24, m.width-m.width*2/3-2)).Render(m.sidebar())
-	footer := mutedStyle.Render(m.status + "  •  Alt+key menu  •  arrows/Enter choose  •  Esc close  •  Ctrl+C quit")
+	status := m.status
+	if m.busy {
+		status = m.spinner.View() + " " + status
+	}
+	footer := mutedStyle.Render(status + "  •  Alt+key menu  •  arrows/Enter choose  •  Esc close  •  Ctrl+C quit")
+	if m.panel != nil {
+		return lipgloss.JoinVertical(lipgloss.Left, header, bar, m.panel.view(), footer)
+	}
 	screen := lipgloss.JoinVertical(lipgloss.Left, header, bar, lipgloss.JoinHorizontal(lipgloss.Top, main, sidebar), footer)
 	if m.menuOpen {
 		screen += "\n" + m.menuView()

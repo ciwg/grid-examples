@@ -4,6 +4,14 @@ set -euo pipefail
 # Intent: Record the real Grid TUI against an isolated live relay so the demo
 # shows the same Ex3 collaboration path used in development. Source: DI-mutoh.
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+tape=${1:-demos/grid-tui-collaboration.tape}
+case "$tape" in
+  demos/*.tape) ;;
+  *)
+    printf '%s\n' "Tape must be a demos/*.tape path: $tape" >&2
+    exit 1
+    ;;
+esac
 vhs_bin=${VHS_BIN:-}
 if [ -z "$vhs_bin" ]; then
   if command -v vhs >/dev/null 2>&1; then
@@ -52,4 +60,4 @@ if ! grep -q 'grid-relay listening' "$relay_log"; then
   printf '%s\n' 'Timed out waiting for isolated Grid relay.' >&2
   exit 1
 fi
-"$vhs_bin" demos/grid-tui-collaboration.tape
+PATH="$repo_dir/scripts:$PATH" "$vhs_bin" "$tape"

@@ -275,6 +275,15 @@ remote cursors and selections in peer color while the right sidebar keeps a
 separate name/color/position legend; participant names are never embedded in
 the shared document text. Source: DI-holoz.
 
+The existing menu bar opens focused [Bubbles](https://github.com/charmbracelet/bubbles)
+panels: **Help** renders discoverable key bindings; **Document** opens a
+filterable relay-document List with a metadata Table; **Import file** opens a
+File Picker; and **Collaborate → Activity** opens a scrollable Viewport. A
+Spinner appears only while a real relay, import, export, publish, or exchange
+command is running. These are local terminal affordances, so they do not alter
+the Automerge document, awareness messages, browser, or Neovim clients. Source:
+DI-vujub.
+
 Local loopback clients still work with no extra setup. For multi-machine
 browser or Neovim collaboration, start the relay with a bootstrap token and
 share that token in the document link or sidecar environment:

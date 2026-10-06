@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Intent: Give VHS a working encoder without replacing the host Snap launcher.
+# This wrapper is recorder-local and writes only the tape's requested media.
+# Source: DI-vujub.
+set -euo pipefail
+
+if ! command -v docker >/dev/null 2>&1; then
+  printf '%s\n' 'Docker is required to provide ffmpeg for VHS recordings.' >&2
+  exit 1
+fi
+
+workspace_dir=$(pwd -P)
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+user_id=$(id -u)
+group_id=$(id -g)
+
+exec docker run --rm --user "${user_id}:${group_id}" \
+  --volume /tmp:/tmp:rw \
+  --volume "${repo_dir}:${repo_dir}:rw" \
+  --workdir "${workspace_dir}" \
+  jrottenberg/ffmpeg:6.1-ubuntu "$@"

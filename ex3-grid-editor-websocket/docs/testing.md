@@ -36,7 +36,10 @@ cursor rendering, menu navigation, relay HTTP dispatch, export confirmation,
 Glow dependency guidance, stable typing-presence rendering, and the absence of
 an idle animation tick. Those assertions keep
 terminal awareness offsets compatible with the Automerge sidecar's JavaScript
-string offsets. Source: `DI-mutoh`; `DI-tubol`.
+string offsets. It also covers Bubbles Help key bindings, List/Table relay
+results, File Picker import entry, scrollable Activity Viewport, and Spinner
+activation only for real command work. Source: `DI-mutoh`; `DI-tubol`;
+`DI-vujub`.
 
 The checked-in VHS tape can be validated from the exercise root with:
 
@@ -44,12 +47,16 @@ The checked-in VHS tape can be validated from the exercise root with:
 "$(go env GOPATH)/bin/vhs" validate demos/grid-tui-collaboration.tape
 ```
 
-Run `scripts/record-grid-tui-vhs.sh` to start an isolated relay, record the
-Grid TUI menu flow, and generate `demos/grid-tui-collaboration.gif` and
-`demos/grid-tui-collaboration.mp4`. VHS needs
+Run `scripts/record-grid-tui-vhs.sh <tape>` to start an isolated relay and
+record a Grid TUI flow. The Bubbles tapes are `grid-tui-help.tape`,
+`grid-tui-document-results.tape`, `grid-tui-file-picker.tape`, and
+`grid-tui-activity.tape`; each produces matching GIF and MP4 evidence under
+`demos/`. VHS needs
 its `ttyd` runtime dependency; the launcher reports a missing recorder before
-it starts the relay. The GIF is visual demonstration evidence, not protocol
-conformance proof. Source: `DI-mutoh`.
+it starts the relay. On this host the recorder uses its project-local
+`scripts/ffmpeg` Docker wrapper because the system Snap ffmpeg cannot encode
+VHS frame sequences. The GIFs are visual demonstration evidence, not protocol
+conformance proof. Source: `DI-mutoh`; `DI-vujub`.
 
 The Go checks cover static diagnostics, deterministic Go tests, and handled Go
 errors. Browser tests cover embodiment-local JavaScript behavior; the browser

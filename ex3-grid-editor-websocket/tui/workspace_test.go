@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -270,5 +271,88 @@ func TestWorkspaceInitWaitsForSidecarWithoutAnimation(t *testing.T) {
 	message := state.Init()()
 	if _, ok := message.(sidecarMsg); !ok {
 		t.Fatalf("workspace startup message = %T, want sidecarMsg without animation batch", message)
+	}
+}
+
+func TestHelpMenuOpensBubblesKeyBindingPanel(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 30
+	state.activeMenu, state.activeItem, state.menuOpen = 6, 0, true
+	state.activate()
+
+	if state.panel == nil || !state.panel.hasHelp {
+		t.Fatalf("Help menu panel = %#v, want Bubbles help panel", state.panel)
+	}
+	if got := state.panel.view(); !strings.Contains(got, "Markdown preview") {
+		t.Fatalf("help panel did not render Bubbles key bindings: %q", got)
+	}
+}
+
+func TestDocumentAndRelayResultsUseBubblesListAndTable(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 30
+	updated, _ := state.Update(actionResultMsg{status: "Relay document catalog", content: `{"documents":[{"document_id":"alpha","title":"Alpha notes"}]}`, panelKind: panelResults, panelAction: "open"})
+	result := updated.(model)
+
+	if result.panel == nil || !result.panel.hasList || !result.panel.hasTable {
+		t.Fatalf("catalog panel = %#v, want Bubbles list and table", result.panel)
+	}
+	if got := result.panel.selectedValue(); got != "alpha" {
+		t.Fatalf("selected document = %q, want alpha", got)
+	}
+}
+
+func TestImportMenuOpensBubblesFilePicker(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 30
+	state.activeMenu, state.activeItem, state.menuOpen = 0, 3, true
+	state.activate()
+
+	if state.panel == nil || !state.panel.hasPicker {
+		t.Fatalf("import panel = %#v, want Bubbles file picker", state.panel)
+	}
+	if state.dialog != nil {
+		t.Fatal("import retained the absolute-path text dialog")
+	}
+}
+
+func TestActivityMenuUsesScrollableBubblesViewport(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 30
+	state.activity = []string{"first relay event", "second relay event"}
+	state.activeMenu, state.activeItem, state.menuOpen = 3, 2, true
+	state.activate()
+
+	if state.panel == nil || !state.panel.hasViewport {
+		t.Fatalf("activity panel = %#v, want Bubbles viewport", state.panel)
+	}
+	if got := state.panel.view(); !strings.Contains(got, "second relay event") {
+		t.Fatalf("activity panel did not render local history: %q", got)
+	}
+}
+
+func TestBusyCommandStartsSpinnerOnlyForActiveWork(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	if command := state.busyCmd(nil); command != nil || state.busy {
+		t.Fatal("nil work unexpectedly started the spinner")
+	}
+	command := state.busyCmd(func() tea.Msg { return actionResultMsg{status: "done"} })
+	if command == nil || !state.busy {
+		t.Fatal("active work did not start the Bubbles spinner")
+	}
+}
+
+func TestRunDialogWrapsExportInBusySpinner(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.runDialog(&dialog{action: "export:txt", input: textinput.New()})
+	// A blank export path intentionally does not begin a write or spinner.
+	if state.busy {
+		t.Fatal("blank export unexpectedly started spinner")
+	}
+	dialogInput := textinput.New()
+	dialogInput.SetValue("/tmp/grid-tui-export.txt")
+	state.runDialog(&dialog{action: "export:txt", input: dialogInput})
+	if !state.busy {
+		t.Fatal("export work did not start spinner")
 	}
 }
