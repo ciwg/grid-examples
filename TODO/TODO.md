@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] maduh - Improve Grid TUI with Bubbles usability components - `ex3-grid-editor-websocket/TODO/TODO-maduh-grid-tui-bubbles-usability.md`
 - [x] jufip - Stop Grid TUI idle redraws - `ex3-grid-editor-websocket/TODO/TODO-jufip-grid-tui-idle-redraw.md`
 - [x] pokoz - Add Grid TUI integration tests - `ex3-grid-editor-websocket/TODO/TODO-pokoz-grid-tui-integration-tests.md`
 - [x] gahin - Build Grid TUI menus - `ex3-grid-editor-websocket/TODO/TODO-gahin-grid-tui-menus.md`

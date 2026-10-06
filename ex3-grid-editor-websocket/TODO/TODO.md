@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] maduh - Grid TUI Bubbles usability components - `TODO/TODO-maduh-grid-tui-bubbles-usability.md`
 - [x] tafog - Grid TUI Huh launch form - `TODO/TODO-tafog-grid-tui-huh-launch-form.md`
 - [ ] gahin - Grid TUI menus - `TODO/TODO-gahin-grid-tui-menus.md`
 - [ ] molim - Grid TUI Harmonica presence motion - `TODO/TODO-molim-grid-tui-harmonica-presence.md`
