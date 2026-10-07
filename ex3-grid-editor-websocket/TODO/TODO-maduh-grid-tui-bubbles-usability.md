@@ -32,6 +32,18 @@ and VHS recordings.
 Affects: `tui/workspace.go`, `tui/panels.go`, `tui/workspace_test.go`,
 `README.md`, `docs/testing.md`, `demos/`, and `scripts/`.
 
+ID: DI-gisod
+Date: 2026-10-06 17:50:00 -0700
+Author: jj@thesalleys.com (JJ)
+Status: active
+Decision: Defer a Bubbles Progress bar until Ex3 exposes a truthful,
+incremental measure for an import, export, or publish operation.
+Intent: A spinner may honestly show that bounded work is active; a percentage
+must not imply measured completion that the current operation cannot provide.
+Constraints: Keep the delivered Spinner; do not add simulated percentages or
+record a Progress VHS clip until a real progress source exists.
+Affects: `tui/`, `docs/testing.md`, `demos/`, and this TODO.
+
 ## Highest-impact additions
 
 - [x] maduh.1 Add Bubbles Help and key bindings for a discoverable shortcut
@@ -51,8 +63,8 @@ Affects: `tui/workspace.go`, `tui/panels.go`, `tui/workspace_test.go`,
 - [x] maduh.6 Add a Bubbles Viewport for the activity/history surface while
   do not replace the editor textarea's scrolling behavior without separate
   design and interaction validation.
-- [ ] maduh.7 Add a Bubbles Progress bar only after an import, export, or
-  publish operation exposes meaningful incremental progress.
+- [x] maduh.7 Defer a Bubbles Progress bar by JJ approval until an import,
+  export, or publish operation exposes meaningful incremental progress.
 
 ## Deferred because they do not currently improve collaboration
 
