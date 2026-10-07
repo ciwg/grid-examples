@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/computerscienceiscool/grid-examples/ex3-grid-editor-websocket/service"
 )
 
 type testWriteCloser struct{ bytes.Buffer }
@@ -330,6 +331,40 @@ func TestMetadataSearchResultsPopulateDocumentChooser(t *testing.T) {
 	}
 	if len(rows) != 1 || rows[0][0] != "alpha" {
 		t.Fatalf("metadata rows = %#v, want alpha document", rows)
+	}
+}
+
+func TestCatalogCommandRendersActualRelayMetadataRecords(t *testing.T) {
+	app, err := service.NewApp(t.TempDir(), service.AppOptions{})
+	if err != nil {
+		t.Fatalf("new relay app: %v", err)
+	}
+	relay := httptest.NewServer(service.NewServer(app).Handler())
+	defer relay.Close()
+	request, err := http.NewRequest(http.MethodPost, relay.URL+"/api/local/documents/alpha/metadata", strings.NewReader(`{"participant_id":"test","title":"Alpha notes","tags":["demo"],"embodiment":"charm"}`))
+	if err != nil {
+		t.Fatalf("metadata request: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("post metadata: %v", err)
+	}
+	if _, err := readResponse(response); err != nil {
+		t.Fatalf("read metadata response: %v", err)
+	}
+
+	state := newModel(Config{Relay: relay.URL, DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 30
+	message := state.catalogCmd("", "open")()
+	result, ok := message.(actionResultMsg)
+	if !ok {
+		t.Fatalf("catalog message = %T, want actionResultMsg", message)
+	}
+	updated, _ := state.Update(result)
+	chooser := updated.(model).panel
+	if chooser == nil || chooser.selectedValue() != "alpha" {
+		t.Fatalf("catalog chooser = %#v, want selectable alpha metadata record", chooser)
 	}
 }
 
