@@ -11,6 +11,10 @@ Set TypingSpeed 20ms
 Type "go run ./cmd/grid-tui --relay http://127.0.0.1:7049 --doc vhs-activity --name VHS --color '#ff79c6'"
 Enter
 Sleep 5s
+Alt+R
+Sleep 1s
+Enter
+Sleep 3s
 Alt+C
 Sleep 1s
 Down

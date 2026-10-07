@@ -303,6 +303,12 @@ func waitForSidecar(events <-chan sidecarEvent) tea.Cmd {
 }
 
 func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	if m.panel != nil {
+		switch message.(type) {
+		case tea.KeyMsg, tea.MouseMsg:
+			return m.updatePanel(message)
+		}
+	}
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -362,9 +368,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.KeyMsg:
-		if m.panel != nil {
-			return m.updatePanel(msg)
-		}
 		if m.dialog != nil {
 			return m.updateDialog(msg)
 		}
@@ -453,29 +456,31 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 // updatePanel gives a focused Bubbles surface first access to input, then
 // returns focus to the shared editor on close or selection. This keeps local
 // navigation independent of Ex3's shared document protocol. Source: DI-vujub.
-func (m model) updatePanel(key tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if key.String() == "esc" {
-		m.panel = nil
-		m.editor.Focus()
-		return m, nil
-	}
-	if m.panel.hasPicker {
-		if selected, path := m.panel.picker.DidSelectFile(key); selected {
+func (m model) updatePanel(message tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := message.(tea.KeyMsg); ok {
+		if key.String() == "esc" {
 			m.panel = nil
 			m.editor.Focus()
-			return m, m.busyCmd(m.importCmd(path))
+			return m, nil
+		}
+		if m.panel.hasPicker {
+			if selected, path := m.panel.picker.DidSelectFile(key); selected {
+				m.panel = nil
+				m.editor.Focus()
+				return m, m.busyCmd(m.importCmd(path))
+			}
+		}
+		if m.panel.hasList && key.String() == "enter" {
+			value := m.panel.selectedValue()
+			action := m.panel.action
+			if value != "" && action == "open" {
+				m.panel = nil
+				m.editor.Focus()
+				return m, m.busyCmd(m.openCmd(value, false))
+			}
 		}
 	}
-	if m.panel.hasList && key.String() == "enter" {
-		value := m.panel.selectedValue()
-		action := m.panel.action
-		if value != "" && action == "open" {
-			m.panel = nil
-			m.editor.Focus()
-			return m, m.busyCmd(m.openCmd(value, false))
-		}
-	}
-	return m, m.panel.update(key)
+	return m, m.panel.update(message)
 }
 
 func (m *model) busyCmd(command tea.Cmd) tea.Cmd {

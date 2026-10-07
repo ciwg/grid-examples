@@ -331,6 +331,21 @@ func TestActivityMenuUsesScrollableBubblesViewport(t *testing.T) {
 	}
 }
 
+func TestActivityPanelOwnsMouseWheelInsteadOfSharedEditor(t *testing.T) {
+	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	state.width, state.height = 100, 20
+	state.editor.SetValue("one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten")
+	state.activity = []string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	state.panel = newActivityPanel(state.activity, state.width, state.height)
+	beforeLine := state.editor.Line()
+
+	updated, _ := state.Update(tea.MouseMsg{Type: tea.MouseWheelDown, Button: tea.MouseButtonWheelDown, Action: tea.MouseActionPress})
+	result := updated.(model)
+	if got := result.editor.Line(); got != beforeLine {
+		t.Fatalf("panel wheel changed editor line = %d, want %d", got, beforeLine)
+	}
+}
+
 func TestBusyCommandStartsSpinnerOnlyForActiveWork(t *testing.T) {
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
 	if command := state.busyCmd(nil); command != nil || state.busy {
