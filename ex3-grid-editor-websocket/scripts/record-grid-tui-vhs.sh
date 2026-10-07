@@ -57,7 +57,16 @@ for _ in $(seq 1 40); do
   sleep 0.25
 done
 if ! grep -q 'grid-relay listening' "$relay_log"; then
-  printf '%s\n' 'Timed out waiting for isolated Grid relay.' >&2
-  exit 1
+	printf '%s\n' 'Timed out waiting for isolated Grid relay.' >&2
+	exit 1
 fi
+for document in vhs-documents vhs-reference; do
+  if ! curl --fail --silent --show-error --request POST \
+    --header 'Content-Type: application/json' \
+    --data "{\"participant_id\":\"vhs-recorder\",\"title\":\"${document} workspace\",\"description\":\"VHS catalog proof\",\"tags\":[\"demo\",\"charm\"],\"embodiment\":\"charm\"}" \
+    "http://127.0.0.1:7049/api/local/documents/${document}/metadata" >/dev/null; then
+    printf '%s\n' "Failed to seed VHS metadata for ${document}." >&2
+    exit 1
+  fi
+done
 PATH="$repo_dir/scripts:$PATH" "$vhs_bin" "$tape"

@@ -245,6 +245,27 @@ func TestRelayTraceMenuUsesExistingEx3HTTPPath(t *testing.T) {
 	}
 }
 
+func TestCatalogSearchUsesExistingMetadataAPI(t *testing.T) {
+	requestPath := ""
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestPath = request.URL.RequestURI()
+		writer.Header().Set("Content-Type", "application/json")
+		if _, err := writer.Write([]byte(`{"results":[]}`)); err != nil {
+			t.Errorf("write catalog response: %v", err)
+		}
+	}))
+	defer server.Close()
+	state := newModel(Config{Relay: server.URL, DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
+	message := state.catalogCmd("road map", "open")()
+	result, ok := message.(actionResultMsg)
+	if !ok || result.panelKind != panelResults || result.panelAction != "open" {
+		t.Fatalf("catalog result = %#v", message)
+	}
+	if requestPath != "/api/local/metadata/search?q=road+map" {
+		t.Fatalf("catalog path = %q", requestPath)
+	}
+}
+
 func TestGlowMissingReportsInstallLocation(t *testing.T) {
 	t.Setenv("PATH", "")
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
@@ -299,6 +320,16 @@ func TestDocumentAndRelayResultsUseBubblesListAndTable(t *testing.T) {
 	}
 	if got := result.panel.selectedValue(); got != "alpha" {
 		t.Fatalf("selected document = %q, want alpha", got)
+	}
+}
+
+func TestMetadataSearchResultsPopulateDocumentChooser(t *testing.T) {
+	items, rows := resultRows(`{"query":"","results":[{"document_id":"alpha","title":"Alpha notes"}]}`)
+	if len(items) != 1 || items[0].value != "alpha" {
+		t.Fatalf("metadata items = %#v, want alpha document", items)
+	}
+	if len(rows) != 1 || rows[0][0] != "alpha" {
+		t.Fatalf("metadata rows = %#v, want alpha document", rows)
 	}
 }
 

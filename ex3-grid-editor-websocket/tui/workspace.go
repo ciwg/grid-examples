@@ -844,7 +844,7 @@ func (m *model) publishedCmd() tea.Cmd {
 	})
 }
 func (m *model) catalogCmd(query, action string) tea.Cmd {
-	return m.getJSON("/api/local/documents?q="+url.QueryEscape(query), func(body []byte) actionResultMsg {
+	return m.getJSON("/api/local/metadata/search?q="+url.QueryEscape(query), func(body []byte) actionResultMsg {
 		return actionResultMsg{status: "Relay document catalog", content: string(body), panelKind: panelResults, panelAction: action}
 	})
 }

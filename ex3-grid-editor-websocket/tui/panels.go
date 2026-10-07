@@ -152,7 +152,7 @@ func resultRecords(payload any) []map[string]any {
 		}
 		return records
 	case map[string]any:
-		for _, key := range []string{"documents", "entries", "records", "versions", "items"} {
+		for _, key := range []string{"documents", "entries", "records", "results", "versions", "items"} {
 			if nested, ok := value[key]; ok {
 				if records := resultRecords(nested); len(records) > 0 {
 					return records
