@@ -3,6 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -94,6 +95,12 @@ func newActivityPanel(entries []string, width, height int) *workspacePanel {
 
 func newFilePickerPanel(width, height int) (*workspacePanel, tea.Cmd) {
 	picker := filepicker.New()
+	// Intent: Start imports in Grid TUI's real workspace so the picker is useful
+	// in a launched terminal and deterministic in a reproducible VHS session.
+	// Source: DI-vujub.
+	if workingDirectory, err := os.Getwd(); err == nil {
+		picker.CurrentDirectory = workingDirectory
+	}
 	picker.SetHeight(max(5, height-10))
 	return &workspacePanel{title: "Import a file", kind: panelFiles, picker: picker, hasPicker: true}, picker.Init()
 }

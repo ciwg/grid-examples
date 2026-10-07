@@ -372,13 +372,21 @@ func TestImportMenuOpensBubblesFilePicker(t *testing.T) {
 	state := newModel(Config{Relay: "http://relay.test", DocumentID: "demo", Name: "Charm User", Color: defaultColor}, nil)
 	state.width, state.height = 100, 30
 	state.activeMenu, state.activeItem, state.menuOpen = 0, 3, true
-	state.activate()
+	command := state.activate()
 
 	if state.panel == nil || !state.panel.hasPicker {
 		t.Fatalf("import panel = %#v, want Bubbles file picker", state.panel)
 	}
 	if state.dialog != nil {
 		t.Fatal("import retained the absolute-path text dialog")
+	}
+	if state.panel.picker.CurrentDirectory == "." {
+		t.Fatal("file picker did not anchor to the Grid TUI workspace directory")
+	}
+	updated, _ := state.Update(command())
+	result := updated.(model)
+	if got := result.panel.picker.View(); strings.Contains(got, "No Files Found") {
+		t.Fatalf("file picker did not receive its directory result: %q", got)
 	}
 }
 

@@ -303,18 +303,24 @@ func waitForSidecar(events <-chan sidecarEvent) tea.Cmd {
 }
 
 func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := message.(tea.WindowSizeMsg); ok {
+		m.width, m.height = size.Width, size.Height
+		m.editor.SetWidth(max(20, size.Width*2/3-8))
+		m.editor.SetHeight(max(5, size.Height-10))
+		if m.panel != nil {
+			return m, m.panel.update(size)
+		}
+		return m, nil
+	}
 	if m.panel != nil {
 		switch message.(type) {
-		case tea.KeyMsg, tea.MouseMsg:
+		case sidecarMsg, actionResultMsg, spinner.TickMsg:
+			// These messages update shared workspace state before the local panel.
+		default:
 			return m.updatePanel(message)
 		}
 	}
 	switch msg := message.(type) {
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		m.editor.SetWidth(max(20, msg.Width*2/3-8))
-		m.editor.SetHeight(max(5, msg.Height-10))
-		return m, nil
 	case sidecarMsg:
 		m.applySidecar(msg.event)
 		return m, waitForSidecar(m.client.events)
