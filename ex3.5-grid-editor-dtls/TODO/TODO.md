@@ -1,0 +1,27 @@
+# TODO
+
+- [ ] maduh - Grid TUI Bubbles usability components - `TODO/TODO-maduh-grid-tui-bubbles-usability.md`
+- [x] tafog - Grid TUI Huh launch form - `TODO/TODO-tafog-grid-tui-huh-launch-form.md`
+- [ ] gahin - Grid TUI menus - `TODO/TODO-gahin-grid-tui-menus.md`
+- [ ] molim - Grid TUI Harmonica presence motion - `TODO/TODO-molim-grid-tui-harmonica-presence.md`
+- [ ] mubig - Grid TUI VHS collaboration proof - `TODO/TODO-mubig-grid-tui-vhs-proof.md`
+- [ ] budad - Grid Glow help reader - `TODO/TODO-budad-grid-glow-help.md`
+
+- [x] pisul - grid-editor restore published version - `TODO/TODO-pisul-grid-editor-restore-published-version.md`
+- [x] fozoz - Ex3 PromiseGrid alignment - `TODO/TODO-fozoz-promisegrid-alignment.md`
+- [x] 015 - grid-editor conference demo fixes and PromiseGrid trace surface - `TODO/TODO-pukur-grid-editor-demo-fixes.md`
+- [x] 016 - grid-editor private/incognito browser document-sync mismatch - `TODO/TODO-tamuk-grid-editor-private-browser-document-sync.md`
+- [x] 014 - grid-editor remote mutation capabilities for multi-machine ex3 - `TODO/TODO-buvir-grid-editor-remote-mutation-capabilities.md`
+- [x] 013 - grid-editor websocket live transport for browser sync and awareness - `TODO/TODO-luzig-grid-editor-websocket-live-transport.md`
+- [x] 012 - grid-editor browser color chooser visibility in Chrome - `TODO/TODO-furav-grid-editor-browser-color-preview.md`
+- [x] 011 - grid-editor browser inline underline rendering - `TODO/TODO-huvok-grid-editor-browser-underline.md`
+- [x] 010 - grid-editor phase 4 document metadata slice - `TODO/TODO-pamov-grid-editor-phase-4-metadata.md`
+- [x] 009 - grid-editor phase 4 publish and import exchange slice - `TODO/TODO-ravup-grid-editor-phase-4-publish.md`
+- [x] 008 - grid-editor phase 3 review, comments, and history surfaces - `TODO/TODO-mudak-grid-editor-phase-3.md`
+- [x] 007 - grid-editor phase 2 document workflow, preview, and export surfaces - `TODO/TODO-lusab-grid-editor-phase-2.md`
+- [x] 006 - grid-editor phase 1 collaborative-editor UX, status, and preferences - `TODO/TODO-tizaf-grid-editor-phase-1.md`
+- [x] 005 - grid-editor presence aging and historical activity split - `TODO/TODO-mivor-grid-editor-presence-lifecycle.md`
+- [x] 004 - grid-editor relay security, sync robustness, and connection-flow hardening - `TODO/TODO-dafek-grid-editor-hardening-review.md`
+- [x] 002 - grid-editor real CRDT relay, CAS persistence, and CodeMirror browser migration - `TODO/TODO-sanup-grid-editor-crdt-relay.md`
+- [x] 003 - grid-editor Neovim CRDT sidecar and plugin migration - `TODO/TODO-vorud-grid-editor-nvim-sidecar.md`
+- [x] 001 - grid-editor Go runtime, repo-local live protocols, and browser/Neovim embodiments - `TODO/TODO-kubiv-grid-editor-foundation.md`
