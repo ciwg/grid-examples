@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 
 import { RelayAwarenessClient } from "./relay-awareness.js";
 
-test("awareness websocket startup does not wait for an empty document snapshot", async () => {
+test("awareness websocket fallback does not wait for an empty document snapshot", async () => {
   const originalWebSocket = globalThis.WebSocket;
+  const originalRTCPeerConnection = globalThis.RTCPeerConnection;
   const originalWindow = globalThis.window;
   const sockets = [];
 
@@ -42,6 +43,7 @@ test("awareness websocket startup does not wait for an empty document snapshot",
   }
 
   globalThis.WebSocket = MockWebSocket;
+  globalThis.RTCPeerConnection = undefined;
   globalThis.window = {
     location: { origin: "http://relay.test" },
     setInterval,
@@ -72,6 +74,7 @@ test("awareness websocket startup does not wait for an empty document snapshot",
     client.disconnect();
   } finally {
     globalThis.WebSocket = originalWebSocket;
+    globalThis.RTCPeerConnection = originalRTCPeerConnection;
     globalThis.window = originalWindow;
   }
 });

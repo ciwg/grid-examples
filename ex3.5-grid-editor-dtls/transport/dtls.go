@@ -4,6 +4,7 @@
 package transport
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -24,6 +25,8 @@ import (
 )
 
 const dtlsServerName = "grid-editor-dtls"
+
+const dtlsHandshakeTimeout = 5 * time.Second
 
 // DTLSIdentity is the locally owned transport certificate and private key.
 // Intent: A node presents a stable, fingerprintable transport identity to a
@@ -189,9 +192,24 @@ func DTLSDial(endpoint string, identity DTLSIdentity, peerCertificateDER []byte,
 	if err != nil {
 		return nil, err
 	}
-	connection, err := dtls.Dial("udp", address, config)
+	packetConnection, err := net.ListenUDP("udp", nil)
 	if err != nil {
+		return nil, fmt.Errorf("listen for dtls peer: %w", err)
+	}
+	connection, err := dtls.Client(packetConnection, address, config)
+	if err != nil {
+		if closeErr := packetConnection.Close(); closeErr != nil {
+			return nil, fmt.Errorf("create dtls peer connection: %w (close packet connection: %v)", err, closeErr)
+		}
 		return nil, fmt.Errorf("dial dtls peer: %w", err)
+	}
+	handshakeContext, cancel := context.WithTimeout(context.Background(), dtlsHandshakeTimeout)
+	defer cancel()
+	if err := connection.HandshakeContext(handshakeContext); err != nil {
+		if closeErr := connection.Close(); closeErr != nil {
+			return nil, fmt.Errorf("handshake dtls peer: %w (close connection: %v)", err, closeErr)
+		}
+		return nil, fmt.Errorf("handshake dtls peer: %w", err)
 	}
 	return connection, nil
 }

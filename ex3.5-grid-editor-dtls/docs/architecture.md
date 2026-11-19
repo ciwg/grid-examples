@@ -22,11 +22,10 @@ complete implemented scope and non-claims are recorded in the
 ## Topology
 
 ```text
-Browser UI -----------------------------\
-                                         \
-Browser-local Automerge replica ----------> local node -> direct DTLS peers
-                                         /
-Neovim plugin -> nvim sidecar ----------/
+Browser UI -> WebRTC DataChannel (DTLS) -> local node -> direct DTLS peers
+Browser-local Automerge replica -/                 ^
+                                                  /
+Neovim plugin -> nvim sidecar -> local node -----/
                     local Automerge replica
 ```
 
@@ -46,7 +45,9 @@ The browser UI and the Neovim sidecar own:
 - local Automerge replicas
 - local editing UX
 - local cursor and selection wiring
-- local HTTP calls into the service
+- local HTTP calls into the service; the browser uses WebRTC DataChannels
+  (DTLS-backed), while the Neovim sidecar retains WebSocket compatibility
+  carriage
 
 They do not define the peer-visible protocol truth. Source: `DI-lodug`;
 `DI-tofug`; `DI-jilin`; `DI-ramuv`; `DI-tavul`.
@@ -70,7 +71,8 @@ Public, PromiseGrid-facing:
 Internal-only:
 
 - local HTTP endpoints
-- WebSocket carriage for live document and awareness traffic
+- browser WebRTC DataChannel carriage for live document and awareness traffic
+- Neovim sidecar WebSocket compatibility carriage
 - bootstrap-secret and short-lived remote mutation capability handling
 - browser polling loop and local UI state
 - Neovim helper transport and `vim.system` plumbing

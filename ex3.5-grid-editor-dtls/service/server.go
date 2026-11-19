@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,8 @@ import (
 )
 
 type Server struct {
-	app *App
+	app              *App
+	browserTransport string
 
 	mu                   sync.Mutex
 	syncSubscribers      map[string]map[chan struct{}]struct{}
@@ -22,8 +24,18 @@ type Server struct {
 }
 
 func NewServer(app *App) *Server {
+	return NewServerWithBrowserTransport(app, "webrtc")
+}
+
+// NewServerWithBrowserTransport configures the browser embodiment carriage
+// without changing signed-envelope or direct-peer protocol behavior.
+func NewServerWithBrowserTransport(app *App, browserTransport string) *Server {
+	if browserTransport != "webrtc" && browserTransport != "websocket" && browserTransport != "polling" {
+		browserTransport = "webrtc"
+	}
 	server := &Server{
 		app:                  app,
+		browserTransport:     browserTransport,
 		syncSubscribers:      map[string]map[chan struct{}]struct{}{},
 		awarenessSubscribers: map[string]map[chan struct{}]struct{}{},
 	}
@@ -51,7 +63,8 @@ func (server *Server) handleIndex(writer http.ResponseWriter, request *http.Requ
 	}
 	setStaticAssetHeaders(writer)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := writer.Write(web.MustRead("index.html")); err != nil {
+	indexHTML := bytes.Replace(web.MustRead("index.html"), []byte("</head>"), []byte(`<script>window.__GRID_BROWSER_TRANSPORT__=`+fmt.Sprintf("%q", server.browserTransport)+`;</script></head>`), 1)
+	if _, err := writer.Write(indexHTML); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -166,6 +179,8 @@ func (server *Server) handleLocalDocument(writer http.ResponseWriter, request *h
 		server.handleSession(writer, request, documentID)
 	case "sync-socket":
 		server.handleSyncSocket(writer, request, documentID)
+	case "webrtc-offer":
+		server.handleWebRTCOffer(writer, request, documentID)
 	case "awareness":
 		server.handleAwareness(writer, request, documentID)
 	case "awareness-socket":

@@ -35,6 +35,7 @@ func main() {
 		remoteAccessToken = flag.String("remote-access-token", "", "optional bootstrap token for remote mutation sessions")
 		dtlsListen        = flag.String("dtls-listen", ":7026", "direct DTLS/UDP listen address")
 		dtlsAdvertise     = flag.String("dtls-advertise", "", "public direct DTLS/UDP endpoint to place in a peer invitation")
+		browserTransport  = flag.String("browser-transport", "webrtc", "browser live transport: webrtc, websocket, or polling")
 		peers             peerFlags
 	)
 	flag.Var(&peers, "dtls-peer", "base64url JSON direct-peer invitation (repeatable)")
@@ -54,7 +55,7 @@ func main() {
 		}
 		dtlsPeers = append(dtlsPeers, peerInvite)
 	}
-	identity, err := app.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{
+	node, err := app.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{
 		ListenEndpoint: *dtlsListen,
 		Peers:          dtlsPeers,
 	})
@@ -62,16 +63,16 @@ func main() {
 		log.Fatalf("start direct dtls peer delivery: %v", err)
 	}
 
-	server := service.NewServer(app)
+	server := service.NewServerWithBrowserTransport(app, *browserTransport)
 	log.Printf("grid-relay listening on %s", *listen)
 	log.Printf("relay author=%s", app.Meta().LocalID)
 	log.Printf("dtls endpoint=%s", *dtlsListen)
-	log.Printf("dtls fingerprint=%s", identity.Fingerprint)
+	log.Printf("dtls fingerprint=%s", node.Identity.Fingerprint)
 	if *dtlsAdvertise != "" {
 		invitation := service.DTLSPeerInvite{
 			Endpoint:               *dtlsAdvertise,
-			CertificateBase64:      base64.StdEncoding.EncodeToString(identity.DER),
-			CertificateFingerprint: identity.Fingerprint,
+			CertificateBase64:      base64.StdEncoding.EncodeToString(node.Identity.DER),
+			CertificateFingerprint: node.Identity.Fingerprint,
 		}
 		invitationBytes, err := json.Marshal(invitation)
 		if err != nil {

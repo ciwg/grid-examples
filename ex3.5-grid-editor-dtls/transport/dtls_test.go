@@ -33,7 +33,11 @@ func TestDTLSDialExchangesBytesWithPinnedPeer(t *testing.T) {
 			serverResult <- acceptErr
 			return
 		}
-		defer connection.Close()
+		defer func() {
+			if closeErr := connection.Close(); closeErr != nil {
+				t.Errorf("close server connection: %v", closeErr)
+			}
+		}()
 		payload := make([]byte, len("direct-peer"))
 		if _, readErr := io.ReadFull(connection, payload); readErr != nil {
 			serverResult <- readErr

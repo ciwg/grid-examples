@@ -1,5 +1,5 @@
 import * as Automerge from "@automerge/automerge";
-import { bearerHeaders, canUseWebSocket, toWebSocketURL } from "./live-transport.js";
+import { bearerHeaders, canUseWebRTC, canUseWebSocket, isLiveConnectionOpen, openWebRTCChannel, preferredBrowserTransport, toWebSocketURL } from "./live-transport.js";
 
 const AutomergeNext = Automerge.next;
 const EMPTY_DOCUMENT_BYTES = base64ToBytes("hW9Kg8HDZmEAdQEQUDnUuZsuTLOKK6EtAqSUwAF91ThR16b5XY1P61eTHXkwnJNTicqZ35V+jMImBQWmigYBAgMCEwIjBkACVgIHFQkhAiMCNAFCAlYCgAECfwB/AX8Bf8660dIGfwB/B38HY29udGVudH8AfwEBfwR/AH8AAA==");
@@ -70,7 +70,12 @@ export class AutomergeRelayClient {
     this.emitStatus("connecting");
     this.initialSyncReady = false;
     this.queuedUpdate = null;
-    if (canUseWebSocket()) {
+    const preferredTransport = preferredBrowserTransport();
+    if (preferredTransport === "webrtc" && canUseWebRTC()) {
+      await this.connectWebRTC();
+      return;
+    }
+    if (preferredTransport !== "polling" && canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
@@ -175,6 +180,44 @@ export class AutomergeRelayClient {
         this.emitStatus("disconnected", "sync websocket closed");
       });
     });
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+  }
+
+  async connectWebRTC() {
+    this.transport = "webrtc";
+    const live = await openWebRTCChannel(this.basePath, "sync", { since: this.offset }, this.capabilities.sync);
+    const socket = live.channel;
+    this.socket = socket;
+    let settled = false;
+    let socketWork = Promise.resolve();
+    const ready = new Promise((resolve, reject) => {
+      socket.addEventListener("message", (event) => {
+        socketWork = socketWork.then(() => this.handleSocketMessage(event.data));
+        socketWork.then(() => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        }).catch((error) => {
+          if (!settled) {
+            settled = true;
+            reject(error);
+            return;
+          }
+          this.emitStatus("error", error.message);
+          this.emit("error", error);
+        });
+      });
+      socket.addEventListener("error", () => reject(new Error("sync webrtc channel failed")));
+      socket.addEventListener("close", () => {
+        this.connected = false;
+        this.socket = null;
+        this.emitStatus("disconnected", "sync webrtc channel closed");
+      });
+    });
+    await live.ready;
+    this.connected = true;
+    await ready;
     this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
   }
 
@@ -335,7 +378,7 @@ export class AutomergeRelayClient {
   async postChange(change) {
     const replicaBase64 = bytesToBase64(this.getReplicaBytes());
     const textBase64 = bytesToBase64(new TextEncoder().encode(this.getText()));
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (isLiveConnectionOpen(this.socket)) {
       this.socket.send(JSON.stringify({
         type: "post-sync",
         participant_id: this.participantID,

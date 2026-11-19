@@ -1,4 +1,4 @@
-import { bearerHeaders, canUseWebSocket, toWebSocketURL } from "./live-transport.js";
+import { bearerHeaders, canUseWebRTC, canUseWebSocket, isLiveConnectionOpen, openWebRTCChannel, preferredBrowserTransport, toWebSocketURL } from "./live-transport.js";
 
 export class RelayAwarenessClient {
   constructor(options) {
@@ -51,7 +51,12 @@ export class RelayAwarenessClient {
   }
 
   async connect() {
-    if (canUseWebSocket()) {
+    const preferredTransport = preferredBrowserTransport();
+    if (preferredTransport === "webrtc" && canUseWebRTC()) {
+      await this.connectWebRTC();
+      return;
+    }
+    if (preferredTransport !== "polling" && canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
@@ -140,6 +145,31 @@ export class RelayAwarenessClient {
     this.startHeartbeat();
   }
 
+  async connectWebRTC() {
+    this.transport = "webrtc";
+    const live = await openWebRTCChannel(this.basePath, "awareness", {}, this.capabilities.awareness);
+    const socket = live.channel;
+    this.socket = socket;
+    const ready = new Promise((resolve, reject) => {
+      socket.addEventListener("message", (event) => {
+        try {
+          this.handleSocketMessage(event.data);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      socket.addEventListener("error", () => reject(new Error("awareness webrtc channel failed")));
+      socket.addEventListener("close", () => {
+        this.socket = null;
+      });
+    });
+    await live.ready;
+    await this.broadcast();
+    await ready;
+    this.startHeartbeat();
+  }
+
   async poll() {
     const response = await fetch(`${this.basePath}/awareness`);
     if (!response.ok) {
@@ -166,7 +196,7 @@ export class RelayAwarenessClient {
   }
 
   async broadcast() {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (isLiveConnectionOpen(this.socket)) {
       this.socket.send(JSON.stringify({
         type: "post-awareness",
         participant_id: this.participantID,
@@ -179,7 +209,7 @@ export class RelayAwarenessClient {
       }));
       return;
     }
-    if (this.transport === "websocket") {
+    if (this.transport === "webrtc") {
       return;
     }
     // Intent: Keep awareness rooted in the old collab-awareness state shape

@@ -10,16 +10,17 @@ specification doc-CID. Source: `DI-hadil`.
 
 | Local draft profile | Current pCID | Implemented components |
 | --- | --- | --- |
-| `live-document` | `bafkreidoqtzj76jlzzbytfrtni655k6zk4ymo2zuhgwnzqfiz6wtrgzwje` | Relay-signed Automerge change storage/relay, browser replica, Neovim sidecar replica, and WebSocket carriage. |
-| `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | Relay-signed latest-state presence feed, browser/Neovim presentation, and WebSocket carriage. |
+| `live-document` | `bafkreidoqtzj76jlzzbytfrtni655k6zk4ymo2zuhgwnzqfiz6wtrgzwje` | Relay-signed Automerge change storage/relay, browser replica over WebRTC DataChannel (DTLS-backed), and Neovim sidecar replica over its compatibility carriage. |
+| `live-awareness` | `bafkreidowbo76hmjrcqfa6l5ahmftlejqtjuzqgzusqjrxjnkngksntsl4` | Relay-signed latest-state presence feed, browser WebRTC DataChannel presentation, and Neovim sidecar presentation. |
 | `document-metadata` | `bafkreih7sut3exri37qperlyvohk74vmreppzmcoxenjzozj6zkblanday` | Relay-signed latest-state document metadata and relay-backed catalog search. |
 | `publish-document` | `bafkreibhvpjr5uddw5z5qmkkowfucawuvzr7hafvsc5djetkax3s6amt3a` | Relay-signed publish manifests, CAS-backed text/replica objects, and local import/exchange resolution. |
 | `restore-published-version` | `bafkreicugmkq4edygey752uexzxrte3rcvhldepptc7fzwf44qpfxijlgm` | Capability-gated, relay-signed current-time restore promises that name a published manifest and carry one exact continuing Automerge change. |
 
 The scope covers Ex3's pCID-selected signed envelopes, relay CAS and
 append-only log, relay-to-relay ingestion, browser and Neovim local replicas,
-and WebSocket carriage for live document and awareness traffic. WebSocket is
-not a fifth profile and does not define peer-visible message meaning. Source:
+and browser WebRTC DataChannel carriage for live document and awareness
+traffic. WebRTC supplies the browser's DTLS-backed local transport; it is not
+a fifth profile and does not define peer-visible message meaning. Source:
 `DI-hadil`; `DI-povip`.
 
 ### Provisional remote admission

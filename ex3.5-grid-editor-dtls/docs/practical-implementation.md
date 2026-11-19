@@ -2,8 +2,8 @@
 
 This is a practical guide for getting `grid-editor` working in a more
 server-shaped environment where grid agents serve only a thin browser shell,
-bootstrap the grid kernel bits, and then move the rest of the live session
-over WebSocket.
+bootstrap the grid kernel bits, and then move the browser live session over
+WebRTC DataChannels.
 
 ## Keep the browser shell thin
 
@@ -15,13 +15,13 @@ over WebSocket.
 - Keep protocol meaning in the signed payloads and pCIDs, not in ad hoc
   front-end route behavior.
 
-## Treat WebSocket as transport, not protocol meaning
+## Treat browser WebRTC as transport, not protocol meaning
 
 - The current repo uses HTTP polling and loopback mutation endpoints for local
   relay clients.
-- In the server experiment, WebSocket can replace that transport layer for
-  lower latency.
-- Do not let WebSocket frames become the new undocumented protocol.
+- The browser uses WebRTC DataChannels. Their reliable channel is DTLS-backed;
+  browser JavaScript does not expose raw DTLS/UDP.
+- Do not let WebRTC messages become the new undocumented protocol.
 - Keep the same protocol split:
   - `live-document`
   - `live-awareness`
@@ -33,7 +33,7 @@ over WebSocket.
 1. Serve the thin browser shell.
 2. Browser fetches a small bootstrap payload:
    - local/session identity hints
-   - active relay URL or WebSocket URL
+   - active relay URL and WebRTC offer endpoint
    - current pCIDs
    - document ID
 3. Browser opens the live transport.
@@ -70,7 +70,7 @@ high-level contract boundaries.
 - `document-metadata` is durable latest-state document labeling.
 - `publish-document` is durable handoff/exchange.
 
-Do not collapse those into one "session state" blob just because WebSocket is
+Do not collapse those into one "session state" blob just because WebRTC is
 available.
 
 ## Current codebase cautions
@@ -94,7 +94,7 @@ available.
 If the goal is to get something working quickly:
 
 1. keep the relay-side protocol model
-2. add a thin authenticated WebSocket adapter
+2. add a thin authenticated WebRTC offer/DataChannel adapter
 3. reuse the current document / awareness / metadata / publish boundaries
 4. delay bigger server-only redesigns until after the first proof run
 
@@ -108,7 +108,8 @@ PromiseGrid structure that is already paying off here.
 
 Current ex3 status:
 
-- browser and Neovim live `sync` and `awareness` now prefer websocket transport
+- browser live `sync` and `awareness` prefer WebRTC DataChannels (DTLS-backed)
+- Neovim retains WebSocket compatibility carriage
 - metadata and publish remain on the existing HTTP endpoints
 - loopback-only mutation rules still apply until a separate authenticated
   remote-client design is locked

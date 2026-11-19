@@ -27248,6 +27248,64 @@ function findMatch(source, query, start, options) {
 function canUseWebSocket() {
   return typeof globalThis.WebSocket === "function";
 }
+function canUseWebRTC() {
+  return typeof globalThis.RTCPeerConnection === "function";
+}
+function preferredBrowserTransport() {
+  const selected = globalThis.window?.__GRID_BROWSER_TRANSPORT__;
+  return selected === "websocket" || selected === "polling" || selected === "webrtc" ? selected : "webrtc";
+}
+async function openWebRTCChannel(basePath, channelName, params = {}, capability = "") {
+  const connection = new RTCPeerConnection({ iceServers: [] });
+  const channel = connection.createDataChannel(channelName, { ordered: true });
+  const ready = new Promise((resolve, reject) => {
+    channel.addEventListener("open", () => resolve());
+    channel.addEventListener("error", () => reject(new Error(`${channelName} webrtc channel failed`)));
+  });
+  const offer = await connection.createOffer();
+  await connection.setLocalDescription(offer);
+  await waitForICEGathering(connection);
+  const origin = globalThis.window?.location?.origin || "http://127.0.0.1";
+  const url = new URL(`${basePath.replace(/\/$/, "")}/webrtc-offer`, origin);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== void 0 && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...bearerHeaders(capability)
+    },
+    body: JSON.stringify({
+      channel: channelName,
+      offer: connection.localDescription
+    })
+  });
+  if (!response.ok) {
+    connection.close();
+    throw new Error(`${channelName} webrtc offer failed: ${response.status}`);
+  }
+  const payload = await response.json();
+  await connection.setRemoteDescription(payload.answer);
+  return { channel, connection, ready };
+}
+function isLiveConnectionOpen(connection) {
+  return connection?.readyState === globalThis.WebSocket?.OPEN || connection?.readyState === "open";
+}
+function waitForICEGathering(connection) {
+  if (connection.iceGatheringState === "complete") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    connection.addEventListener("icegatheringstatechange", () => {
+      if (connection.iceGatheringState === "complete") {
+        resolve();
+      }
+    });
+  });
+}
 function toWebSocketURL(basePath, action, params = {}) {
   const origin = globalThis.window?.location?.origin || "http://127.0.0.1";
   const url = new URL(`${basePath.replace(/\/$/, "")}/${action}`, origin);
@@ -27337,7 +27395,12 @@ var RelayAwarenessClient = class {
     return this.transport;
   }
   async connect() {
-    if (canUseWebSocket()) {
+    const preferredTransport = preferredBrowserTransport();
+    if (preferredTransport === "webrtc" && canUseWebRTC()) {
+      await this.connectWebRTC();
+      return;
+    }
+    if (preferredTransport !== "polling" && canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
@@ -27420,6 +27483,30 @@ var RelayAwarenessClient = class {
     });
     this.startHeartbeat();
   }
+  async connectWebRTC() {
+    this.transport = "webrtc";
+    const live = await openWebRTCChannel(this.basePath, "awareness", {}, this.capabilities.awareness);
+    const socket = live.channel;
+    this.socket = socket;
+    const ready = new Promise((resolve, reject) => {
+      socket.addEventListener("message", (event) => {
+        try {
+          this.handleSocketMessage(event.data);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      socket.addEventListener("error", () => reject(new Error("awareness webrtc channel failed")));
+      socket.addEventListener("close", () => {
+        this.socket = null;
+      });
+    });
+    await live.ready;
+    await this.broadcast();
+    await ready;
+    this.startHeartbeat();
+  }
   async poll() {
     const response = await fetch(`${this.basePath}/awareness`);
     if (!response.ok) {
@@ -27445,7 +27532,7 @@ var RelayAwarenessClient = class {
     this.emit("change");
   }
   async broadcast() {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (isLiveConnectionOpen(this.socket)) {
       this.socket.send(JSON.stringify({
         type: "post-awareness",
         participant_id: this.participantID,
@@ -27458,7 +27545,7 @@ var RelayAwarenessClient = class {
       }));
       return;
     }
-    if (this.transport === "websocket") {
+    if (this.transport === "webrtc") {
       return;
     }
     const response = await fetch(`${this.basePath}/awareness`, {
@@ -31776,7 +31863,12 @@ var AutomergeRelayClient = class {
     this.emitStatus("connecting");
     this.initialSyncReady = false;
     this.queuedUpdate = null;
-    if (canUseWebSocket()) {
+    const preferredTransport = preferredBrowserTransport();
+    if (preferredTransport === "webrtc" && canUseWebRTC()) {
+      await this.connectWebRTC();
+      return;
+    }
+    if (preferredTransport !== "polling" && canUseWebSocket()) {
       await this.connectWebSocket();
       return;
     }
@@ -31870,6 +31962,43 @@ var AutomergeRelayClient = class {
         this.emitStatus("disconnected", "sync websocket closed");
       });
     });
+    this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
+  }
+  async connectWebRTC() {
+    this.transport = "webrtc";
+    const live = await openWebRTCChannel(this.basePath, "sync", { since: this.offset }, this.capabilities.sync);
+    const socket = live.channel;
+    this.socket = socket;
+    let settled = false;
+    let socketWork = Promise.resolve();
+    const ready = new Promise((resolve, reject) => {
+      socket.addEventListener("message", (event) => {
+        socketWork = socketWork.then(() => this.handleSocketMessage(event.data));
+        socketWork.then(() => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        }).catch((error) => {
+          if (!settled) {
+            settled = true;
+            reject(error);
+            return;
+          }
+          this.emitStatus("error", error.message);
+          this.emit("error", error);
+        });
+      });
+      socket.addEventListener("error", () => reject(new Error("sync webrtc channel failed")));
+      socket.addEventListener("close", () => {
+        this.connected = false;
+        this.socket = null;
+        this.emitStatus("disconnected", "sync webrtc channel closed");
+      });
+    });
+    await live.ready;
+    this.connected = true;
+    await ready;
     this.emitStatus(this.pendingChanges > 0 ? "syncing" : "ready");
   }
   async poll() {
@@ -32009,7 +32138,7 @@ var AutomergeRelayClient = class {
   async postChange(change2) {
     const replicaBase64 = bytesToBase64(this.getReplicaBytes());
     const textBase64 = bytesToBase64(new TextEncoder().encode(this.getText()));
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (isLiveConnectionOpen(this.socket)) {
       this.socket.send(JSON.stringify({
         type: "post-sync",
         participant_id: this.participantID,

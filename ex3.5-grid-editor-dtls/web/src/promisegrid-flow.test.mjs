@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 
 import { formatTransportSummary, traceCaption, traceProtocolClass } from "./promisegrid-flow.js";
 
-test("formatTransportSummary reports relay websocket modes explicitly", () => {
+test("formatTransportSummary reports relay webrtc modes explicitly", () => {
   assert.equal(
-    formatTransportSummary("websocket", "websocket"),
-    "browser sync: websocket · awareness: websocket · path: relay",
+    formatTransportSummary("webrtc", "webrtc"),
+    "browser sync: webrtc · awareness: webrtc · path: relay",
   );
 });
 

@@ -118,7 +118,7 @@ Features:
   - Relay
   - peer feed
   - Peer relay
-  - websocket fanout
+  - direct DTLS peer delivery
   - Other editor
 - live message trace
 - clickable message inspection via PromiseGrid Inspector
@@ -133,7 +133,8 @@ PromiseGrid enablement:
   events
 - document and awareness traffic are observed after protocol ingest and shown
   back to the page through a trace endpoint
-- the browser transport badge verifies that the browser is using websocket
+- the browser transport badge verifies that the browser is using WebRTC
+  DataChannels (DTLS-backed)
   transport to the relay while relay-to-relay propagation still goes through
   the signed peer-message feed
 
@@ -288,7 +289,7 @@ PromiseGrid enablement:
 Private/incognito note:
 - the browser startup path is hardened against blocked storage and late-join
   text loss
-- if websocket startup still leaves the browser empty while the relay reports
+- if WebRTC startup still leaves the browser empty while the relay reports
   authoritative document history, the browser forces one bounded HTTP sync
   catch-up before staying blank
 - if relay state advertises a stale blank snapshot, that HTTP recovery path
@@ -383,7 +384,7 @@ Why it exists:
   - what actually moved over the relay
   - which protocol family the message belonged to
   - which participant authored it
-  - whether the browser is using websocket transport to the relay
+  - whether the browser is using WebRTC DataChannel transport to the relay
 
 What the inspector JSON means:
 

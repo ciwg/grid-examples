@@ -82,7 +82,7 @@ Flow diagram labels:
 - `Relay`
 - `peer feed`
 - `Peer relay`
-- `websocket fanout`
+- `direct DTLS peer delivery`
 - `Other editor`
 
 Visible in screenshot:

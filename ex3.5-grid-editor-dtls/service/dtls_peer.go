@@ -28,24 +28,30 @@ type DTLSPeerConfig struct {
 	Peers          []DTLSPeerInvite
 }
 
+// DTLSPeerNode describes the running node listener and its invitation identity.
+type DTLSPeerNode struct {
+	Identity transport.DTLSIdentity
+	Endpoint string
+}
+
 // StartDTLSPeerDelivery starts direct peer ingress and durable outbound retry.
 // Intent: Keep every node responsible for its own signed-envelope persistence
 // and direct peer delivery rather than delegating live collaboration to a
 // central relay. Source: DI-higom; DI-pirov.
-func (app *App) StartDTLSPeerDelivery(ctx context.Context, peerConfig DTLSPeerConfig) (transport.DTLSIdentity, error) {
+func (app *App) StartDTLSPeerDelivery(ctx context.Context, peerConfig DTLSPeerConfig) (DTLSPeerNode, error) {
 	if peerConfig.ListenEndpoint == "" {
-		return transport.DTLSIdentity{}, fmt.Errorf("dtls listener endpoint is required")
+		return DTLSPeerNode{}, fmt.Errorf("dtls listener endpoint is required")
 	}
 	identity, err := transport.LoadOrCreateDTLSIdentity(
 		filepath.Join(app.dataRoot, "dtls", "certificate.pem"),
 		filepath.Join(app.dataRoot, "dtls", "private-key.pem"),
 	)
 	if err != nil {
-		return transport.DTLSIdentity{}, fmt.Errorf("load dtls node identity: %w", err)
+		return DTLSPeerNode{}, fmt.Errorf("load dtls node identity: %w", err)
 	}
 	listener, err := transport.DTLSListen(peerConfig.ListenEndpoint, identity)
 	if err != nil {
-		return transport.DTLSIdentity{}, err
+		return DTLSPeerNode{}, err
 	}
 	go func() {
 		<-ctx.Done()
@@ -68,7 +74,7 @@ func (app *App) StartDTLSPeerDelivery(ctx context.Context, peerConfig DTLSPeerCo
 		peerInvite := peerInvite
 		go app.deliverDTLSPeer(ctx, identity, peerInvite)
 	}
-	return identity, nil
+	return DTLSPeerNode{Identity: identity, Endpoint: listener.Addr().String()}, nil
 }
 
 func (app *App) deliverDTLSPeer(ctx context.Context, identity transport.DTLSIdentity, peerInvite DTLSPeerInvite) {

@@ -24,9 +24,13 @@ Grid Editor is built around three layers:
 2. embodiment-local CRDT replicas that own collaborative editing convergence
 3. browser and Neovim UIs that present the shared document to humans
 
-The current browser path uses CodeMirror plus Automerge. The current Neovim
-path uses the repo-local plugin plus a sidecar helper. In both cases, the app
-is meant to demonstrate how a PromiseGrid-style tool can separate:
+The current browser path uses CodeMirror plus Automerge over WebRTC
+DataChannels. WebRTC provides the browser's DTLS-backed local-node transport;
+the browser cannot open raw DTLS/UDP sockets directly. The current Neovim
+path uses the repo-local plugin plus a WebSocket-compatible sidecar helper.
+Between independent nodes, signed envelopes use direct, certificate-pinned
+raw DTLS/UDP. In both cases, the app is meant to demonstrate how a
+PromiseGrid-style tool can separate:
 
 - durable document collaboration
 - ephemeral presence and cursor awareness
@@ -357,7 +361,8 @@ with each node's own local root and reachable UDP endpoint.
 
 For remote mutation, the relay uses its operator-configured bootstrap secret
 only to mint short-lived capabilities for the selected document and profile.
-WebSocket carries live traffic but does not define a fifth profile or replace
+Browser WebRTC DataChannels and sidecar WebSocket compatibility carriage carry
+live traffic but do not define a fifth profile or replace
 the pCID-selected protocol meanings.
 
 Each relay root contains that relay's durable local artifacts. To inspect a
@@ -457,15 +462,22 @@ repo-local helper:
 That script detects either `docker compose` or `docker-compose` on the local
 host before resetting and rebuilding the demo stack. Source: `DI-samuv`.
 
-## Browser Version
+## Browser transport
 
-In `ex3-grid-editor-websocket`, the browser and Neovim live `sync` and
-`awareness` flows prefer websocket transport when the runtime supports it,
-while metadata and publish remain on the existing HTTP endpoints. Source:
-`DI-vubih`; `DI-bitus`.
+In `ex3.5-grid-editor-dtls`, browser `sync` and `awareness` prefer WebRTC
+DataChannels. This is DTLS-backed browser carriage, not raw browser DTLS:
+browser JavaScript has no raw UDP/DTLS socket API. The browser and its local
+node exchange WebRTC offer/answer over HTTP, then carry live messages on the
+DataChannels. The Neovim sidecar retains WebSocket compatibility carriage;
+metadata and publish remain on HTTP endpoints.
+
+Use `--browser-transport=webrtc` (the default), `websocket`, or `polling` to
+select the browser-to-local-node carriage for compatibility testing. This flag
+does not change direct node-to-node DTLS/UDP delivery or signed envelope
+meaning.
 
 This transport split is aligned with the current PromiseGrid dev-guide
-direction: websocket is only the carriage for live traffic here, not the
+direction: carriage is only the local implementation transport here, not the
 protocol meaning, and the existing `live-document` / `live-awareness` /
 metadata / publish boundary remains explicit. It is still a repo-local
 provisional implementation, not a frozen upstream PromiseGrid app API. Source:

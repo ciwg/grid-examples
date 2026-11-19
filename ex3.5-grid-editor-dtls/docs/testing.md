@@ -74,6 +74,40 @@ They do not prove Internet reachability through arbitrary NATs; use a LAN,
 port forwarding, or a private network such as Tailscale for multi-host demos.
 Source: `DI-higom`; `DI-pirov`.
 
+### Direct-node acceptance suite
+
+`service.TestBrowserNodesConvergeThroughDirectDTLS` proves two independent
+browser harnesses converge through separate nodes after the nodes exchange
+only direct DTLS envelopes. `service.TestBrowserAndNeovimNodesConvergeThroughDirectDTLS`
+proves the same path from a browser on one node to the Neovim sidecar on the
+other. `service.TestDirectDTLSRetriesAfterLossAndReceiverRestart` starts the
+receiver after a sender has already attempted delivery, restarts that receiver,
+and verifies persisted envelopes converge without duplication.
+
+`service.TestHeadlessBrowserEditorEditPersistsDocument` uses a real headless
+Chrome CodeMirror surface, inserts text only after its document client is
+ready, and verifies that the application's persisted document state contains
+that edit. `service.TestHeadlessBrowserEditorsConvergeThroughDirectDTLS` uses
+two independent app data roots and real Chrome editor surfaces in both
+directions: browser A edits, node A sends the signed envelope directly over
+DTLS to node B, browser B renders it; then browser B edits and browser A
+renders the returned change. The browser-to-its-own-node hop remains the
+current browser WebRTC DataChannel implementation. WebRTC is the
+DTLS-backed browser transport; the browser does not expose raw-DTLS sockets.
+The test proves the inter-node path is direct raw DTLS/UDP.
+
+`service.TestHeadlessBrowserAndNeovimConvergeThroughDirectDTLS` uses Chrome's
+real CodeMirror surface and the real Neovim sidecar in both directions across
+two direct-DTLS nodes. `service.TestHeadlessBrowserDirectDTLSRetriesAfterReceiverRestart`
+routes the direct path through a test-only UDP proxy that drops a datagram,
+starts the receiver only after the first browser edit, restarts that receiver,
+and verifies the browser's persisted envelopes converge without duplication.
+
+Run `scripts/test-two-host-dtls.sh` with `DTLS_REMOTE_SSH` and
+`DTLS_REMOTE_ROOT` to automate the Tailscale/private-network proof against a
+second host. The script is intentionally not silently skipped: the acceptance
+suite is incomplete until that command passes against a reachable second host.
+
 ## Test layers and their claims
 
 ### Source-derived protocol publication
@@ -108,13 +142,14 @@ interoperability. Source: `DI-hihok`; `DI-tibum`; `DI-nihiz`.
 
 ### Decentralized collaboration and embodiments
 
-Existing `service/interoperability_test.go`, WebSocket/service tests, and
+Existing `service/interoperability_test.go`, WebRTC/browser tests, WebSocket
+sidecar tests, and
 headless browser startup tests cover browser/Neovim behavior, relay exchange,
 late join, live carriage, and private-session hardening. Browser JavaScript
 tests cover storage fallback and startup recovery; the sidecar build covers its
 embodiment-local helper.
 
-The headless browser startup proof records a sync WebSocket `sync-ready` event
+The browser startup proof records a WebRTC offer plus DataChannel readiness
 separately from the rendered transport label. In its normal late-join case it
 requires zero HTTP sync recovery reads. In its injected stale-blank-snapshot
 case it requires the ready event plus one bounded HTTP sync recovery read from
@@ -123,7 +158,7 @@ and relay; they neither change pCID-selected payload meaning nor establish a
 network-wide transport guarantee. Source: `DI-gofut`; `DI-raron`.
 
 The fresh-document regression opens a previously unknown, empty document ID in
-an isolated real browser and requires the document-sync WebSocket plus a ready,
+an isolated real browser and requires the document-sync WebRTC DataChannel plus a ready,
 editable CodeMirror surface. A separate unit test proves the awareness client
 does not wait for a first remote-awareness snapshot before it reports its
 socket connection established.

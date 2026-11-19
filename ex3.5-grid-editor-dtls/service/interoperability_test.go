@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -295,6 +296,107 @@ func TestFreshBrowserLateJoinReceivesSharedDocument(t *testing.T) {
 	if got := stringField(t, opened, "relay_transport"); got != "websocket" {
 		t.Fatalf("browser relay transport mismatch: got %q want %q", got, "websocket")
 	}
+}
+
+func TestBrowserNodesConvergeThroughDirectDTLS(t *testing.T) {
+	appA, err := service.NewApp(filepath.Join(t.TempDir(), "node-a"))
+	if err != nil {
+		t.Fatalf("new node a: %v", err)
+	}
+	appB, err := service.NewApp(filepath.Join(t.TempDir(), "node-b"))
+	if err != nil {
+		t.Fatalf("new node b: %v", err)
+	}
+	serverA := httptest.NewUnstartedServer(service.NewServer(appA).Handler())
+	serverA.Listener = listenTCP4OrSkip(t)
+	serverA.Start()
+	defer serverA.Close()
+	serverB := httptest.NewUnstartedServer(service.NewServer(appB).Handler())
+	serverB.Listener = listenTCP4OrSkip(t)
+	serverB.Start()
+	defer serverB.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodeB, err := appB.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{ListenEndpoint: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("start node b dtls: %v", err)
+	}
+	_, err = appA.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{ListenEndpoint: "127.0.0.1:0", Peers: []service.DTLSPeerInvite{{Endpoint: nodeB.Endpoint, CertificateBase64: base64.StdEncoding.EncodeToString(nodeB.Identity.DER), CertificateFingerprint: nodeB.Identity.Fingerprint}}})
+	if err != nil {
+		t.Fatalf("start node a dtls: %v", err)
+	}
+	repoRoot := repoRoot(t)
+	browserA := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browserA.Close()
+	browserB := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browserB.Close()
+	browserA.WaitForType(t, "ready")
+	browserB.WaitForType(t, "ready")
+	for _, setup := range []struct {
+		process          *jsonProcess
+		url, participant string
+	}{{browserA, serverA.URL, "alice"}, {browserB, serverB.URL, "bob"}} {
+		setup.process.Send(t, map[string]any{"type": "connect", "relay_url": setup.url, "participant_id": setup.participant, "doc_id": "demo", "display_name": setup.participant, "color": "#1d6fd6"})
+		setup.process.WaitForType(t, "opened")
+	}
+	const shared = "direct dtls browser collaboration"
+	browserA.Send(t, map[string]any{"type": "set_text", "content": shared})
+	browserA.WaitForMessage(t, func(message map[string]any) bool {
+		return stringField(t, message, "type") == "local_change" && stringField(t, message, "content") == shared
+	})
+	browserB.WaitForMessage(t, func(message map[string]any) bool {
+		return stringField(t, message, "type") == "document" && stringField(t, message, "content") == shared
+	})
+}
+
+func TestBrowserAndNeovimNodesConvergeThroughDirectDTLS(t *testing.T) {
+	appA, err := service.NewApp(filepath.Join(t.TempDir(), "node-a"))
+	if err != nil {
+		t.Fatalf("new node a: %v", err)
+	}
+	appB, err := service.NewApp(filepath.Join(t.TempDir(), "node-b"))
+	if err != nil {
+		t.Fatalf("new node b: %v", err)
+	}
+	serverA := httptest.NewUnstartedServer(service.NewServer(appA).Handler())
+	serverA.Listener = listenTCP4OrSkip(t)
+	serverA.Start()
+	defer serverA.Close()
+	serverB := httptest.NewUnstartedServer(service.NewServer(appB).Handler())
+	serverB.Listener = listenTCP4OrSkip(t)
+	serverB.Start()
+	defer serverB.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodeB, err := appB.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{ListenEndpoint: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("start node b dtls: %v", err)
+	}
+	_, err = appA.StartDTLSPeerDelivery(ctx, service.DTLSPeerConfig{ListenEndpoint: "127.0.0.1:0", Peers: []service.DTLSPeerInvite{{Endpoint: nodeB.Endpoint, CertificateBase64: base64.StdEncoding.EncodeToString(nodeB.Identity.DER), CertificateFingerprint: nodeB.Identity.Fingerprint}}})
+	if err != nil {
+		t.Fatalf("start node a dtls: %v", err)
+	}
+	repoRoot := repoRoot(t)
+	browser := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "service", "testdata", "browser-harness.mjs"))
+	defer browser.Close()
+	sidecar := startJSONProcess(t, repoRoot, "node", filepath.Join(repoRoot, "cmd", "grid-nvim-sidecar", "helper.bundle.cjs"), "--relay", serverB.URL)
+	defer sidecar.Close()
+	browser.WaitForType(t, "ready")
+	sidecar.WaitForType(t, "info")
+	browser.Send(t, map[string]any{"type": "connect", "relay_url": serverA.URL, "participant_id": "browser-a", "doc_id": "demo", "display_name": "Browser A", "color": "#1d6fd6"})
+	browser.WaitForType(t, "opened")
+	sidecar.Send(t, map[string]any{"type": "connect", "relay_url": serverB.URL, "participant_id": "nvim-b", "display_name": "Nvim B", "color": "#d66f1d"})
+	sidecar.WaitForType(t, "connected")
+	sidecar.Send(t, map[string]any{"type": "open", "doc_id": "demo"})
+	sidecar.WaitForType(t, "opened")
+	const shared = "direct dtls browser to neovim"
+	browser.Send(t, map[string]any{"type": "set_text", "content": shared})
+	browser.WaitForMessage(t, func(message map[string]any) bool {
+		return stringField(t, message, "type") == "local_change" && stringField(t, message, "content") == shared
+	})
+	sidecar.WaitForMessage(t, func(message map[string]any) bool {
+		return stringField(t, message, "type") == "changed" && stringField(t, message, "content") == shared
+	})
 }
 
 func TestNeovimPluginRegistersPhaseOneCommands(t *testing.T) {
