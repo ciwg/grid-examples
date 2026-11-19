@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] ditaz - Build experimental Ex3.5 DTLS Grid Editor - `TODO/TODO-ditaz-ex3-dtls-grid-editor.md`
 - [ ] maduh - Improve Grid TUI with Bubbles usability components - `ex3-grid-editor-websocket/TODO/TODO-maduh-grid-tui-bubbles-usability.md`
 - [x] jufip - Stop Grid TUI idle redraws - `ex3-grid-editor-websocket/TODO/TODO-jufip-grid-tui-idle-redraw.md`
 - [x] pokoz - Add Grid TUI integration tests - `ex3-grid-editor-websocket/TODO/TODO-pokoz-grid-tui-integration-tests.md`
