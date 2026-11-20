@@ -28,6 +28,20 @@ func TestServerRejectsRemoteSyncMutation(t *testing.T) {
 	}
 }
 
+func TestServerRejectsRemoteWebRTCOfferWithoutCapability(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+	request := httptest.NewRequest(http.MethodPost, "/api/local/documents/demo/webrtc-offer", bytes.NewBufferString(`{"channel":"sync","offer":{}}`))
+	request.RemoteAddr = "198.51.100.20:4123"
+	response := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want %d", response.Code, http.StatusForbidden)
+	}
+}
+
 func TestServerRejectsRemoteRestoreWithoutDedicatedCapability(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)

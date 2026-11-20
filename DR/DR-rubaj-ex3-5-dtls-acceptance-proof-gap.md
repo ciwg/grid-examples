@@ -54,3 +54,19 @@ Until all four are automated and passing, the branch must be described as
   still WebSocket rather than raw browser DTLS, and no actual second
   host/private-network execution has been available to run the two-host
   harness. The state remains `open` and merge remains blocked.
+
+### 2026-11-19 — WebRTC browser embodiment and deterministic Chrome harness
+
+- The browser's default document and awareness carriage is now WebRTC
+  DataChannels, which are DTLS-backed; the prior local WebSocket wording is
+  no longer current.
+- `TestHeadlessBrowserEditorsConvergeThroughDirectDTLS`,
+  `TestHeadlessBrowserAndNeovimConvergeThroughDirectDTLS`, and
+  `TestHeadlessBrowserDirectDTLSRetriesAfterReceiverRestart` now drive real
+  CodeMirror through Chrome DevTools. They wait for live WebRTC DataChannels,
+  not Chrome virtual time, then prove the two separate local node roots use
+  raw DTLS/UDP for their sole inter-node path.
+- The browser-to-browser, browser-to-Neovim, and packet-loss/restart local
+  acceptance proofs pass. The two-host/private-network harness is still
+  present but unrun because no second reachable host has been supplied.
+- The DR remains `open`; this event does not authorize merge.

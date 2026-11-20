@@ -103,6 +103,16 @@ routes the direct path through a test-only UDP proxy that drops a datagram,
 starts the receiver only after the first browser edit, restarts that receiver,
 and verifies the browser's persisted envelopes converge without duplication.
 
+The real-browser tests use Chrome DevTools automation rather than Chrome's
+virtual-time DOM dump: WebRTC needs wall-clock ICE and DTLS timers before its
+DataChannels are usable. The harness waits for both WebRTC channels and the
+editable CodeMirror surface, then exits Chrome cleanly before test cleanup.
+Run the exact browser/direct-node acceptance group with:
+
+```bash
+go test ./service -run 'TestHeadlessBrowser(EditorsConvergeThroughDirectDTLS|AndNeovimConvergeThroughDirectDTLS|DirectDTLSRetriesAfterReceiverRestart)' -count=1
+```
+
 Run `scripts/test-two-host-dtls.sh` with `DTLS_REMOTE_SSH` and
 `DTLS_REMOTE_ROOT` to automate the Tailscale/private-network proof against a
 second host. The script is intentionally not silently skipped: the acceptance
@@ -150,12 +160,12 @@ tests cover storage fallback and startup recovery; the sidecar build covers its
 embodiment-local helper.
 
 The browser startup proof records a WebRTC offer plus DataChannel readiness
-separately from the rendered transport label. In its normal late-join case it
-requires zero HTTP sync recovery reads. In its injected stale-blank-snapshot
-case it requires the ready event plus one bounded HTTP sync recovery read from
-the full relay history. These are observations from an isolated test browser
-and relay; they neither change pCID-selected payload meaning nor establish a
-network-wide transport guarantee. Source: `DI-gofut`; `DI-raron`.
+separately from the rendered transport label. Its normal late-join and
+injected stale-blank-snapshot cases both require the document to render from
+the live DataChannel after the initial relay state is prepared. These are
+observations from an isolated test browser and relay; they neither change
+pCID-selected payload meaning nor establish a network-wide transport
+guarantee. Source: `DI-gofut`; `DI-raron`.
 
 The fresh-document regression opens a previously unknown, empty document ID in
 an isolated real browser and requires the document-sync WebRTC DataChannel plus a ready,

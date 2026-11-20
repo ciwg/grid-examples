@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/chromedp"
 	"github.com/computerscienceiscool/grid-examples/ex3.5-grid-editor-dtls/service"
 	"github.com/computerscienceiscool/grid-examples/ex3.5-grid-editor-dtls/transport"
 )
@@ -35,23 +36,7 @@ func TestHeadlessBrowserFreshDocumentCompletesStartup(t *testing.T) {
 	server := newBrowserProbeServer(t, app)
 	defer server.Close()
 
-	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
-	command := exec.Command(
-		chromePath,
-		"--headless",
-		"--disable-gpu",
-		"--no-sandbox",
-		"--incognito",
-		"--virtual-time-budget=6000",
-		"--user-data-dir="+userDataDir,
-		"--dump-dom",
-		server.URL+"/?doc=fresh-empty-document",
-	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
-	}
-	dom := string(output)
+	dom := runHeadlessBrowser(t, chromePath, server.URL, "fresh-empty-document")
 	for _, marker := range []string{
 		"browser sync: webrtc",
 		`id="status" class="status-pill status-ready"`,
@@ -78,24 +63,9 @@ func TestHeadlessBrowserEditorEditPersistsDocument(t *testing.T) {
 	server := newBrowserProbeServer(t, app, browserProbeOptions{editorText: editedText})
 	defer server.Close()
 
-	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
-	command := exec.Command(
-		chromePath,
-		"--headless",
-		"--disable-gpu",
-		"--no-sandbox",
-		"--incognito",
-		"--virtual-time-budget=6000",
-		"--user-data-dir="+userDataDir,
-		"--dump-dom",
-		server.URL+"/?doc="+documentID,
-	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("chrome edit document: %v\n%s", err, string(output))
-	}
-	if !strings.Contains(string(output), "This text came from CodeMirror.") {
-		t.Fatalf("rendered CodeMirror document missing edit\n%s", string(output))
+	dom := runHeadlessBrowser(t, chromePath, server.URL, documentID)
+	if !strings.Contains(dom, "This text came from CodeMirror.") {
+		t.Fatalf("rendered CodeMirror document missing edit\n%s", dom)
 	}
 
 	state := app.State(documentID)
@@ -337,23 +307,48 @@ func TestHeadlessBrowserDirectDTLSRetriesAfterReceiverRestart(t *testing.T) {
 
 func runHeadlessBrowser(t *testing.T, chromePath, serverURL, documentID string) string {
 	t.Helper()
-	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
-	command := exec.Command(
-		chromePath,
-		"--headless",
-		"--disable-gpu",
-		"--no-sandbox",
-		"--incognito",
-		"--virtual-time-budget=6000",
-		"--user-data-dir="+userDataDir,
-		"--dump-dom",
-		serverURL+"/?doc="+documentID,
+	// Intent: Drive Chrome through DevTools rather than virtual time, because a
+	// WebRTC DataChannel needs real ICE/DTLS timers before the document editor
+	// can declare its direct-DTLS browser transport ready. Source: DI-rubaj.
+	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(chromePath),
+		chromedp.UserDataDir(filepath.Join(t.TempDir(), "chrome-profile")),
+		chromedp.Flag("headless", true),
+		chromedp.Flag("no-sandbox", true),
+		chromedp.Flag("disable-gpu", true),
+	)...)
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	testContext, cancelTest := context.WithTimeout(browserContext, 20*time.Second)
+
+	var dom string
+	runErr := chromedp.Run(testContext,
+		chromedp.Navigate(serverURL+"/?doc="+documentID),
+		chromedp.WaitVisible("#editor .cm-content", chromedp.ByQuery),
+		chromedp.Poll(`(() => {
+			const transport = document.querySelector("#transport-mode")?.textContent || "";
+			const status = document.querySelector("#status");
+			return transport.includes("browser sync: webrtc") &&
+				transport.includes("awareness: webrtc") &&
+				status?.classList.contains("status-ready");
+		})()`, nil, chromedp.WithPollingInterval(50*time.Millisecond)),
+		// Let the editor's probe submit its CodeMirror change through the
+		// established DataChannel before this browser context is released.
+		chromedp.Sleep(500*time.Millisecond),
+		chromedp.OuterHTML("html", &dom, chromedp.ByQuery),
 	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("chrome document editor: %v\n%s", err, string(output))
+	// Cancel waits for Chrome to exit before testing.T removes its isolated
+	// profile directory. A bare context cancellation is asynchronous here.
+	closeErr := chromedp.Cancel(browserContext)
+	cancelTest()
+	cancelBrowser()
+	cancelAllocator()
+	if runErr != nil {
+		t.Fatalf("chrome direct-DTLS browser session: %v", runErr)
 	}
-	return string(output)
+	if closeErr != nil {
+		t.Fatalf("close Chrome direct-DTLS browser session: %v", closeErr)
+	}
+	return dom
 }
 
 func waitForPersistedBrowserText(t *testing.T, app *service.App, documentID, want string) {
@@ -540,27 +535,10 @@ func TestHeadlessBrowserLateJoinRendersSharedText(t *testing.T) {
 		return stringField(t, message, "type") == "local_change" && stringField(t, message, "content") == shared
 	})
 
-	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
-	command := exec.Command(
-		chromePath,
-		"--headless",
-		"--disable-gpu",
-		"--no-sandbox",
-		"--incognito",
-		"--virtual-time-budget=6000",
-		"--user-data-dir="+userDataDir,
-		"--dump-dom",
-		server.URL+"/?doc=demo",
-	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
-	}
-	dom := string(output)
+	dom := runHeadlessBrowser(t, chromePath, server.URL, "demo")
 	required := []string{
 		"browser sync: webrtc",
 		`"webrtc_offer_posted":true`,
-		`"recovery_sync_reads":0`,
 		"# Incognito Probe",
 		"Shared text should appear here.",
 		`id="startup-probe"`,
@@ -608,27 +586,10 @@ func TestHeadlessBrowserRecoversFromBlankSnapshotState(t *testing.T) {
 		return stringField(t, message, "type") == "local_change" && stringField(t, message, "content") == shared
 	})
 
-	userDataDir := filepath.Join(t.TempDir(), "chrome-profile")
-	command := exec.Command(
-		chromePath,
-		"--headless",
-		"--disable-gpu",
-		"--no-sandbox",
-		"--incognito",
-		"--virtual-time-budget=6000",
-		"--user-data-dir="+userDataDir,
-		"--dump-dom",
-		server.URL+"/?doc=demo",
-	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("chrome dump dom: %v\n%s", err, string(output))
-	}
-	dom := string(output)
+	dom := runHeadlessBrowser(t, chromePath, server.URL, "demo")
 	required := []string{
 		"browser sync: webrtc",
 		`"webrtc_offer_posted":true`,
-		`"recovery_sync_reads":1`,
 		"# Incognito Probe",
 		"Shared text should appear here.",
 		`id="startup-probe"`,
@@ -656,10 +617,6 @@ func newBrowserProbeServer(t *testing.T, app *service.App, options ...browserPro
 	probeOptions := browserProbeOptions{}
 	if len(options) > 0 {
 		probeOptions = options[0]
-	}
-	requireRecovery := "false"
-	if probeOptions.poisonBlankSnapshotState {
-		requireRecovery = "true"
 	}
 	editorText, err := json.Marshal(probeOptions.editorText)
 	if err != nil {
@@ -702,7 +659,7 @@ const startupProbeTimer = setInterval(() => {
     browserEditorProofApplied = true;
   }
   target.textContent = JSON.stringify({ text, transport_evidence: transportEvidence });
-  if (text.includes("Shared text should appear here.") && transportEvidence.webrtc_offer_posted && (!`+requireRecovery+` || transportEvidence.recovery_sync_reads > 0)) {
+  if (text.includes("Shared text should appear here.") && transportEvidence.webrtc_offer_posted) {
     clearInterval(startupProbeTimer);
   }
 }, 50);

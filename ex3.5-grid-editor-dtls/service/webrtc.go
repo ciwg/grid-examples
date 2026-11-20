@@ -28,11 +28,12 @@ type webRTCOfferResponse struct {
 // application envelopes retain their existing signed meanings. Source:
 // DI-higom; DI-pirov.
 type webRTCSession struct {
-	server     *Server
-	peer       *webrtc.PeerConnection
-	documentID string
-	since      uint64
-	channel    string
+	server        *Server
+	peer          *webrtc.PeerConnection
+	documentID    string
+	since         uint64
+	channel       string
+	participantID string
 
 	closed    chan struct{}
 	closeOnce sync.Once
@@ -52,6 +53,43 @@ func (server *Server) handleWebRTCOffer(writer http.ResponseWriter, request *htt
 		http.Error(writer, "invalid webrtc channel", http.StatusBadRequest)
 		return
 	}
+	protocolCID := server.app.documentPCID.String()
+	if payload.Channel == webRTCChannelAwareness {
+		protocolCID = server.app.awarenessPCID.String()
+	}
+	expectedParticipantID := ""
+	if !requestIsLoopback(request) {
+		// Intent: Keep remote WebRTC mutation admission equivalent to the
+		// WebSocket and HTTP paths: a browser must present a scoped signed
+		// capability before its DTLS-backed DataChannel is established. Source:
+		// DI-povip.
+		token := bearerToken(request)
+		if token == "" {
+			err := fmt.Errorf("remote webrtc mutation requires a bearer capability")
+			if diagnosticErr := server.app.RecordAdmissionDiagnostic("webrtc", err.Error()); diagnosticErr != nil {
+				err = fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+			}
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		claims, err := verifyMutationCapability(token, "", documentID, protocolCID, "mutate", time.Now().UTC())
+		if err != nil {
+			if diagnosticErr := server.app.RecordAdmissionDiagnostic("webrtc", err.Error()); diagnosticErr != nil {
+				err = fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+			}
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		if claims.Audience == "" {
+			err := fmt.Errorf("capability audience missing")
+			if diagnosticErr := server.app.RecordAdmissionDiagnostic("webrtc", err.Error()); diagnosticErr != nil {
+				err = fmt.Errorf("%w (record admission diagnostic: %v)", err, diagnosticErr)
+			}
+			http.Error(writer, err.Error(), http.StatusForbidden)
+			return
+		}
+		expectedParticipantID = claims.Audience
+	}
 	since := uint64(0)
 	if raw := request.URL.Query().Get("since"); raw != "" {
 		if _, err := fmt.Sscanf(raw, "%d", &since); err != nil {
@@ -65,12 +103,13 @@ func (server *Server) handleWebRTCOffer(writer http.ResponseWriter, request *htt
 		return
 	}
 	session := &webRTCSession{
-		server:     server,
-		peer:       peer,
-		documentID: documentID,
-		since:      since,
-		channel:    payload.Channel,
-		closed:     make(chan struct{}),
+		server:        server,
+		peer:          peer,
+		documentID:    documentID,
+		since:         since,
+		channel:       payload.Channel,
+		participantID: expectedParticipantID,
+		closed:        make(chan struct{}),
 	}
 	peer.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		if state == webrtc.PeerConnectionStateClosed || state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateDisconnected {
@@ -188,6 +227,10 @@ func (session *webRTCSession) handleMessage(channel *webrtc.DataChannel, raw []b
 			session.writeError(channel, fmt.Errorf("unknown sync datachannel message type %q", payload.Type))
 			return
 		}
+		if session.participantID != "" && payload.ParticipantID != session.participantID {
+			session.writeError(channel, fmt.Errorf("capability audience %q does not match participant %q", session.participantID, payload.ParticipantID))
+			return
+		}
 		record, err := session.server.app.PostSync(session.documentID, payload.ParticipantID, payload.RecipientID, payload.MessageBase64, payload.Embodiment, payload.TextBase64, payload.ReplicaBase64)
 		if err != nil {
 			session.writeError(channel, err)
@@ -204,6 +247,10 @@ func (session *webRTCSession) handleMessage(channel *webrtc.DataChannel, raw []b
 		}
 		if payload.Type != "post-awareness" {
 			session.writeError(channel, fmt.Errorf("unknown awareness datachannel message type %q", payload.Type))
+			return
+		}
+		if session.participantID != "" && payload.ParticipantID != session.participantID {
+			session.writeError(channel, fmt.Errorf("capability audience %q does not match participant %q", session.participantID, payload.ParticipantID))
 			return
 		}
 		if err := session.server.app.UpdateAwareness(session.documentID, payload.ParticipantID, payload.Cursor, payload.Head, payload.Typing, payload.DisplayName, payload.Color, payload.Embodiment); err != nil {
